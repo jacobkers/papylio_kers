@@ -6,11 +6,16 @@ Created on Wed Nov  7 10:50:59 2018
 """
 
 from traceAnalysisCode import *
+import os
 
 
+#mainPath = r'D:\ivoseverins\OneDrive\Promotie\Code\Python\traceAnalysis\twoColourExampleData\HJ A'
 
-mainPath = r'D:\ivoseverins\OneDrive\Promotie\Code\Python\traceAnalysis\twoColourExampleData\HJ A'
-mainPath = r'.\twoColourExampleData\HJ A'
+os.chdir(os.path.dirname(os.path.abspath(__file__)))
+
+mainPath = './twoColourExampleData/HJ A'
+
+
 
 
 exp = Experiment(mainPath)
