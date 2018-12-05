@@ -111,9 +111,16 @@ class File:
         pks = np.genfromtxt(self.name + '.pks', delimiter='      ')
         Ntraces = np.shape(pks)[0]
         
-        for trace in range(0, Ntraces, Ncolours):
-            coordinates = pks[trace:(trace+Ncolours),1:3]
-            self.addMolecule(coordinates)
+        if not self.molecules:
+            for molecule in range(0, Ntraces, Ncolours):
+                self.addMolecule()
+        
+#        for trace in range(0, Ntraces, Ncolours):
+#            coordinates = pks[trace:(trace+Ncolours),1:3]
+#            self.addMolecule(coordinates)
+        
+        for i, molecule in enumerate(self.molecules):
+            molecule.coordinates = pks[(i*Ncolours):((i+1)*Ncolours),1:3]
     
     def importTracesFile(self):
         Ncolours = self.experiment.Ncolours
@@ -123,6 +130,10 @@ class File:
         self.Nframes = np.fromfile(file, dtype = np.int32, count = 1).item()
         Ntraces = np.fromfile(file, dtype = np.int16, count = 1).item()
         
+        if not self.molecules:
+            for molecule in range(0, Ntraces, Ncolours):
+                self.addMolecule()
+        
         rawData = np.fromfile(file, dtype = np.int16, count = self.Nframes * Ntraces)
         orderedData = np.reshape(rawData.ravel(), (Ncolours, Ntraces//Ncolours, self.Nframes), order = 'F')
         
@@ -130,9 +141,8 @@ class File:
             molecule.intensity = orderedData[:,i,:]
             
             
-    
-    def addMolecule(self, coordinates):
-        self.molecules.append(Molecule(coordinates, self))
+    def addMolecule(self):
+        self.molecules.append(Molecule(self))
         
     
     def histogram(self):
@@ -141,9 +151,9 @@ class File:
     
 		
 class Molecule:
-    def __init__(self, coordinates, file):
-        self.coordinates = coordinates
+    def __init__(self, file):
         self.file = file
+        self.coordinates = None
         self.intensity = None
     
     def plot(self):
