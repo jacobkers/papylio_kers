@@ -81,6 +81,8 @@ class File:
         self.experiment = experiment
         self.molecules = list()
         
+        self.isSelected = False
+        
     @property
     def fullPath(self):
         return os.path.join(self.relativePath, self.name)
@@ -155,6 +157,15 @@ class Molecule:
         self.file = file
         self.coordinates = None
         self.intensity = None
+        
+        self.isSelected = False
+    
+
+    def I(self, emission):
+        return self.intensity[emission,:]
+    
+    def E(self):
+        return self.I(1) / ( self.I(0) + self.I(1) )
     
     def plot(self):
         plt.plot(self.intensity[0,:], 'g')
