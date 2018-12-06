@@ -7,6 +7,7 @@ Created on Fri Sep 14 15:44:52 2018
 
 #!/usr/bin/env python
 import wx
+import wx.dataview
 import os
 from traceAnalysisCode import Experiment
 
@@ -15,7 +16,10 @@ from traceAnalysisCode import Experiment
 
 class MainFrame(wx.Frame):
     def __init__(self, parent, title):
-        wx.Frame.__init__(self, parent, title='Trace Analysis', size=(300,200))
+        wx.Frame.__init__(self, parent, title='Trace Analysis', size=(300,500))
+        
+        #self.panel1 = wx.Panel(self, wx.ID_ANY, size = (200,200))
+        #self.panel2 = wx.Panel(self, wx.ID_ANY, size = (200,200))
         
         # Status bar
         self.CreateStatusBar()
@@ -36,31 +40,65 @@ class MainFrame(wx.Frame):
         self.SetMenuBar(menuBar)
         
         
-        # TreeCtrl
-        self.tree = wx.TreeCtrl(self, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.TR_HAS_BUTTONS | wx.TR_MULTIPLE)
+        
+        
+        # TreeListCtrl
+        self.tree = wx.dataview.TreeListCtrl(self, wx.ID_ANY, wx.DefaultPosition, wx.Size(200,300), 
+                                             wx.dataview.TL_CHECKBOX | wx.dataview.TL_MULTIPLE)
+        self.Bind(wx.dataview.EVT_TREELIST_ITEM_CHECKED, self.Test, self.tree)
         #self.Bind(wx.EVT_TREE_SEL_CHANGED, self.Test, self.tree)
-        self.tree.Bind(wx.EVT_LEFT_DOWN, self.Test)
+        ##self.tree.Bind(wx.EVT_LEFT_DOWN, self.Test)
         #panel = TreePanel(self)
         
+        #test = wx.Button(self, -1, 'Large button')
+        #test = wx.Button(self, -1, 'Large button')
         
+        box = wx.BoxSizer(wx.HORIZONTAL)
+        box.Add(self.tree, 0,0,0)
+        box.Add(wx.Button(self, -1, 'Small button'), 0, 0, 0)
+        box.Add(wx.Button(self, -1, 'Large button'), 0, 0, 0)
+        #box.Add(self.tree, 1,0,0)
+        #box.Add(self.panel2, 1,0,0)
+        self.SetSizerAndFit(box)
            
         self.Show(True)
-    
+        
+        self.createTree(r'D:\ivoseverins\OneDrive\Promotie\Code\Python\traceAnalysis\twoColourExampleData\HJ A')
+        
+        print('done')
+        
     # File menu event handlers
     def OnOpen(self,event):
         self.experimentRoot = ''
         dlg = wx.DirDialog(self, "Choose a directory", self.experimentRoot)
         if dlg.ShowModal() == wx.ID_OK:
-            self.experimentRoot = dlg.GetPath()
-            print(self.experimentRoot)
-            exp = Experiment(self.experimentRoot)
-            
-            self.root = self.tree.AddRoot(exp.name)
-            
-            for file in exp.files:
-                self.tree.AppendItem(self.root, file.name)
-            
-            self.tree.ExpandAll()
+            self.createTree(dlg.GetPath())
+#            self.experimentRoot = dlg.GetPath()
+#            print(self.experimentRoot)
+#            exp = Experiment(self.experimentRoot)
+#            
+#            self.tree.AppendColumn('Files')
+#            self.experimentRoot = self.tree.AppendItem(self.tree.GetRootItem(),exp.name)
+#            
+#            for file in exp.files:
+#                self.tree.AppendItem(self.experimentRoot, file.name)
+#            
+#            self.tree.Expand(self.experimentRoot)
+    
+    # Temporary function to automate data import
+    def createTree(self, experimentRoot):
+        self.experimentRoot = experimentRoot
+        print(self.experimentRoot)
+        exp = Experiment(self.experimentRoot)
+        
+        self.tree.AppendColumn('Files')
+        self.experimentRoot = self.tree.AppendItem(self.tree.GetRootItem(),exp.name)
+        
+        for file in exp.files:
+            self.tree.AppendItem(self.experimentRoot, file.name, data = file)
+        
+        self.tree.Expand(self.experimentRoot)
+    #### End of temporary function
     
     def OnAbout(self,event):
         dlg = wx.MessageDialog(self, 'Software for trace analysis', 'About Trace Analysis', wx.OK)
@@ -71,16 +109,13 @@ class MainFrame(wx.Frame):
         self.Close(True) # Close program
 
     
-    # TreeCtrl event handlers
+    # TreeListCtrl event handlers
     def Test(self, event):
-         ht_item, ht_flags = self.tree.HitTest(event.GetPosition())
-         print(ht_flags)
-         
-         if not self.tree.IsSelected(ht_item):
-             self.tree.SelectItem(ht_item)
-         else:
-             self.tree.SelectItem(ht_item, select = False)
-         
+        item = event.GetItem()
+        newItemCheckedState = bool(self.tree.GetCheckedState(item))
+        file = self.tree.GetItemData(item)
+        file.isSelected = newItemCheckedState
+        
          
 
 app = wx.App(False)
