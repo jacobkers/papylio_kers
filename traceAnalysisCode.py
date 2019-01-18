@@ -10,6 +10,7 @@ import re # Regular expressions
 import warnings
 import numpy as np
 import matplotlib.pyplot as plt
+import itertools
 
 class Experiment:
     def __init__(self, mainPath):
@@ -21,7 +22,20 @@ class Experiment:
         os.chdir(mainPath)
         
         self.addAllFilesInMainPath()
-		
+        
+    @property
+    def molecules(self):
+        return [molecule for file in self.files for molecule in file.molecules]
+    @property
+    def selectedFiles(self):
+        return [file for file in self.files if file.isSelected]
+    @property
+    def selectedMoleculesInSelectedFiles(self):
+        return [molecule for file in self.selectedFiles for molecule in file.selectedMolecules]
+    @property
+    def selectedMoleculesInAllFiles(self):
+        return [molecule for file in self.files for molecule in file.selectedMolecules]
+
     def addAllFilesInMainPath(self):
         # Only works/tested for files in the main folder for now
         
@@ -68,8 +82,18 @@ class Experiment:
             warnings.warn('FileName ' + fileName + ' not added, filename should contain hel...')
 	
 
-    def histogram(self):
-        histogram([molecule for file in self.files for molecule in file.molecules])	
+    def histogram(self, axis = None, fileSelection = False, moleculeSelection = False):
+        #files = [file for file in exp.files if file.isSelected]
+        #files = self.files
+        
+        if (fileSelection & moleculeSelection): 
+            histogram([molecule for file in self.selectedFiles for molecule in file.selectedMolecules], axis)
+        elif (fileSelection & (not moleculeSelection)):
+            histogram([molecule for file in self.selectedFiles for molecule in file.molecules], axis)
+        elif ((not fileSelection) & moleculeSelection):
+            histogram([molecule for file in self.files for molecule in file.selectedMolecules], axis)
+        else:
+            histogram([molecule for file in self.files for molecule in file.molecules], axis)
 	
 
 
@@ -90,6 +114,10 @@ class File:
     @property
     def coordinates(self):
         return np.concatenate([[molecule.coordinates[0,:] for molecule in self.molecules]])
+    
+    @property
+    def selectedMolecules(self):
+        return [molecule for molecule in self.molecules if molecule.isSelected]
     
     def addExtension(self, extension):
         self.extensions.append(extension)
@@ -175,11 +203,26 @@ class Molecule:
 
 
 
-def histogram(molecules):
-    data = np.concatenate([molecule.intensity[0,:] for molecule in molecules])
+def histogram(input, axis):
+    if not input: return None
+    if not axis: axis = plt.gca()
+    #    if not isinstance(input,list): input = [input]
+#    
+#    molecules = list()
+#    
+#    for i in input:
+#        if isinstance(i, Molecule):
+#            molecules.append(i)
+#        else:
+#            molecules.append(i.molecules)
     
-    plt.hist(data, 100)
-
+    molecules = input
+    
+    #data = np.concatenate([molecule.intensity[0,:] for molecule in molecules])
+    data = np.concatenate([molecule.E() for molecule in molecules])
+    
+    #plt.hist(data, 100)
+    axis.hist(data,100, range = (0,1))
 
 
 #uniqueFileNames = list(set([re.search('hel[0-9]*',fileName).group() for fileName in fileNames]))

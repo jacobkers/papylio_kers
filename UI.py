@@ -8,15 +8,20 @@ Created on Fri Sep 14 15:44:52 2018
 #!/usr/bin/env python
 import wx
 import wx.dataview
+import wx.lib.agw.aui as aui
 import os
 from traceAnalysisCode import Experiment
 
+import matplotlib as mpl
+from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg as FigureCanvas
+from matplotlib.backends.backend_wxagg import NavigationToolbar2WxAgg as NavigationToolbar
 
+import matplotlib.pyplot as plt
         
 
 class MainFrame(wx.Frame):
     def __init__(self, parent, title):
-        wx.Frame.__init__(self, parent, title='Trace Analysis', size=(300,500))
+        wx.Frame.__init__(self, parent, title='Trace Analysis', size=(1200,700))
         
         #self.panel1 = wx.Panel(self, wx.ID_ANY, size = (200,200))
         #self.panel2 = wx.Panel(self, wx.ID_ANY, size = (200,200))
@@ -50,23 +55,33 @@ class MainFrame(wx.Frame):
         ##self.tree.Bind(wx.EVT_LEFT_DOWN, self.Test)
         #panel = TreePanel(self)
         
-        #test = wx.Button(self, -1, 'Large button')
-        #test = wx.Button(self, -1, 'Large button')
         
+       
+        self.histogram = PlotPanel(self)
+        
+        #self.histogram.figure.gca().plot([1, 2, 3, 4, 5], [2, 1, 4, 2, 3])
+        #self.histogram.figure.gca().hist([1, 2, 3, 4, 5])
+        
+        #test = wx.Button(self, -1, 'Large button')
+        #test = wx.Button(self, -1, 'Large button')
+        #wx.Button(self.panel1, -1, 'Small button')
         box = wx.BoxSizer(wx.HORIZONTAL)
-        box.Add(self.tree, 0,0,0)
-        box.Add(wx.Button(self, -1, 'Small button'), 0, 0, 0)
-        box.Add(wx.Button(self, -1, 'Large button'), 0, 0, 0)
+        box.Add(self.tree, 0,wx.EXPAND,0)
+        #box.Add(self.plotter, 0,0,0)
+        box.Add(self.histogram,1,wx.EXPAND,0)
+        
+        #box.Add(wx.Button(self, -1, 'Small button'), 0, 0, 0)
+        #box.Add(wx.Button(self, -1, 'Large button'), 0, 0, 0)
         #box.Add(self.tree, 1,0,0)
         #box.Add(self.panel2, 1,0,0)
         self.SetSizerAndFit(box)
            
         self.Show(True)
         
-        self.createTree(r'D:\ivoseverins\OneDrive\Promotie\Code\Python\traceAnalysis\twoColourExampleData\HJ A')
-        
-        print('done')
-        
+        self.createTree(r'D:\ivoseverins\SURFdrive\Promotie\Code\Python\traceAnalysis\twoColourExampleData\HJ A')
+        #self.createTree(r'D:\SURFdrive\Promotie\Code\Python\traceAnalysis\twoColourExampleData\HJ A')
+
+     
     # File menu event handlers
     def OnOpen(self,event):
         self.experimentRoot = ''
@@ -89,12 +104,15 @@ class MainFrame(wx.Frame):
     def createTree(self, experimentRoot):
         self.experimentRoot = experimentRoot
         print(self.experimentRoot)
-        exp = Experiment(self.experimentRoot)
+        self.experiment = Experiment(self.experimentRoot)
+        
+        
+        self.experiment.histogram(self.histogram.axis, fileSelection = True)
         
         self.tree.AppendColumn('Files')
-        self.experimentRoot = self.tree.AppendItem(self.tree.GetRootItem(),exp.name)
+        self.experimentRoot = self.tree.AppendItem(self.tree.GetRootItem(),self.experiment.name)
         
-        for file in exp.files:
+        for file in self.experiment.files:
             self.tree.AppendItem(self.experimentRoot, file.name, data = file)
         
         self.tree.Expand(self.experimentRoot)
@@ -116,7 +134,59 @@ class MainFrame(wx.Frame):
         file = self.tree.GetItemData(item)
         file.isSelected = newItemCheckedState
         
-         
+        self.histogram.axis.clear()
+        self.experiment.histogram(self.histogram.axis, fileSelection = True)
+        self.histogram.canvas.draw()
+        self.histogram.canvas.Refresh()
+        
+
+class PlotPanel(wx.Panel):
+    def __init__(self, parent, id=-1, dpi=None, **kwargs):
+        wx.Panel.__init__(self, parent, id=id, size = (500,500), **kwargs)
+        self.figure = mpl.figure.Figure(dpi=dpi, figsize=(2, 2))
+        self.axis = self.figure.gca()
+        self.canvas = FigureCanvas(self, -1, self.figure)
+        self.toolbar = NavigationToolbar(self.canvas)
+        self.toolbar.Realize()
+
+        sizer = wx.BoxSizer(wx.VERTICAL)
+        sizer.Add(self.canvas, 1, wx.EXPAND)
+        sizer.Add(self.toolbar, 0, wx.LEFT | wx.EXPAND)
+        self.SetSizer(sizer)
+    
+    
+
+#class Plot(wx.Panel):
+#    def __init__(self, parent, id=-1, dpi=None, **kwargs):
+#        wx.Panel.__init__(self, parent, id=id, **kwargs)
+#        self.figure = mpl.figure.Figure(dpi=dpi, figsize=(2, 2))
+#        #self.axis = self.figure.gca()
+#        self.canvas = FigureCanvas(self, -1, self.figure)
+#        self.toolbar = NavigationToolbar(self.canvas)
+#        self.toolbar.Realize()
+#
+#        sizer = wx.BoxSizer(wx.VERTICAL)
+#        sizer.Add(self.canvas, 1, wx.EXPAND)
+#        sizer.Add(self.toolbar, 0, wx.LEFT | wx.EXPAND)
+#        self.SetSizer(sizer)
+
+
+#class PlotNotebook(wx.Panel):
+#    def __init__(self, parent, id=-1, size = (500,500)):
+#        wx.Panel.__init__(self, parent, id=id, size=size)
+#        self.nb = aui.AuiNotebook(self)
+#        sizer = wx.BoxSizer()
+#        sizer.Add(self.nb, 1, wx.EXPAND)
+#        self.SetSizer(sizer)
+#
+#    def add(self, name="plot"):
+#        page = Plot(self.nb)
+#        self.nb.AddPage(page, name)
+#        return page.figure
+        
+        
+        
+        
 
 app = wx.App(False)
 frame = MainFrame(None, 'MainFrame')
