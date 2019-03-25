@@ -21,10 +21,7 @@ mainPath = './twoColourExampleData/HJ A'
 exp = Experiment(mainPath)
 
 
-exp.histogram()
-
-
-
+exp.histogram(makeFit = True)
 
 
 

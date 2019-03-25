@@ -13,16 +13,23 @@ import os
 from traceAnalysisCode import Experiment
 
 import matplotlib as mpl
+
+#Use the following for plt on Mac, instead of: import matplotlib.pyplot as plt
+from matplotlib import use
+use('WXAgg')
+from matplotlib import pyplot as plt
+
 from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg as FigureCanvas
 from matplotlib.backends.backend_wxagg import NavigationToolbar2WxAgg as NavigationToolbar
 
-import matplotlib.pyplot as plt
+
         
 
 class MainFrame(wx.Frame):
     def __init__(self, parent, title):
-        wx.Frame.__init__(self, parent, title='Trace Analysis', size=(1200,700))
         
+        wx.Frame.__init__(self, parent, title='Trace Analysis', size=(1200,700))
+
         #self.panel1 = wx.Panel(self, wx.ID_ANY, size = (200,200))
         #self.panel2 = wx.Panel(self, wx.ID_ANY, size = (200,200))
         
@@ -80,7 +87,7 @@ class MainFrame(wx.Frame):
         
         self.createTree(r'D:\ivoseverins\SURFdrive\Promotie\Code\Python\traceAnalysis\twoColourExampleData\HJ A')
         #self.createTree(r'D:\SURFdrive\Promotie\Code\Python\traceAnalysis\twoColourExampleData\HJ A')
-
+        #self.createTree(r'/Users/ivoseverins/SURFdrive/Promotie/Code/Python/traceAnalysis/twoColourExampleData/HJ A')
      
     # File menu event handlers
     def OnOpen(self,event):
@@ -189,7 +196,7 @@ class PlotPanel(wx.Panel):
         
 
 app = wx.App(False)
-frame = MainFrame(None, 'MainFrame')
+frame = MainFrame(None, "MainFrame")
 app.MainLoop()
 
 
