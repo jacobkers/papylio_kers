@@ -6,7 +6,7 @@ Created on Fri Sep 14 15:44:52 2018
 """
 
 #!/usr/bin/env python
-import wx
+import wx #cross-platform GUI API
 import wx.dataview
 import wx.lib.agw.aui as aui
 import os
@@ -78,9 +78,9 @@ class MainFrame(wx.Frame):
            
         self.Show(True)
         
-        self.createTree(r'D:\ivoseverins\SURFdrive\Promotie\Code\Python\traceAnalysis\twoColourExampleData\HJ A')
-        #self.createTree(r'D:\SURFdrive\Promotie\Code\Python\traceAnalysis\twoColourExampleData\HJ A')
-
+        #self.createTree(r'D:\ivoseverins\SURFdrive\Promotie\Code\Python\traceAnalysis\twoColourExampleData\HJ A')
+        ###self.createTree(r'D:\SURFdrive\Promotie\Code\Python\traceAnalysis\twoColourExampleData\HJ A')
+        self.createTree(r'H:\projects\research practicum\single molecule fluorescence\Matlab\HJA-data from Ivo ')
      
     # File menu event handlers
     def OnOpen(self,event):

@@ -1,0 +1,12 @@
+pip install -U wxPython
+
+pip install -U tifffile
+
+pip install opencv-python # does not include xfeature
+pip uninstall opencv-python # have to remove since some features are not included
+
+pip install opencv-contrib-python # still not enough
+
+conda install -c menpo opencv # gives PermissionError(13, 'Access is denied')
+
+pip install opencv-contrib-python==3.4.5.20

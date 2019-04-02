@@ -5,12 +5,12 @@ Created on Fri Sep 14 15:24:46 2018
 @author: ivoseverins
 """
 
-import os
+import os # Miscellaneous operating system interfaces - to be able to switch from Mac to Windows
 import re # Regular expressions
 import warnings
-import numpy as np
-import matplotlib.pyplot as plt
-import itertools
+import numpy as np #scientific computing with Python
+import matplotlib.pyplot as plt #Provides a MATLAB-like plotting framework
+import itertools #Functions creating iterators for efficient looping
 
 class Experiment:
     def __init__(self, mainPath):
@@ -138,7 +138,8 @@ class File:
         # Background value stored in pks file is not imported yet
         Ncolours = self.experiment.Ncolours
         
-        pks = np.genfromtxt(self.name + '.pks', delimiter='      ')
+   #     pks = np.genfromtxt(self.name + '.pks', delimiter='      ')  #MD190104 you get an error when using 6 spaces for tab
+        pks = np.genfromtxt(self.name + '.pks')  #MD190104 By default, any consecutive whitespaces act as delimiter.
         Ntraces = np.shape(pks)[0]
         
         if not self.molecules:
@@ -199,8 +200,9 @@ class Molecule:
         plt.plot(self.intensity[0,:], 'g')
         plt.plot(self.intensity[1,:], 'r')
         plt.show()
+#MD190104: why not add a subplot with FRET here as well, to match with display Matlab?
 
-
+    #def dwelltime
 
 
 def histogram(input, axis):
