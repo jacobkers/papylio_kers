@@ -5,8 +5,9 @@ Created on Wed Nov  7 10:50:59 2018
 @author: ivoseverins
 """
 
-from traceAnalysisCode import *
+from traceAnalysisCode_MD import *
 import os
+#from pick_spots_akaze import mapping
 
 #mainPath = r'D:\ivoseverins\SURFdrive\Promotie\Code\Python\traceAnalysis\twoColourExampleData\HJ A'
 mainPath=r'H:\projects\research practicum\single molecule fluorescence\Matlab\HJA-data from Ivo '
@@ -14,7 +15,7 @@ os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 #mainPath = './twoColourExampleData/HJ A'
 
-
+#T,fig=mapping()
 
 
 exp = Experiment(mainPath)
