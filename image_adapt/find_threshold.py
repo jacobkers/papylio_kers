@@ -9,7 +9,7 @@ import tifffile
 import numpy as np
 import matplotlib.pyplot as plt
 
-def remove_background(image_stack=None,thr=None):
+def remove_background(image_stack=None,thr=None, show=0):
     if type(image_stack)!=np.ndarray:
         image_stack = tifffile.imread('D:\\Margreet\\test_grey_spots.tif') # mind the double \\, or do some os thing
         
@@ -21,9 +21,10 @@ def remove_background(image_stack=None,thr=None):
         xmaxALL=float(max(xdata))
         ydata=ydata*xmaxALL/ymaxALL #don't forget this is scaled
         
-        plt.figure(1)
-        plt.plot(xdata,ydata)
-        plt.show()
+        if show: 
+            plt.figure(1)
+            plt.plot(xdata,ydata)
+            plt.show()
         
         # fit a line through the lowest half of x
         xd=xdata[:int(np.floor(len(xdata)/2))]
@@ -58,19 +59,20 @@ def remove_background(image_stack=None,thr=None):
         rr=(np.array(xx)**2 + np.array(yy)**2)**0.5 #int32 is not large enough
         x_found=np.argwhere(min(rr)==rr)
         x_found=x_found[0,0]
-        fig2=plt.subplot(1,2,2)
-        fig2.plot(xdata,rr*ymaxALL/xmaxALL)
+        if show: 
+            fig2=plt.subplot(1,2,2)
+            fig2.plot(xdata,rr*ymaxALL/xmaxALL)
         #fig2.title("{:s}".format(x_found))
         
-        plt.figure(1)
-        fig1=plt.subplot(1,2,1)
-        fig1.plot(xdata,ydata*ymaxALL/xmaxALL,'b')
-        fig1.plot(xdata[:x_cross],y_fit_start[:x_cross]*ymaxALL/xmaxALL,'g')
-        fig1.plot(x_fit_end,y_fit_end*ymaxALL/xmaxALL,'r')
-        fig1.plot(x_cross,y_cross*ymaxALL/xmaxALL,'kx')
+            plt.figure(1)
+            fig1=plt.subplot(1,2,1)
+            fig1.plot(xdata,ydata*ymaxALL/xmaxALL,'b')
+            fig1.plot(xdata[:x_cross],y_fit_start[:x_cross]*ymaxALL/xmaxALL,'g')
+            fig1.plot(x_fit_end,y_fit_end*ymaxALL/xmaxALL,'r')
+            fig1.plot(x_cross,y_cross*ymaxALL/xmaxALL,'kx')
         
-        fig1.plot(x_found,ydata[x_found]*ymaxALL/xmaxALL,'mo')
-        plt.show()
+            fig1.plot(x_found,ydata[x_found]*ymaxALL/xmaxALL,'mo')
+            plt.show()
         
         thr=ydata[x_found]*ymaxALL/xmaxALL
         

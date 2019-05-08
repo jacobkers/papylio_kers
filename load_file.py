@@ -59,7 +59,6 @@ def read_one_page_pma(root,name, pageNb=0):
 #            lsb = np.core.records.fromfile(fid, 'int8', offset=4+ (1+2*pageNb)*(hdim*vdim), shape=(hdim,vdim)) # for first image
             im=256*msb+lsb;
     return im, hdim,vdim,nImages # still need to convert im
-
     
 def read_one_page_tif(root,name, pageNb=0):
     t = time.time()

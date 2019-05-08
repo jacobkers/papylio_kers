@@ -8,21 +8,23 @@ Created on Tue Apr  2 16:40:50 2019
 # applyMapping: file in other folder which needs to improt mapping from pick_spots_akaze
 
 import sys
-from autopick.do_before import clear_all
-
-from autopick.pick_spots_akaze_final import mapping
-from load_file import read_one_page_pma
-from rolling_ball import rollingball
-from find_xy_position.Gaussian import makeGaussian
-import numpy as np
-import matplotlib.pyplot as plt
-from find_threshold import remove_background
 import time
 import analyze_label
 import cv2
 
-clear_all()
+from autopick.do_before import clear_all
+from autopick.pick_spots_akaze_final import mapping
+from load_file import read_one_page_pma
+from rolling_ball import rollingball
+from find_threshold import remove_background
+from find_xy_position.Gaussian import makeGaussian
 
+import numpy as np
+import matplotlib.pyplot as plt
+
+
+clear_all()
+show=0
 #
 sys.path.insert(0,"E://CMJ trace analysis") 
 #sys.path.append("E://CMJ trace analysis/autopick") 
@@ -45,7 +47,7 @@ if 0:
 
 #
 #!@# from data: find average over first 20 frames
-#
+# same as in K:\bn\cmj\Shared\Ivo\Voorbeelddata Holiday junction
 root='H:\\projects\\research practicum\\single molecule fluorescence\\Matlab\\HJA-data from Ivo'
 name='hel6.pma'
 
@@ -92,13 +94,15 @@ circle[10]= [ 0,0,0,0,0,0,0,0,0,0,0]
 
 # double check these spots are good (well separated)
 
-donor=np.zeros((nImages, pts_number+1))
-acceptor=np.zeros((nImages, pts_number+1))
+donor=np.zeros((pts_number,nImages ))
+acceptor=np.zeros(( pts_number,nImages))
 
+size_label=np.zeros(shape=(pts_number))
+for jj in range(pts_number):
+    size_label[jj]=np.sum(labels==jj)
 
-    
+t = time.time()  
 for ii in range(0,nImages):
-    t = time.time()
     im=(read_one_page_pma(root,name, pageNb=ii))[0] # this one opens, closes all the time
     im_correct=im-im_bg
     im_correct[im_correct<0]=0
@@ -107,34 +111,31 @@ for ii in range(0,nImages):
     IM_donor=im_correct2[:,0:int(vdim/2)]
     IM_acceptor=im_correct2[:,int(vdim/2):]
     array_size=np.shape(IM_acceptor)
-    elapsed = time.time() - t   
-    print('time before for loop {0:f}'.format(elapsed))
-    for jj in range(1,pts_number):
+    imA=cv2.warpPerspective(IM_acceptor.astype(float), transform_matrix,array_size[::-1])
+    
+#    elapsed = time.time() - t ;   print('time before for loop {0:f}'.format(elapsed))
+    for jj in range(0,pts_number):
         
         xpix=ptsG[jj][1]
         ypix=ptsG[jj][0]
-        if xpix>10 and xpix<hdim-10 and ypix>10 and ypix<vdim/2-10:
-            t = time.time()
-            #first crop around spot, then do multiplication
-            
-            labels_bin=np.zeros(np.shape(labels))
-           # elapsed = time.time() - t; print('{0:f}'.format(elapsed))   
-            labels_bin[labels==jj]=1 ####
-         #   elapsed = time.time() - t; print('{0:f}'.format(elapsed))   
-            IM_in=IM_donor*labels_bin.astype(float)  ####
-            elapsed = time.time() - t; print('{0:f}'.format(elapsed))   
+        if xpix>10 and xpix<hdim-10 and ypix>10 and ypix<vdim/2-10 and size_label[jj]<100:
+#            t = time.time()
             xpix_int=int(xpix)
             ypix_int=int(ypix)
-          #  elapsed = time.time() - t; print('{0:f}'.format(elapsed))     
-            # extract 7x7 pixels around xy location
-            impix=IM_in[ (xpix_int-5) : (xpix_int+6) , (ypix_int-5) : (ypix_int+6)]
-          #  elapsed = time.time() - t; print('{0:f}'.format(elapsed))   
-            GG=makeGaussian(11, fwhm=3, center=(ypix-ypix_int+5,xpix-xpix_int+5))
-         #   elapsed = time.time() - t; print('{0:f}'.format(elapsed))    
-            multip=impix*GG
-          #  elapsed = time.time() - t; print('{0:f}'.format(elapsed))   
+            #first crop around spot, then do multiplication
+            impix=IM_donor[ (xpix_int-5) : (xpix_int+6) , (ypix_int-5) : (ypix_int+6)]
+#            elapsed = time.time() - t; print('{0:f}'.format(elapsed))  
+            lab=labels[ (xpix_int-5) : (xpix_int+6) , (ypix_int-5) : (ypix_int+6)]
+#            elapsed = time.time() - t; print('{0:f}'.format(elapsed))  
+            impix[lab!=jj]=0
+#            elapsed = time.time() - t; print('{0:f}'.format(elapsed))   
            
-            if 0:
+            GG=makeGaussian(11, fwhm=3, center=(ypix-ypix_int+5,xpix-xpix_int+5))
+#            elapsed = time.time() - t; print('{0:f}'.format(elapsed))  
+            multip=impix*GG
+#            elapsed = time.time() - t; print('{0:f}'.format(elapsed))   
+           
+            if show:
                     plt.subplot(1,3,1)
                     plt.imshow(impix)
                     plt.subplot(1,3,2)
@@ -143,41 +144,39 @@ for ii in range(0,nImages):
                     plt.imshow(multip)
                     plt.title(jj)
             donor[jj,ii]=np.sum(multip)
-         #   elapsed = time.time() - t; print('{0:f}'.format(elapsed))        
-            imA=cv2.warpPerspective(IM_acceptor.astype(float), transform_matrix,array_size[::-1]) ###  
-            elapsed = time.time() - t; print('{0:f}'.format(elapsed))   
-            IM_in=imA*labels_bin.astype(float) ###
-            elapsed = time.time() - t; print('{0:f}'.format(elapsed))   
-            impix=IM_in[ (xpix_int-5) : (xpix_int+6) , (ypix_int-5) : (ypix_int+6)] ####
-         #   elapsed = time.time() - t; print('{0:f}'.format(elapsed))   
+
+             ###  
+#            elapsed = time.time() - t; print('{0:f}'.format(elapsed))   
+            impix=imA[ (xpix_int-5) : (xpix_int+6) , (ypix_int-5) : (ypix_int+6)]
+#            elapsed = time.time() - t; print('{0:f}'.format(elapsed))   
+            impix[lab!=jj]=0
+#            elapsed = time.time() - t; print('{0:f}'.format(elapsed))   
             multip=impix*GG
-        #    elapsed = time.time() - t; print('{0:f}'.format(elapsed))   
+#            elapsed = time.time() - t; print('{0:f}'.format(elapsed))   
             acceptor[jj,ii]=np.sum(multip)
-         #   elapsed = time.time() - t; print('{0:f}'.format(elapsed))   
+#            elapsed = time.time() - t; print('{0:f}'.format(elapsed))   
 #            plt.waitforbuttonpress()
 #            plt.pause(0.3)
-            break  
+
             # sum all intensities and store in acceptro donor array
     # do stuff
-    elapsed = time.time() - t   
-    print('after extracting intensities of all positions in one image {0:f}'.format(elapsed))
-    break
+elapsed = time.time() - t   
+print('after extracting intensities of all positions all image {0:f}'.format(elapsed))
+  
     # save all traces in pks and trace file
 film_l=nImages
 num_good=pts_number
     
 
 with open(root+'\\'+name[:-4]+'a.traces', 'w') as outfile:
-    outfile.write('{:d}'.format(film_l))
-    outfile.write('{:d}'.format(num_good))
-    for jj in range(1,2):#pts_number):
-        np.savetxt(outfile, donor[jj,:])
-        np.savetxt(outfile, acceptor[jj,:])
-
-ii=0
-plt.figure(3)
-plt.subplot(2,1,1)    
-plt.plot(donor[:,ii],'g')
-plt.plot(acceptor[:,ii],'r')
-plt.subplot(2,1,2)
-plt.plot(acceptor[:,ii]/ (donor[:,ii]+acceptor[:,ii]+0.001))
+    off = np.array([film_l], dtype=np.int32)
+    off.tofile(outfile)
+    off = np.array([2*num_good], dtype=np.int16)
+    off.tofile(outfile)
+    for jj in range(pts_number):
+        off = np.array(donor[jj,:], dtype=np.int16)
+        off.tofile(outfile)
+        off = np.array(acceptor[jj,:], dtype=np.int16)
+        off.tofile(outfile)
+elapsed = time.time() - t   
+print('after saving traces to file {0:f}'.format(elapsed))

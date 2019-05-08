@@ -81,6 +81,16 @@ def enhance_blobies(image, f, tol):
     l, r = image[:, :image.shape[1]//2], image[:, image.shape[1]//2:]
     l_adj, r_adj = imadjust(l.copy(), tol), imadjust(r.copy(), tol)
     l_bin, r_bin = im_binarize(l_adj, f).astype(np.uint8), im_binarize(r_adj,f).astype(np.uint8)
+    plt.figure(10)
+    plt.subplot(1,4,1)
+    plt.imshow(l_adj)
+    plt.subplot(1,4,2)
+    plt.imshow(l_bin)
+    plt.subplot(1,4,3)
+    plt.imshow(r_adj)
+    plt.subplot(1,4,4)
+    plt.imshow(r_bin)
+    
     return l, r, l_bin, r_bin
 
 #def mapping(file_tetra='tetraspeck.tif', show=0, f=None,bg=None): #'E:\CMJ trace analysis\\autopick\\tetraspeck.tif'
@@ -93,59 +103,84 @@ def mapping(file_tetra, show=0, f=None,bg=None, tol=1): #'E:\CMJ trace analysis\
     
     # default for 16 bits 50000, for 8 bits 200 (=256*50000/64000)
     if f==None:
-        if np.max(image_tetra)>256:
-            f=50000
-        else:
-            f=200
+        f=50000
+    print(f)
     
-    if bg==None:
+    if type(bg)==type(None):
         # take two different backgrounds, one for donor, one for acceptor channel
         sh=np.shape(image_tetra)
-        thr_donor=remove_background(im_tetra[:,1:sh[0]//2])[1]
-        thr_acceptor=remove_background(im_tetra[:,sh[0]//2:])[1]
+        thr_donor=remove_background(image_tetra[:,1:sh[0]//2])[1]
+        thr_acceptor=remove_background(image_tetra[:,sh[0]//2:])[1]
         bg=np.zeros(sh)
         bg[:,1:sh[0]//2]=thr_donor
         bg[:,sh[0]//2:]=thr_acceptor
     image_tetra=image_tetra.astype(float)-bg
     image_tetra[image_tetra<0]=0
     image_tetra=image_tetra.astype(np.uint16)    
+    position1=[]
+    position2=[]
     # left, right, enhanced left and enhanced right image for keypoint detection
-    l, r, l_enh, r_enh = enhance_blobies(image_tetra,f, tol)
-    
-    gray1 = l_enh
-    gray2 = r_enh 
-    
-    # initialize the AKAZE descriptor, then detect keypoints and extract
-    # local invariant descriptors from the image
-    detector = cv2.AKAZE_create()
-    (kps1, descs1) = detector.detectAndCompute(gray1, None)
-    (kps2, descs2) = detector.detectAndCompute(gray2, None)
-    position1=cv2.KeyPoint_convert(kps1);
-    position2=cv2.KeyPoint_convert(kps2);
+    while np.shape(position1)[0]<50 or np.shape(position2)[0]<50 : 
+        # while loop to lower f and increase the number of spots found
+        l, r, l_enh, r_enh = enhance_blobies(image_tetra,f, tol)
+        
+        gray1 = l_enh
+        gray2 = r_enh 
+        
+        # initialize the AKAZE descriptor, then detect keypoints and extract
+        # local invariant descriptors from the image
+        detector = cv2.AKAZE_create()
+        (kps1, descs1) = detector.detectAndCompute(gray1, None)
+        (kps2, descs2) = detector.detectAndCompute(gray2, None)
+        position1=cv2.KeyPoint_convert(kps1);
+        position2=cv2.KeyPoint_convert(kps2);
+        f=f*0.9
     
     print("keypoints: {}, descriptors: {}".format(len(kps1), descs1.shape))
     print("keypoints: {}, descriptors: {}".format(len(kps2), descs2.shape))    
     
     # Match the features
     #this part is working properly according to the overlayed images
-    bf = cv2.BFMatcher(cv2.NORM_HAMMING) 
-    matches = bf.knnMatch(descs1,descs2, k=2)    # typo fixed
-    # Apply ratio test
     pts1, pts2 = [], []
     size_im=np.shape(gray1)
     heigh,widt=np.shape(gray1)
+    if 1:
+        bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True) 
+        matches = bf.match(descs1,descs2)    # typo fixed
+        matches = sorted(matches, key = lambda x:x.distance)
+        img3 = cv2.drawMatches(gray1,kps1,gray2,kps2,matches[:10], None)
         
-    for m in matches: # BF Matcher already found the matched pairs, no need to double check them
-            pts1.append(kps1[m[0].queryIdx].pt)
-            pts2.append(kps2[m[0].trainIdx].pt)
+        plt.imshow(img3),plt.show()
+        for m in matches: # BF Matcher already found the matched pairs, no need to double check them
+                pts1.append(kps1[m.queryIdx].pt)
+                pts2.append(kps2[m.trainIdx].pt)
+    elif 0:
+        bf = cv2.BFMatcher(cv2.NORM_HAMMING) 
+        matches = bf.knnMatch(descs1,descs2, k=2)    # typo fixed
+          # Apply ratio test
+     
+        if 0: 
+            for m in matches: # BF Matcher already found the matched pairs, no need to double check them
+                    pts1.append(kps1[m[0].queryIdx].pt)
+                    pts2.append(kps2[m[0].trainIdx].pt)
+        else:
+            for m, n in matches:
+                if m.distance < 0.7 * n.distance:
+                    pts1.append(kps1[m.queryIdx].pt)
+                    pts2.append(kps2[n.trainIdx].pt)
+     
 
     pts1 = np.array(pts1).astype(np.float32)
     pts2 = np.array(pts2).astype(np.float32)
     
     transformation_matrixC, mask = cv2.findHomography(pts2, pts1, cv2.RANSAC,20)
               
-    A=pts1[0:len(matches) : int(len(matches)/15)]
-    im3 = cv2.drawMatchesKnn(gray1, kps1, gray2, kps2,matches[1:100] , None, flags=2)
+#    A=pts1[0:len(matches) : int(len(matches)/15)]
+    if len(matches)>20:
+        im3 = cv2.drawMatchesKnn(gray1, kps1, gray2, kps2,matches[1:20],None )
+    else:
+        im3 = cv2.drawMatchesKnn(gray1, kps1, gray2, kps2,matches,None )
+ #    im3 = cv2.drawMatchesKnn(gray1, kps1, gray2, kps2,matches[1:20] , None, flags=2)
     if show:
         plt.figure(1)
         plt.imshow(im3)

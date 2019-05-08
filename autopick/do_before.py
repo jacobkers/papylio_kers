@@ -4,7 +4,9 @@ Created on Tue Apr  2 13:08:00 2019
 
 @author: https://github.com/spyder-ide/spyder/issues/2563
 """
+import matplotlib.pyplot as plt
 
+plt.close("all")
 def clear_all():
     """Clears all the variables from the workspace of the spyder application."""
     gl = globals().copy()
