@@ -8,6 +8,7 @@ Created on Fri Sep 14 15:44:52 2018
 #!/usr/bin/env python
 import wx
 import wx.dataview
+import wx.lib.agw.hypertreelist as HTL
 import wx.lib.agw.aui as aui
 import os
 from traceAnalysisCode import Experiment
@@ -15,15 +16,25 @@ from traceAnalysisCode import Experiment
 import matplotlib as mpl
 
 #Use the following for plt on Mac, instead of: import matplotlib.pyplot as plt
-from matplotlib import use
-use('WXAgg')
+#from matplotlib import use
+#use('WXAgg')
+
 from matplotlib import pyplot as plt
 
 from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg as FigureCanvas
 from matplotlib.backends.backend_wxagg import NavigationToolbar2WxAgg as NavigationToolbar
 
 
-        
+class HistogramPanel(wx.Frame):
+    def __init__(self, title='Histogram', parent=None):
+        wx.Frame.__init__(self, parent=parent, title=title)
+        self.panel = PlotPanel(self)
+        self.parent = parent
+        self.Bind(wx.EVT_CLOSE, self.OnClose)
+
+    def OnClose(self,event):
+        self.parent.viewMenuShowHistogram.Check(False)
+        self.Hide()
 
 class MainFrame(wx.Frame):
     def __init__(self, parent, title):
@@ -46,49 +57,60 @@ class MainFrame(wx.Frame):
         self.Bind(wx.EVT_MENU, self.OnAbout, fileMenuAbout)
         self.Bind(wx.EVT_MENU, self.OnExit, fileMenuExit)
 
+        # View menu in Menu bar
+        viewMenu = wx.Menu()
+        self.viewMenuShowHistogram = viewMenu.AppendCheckItem(wx.ID_ANY,"&Show histogram", "Show histogram")
+
+        self.Bind(wx.EVT_MENU, self.OnShowHistogram, self.viewMenuShowHistogram)
+
         # Menu bar        x
         menuBar = wx.MenuBar()
         menuBar.Append(fileMenu,"&File")
+        menuBar.Append(viewMenu,"&View")
         self.SetMenuBar(menuBar)
         
         
-        
-        
+        # HyperTreeList
+        self.tree = HTL.HyperTreeList(self, wx.ID_ANY, wx.DefaultPosition, wx.Size(200,300),
+                                      HTL.TR_MULTIPLE)
+        self.Bind(HTL.EVT_TREE_ITEM_CHECKED, self.Test)
+
         # TreeListCtrl
-        self.tree = wx.dataview.TreeListCtrl(self, wx.ID_ANY, wx.DefaultPosition, wx.Size(200,300), 
-                                             wx.dataview.TL_CHECKBOX | wx.dataview.TL_MULTIPLE)
-        self.Bind(wx.dataview.EVT_TREELIST_ITEM_CHECKED, self.Test, self.tree)
+        #self.tree = wx.dataview.TreeListCtrl(self, wx.ID_ANY, wx.DefaultPosition, wx.Size(200,300),
+        #                                     wx.dataview.TL_CHECKBOX | wx.dataview.TL_MULTIPLE)
+        #self.Bind(wx.dataview.EVT_TREELIST_ITEM_CHECKED, self.Test, self.tree)
         #self.Bind(wx.EVT_TREE_SEL_CHANGED, self.Test, self.tree)
         ##self.tree.Bind(wx.EVT_LEFT_DOWN, self.Test)
         #panel = TreePanel(self)
         
         
-       
-        self.histogram = PlotPanel(self)
-        
+        self.histogram = HistogramPanel(parent=self)
+        #self.histogram = PlotPanel(self)
         #self.histogram.figure.gca().plot([1, 2, 3, 4, 5], [2, 1, 4, 2, 3])
         #self.histogram.figure.gca().hist([1, 2, 3, 4, 5])
         
         #test = wx.Button(self, -1, 'Large button')
         #test = wx.Button(self, -1, 'Large button')
         #wx.Button(self.panel1, -1, 'Small button')
-        box = wx.BoxSizer(wx.HORIZONTAL)
-        box.Add(self.tree, 0,wx.EXPAND,0)
+        #box = wx.BoxSizer(wx.HORIZONTAL)
+        #box.Add(self.tree, 0,wx.EXPAND,0)
         #box.Add(self.plotter, 0,0,0)
-        box.Add(self.histogram,1,wx.EXPAND,0)
+        #box.Add(self.histogram,1,wx.EXPAND,0)
         
         #box.Add(wx.Button(self, -1, 'Small button'), 0, 0, 0)
         #box.Add(wx.Button(self, -1, 'Large button'), 0, 0, 0)
         #box.Add(self.tree, 1,0,0)
         #box.Add(self.panel2, 1,0,0)
-        self.SetSizerAndFit(box)
+        #self.SetSizerAndFit(box)
            
         self.Show(True)
         
         self.createTree(r'D:\ivoseverins\SURFdrive\Promotie\Code\Python\traceAnalysis\twoColourExampleData\HJ A')
         #self.createTree(r'D:\SURFdrive\Promotie\Code\Python\traceAnalysis\twoColourExampleData\HJ A')
         #self.createTree(r'/Users/ivoseverins/SURFdrive/Promotie/Code/Python/traceAnalysis/twoColourExampleData/HJ A')
-     
+
+
+
     # File menu event handlers
     def OnOpen(self,event):
         self.experimentRoot = ''
@@ -114,13 +136,15 @@ class MainFrame(wx.Frame):
         self.experiment = Experiment(self.experimentRoot)
         
         
-        self.experiment.histogram(self.histogram.axis, fileSelection = True)
+        self.experiment.histogram(self.histogram.panel.axis, fileSelection = True)
         
-        self.tree.AppendColumn('Files')
-        self.experimentRoot = self.tree.AppendItem(self.tree.GetRootItem(),self.experiment.name)
+        self.tree.AddColumn('Files')
+        self.tree.AddColumn('Molecules')
+        self.experimentRoot = self.tree.AddRoot(self.experiment.name)
         
         for file in self.experiment.files:
-            self.tree.AppendItem(self.experimentRoot, file.name, data = file)
+            item = self.tree.AppendItem(self.experimentRoot, file.name, ct_type = 1, data = file)
+            self.tree.SetItemText(item, 'test', 1)
         
         self.tree.Expand(self.experimentRoot)
     #### End of temporary function
@@ -133,19 +157,34 @@ class MainFrame(wx.Frame):
     def OnExit(self,event):
         self.Close(True) # Close program
 
+    def OnShowHistogram(self,event):
+        if event.IsChecked(): self.histogram.Show()
+        elif ~event.IsChecked(): self.histogram.Hide()
     
     # TreeListCtrl event handlers
     def Test(self, event):
         item = event.GetItem()
-        newItemCheckedState = bool(self.tree.GetCheckedState(item))
-        file = self.tree.GetItemData(item)
+        #newItemCheckedState = bool(self.tree.GetCheckedState(item))
+        newItemCheckedState = bool(item.IsChecked())
+        #file = self.tree.GetItemData(item)
+        file = self.tree.GetItemPyData(item)
         file.isSelected = newItemCheckedState
-        
-        self.histogram.axis.clear()
-        self.experiment.histogram(self.histogram.axis, fileSelection = True)
-        self.histogram.canvas.draw()
-        self.histogram.canvas.Refresh()
-        
+
+
+        # self.histogram.axis.clear()
+        # self.experiment.histogram(self.histogram.axis, fileSelection = True)
+        # self.histogram.canvas.draw()
+        # self.histogram.canvas.Refresh()
+
+        #print(self.h.IsShown())
+        if self.histogram.IsShown():
+            self.histogram.panel.axis.clear()
+            self.experiment.histogram(self.histogram.panel.axis, fileSelection=True)
+            self.histogram.panel.canvas.draw()
+            self.histogram.panel.canvas.Refresh()
+
+
+
 
 class PlotPanel(wx.Panel):
     def __init__(self, parent, id=-1, dpi=None, **kwargs):
@@ -199,7 +238,7 @@ app = wx.App(False)
 frame = MainFrame(None, "MainFrame")
 app.MainLoop()
 
-
+print('End')
 
 del app
 

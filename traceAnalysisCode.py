@@ -11,8 +11,8 @@ import warnings
 import numpy as np
 
 # Use the following instead of: import matplotlib as mpl
-from matplotlib import use
-use('WXAgg')
+#from matplotlib import use
+#use('WXAgg')
 from matplotlib import pyplot as plt
 
 import itertools
