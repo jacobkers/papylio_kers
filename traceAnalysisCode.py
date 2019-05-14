@@ -16,7 +16,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 import itertools
-from threshold_analysis import stepfinder, plot_steps
+from .threshold_analysis import stepfinder, plot_steps
 import multiprocessing as mp
 from functools import wraps, partial
 
