@@ -101,8 +101,8 @@ def mapping(file_tetra, show=0, f=None,bg=None, tol=1): #'E:\CMJ trace analysis\
     if bg==None:
         # take two different backgrounds, one for donor, one for acceptor channel
         sh=np.shape(image_tetra)
-        thr_donor=remove_background(im_tetra[:,1:sh[0]//2])[1]
-        thr_acceptor=remove_background(im_tetra[:,sh[0]//2:])[1]
+        thr_donor=remove_background(image_tetra[:,1:sh[0]//2])[1]
+        thr_acceptor=remove_background(image_tetra[:,sh[0]//2:])[1]
         bg=np.zeros(sh)
         bg[:,1:sh[0]//2]=thr_donor
         bg[:,sh[0]//2:]=thr_acceptor
@@ -158,7 +158,7 @@ def mapping(file_tetra, show=0, f=None,bg=None, tol=1): #'E:\CMJ trace analysis\
     
     #cv2.imshow("transformed ", im4)
     if show:
-        plt.figure(2)
+        plt.figure(2,figsize=(18,9))
         plt.subplot(1,1,1)
         plt.subplot(1,5,1),
         plt.imshow(gray1, extent=[0,array_size[1],0,array_size[0]], aspect=1)
@@ -174,17 +174,18 @@ def mapping(file_tetra, show=0, f=None,bg=None, tol=1): #'E:\CMJ trace analysis\
         plt.show()
     
         plt.subplot(1,5,4),
-        plt.imshow((gray1>0)+2*(gray2>0), extent=[0,array_size[1],0,array_size[0]], aspect=1)
+        A=(gray1>0)+2*(gray2>0)
+        plt.imshow(A, extent=[0,array_size[1],0,array_size[0]], aspect=1)
        # plt.colorbar()
-        bestZERO=sum(sum((gray1>0)&(gray2>0)))
-        plt.title( 'blue=donor, green=acceptor, yellow=overlap \n overlap '+'{:d}'.format(bestZERO) )    
+        plt.title( '#b{:d} #g{:d} # y{:d}'.format(np.sum(A==1),np.sum(A==2),np.sum(A==3))   ) 
             
         plt.subplot(1,5,5),
+        AA=(gray1>0)+2*(imC>0)
         plt.imshow((gray1>0)+2*(imC>0), extent=[0,array_size[1],0,array_size[0]], aspect=1)
         #plt.colorbar()
-        bestC=sum(sum((gray1>0)&(imC>0)))
-        plt.title(  'overlap '+'{:d}'.format(bestC) )    
+        plt.title(  '#b{:d} #g{:d} # y{:d}'.format(np.sum(AA==1),np.sum(AA==2),np.sum(AA==3)) )    
         plt.show()
+        plt.pause(0.05)
 
 # ask whether the user agree, if not: rerun with clicking corresponding points
 # cv2.getAffineTransform(src, dst) → retval

@@ -53,8 +53,9 @@ class Experiment:
 			
     def addFile(self, relativePath, fileName):
         
-        fileNameSearch = re.search('(hel[0-9]*)(.*\..*)',fileName)
-                
+        #fileNameSearch = re.search('(hel[0-9]*)(.*\..*)',fileName) # here you search for hel + numerics, everything beyond is supposed to be extension
+        fileNameSearch = re.search('(hel[0-9].*)((?=.).*\..*)',fileName) # here you search for anything that starts with hel, and you find the extension after the dot
+        
         if fileNameSearch:
             name, extension = fileNameSearch.groups()
         
@@ -158,9 +159,12 @@ class File:
         Ncolours = self.experiment.Ncolours
         
         file = open(self.name + '.traces', 'r')
-        print(self.name + '.traces')
+        
         self.Nframes = np.fromfile(file, dtype = np.int32, count = 1).item()
+        
         Ntraces = np.fromfile(file, dtype = np.int16, count = 1).item()
+        
+        print(self.name + '.traces  ' + str(self.Nframes) +' ' + str(Ntraces ))
         
         if not self.molecules:
             for molecule in range(0, Ntraces, Ncolours):
@@ -177,8 +181,8 @@ class File:
         self.molecules.append(Molecule(self))
         
     
-    def histogram(self):
-        histogram(self.molecules)
+    def histogram(self, axis=None):
+        histogram(self.molecules, axis)
     
     
 		

@@ -7,6 +7,7 @@ Created on Mon Apr 15 15:16:25 2019
 #http://imagejdocu.tudor.lu/doku.php?id=gui:process:subtract_background
 #Based on the a „rolling ball“ algorithm described in Stanley Sternberg's article, „Biomedical Image Processing“, IEEE Computer, January 1983. 
 import scipy.ndimage as scim
+import skimage
 from skimage.morphology import ball
 #import matplotlib.pyplot as plt
 
@@ -14,7 +15,7 @@ def rollingball(*args): # Matlab[im_out,im_bg]=rollingball(im_in,size_ball,im_bg
     varargin = args
     im_in=varargin[0]
     if len(varargin)==1:
-        size_ball=50
+        size_ball=30
     else:
         size_ball=varargin[1]
         
@@ -28,7 +29,10 @@ def rollingball(*args): # Matlab[im_out,im_bg]=rollingball(im_in,size_ball,im_bg
         s = s[:h, :, :].sum(axis=0)
         # Rescale weights into 0-255
         s = (255 * (s - s.min())) / (s.max()- s.min())
-        im_bg=scim.grey_opening(im_in,structure=s)
+        ss=s[25:76,25:76]
+        ss = (255 * (ss - ss.min())) / (ss.max()- ss.min())
+        #im_bg=scim.grey_closing(im_in,structure=ss)
+        im_bg=skimage.morphology.opening(im_in,ss)
         #im_out = scim.white_tophat(im, structure=s)
     else:
         im_bg=varargin[2]

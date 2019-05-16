@@ -148,28 +148,36 @@ def mapping(file_tetra, show=0, f=None,bg=None, tol=1): #'E:\CMJ trace analysis\
 #    points_left=[[ii, ii+10] for ii in range(11)]
 #    points_right=points_left.copy()
 
-    fig = plt.figure(10)
+    fig = plt.figure(10, figsize=(18,9))
     ax1 = fig.add_subplot(1,2,1)  
     ax1.imshow(gray1)
+    ax1.set_title('click on bright spots in the left image')
     #ax1=plt. subplot(1,2,1)
-    points_left=plt.ginput(11)
-    points_right=points_left.copy()
+
         
-    [ax1.plot(xx,yy,markersize=10, c='w', marker='o', fillstyle='none') for xx,yy in points_left]
+
     #ax2=plt. subplot(1,2,2)
     ax2 = fig.add_subplot(1,2,2,sharex=ax1,sharey=ax1) 
     ax2.imshow(gray2)
+    
+    points_left=plt.ginput(11)
+    points_right=points_left.copy()
+    [ax1.plot(xx,yy,markersize=10, c='w', marker='o', fillstyle='none') for xx,yy in points_left]
+        
     xp=[xx for xx,yy in points_right]
     yp=[yy for xx,yy in points_right]
     line2,=ax2.plot(xp,yp,markersize=10, c='w', marker='o', fillstyle='none', linestyle='none') 
     fig.canvas.draw()
     fig.canvas.flush_events()
     plt.pause(1)
+    
+    ax1.set_title('')
+    ax2.set_title('move point with arrows, press esc when it matches the location in other channel')
 
     def on_release(key):
         global points_right
         global ii
-        print(points_right)
+        #print(points_right)
         if key == Key.up:
             points_right[ii]=[points_right[ii][0], points_right[ii][1]+1]
            # points_right= [ [xx,yy+1] for xx,yy in points_right]
@@ -212,7 +220,7 @@ def mapping(file_tetra, show=0, f=None,bg=None, tol=1): #'E:\CMJ trace analysis\
         
             xp_new=[xx for xx,yy in points_right]
             yp_new=[yy for xx,yy in points_right]
-            print(xp_new[ii],yp_new[ii])
+#        print(np.int(xp_new[ii]),np.int(yp_new[ii]))
         
            
         line1[-1].remove()
@@ -245,7 +253,7 @@ def mapping(file_tetra, show=0, f=None,bg=None, tol=1): #'E:\CMJ trace analysis\
     
     #cv2.imshow("transformed ", im4)
     if show:
-        plt.figure(11)
+        plt.figure(11, figsize=(18,9))
         plt.subplot(1,1,1)
         plt.subplot(1,5,1),
         plt.imshow(gray1, extent=[0,array_size[1],0,array_size[0]], aspect=1)
@@ -261,17 +269,18 @@ def mapping(file_tetra, show=0, f=None,bg=None, tol=1): #'E:\CMJ trace analysis\
         plt.show()
     
         plt.subplot(1,5,4),
-        plt.imshow((gray1>0)+2*(gray2>0), extent=[0,array_size[1],0,array_size[0]], aspect=1)
+        A=(gray1>0)+2*(gray2>0)
+        plt.imshow(A, extent=[0,array_size[1],0,array_size[0]], aspect=1)
        # plt.colorbar()
-        bestZERO=sum(sum((gray1>0)&(gray2>0)))
-        plt.title( 'blue=donor, green=acceptor, yellow=overlap \n overlap '+'{:d}'.format(bestZERO) )    
+        plt.title( '#b{:d} #g{:d} # y{:d}'.format(np.sum(A==1),np.sum(A==2),np.sum(A==3))   ) 
             
         plt.subplot(1,5,5),
+        AA=(gray1>0)+2*(imC>0)
         plt.imshow((gray1>0)+2*(imC>0), extent=[0,array_size[1],0,array_size[0]], aspect=1)
         #plt.colorbar()
-        bestC=sum(sum((gray1>0)&(imC>0)))
-        plt.title(  'overlap '+'{:d}'.format(bestC) )    
+        plt.title(  '#b{:d} #g{:d} # y{:d}'.format(np.sum(AA==1),np.sum(AA==2),np.sum(AA==3)) )    
         plt.show()
+        plt.pause(0.05)
 
 # ask whether the user agree, if not: rerun with clicking corresponding points
 # cv2.getAffineTransform(src, dst) → retval
