@@ -20,11 +20,8 @@ def make_differences(trace, Ndif=2):
     return differences
 
 
-def stepfinder(trace, exposure_time=0.1, threshold=100, include_start=True,
-               include_end=True, max_steps=10):
-    Nframes = trace.size
-    time = np.linspace(0, Nframes*exposure_time, Nframes)
-
+def stepfinder(trace, threshold=100, include_start=True,
+               include_end=True, max_steps=20):
     if include_start:
         trace[0] = 0
         trace[1] = 0
@@ -78,13 +75,9 @@ def stepfinder(trace, exposure_time=0.1, threshold=100, include_start=True,
         return {"start_frames": start_frames, "stop_frames": stop_frames}
     else:
 #        print "steps found: " + str(len(start_frames))
-        res={"start_times": [time[start] for start in start_frames],
-                   "stop_times": [time[stop] for stop in stop_frames],
-                   "start_frames": start_frames,
-                   "stop_frames": stop_frames,
-                   "dwell_times": [(time[stop] - time[start]) for start, stop in zip(start_frames, stop_frames)],
-                   "threshold": threshold
-                   }
+        res={ "start_frames": start_frames,
+             "stop_frames": stop_frames,
+             "threshold": threshold}
         return res
 
 

@@ -9,14 +9,15 @@ import os
 import re # Regular expressions
 import warnings
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 import itertools
-from threshold_analysis import stepfinder, plot_steps
+from threshold_analysis_v2 import stepfinder, plot_steps
 import multiprocessing as mp
 from functools import wraps, partial
 
 class Experiment:
-    def __init__(self, mainPath, exposure_time=0.1):
+    def __init__(self, mainPath, exposure_time=None):
         self.name = os.path.basename(mainPath)
         self.mainPath = mainPath
         self.files = list()
@@ -30,6 +31,7 @@ class Experiment:
     @property
     def molecules(self):
         return [molecule for file in self.files for molecule in file.molecules]
+
     @property
     def selectedFiles(self):
         return [file for file in self.files if file.isSelected]
@@ -109,7 +111,7 @@ class File:
         self.extensions = list()
         self.experiment = experiment
         self.molecules = list()
-        self.exposure_time = exposure_time
+        self.exposure_time = exposure_time  #Here the exposure time is given but it should be found from the log file if possible
 
         self.isSelected = False
 
@@ -155,12 +157,9 @@ class File:
 
     def importTracesFile(self):
         Ncolours = self.experiment.Ncolours
-
         file = open(self.name + '.traces', 'r')
-
         self.Nframes = np.fromfile(file, dtype=np.int32, count=1).item()
         Ntraces = np.fromfile(file, dtype=np.int16, count=1).item()
-
         if not self.molecules:
             for molecule in range(0, Ntraces, Ncolours):
                 self.addMolecule()
@@ -172,94 +171,44 @@ class File:
             molecule.intensity = orderedData[:,i,:]
 
     def addMolecule(self):
-        self.molecules.append(Molecule(self, self.exposure_time))
+        self.molecules.append(Molecule(self))
+        self.molecules[-1].index = len(self.molecules)
 
     def histogram(self):
         histogram(self.molecules)
 
-    def find_dwell_times(self, trace, **params):
-        dwell_times = [mol.find_steps(trace, **params)["dwell_times"]
-                       for mol in self.molecules]
-        return dwell_times
-
-#    def find_molecule_dwell_times(self, trace, **params):
-#        @wraps (self.find_molecule_dwell_times)
-#        def inner(mol):
-#            if mol.dwell_times(trace, **params) != {}:  # this is where the dwell-time calculation is performed
-#                    dwell_times = (mol.dwell_times(trace, **params)["dwell_times"])
-#            else:
-#                    dwell_times = []
-#            return dwell_times
-##        inner.__module__ = "__main__"
-#        return inner
-
-#    def find_molecule_dwell_times(self,mol, trace, **params):
-#        if mol.dwell_times(trace, **params) != {}:  # this is where the dwell-time calculation is performed
-#                dwell_times = (mol.dwell_times(trace, **params)["dwell_times"])
-#        else:
-#                dwell_times = []
-#        return dwell_times
-#
-#
-#    def find_dwell_times_mp(self, trace, **params):
-#        pool = mp.Pool(mp.cpu_count() - 1)
-##        finders = [self.find_molecule_dwell_times(mol) for mol in self.molecules]
-#        func = self.find_molecule_dwell_times(mol, trace, **params)
-##        func.module__ = "__main__"
-#        trace_list = [trace for i in len(self.molecules)]
-#        params_list = [params for i in len(self.molecules)]
-#        dwell_times = pool.starmap(func, (self.molecules, trace_list, params_list))
-#        pool.stop()
-#        pool.join()
-#        return dwell_times
-
-
-
 class Molecule:
 
-    def __init__(self, file, exposure_time):
+    def __init__(self, file):
         self.file = file
+        self.index = None
         self.coordinates = None
         self.intensity = None
-        self.exposure_time = exposure_time
 
         self.isSelected = False
 
-        self.dwell_times_auto = {"red":{}, "green":{},
-                                 "E":{}}
+        self.steps_auto = {"red":{}, "green":{}, "E":{}}
+        self.steps_manual = {"red":{}, "green":{}, "E":{}}
+        self.steps = None  #Defined in other classes as: pd.DataFrame(columns=['frame', 'trace', 'state', 'method','thres'])
+        self.kon_boolean = None  # 3x3 matrix that is indicates whether the kon will be calculated from the beginning, in-between molecules or for the end only
 
-    def I(self, emission):
-        return self.intensity[emission, :]
+    def I(self, emission, Ioff=0):
+        return self.intensity[emission, :] - Ioff
 
-    def E(self):
-        return self.I(1) / ( self.I(0) + self.I(1) )
+    def E(self, Imin=0, alpha=0):
+        red = np.copy(self.I(1))
+        green = self.I(0)
+        np.putmask(red, red<Imin, 0)  # the mask makes all elements of acceptor that are below the Imin zero, for E caclulation
+        return (red - alpha*green) / (green + red - alpha*green)
 
     def plot(self):
         plt.plot(self.intensity[0,:], 'g')
         plt.plot(self.intensity[1,:], 'r')
         plt.show()
 
-
-    def __apply_to_trace(self, function):
-        def inner (trace, **params):
-            if trace in ["green"]:
-                return function(self.intensity[0, :], exposure_time=self.exposure_time, **params)
-            if trace in ["red"]:
-                return function(self.intensity[1, :], exposure_time=self.exposure_time, **params)
-            if trace in ["E"]:
-                return function(self.E(), exposure_time=self.exposure_time, **params)
-            else:
-                print("You didn't input correct key for trace")
-
-        return inner
-
-    def find_steps(self, trace, **params):
-        dwells = self.__apply_to_trace(stepfinder)(trace, **params)
-        self.dwell_times_auto[trace] = dwells
-        return dwells
-
-    def plot_trace(self, trace, **params):
-        return self.__apply_to_trace(plot_steps)(trace, **params)
+    @property
+    def find_steps(self):
+        return stepfinder
 
 
 def histogram(input, axis):
