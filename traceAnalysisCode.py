@@ -226,8 +226,6 @@ class Molecule:
 
         self.isSelected = False
 
-        self.steps_auto = {"red":{}, "green":{}, "E":{}}
-        self.steps_manual = {"red":{}, "green":{}, "E":{}}
         self.steps = None  #Defined in other classes as: pd.DataFrame(columns=['frame', 'trace', 'state', 'method','thres'])
         self.kon_boolean = None  # 3x3 matrix that is indicates whether the kon will be calculated from the beginning, in-between molecules or for the end only
 
