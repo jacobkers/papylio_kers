@@ -9,12 +9,14 @@ import os
 import re # Regular expressions
 import warnings
 import numpy as np
+np.seterr(divide='ignore', invalid='ignore')
 import pandas as pd
 import matplotlib.pyplot as plt
 import itertools
-from threshold_analysis_v2 import stepfinder, plot_steps
+from threshold_analysis_v2 import stepfinder
 import multiprocessing as mp
 from functools import wraps, partial
+import pickle
 
 class Experiment:
     def __init__(self, mainPath, exposure_time=None):
@@ -132,13 +134,16 @@ class File:
         self.extensions.append(extension)
         print(extension)
         importFunctions = {'.pks'        : self.importPksFile,
-                           '.traces'     : self.importTracesFile}
+                           '.traces'     : self.importTracesFile,
+                           '.sim'       : self.importSimFile
+                           }
 
         importFunctions.get(extension, print)()
 #        if extension == '.pks':
             #self.importPksFile()
 
     def importPksFile(self):
+        print()
         # Background value stored in pks file is not imported yet
         Ncolours = self.experiment.Ncolours
         pks = np.genfromtxt(self.name + '.pks', delimiter='      ')
@@ -169,13 +174,47 @@ class File:
 
         for i, molecule in enumerate(self.molecules):
             molecule.intensity = orderedData[:,i,:]
+        file.close()
+
+    def importSimFile(self):
+        file = open(self.name + '.sim', 'rb')
+        self.data = pickle.load(file)
+        red, green  = self.data['red'], self.data['green']
+        Ntraces = red.shape[0]
+        self.Nframes = red.shape[1]
+
+        if not self.molecules:
+            for molecule in range(0, Ntraces):
+                self.addMolecule()
+
+        for i, molecule in enumerate(self.molecules):
+            molecule.intensity = np.vstack((green[i], red[i]))
+        file.close()
 
     def addMolecule(self):
         self.molecules.append(Molecule(self))
-        self.molecules[-1].index = len(self.molecules)
+        self.molecules[-1].index = len(self.molecules)  # this is the molecule number
 
     def histogram(self):
         histogram(self.molecules)
+
+    def load_from_excel(self, filename=None):
+        if filename is None:
+            filename = self.name+'_steps_data.xlsx'
+        try:
+            steps_data = pd.read_excel(filename, index_col=[0,1],
+                                            dtype={'kon':np.str})       # reads from the 1st excel sheet of the file
+        except FileNotFoundError:
+            return
+        molecules = steps_data.index.unique(0)
+        indices = [int(m.split()[-1]) for m in molecules]
+        for mol in self.molecules:
+            if mol.index not in indices:
+                continue
+            mol.steps = steps_data.loc[f'mol {mol.index}']
+            k = [int(i) for i in mol.steps.kon[0]]
+            mol.kon_boolean = np.array(k).astype(bool).reshape((3,3))
+
 
 class Molecule:
 
