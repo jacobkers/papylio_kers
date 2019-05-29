@@ -5,20 +5,21 @@ Created on Tue Apr  2 16:40:50 2019
 @author: mwdocter
 """
 
-# applyMapping: file in other folder which needs to improt mapping from pick_spots_akaze
-
+# change file name and idr in lines 54 and below
 import sys
 import time
 import analyze_label
 import cv2
+import os
 
 from autopick.do_before import clear_all
 import autopick.pick_spots_akaze_manual 
 import autopick.pick_spots_akaze_final 
-from load_file import read_one_page_pma
+from load_file import read_one_page, read_one_page_sifx2
 from image_adapt.rolling_ball import rollingball
 from image_adapt.find_threshold import remove_background
 from find_xy_position.Gaussian import makeGaussian
+from sifreaderA import SIFFile
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -50,15 +51,20 @@ plt.pause(0.05)
 
 #example data (without mapping) in K:\bn\cmj\Shared\Ivo\Voorbeelddata Holiday junction
 
-root='N:\\tnw\\BN\\CMJ\\Shared\\Margreet\\20181203_HJ_training\\#3.10_0.1mg-ml_streptavidin_50pM_HJC_G_movies'
-name='hel4.pma'
+if 0:
+    root='N:\\tnw\\BN\\CMJ\\Shared\\Margreet\\20181203_HJ_training\\#3.10_0.1mg-ml_streptavidin_50pM_HJC_G_movies'
+    name='hel4.pma'
+else:
+    root=r'N:\tnw\BN\CMJ\Shared\Margreet\181218 - First single-molecule sample (GattaQuant)\RawData'
+    name='Spooled files.sifx'
 
 #follow IDL path: sum 20 image, find spots& background. Then loop over all image, do background subtract+ extract traces 
 #note: a second path would be localization sub pixel, which includes local background estimation/subtraction
-_,hdim,vdim,nImages=(read_one_page_pma(root,name, pageNb=0))
-im_sum=(read_one_page_pma(root,name, pageNb=0 )[0]).astype(float)
+
+_,hdim,vdim,nImages=(read_one_page(root,name, pageNb=0))
+im_sum=(read_one_page(root,name, pageNb=0 )[0]).astype(float)
 for ii in range (1,20):
-    im=(read_one_page_pma(root,name, pageNb=ii)[0]).astype(float)
+    im=(read_one_page(root,name, pageNb=ii)[0]).astype(float)
     im[im<0]=0
     im_sum=im_sum+im
 im_mean20=(im_sum/20).astype(int)
@@ -79,6 +85,10 @@ if 0: #check whether rolling ball went well
 #
 
 pts_number,label_size,ptsG=analyze_label.analyze(im_correct2[:,0:int(vdim/2)])
+### change which part of im_correct2 you want to use: (note: only tested on donor)
+# im_correct2[:,0:int(vdim/2)] is donor only
+# im_correct2[:,int(vdim/2)+1:] is acceptor only
+# im_correct2[:,0:int(vdim/2)]+im_correct2[:,0:int(vdim/2)] is donor +acceptor
     
 #labels_ALL=analyze_label.analyze(im_correct2)[1]
 #
@@ -147,9 +157,19 @@ if 0:
         plt.subplot(1,3,3), plt.imshow(impixC), plt.title([xf2_int,yf2_int])
         plt.pause(1)
         
+if name.endswith('sifx') : # sifx
+    A=SIFFile(root+'\\Spooled files.sifx')
+#    hh=A.height
+#    ww=A.width
+#    nImages=A.stacksize
+        
 t = time.time()  
 for ii in range(0,nImages):
-    im=(read_one_page_pma(root,name, pageNb=ii))[0] # this one opens, closes all the time
+    if name.endswith(".sifx"):
+        name2=A.filelist[ii]
+        im=(read_one_page_sifx2(root,name2,ii, A))[0] # this one opens, closes all the time
+    else:
+        im=(read_one_page(root,name, pageNb=ii))[0] # this one opens, closes all the time
     im_correct=im-im_bg
     im_correct[im_correct<0]=0
     im_correct2=remove_background(im_correct, threshold)[0]

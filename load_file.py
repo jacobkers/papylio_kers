@@ -21,15 +21,15 @@ def read_one_page(root,name,pageNb): # distributes to specific readers (sif/tif/
         A=re.search(string2compare,name)
         im0,hdim,vdim,nImages=-1,0,0,0
         if A!=None: 
-            print(name, string2compare)
+            #print(name, string2compare)
             if string2compare=='.pma$':
                 im0,hdim,vdim,nImages=read_one_page_pma(root,name,pageNb)
             elif A!=None and string2compare=='.tif$':
                 im0,hdim,vdim,nImages=read_one_page_tif(root,name,pageNb)
-            elif A!=None and string2compare=='.sif$':
+            elif A!=None and string2compare=='.sifx$':
                 im0,hdim,vdim,nImages=read_one_page_sifx(root,name,pageNb)
-         #   elif A!=None and string2compare=='.sifx$':
-         #       im0,hdim,vdim,nImages=read_one_page_sif(root,name,pageNb)
+#            elif A!=None and string2compare=='.sif$':
+#                im0,hdim,vdim,nImages=read_one_page_sif(root,name,pageNb)
             break
     return im0,hdim,vdim,nImages    
     
@@ -98,13 +98,64 @@ def read_one_page_sif(root,name,pageNb=0):
     return im, 
     
 def read_one_page_sifx(root,name,pageNb=0):
-    
-#    print(file)
-    print('sifx not working yet')
-#    first_frame = file.read_block(0) 
-#    all_frames = file.read_all() 
+ #   filelist = [x for x in os.listdir(root) if x.endswith("spool.dat")]
+    A=SIFFile(root+'\\Spooled files.sifx')
+    hh=A.height
+    ww=A.width
+    nImages=A.stacksize
+    im=read_one_page_sifx2(root,name,pageNb,A)
+#   
+    return im, hh,ww, nImages
+   
+def read_one_page_sifx2(root,name, pageNb,A):
+     count=A.height*A.width*3//2
+     #name should follow from A.filelist
+     with open(root+'\\'+A.filelist[pageNb], 'rb') as fid:
+          raw=np.uint16(np.fromfile(fid,np.uint8,count))
+     
+     #print([A.height,A.width,A.stacksize,np.shape(raw)])        
+     ii=np.array(range(1024*1024))
+     AA=raw[ii*6+0]*16 + (raw[ii*6+1]%16)
+     BB=raw[ii*6+2]*16 + raw[ii*6+1]//16
+     CC=raw[ii*6+3]*16 + raw[ii*6+4]%16
+     DD=raw[ii*6+5]*16 + raw[ii*6+4]//16 
+          
+     ALL=np.uint16(np.zeros(A.height*A.width))
+     ALL[0::4] = AA
+     ALL[1::4] = BB
+     ALL[2::4] = CC
+     ALL[3::4] = DD
+          
+     im=np.reshape(ALL,(A.height, A.width))
+     im=np.rot90(im)     
+     if 0: # for testing match real data
+         plt.imshow(im)
+         tifffile.imwrite(root+"Python image.tif" , im ,  photometric='minisblack')
+        
+     return im   
+# MATLAB code    
+#    filename='0000000000spool.dat'
+#    % filedir='D:\data\personal data\20190110 testing matlab image conversion\spool\';
 #    
-    return -1,0,0,0
+#    file = fopen([filedir,filename],'rb')
+#    [data] = fread(file,'uint8=>double',0);
+#    fclose(file);
+#    %
+#    dd=0; %images for dd 0:3:39 look reasonable, but not identical
+#    ii=1:(1024*1024); %floor(numel(data)/6)=1048582, 1024*1024=1048576
+#    AA=data(dd+(ii-1)*6+1)*(2^4) +rem(dd+data((ii-1)*6+2),2^4);
+#    BB=data(dd+(ii-1)*6+3)*(2^4) +floor(dd+data((ii-1)*6+2)/(2^4));
+#    CC=data(dd+(ii-1)*6+4)*(2^4) +rem(dd+data((ii-1)*6+5),2^4);
+#    DD=data(dd+(ii-1)*6+6)*(2^4) +floor(dd+data((ii-1)*6+5)/(2^4));
+#    
+#    ALL=zeros(2048);
+#    ALL(1:4:end)=AA(1:end);
+#    ALL(2:4:end)=BB(1:end);
+#    ALL(3:4:end)=CC(1:end);
+#    ALL(4:4:end)=DD(1:end);
+#        
+#    ALLm=ALL(end:-1:1,:);    
+    
 
 if 0: #test pma
     mainPath='H:\\projects\\research practicum\\single molecule fluorescence\\Matlab\\HJA-data from Ivo'

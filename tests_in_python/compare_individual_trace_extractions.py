@@ -151,7 +151,7 @@ for jj in range(pts_number):
     plt.subplot(1,3,3)
     plt.imshow(multipD)
     plt.title(sum(sum(multipD)))
-    plt.pause(0.05)
+    #plt.pause(0.05)
     
     
     ## acceptor intensity, without warping ##
@@ -169,7 +169,7 @@ for jj in range(pts_number):
     plt.subplot(1,3,3)
     plt.imshow(multipE)
     plt.title(sum(sum(multipE)))
-    plt.pause(0.05)
+    #plt.pause(0.05)
     
     ## acceptor intensity, warping the image ##
     
@@ -186,7 +186,7 @@ for jj in range(pts_number):
     plt.subplot(1,3,3)
     plt.imshow(multip)
     plt.title(sum(sum(multip)))
-    plt.pause(0.05)
+    #plt.pause(0.05)
    
     # approach 3, find transformed coordinates in im_correct (full image)
     xf2=dstG2[jj][1]#approach3,  NOTE: xy are swapped here
@@ -207,7 +207,7 @@ for jj in range(pts_number):
     plt.subplot(1,3,3)
     plt.imshow(multipC)
     plt.title(sum(sum(multipC)))
-    plt.pause(0.05)
+    #plt.pause(0.05)
                 
     ## acceptor intensity, warping the position, with the IDL transform matrix  ##
     
@@ -246,7 +246,7 @@ for jj in range(pts_number):
         plt.subplot(1,3,3)
         plt.imshow(multipG)
         plt.title(sum(sum(multipG)))
-        plt.pause(0.05)
+    #    plt.pause(0.05)
     
     ## acceptor intensity, warping the position, with the Python transform matrix  ##
     ### compare to extraction IDL
@@ -285,7 +285,7 @@ for jj in range(pts_number):
         plt.subplot(1,3,3)
         plt.imshow(multipF)
         plt.title(sum(sum(multipF)))
-        plt.pause(0.05)
+     #   plt.pause(0.05)
     
     plt.pause(0.1)
     print(jj)
@@ -303,15 +303,19 @@ exp1 = Experiment(mainPath)
 
 for ii in range(len(exp1.files)):
     print([ii,exp1.files[ii].name])
-jjM=82
-jj=82
+    
+jjM=86
+jj=86
+
+donor=exp1.files[0].molecules[jjM].intensity[0,:]
+acceptor=exp1.files[0].molecules[jjM].intensity[1,:]
 plt.figure(1), plt.subplot(1,1,1)
-plt.subplot(4,3,1), plt.plot(donor[jj,:])
-plt.subplot(4,3,2), plt.plot(acceptor[jj,:])
+plt.subplot(4,3,1), plt.plot(donor)
+plt.subplot(4,3,2), plt.plot(acceptor)
 #plt.subplot(2,3,3), plt.plot(acceptor[jj,:]/(acceptor[jj,:]+donor[jj,:]))
 
-donor_out3=exp1.files[0].molecules[jjM].intensity[0,:]
-acceptor_out3=exp1.files[0].molecules[jjM].intensity[1,:]
+donor_out3=exp1.files[3].molecules[jj].intensity[0,:]
+acceptor_out3=exp1.files[3].molecules[jj].intensity[1,:]
 plt.subplot(4,3,4), plt.plot(donor_out3)
 plt.subplot(4,3,5), plt.plot(acceptor_out3)   
 #plt.subplot(2,3,6), plt.plot(acceptor_out/(acceptor_out+donor_out))
@@ -336,7 +340,7 @@ if 0:
             plt.cla()
             exp1.files[FF].molecules[jj].plot()
             plt.title(jj)
-            plt.pause(0.1)
+            plt.pause(.7)
             if np.sum(exp1.files[FF].molecules[jj].intensity)>0:
                 cc1=cc1+1
                 
@@ -350,7 +354,162 @@ if 0:
             plt.cla()
             exp1.files[FF].molecules[jj].plot()
             plt.title(jj)
-            plt.pause(0.1)
+            plt.pause(0.2)
             if np.sum(exp1.files[FF].molecules[jj].intensity)>0:
              cc2=cc2+1  
         
+###############################################################
+             
+from traceAnalysisCode_MD import Experiment
+import os
+import matplotlib.pyplot as plt #Provides a MATLAB-like plotting framework
+import numpy as np
+
+mainPath=r'N:\\tnw\\BN\\CMJ\\Shared\\Margreet\\20181203_HJ_training\\#3.10_0.1mg-ml_streptavidin_50pM_HJC_G_movies'
+os.chdir(os.path.dirname(os.path.abspath('__file__')))
+
+plt.close("all")
+
+exp1 = Experiment(mainPath)
+
+
+for ii in range (len(exp1.files)):
+    print(exp1.files[ii].name)
+    print(len(exp1.files[ii].molecules))
+    # manually matched points
+    
+nIDL=len(exp1.files[0].molecules)
+nPYT=len(exp1.files[3].molecules)
+
+## in ss (and variants) is stored how well IDL and Python traces match
+ss=np.zeros((nIDL,nPYT))
+ss0=np.zeros((nIDL,nPYT))
+ss1=np.zeros((nIDL,nPYT))
+ss2=np.zeros((nIDL,nPYT))
+for ii in range (nIDL):
+    s0=np.zeros(nPYT)
+    s1=np.zeros(nPYT)
+    s2=np.zeros(nPYT)
+    for jj in range (nPYT):
+       
+        tIDL_0= exp1.files[0].molecules[ii].intensity[0] #  to prevent them being zero
+        tPYT_0= exp1.files[3].molecules[jj].intensity[0]
+        tIDL_1= exp1.files[0].molecules[ii].intensity[1]
+        tPYT_1= exp1.files[3].molecules[jj].intensity[1]
+        #make into two state
+#        if np.min(tIDL_0)<1:             tIDL_0=tIDL_0-np.min(tIDL_0)+1
+#        if np.min(tIDL_1)<1:             tIDL_1=tIDL_1-np.min(tIDL_1)+1
+#        if np.min(tPYT_0)<1:             tPYT_0=tPYT_0-np.min(tPYT_0)+1
+#        if np.min(tPYT_1)<1:             tPYT_1=tPYT_1-np.min(tPYT_1)+1
+        tPYT_0=tPYT_0/max(tPYT_0)
+        tPYT_1=tPYT_1/max(tPYT_1)
+        tIDL_0=tIDL_0/max(tIDL_0)
+        tIDL_1=tIDL_1/max(tIDL_1)
+        
+        tI=np.abs(tIDL_0[:-1]-tIDL_0[1:])/max(tIDL_0)
+        tP=np.abs(tPYT_0[:-1]-tPYT_0[1:])/max(tPYT_0)
+        
+        tmp=np.asarray(np.where(tI>0.3))
+        tIindex=np.insert(tmp,[0,np.shape(tmp)[1]],[0,len(tIDL_0)])
+        tIm=0*tI
+        for iii in range(len(tIindex)-1)  :
+            tIm[tIindex[iii]:tIindex[iii+1]]=np.mean(tIDL_0[tIindex[iii]:tIindex[iii+1]])
+        
+        tmp=np.asarray(np.where(tP>0.3))
+        tPindex=np.insert(tmp,[0,np.shape(tmp)[1]],[0,len(tPYT_0)])
+        tPm=0*tP
+        for iii in range(len(tPindex)-1)  :
+            tPm[tPindex[iii]:tPindex[iii+1]]=np.mean(tPYT_0[tPindex[iii]:tPindex[iii+1]])
+        
+        if 0:
+            plt.figure(31), plt.subplot(2,1,1), plt.plot(tIDL_0,'b'), plt.plot(tIm,'r'), plt.show()
+            plt.figure(31), plt.subplot(2,1,2), plt.plot(tPYT_0,'b'), plt.plot(tPm,'r'), plt.show()
+            
+        AA0=np.sum(np.absolute(np.subtract(tIDL_0,tPYT_0)))
+        AA1=np.sum(np.absolute(np.subtract(tIDL_1,tPYT_1)))
+        AA2=np.sum(np.absolute(tIm-tPm))
+        
+        s0[jj]=AA0
+        s1[jj]=AA1
+        s2[jj]=AA2
+    ss0[ii,:]=s0
+    ss1[ii,:]=s1  
+    ss2[ii,:]=s2      
+    ss[ii,:]=s0+s1
+
+# from all matches, find the best one
+tmp=np.zeros(nIDL)
+whr00=tmp.astype(int)
+whr01=tmp.astype(int)
+whr02=tmp.astype(int)
+for ii in range(nIDL): #er wordt nu een eenzijdige match gemaakt, cross correlatie werkt nog niet twee kanten op 
+    result=np.amin(ss0[ii,:])     
+    whr=np.where(ss0[ii,:]==result) 
+    whr00[ii]=int(whr[0][0])
+    
+    result=np.amin(ss[ii,:])     
+    whr=np.where(ss[ii,:]==result) 
+    whr01[ii]=int(whr[0][0])
+    
+    result=np.amin(ss2[ii,:])     
+    whr=np.where(ss2[ii,:]==result) 
+    whr02[ii]=int(whr[0][0])
+    
+    resultjj=np.amin(ss0[:,jj])
+    whrjj=np.where(ss0[:,jj]==resultjj) 
+    whrjj=int(whrjj[0][0])
+    
+    print([ii,whr00[ii],whr01[ii],whr02[ii]])
+
+# compare donor + acceptor is better than only donor, now visualise and manually sayy whether it is a good match
+# while optimizing on ss, 75 out of 186 traces were good. 
+goodbad2=    tmp.astype(int)
+for ii in range(nIDL):   
+    tIDL_0= exp1.files[0].molecules[ii].intensity[0] # +1 to prevent them being zero
+    tPYT_0= exp1.files[3].molecules[whr01[ii]].intensity[0]
+    tPYT_00= exp1.files[3].molecules[whr00[ii]].intensity[0]
+    tPYT_02= exp1.files[3].molecules[whr02[ii]].intensity[0]
+    tIDL_1= exp1.files[0].molecules[ii].intensity[1]
+    tPYT_1= exp1.files[3].molecules[whr01[ii]].intensity[1]
+    tPYT_10= exp1.files[3].molecules[whr00[ii]].intensity[1]
+    tPYT_12= exp1.files[3].molecules[whr02[ii]].intensity[1]
+    
+    plt.figure(5)
+
+    if 0: # from these images found that ss is better than ss0  
+        plt.subplot(2,4,1), plt.cla(), plt.plot(tIDL_0), plt.title('donor IDL')
+        plt.subplot(2,4,2), plt.cla(), plt.plot(tPYT_0), plt.title('donor PYTHON')
+        plt.subplot(2,4,3), plt.cla(), plt.plot(tPYT_00,'g'), plt.title('donor PYTHON')
+        plt.subplot(2,4,4), plt.cla(), plt.plot(np.absolute(np.subtract(tIDL_0/max(tIDL_0),tPYT_00/max(tPYT_00))),'r'), plt.title([ii,jj])
+        plt.subplot(2,4,5), plt.cla(), plt.plot(tIDL_1), plt.title('acceptor IDL')
+        plt.subplot(2,4,6), plt.cla(), plt.plot(tPYT_1), plt.title('acceptor PYTHON')
+        plt.subplot(2,4,7), plt.cla(), plt.plot(tPYT_10,'g'), plt.title('acceptor PYTHON')
+        plt.subplot(2,4,8), plt.cla(), plt.plot(np.absolute(np.subtract(tIDL_1/max(tIDL_1),tPYT_10/max(tPYT_10))),'r')
+    elif 0:
+        plt.subplot(2,2,1), plt.cla(), plt.plot(tIDL_0,'r'), plt.title('donor IDL')
+        plt.subplot(2,2,1),            plt.plot(tPYT_00,'g'), plt.title('donor PYTHON')
+        plt.show()
+        plt.subplot(2,2,2), plt.cla(), plt.plot(np.absolute(np.subtract(tIDL_0/max(tIDL_0),tPYT_00/max(tPYT_00))),'r'), plt.title([ii,jj])
+        plt.subplot(2,2,3), plt.cla(), plt.plot(tIDL_1,'r'), plt.title('acceptor IDL')
+        plt.subplot(2,2,3),            plt.plot(tPYT_10,'g'), plt.title('acceptor PYTHON')
+        plt.show()
+        plt.subplot(2,2,4), plt.cla(), plt.plot(np.absolute(np.subtract(tIDL_1/max(tIDL_1),tPYT_10/max(tPYT_10))),'r')
+    else:
+        tI=(tIDL_0[:-1]-tIDL_0[1:])/max(tIDL_0)
+        tP=(tPYT_02[:-1]-tPYT_02[1:])/max(tPYT_02)
+        plt.subplot(2,2,1), plt.cla(), plt.plot(tIDL_0,'r'), plt.title('donor IDL')
+        plt.subplot(2,2,1),            plt.plot(tPYT_00,'g'), plt.title('donor PYTHON')
+        plt.show()
+        plt.subplot(2,2,2), plt.cla(), plt.plot(tI,'r'), plt.title('donor IDL')
+        plt.subplot(2,2,2),            plt.plot(tP+1,'g'), plt.title('donor PYTHON')
+        
+        plt.subplot(2,2,3), plt.cla(), plt.plot(tIDL_1,'r'), plt.title('acceptor IDL')
+        plt.subplot(2,2,3),            plt.plot(tPYT_10,'g'), plt.title('acceptor PYTHON')
+        plt.show()
+        plt.subplot(2,2,4), plt.cla(), plt.plot(np.absolute((tI-tP)),'r'), plt.title([ii,jj])
+            
+    
+    plt.pause(0.05)
+    goodbad2[ii]=input('is this a good trace (1) or bad (0)    ')
+
+
