@@ -14,8 +14,9 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import itertools
 from threshold_analysis_v2 import stepfinder
-import multiprocessing as mp
-from functools import wraps, partial
+# Use the following instead of: import matplotlib as mpl
+#from matplotlib import use
+#use('WXAgg')
 import pickle
 
 class Experiment:
@@ -89,22 +90,24 @@ class Experiment:
             warnings.warn('FileName ' + fileName + ' not added, filename should contain hel...')
 
 
-    def histogram(self, axis = None, fileSelection = False, moleculeSelection = False):
-        # files = [file for file in exp.files if file.isSelected]
-        # files = self.files
-        if (fileSelection & moleculeSelection):
-            histogram([molecule for file in self.selectedFiles
-                       for molecule in file.selectedMolecules], axis)
-        elif (fileSelection & (not moleculeSelection)):
-            histogram([molecule for file in self.selectedFiles
-                       for molecule in file.molecules], axis)
-        elif ((not fileSelection) & moleculeSelection):
-            histogram([molecule for file in self.files for molecule
-                       in file.selectedMolecules], axis)
-        else:
-            histogram([molecule for file in self.files for molecule
-                       in file.molecules], axis)
+    def histogram(self, axis = None, fileSelection = False, moleculeSelection = False, makeFit = False):
+        #files = [file for file in exp.files if file.isSelected]
+        #files = self.files
 
+        if (fileSelection & moleculeSelection):
+            histogram([molecule for file in self.selectedFiles for molecule in file.selectedMolecules], axis, makeFit)
+        elif (fileSelection & (not moleculeSelection)):
+            histogram([molecule for file in self.selectedFiles for molecule in file.molecules], axis, makeFit)
+        elif ((not fileSelection) & moleculeSelection):
+            histogram([molecule for file in self.files for molecule in file.selectedMolecules], axis, makeFit)
+        else:
+            histogram([molecule for file in self.files for molecule in file.molecules], axis, makeFit)
+
+
+    def select(self):
+        for molecule in self.molecules:
+            molecule.plot()
+            input("Press enter to continue")
 
 class File:
     def __init__(self, relativePath, name, experiment, exposure_time):
@@ -198,7 +201,7 @@ class File:
     def histogram(self):
         histogram(self.molecules)
 
-    def load_from_excel(self, filename=None):
+    def importExcel(self, filename=None):
         if filename is None:
             filename = self.name+'_steps_data.xlsx'
         try:
@@ -232,7 +235,7 @@ class Molecule:
     def I(self, emission, Ioff=0):
         return self.intensity[emission, :] - Ioff
 
-    def E(self, Imin=0, alpha=0):
+    def E(self, Imin=0, alpha=0):  # alpha correction is not implemented yet, this is just a reminder
         red = np.copy(self.I(1))
         green = self.I(0)
         np.putmask(red, red<Imin, 0)  # the mask makes all elements of acceptor that are below the Imin zero, for E caclulation
@@ -248,7 +251,7 @@ class Molecule:
         return stepfinder
 
 
-def histogram(input, axis):
+def histogram(input, axis, makeFit = False):
     if not input: return None
     if not axis: axis = plt.gca()
     #    if not isinstance(input,list): input = [input]
@@ -264,6 +267,37 @@ def histogram(input, axis):
     data = np.concatenate([molecule.E() for molecule in molecules])
     axis.hist(data,100, range = (0,1))
 
+    if makeFit:
+        fit_hist(data, axis)
+
+
+def fit_hist(data, axis):
+
+    hist, bin_edges = np.histogram(data,100, range = (0,1))
+    bin_centers = (bin_edges[0:-1]+bin_edges[1:])/2
+
+    #plt.plot(bin_centers,hist)
+
+    from scipy.signal import butter
+    from scipy.signal import filtfilt
+    b, a = butter(2, 0.2, 'low')
+    output_signal = filtfilt(b, a, hist)
+    plt.plot(bin_centers, output_signal)
+
+    from scipy.signal import find_peaks
+    peaks, properties = find_peaks(output_signal, prominence=5, width=7) #prominence=1
+    plt.plot(bin_centers[peaks], hist[peaks], "x")
+
+
+    def func(x, a, b, c, d, e, f):
+        return a * np.exp(-(x-b)**2/(2*c**2)) + d * np.exp(-(x-e)**2/(2*f**2))
+
+    from scipy.optimize import curve_fit
+    popt, pcov = curve_fit(func, bin_centers, hist, method = 'trf',
+                           p0 = [hist[peaks[0]],bin_centers[peaks[0]],0.1,hist[peaks[1]],bin_centers[peaks[1]],0.1], bounds = (0,[np.inf,1,1,np.inf,1,1]))
+
+    axis.plot(bin_centers,func(bin_centers, *popt))
+    #plt.plot(bin_centers,func(bin_centers, 10000,0.18,0.1,5000,0.5,0.2))
 
 #uniqueFileNames = list(set([re.search('hel[0-9]*',fileName).group() for fileName in fileNames]))
 
