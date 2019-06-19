@@ -6,16 +6,16 @@ Created on Jun 2019
 some features are shared within an image collection, like the file name, mapping, background, threshold, ...)
 so imagecollection is a class ;)
 """
-from load_file import read_one_page#_pma, read_one_page_tif
+from image_adapt.load_file import read_one_page#_pma, read_one_page_tif
 from image_adapt.rolling_ball import rollingball
 
 from image_adapt.find_threshold import remove_background
 from image_adapt.find_threshold import get_threshold
 import numpy as np
 from cached_property import cached_property
-from Mapping import Mapping
-from Image import Image
-import analyze_label
+from image_adapt.Mapping import Mapping
+from image_adapt.Image import Image
+import image_adapt.analyze_label
 import cv2
 import os
 from find_xy_position.Gaussian import makeGaussian
@@ -95,13 +95,13 @@ class ImageCollection(object):
                 im_mean20_correctA=remove_background(im_mean20_correctA,threshold)      
                 
             if self.choice_channel=='d': # with donor channel, 
-                pts_number, label_size, ptsG = analyze_label.analyze(im_mean20_correctA[:, 0:vdim//2])       
+                pts_number, label_size, ptsG = image_adapt.analyze_label.analyze(im_mean20_correctA[:, 0:vdim//2])       
                 dstG = cv2.perspectiveTransform(ptsG.reshape(-1, 1, 2), np.linalg.inv(self.mapping._tf2_matrix))#transform_matrix))
                 dstG = dstG.reshape(-1, 2)
                 dstG = np.array([[ii[0] + 256, ii[1]] for ii in dstG])
             
             elif self.choice_channel=='a':
-                pts_number, label_size, dstG = analyze_label.analyze(im_mean20_correctA[:, vdim//2:])     
+                pts_number, label_size, dstG = image_adapt.analyze_label.analyze(im_mean20_correctA[:, vdim//2:])     
                 ptsG = cv2.perspectiveTransform(dstG.reshape(-1, 1, 2),(self.mapping._tf2_matrix))#transform_matrix))
                 ptsG = ptsG.reshape(-1, 2)
                 ptsG = np.array([[ii[0] + 256, ii[1]] for ii in ptsG])
@@ -156,6 +156,7 @@ class ImageCollection(object):
             import time
             t0 = time.time()  
             for ii in range(0,self.n_images):
+                print(ii)
                 img=self.get_image(ii)
                 donor[ii,:]=img.donor
                 acceptor[ii,:]=img.acceptor

@@ -13,7 +13,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import time
 #from sifreader.sifreader import SIFFile
-from sifreaderA import SIFFile
+from image_adapt.sifreaderA import SIFFile
 
 from autopick.do_before import clear_all
 clear_all()

@@ -12,18 +12,14 @@ import warnings
 import numpy as np #scientific computing with Python
 import matplotlib.pyplot as plt #Provides a MATLAB-like plotting framework
 import itertools #Functions creating iterators for efficient looping
-#=======
-import numpy as np
 np.seterr(divide='ignore', invalid='ignore')
 import pandas as pd
-import matplotlib.pyplot as plt
-import itertools
 from threshold_analysis_v2 import stepfinder
 # Use the following instead of: import matplotlib as mpl
 #from matplotlib import use
 #use('WXAgg')
 import pickle
-#>>>>>>> 34f1179a282a5fbfafdff8c3abd9e7e166bb40c0
+
 
 class Experiment:
     def __init__(self, mainPath, exposure_time=None):
@@ -155,13 +151,10 @@ class File:
         print()
         # Background value stored in pks file is not imported yet
         Ncolours = self.experiment.Ncolours
-#<<<<<<< HEAD
         
    #     pks = np.genfromtxt(self.name + '.pks', delimiter='      ')  #MD190104 you get an error when using 6 spaces for tab
         pks = np.genfromtxt(self.name + '.pks')  #MD190104 By default, any consecutive whitespaces act as delimiter.
-#=======
-        pks = np.genfromtxt(self.name + '.pks', delimiter='      ')
-#>>>>>>> 34f1179a282a5fbfafdff8c3abd9e7e166bb40c0
+
         Ntraces = np.shape(pks)[0]
 
         if not self.molecules:
@@ -259,14 +252,10 @@ class Molecule:
         plt.show()
 #MD190104: why not add a subplot with FRET here as well, to match with display Matlab?
 
-#<<<<<<< HEAD
-    #def dwelltime
-#=======
     @property
     def find_steps(self):
         return stepfinder
 
-#>>>>>>> 34f1179a282a5fbfafdff8c3abd9e7e166bb40c0
 
 def histogram(input, axis, makeFit = False):
     if not input: return None
