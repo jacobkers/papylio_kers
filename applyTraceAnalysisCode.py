@@ -5,14 +5,18 @@ Created on Wed Nov  7 10:50:59 2018
 @author: ivoseverins
 """
 
-from traceAnalysisCode import *
+
+
 import os
+#os.chdir(r'D:\ivoseverins\SURFdrive\Promotie\Code\Python\traceAnalysis')
+os.chdir(r'/Users/ivoseverins/SURFdrive/Promotie/Code/Python')
+from traceAnalysis.traceAnalysisCode import *
 
 
 #mainPath = r'D:\ivoseverins\SURFdrive\Promotie\Code\Python\traceAnalysis\twoColourExampleData\HJ A'
 
-os.chdir(os.path.dirname(os.path.abspath(__file__)))
-
+#os.chdir(os.path.dirname(os.path.abspath(__file__)))
+os.chdir('./traceAnalysis')
 mainPath = './twoColourExampleData/HJ A'
 
 
@@ -21,7 +25,7 @@ mainPath = './twoColourExampleData/HJ A'
 exp = Experiment(mainPath)
 
 
-exp.histogram(makeFit = True)
+#exp.histogram(makeFit = True)
 
 
 
