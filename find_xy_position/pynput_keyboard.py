@@ -3,6 +3,8 @@
 Created on Tue May  7 13:44:54 2019
 
 @author: mwdocter
+
+simple listener, in order to give keyboard commands and respond to it
 """
 
 from pynput.keyboard import Key, Listener

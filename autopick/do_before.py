@@ -3,6 +3,8 @@
 Created on Tue Apr  2 13:08:00 2019
 
 @author: https://github.com/spyder-ide/spyder/issues/2563
+
+how to get rid of all variables, to have a clean initial state
 """
 import matplotlib.pyplot as plt
 

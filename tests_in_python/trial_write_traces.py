@@ -3,6 +3,8 @@
 Created on Wed Apr 24 10:51:28 2019
 
 @author: mwdocter
+
+trial to make the traces written by Python similar structure as written in IDL
 """
 import numpy as np
 import matplotlib.pyplot as plt

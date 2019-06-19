@@ -1,3 +1,12 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Tue Apr  2 13:08:00 2019
+
+@author: mwdocter
+
+find spots and make transformation, see Shirani's report
+version 4
+"""
 # # NOTES # #
 # Install the packages opencv and opencv-contrib.
 # Both versions of OpenCV have to be lower than 3.4.3.
@@ -15,7 +24,7 @@ import matplotlib.pyplot as plt
 from skimage import filters #  Image processing in Python — scikit-image
 import numpy as np
 import bisect #This module provides support for maintaining a list in sorted order without having to sort the list after each insertion.
-from image_adapt.find_threshold import remove_background
+from image_adapt.find_threshold import remove_background, get_threshold
 
 def imghist(img): #img is a np.array
     binrange = [np.min(img), np.max(img)]
@@ -84,7 +93,7 @@ def enhance_blobies(image, f, tol):
     return l, r, l_bin, r_bin
 
 #def mapping(file_tetra='tetraspeck.tif', show=0, f=None,bg=None): #'E:\CMJ trace analysis\\autopick\\tetraspeck.tif'
-def mapping(file_tetra, show=0, f=None,bg=None, tol=1): #'E:\CMJ trace analysis\\autopick\\tetraspeck.tif'
+def mapping(file_tetra, tf1_matrix,show=0, f=None,bg=None, tol=1 ): #'E:\CMJ trace analysis\\autopick\\tetraspeck.tif'
     # Open image
     if type(file_tetra)==str:
         image_tetra = tiff.imread(file_tetra)
@@ -101,16 +110,34 @@ def mapping(file_tetra, show=0, f=None,bg=None, tol=1): #'E:\CMJ trace analysis\
     if bg==None:
         # take two different backgrounds, one for donor, one for acceptor channel
         sh=np.shape(image_tetra)
-        thr_donor=remove_background(image_tetra[:,1:sh[0]//2])[1]
-        thr_acceptor=remove_background(image_tetra[:,sh[0]//2:])[1]
+        thr_donor=get_threshold(image_tetra[:,1:sh[0]//2])
+        thr_acceptor=get_threshold(image_tetra[:,sh[0]//2:])
         bg=np.zeros(sh)
         bg[:,1:sh[0]//2]=thr_donor
         bg[:,sh[0]//2:]=thr_acceptor
-    image_tetra=image_tetra.astype(float)-bg
-    image_tetra[image_tetra<0]=0
+    image_tetra=remove_background(image_tetra.astype(float),bg)
+#    image_tetra=image_tetra.astype(float)-bg
+#    image_tetra[image_tetra<0]=0
     image_tetra=image_tetra.astype(np.uint16)    
-    # left, right, enhanced left and enhanced right image for keypoint detection
-    l, r, l_enh, r_enh = enhance_blobies(image_tetra,f, tol)
+   
+    position1=[]
+    position2=[]
+    # left, right, enhanced left and enhanced right image for keypoint detection, adapt f
+    while np.shape(position1)[0]<50 or np.shape(position2)[0]<50 : 
+        # while loop to lower f and increase the number of spots found
+        l, r, l_enh, r_enh = enhance_blobies(image_tetra,f, tol)
+        
+        gray1 = l_enh
+        gray2 = r_enh 
+        
+        # initialize the AKAZE descriptor, then detect keypoints and extract
+        # local invariant descriptors from the image
+        detector = cv2.AKAZE_create()
+        (kps1, descs1) = detector.detectAndCompute(gray1, None)
+        (kps2, descs2) = detector.detectAndCompute(gray2, None)
+        position1=cv2.KeyPoint_convert(kps1);
+        position2=cv2.KeyPoint_convert(kps2);
+        f=f*0.9
     
     gray1 = l_enh
     gray2 = r_enh 
@@ -123,67 +150,89 @@ def mapping(file_tetra, show=0, f=None,bg=None, tol=1): #'E:\CMJ trace analysis\
     position1=cv2.KeyPoint_convert(kps1);
     position2=cv2.KeyPoint_convert(kps2);
     
-    print("keypoints: {}, descriptors: {}".format(len(kps1), descs1.shape))
-    print("keypoints: {}, descriptors: {}".format(len(kps2), descs2.shape))    
-    
-    # Match the features
-    #this part is working properly according to the overlayed images
-    bf = cv2.BFMatcher(cv2.NORM_HAMMING) 
-    matches = bf.knnMatch(descs1,descs2, k=2)    # typo fixed
-    # Apply ratio test
-    pts1, pts2 = [], []
-    size_im=np.shape(gray1)
-    heigh,widt=np.shape(gray1)
+    if 0: #automatic mapping based on matching features
+        print("keypoints: {}, descriptors: {}".format(len(kps1), descs1.shape))
+        print("keypoints: {}, descriptors: {}".format(len(kps2), descs2.shape))    
         
-    for m in matches: # BF Matcher already found the matched pairs, no need to double check them
-            pts1.append(kps1[m[0].queryIdx].pt)
-            pts2.append(kps2[m[0].trainIdx].pt)
+        # Match the features
+        #this part is working properly according to the overlayed images
+        bf = cv2.BFMatcher(cv2.NORM_HAMMING) 
+        matches = bf.knnMatch(descs1,descs2, k=2)    # typo fixed
+        # Apply ratio test
+        pts1, pts2 = [], []
+        size_im=np.shape(gray1)
+        heigh,widt=np.shape(gray1)
+            
+        for m in matches: # BF Matcher already found the matched pairs, no need to double check them
+                pts1.append(kps1[m[0].queryIdx].pt)
+                pts2.append(kps2[m[0].trainIdx].pt)
+    
+        pts1 = np.array(pts1).astype(np.float32)
+        pts2 = np.array(pts2).astype(np.float32)
+        
+        transformation_matrixC, mask = cv2.findHomography(pts2, pts1, cv2.RANSAC,20)
+        
+        A=pts1[0:len(matches) : int(len(matches)/15)]
+        im3 = cv2.drawMatchesKnn(gray1, kps1, gray2, kps2,matches[1:100] , None, flags=2)
+        if show:
+            plt.figure(1)
+            plt.imshow(im3)
+            plt.title('mapping matching keypoints')
+            plt.show
+        
+    else:
+        # find matching points (no other features) based on the manual mapping
+        dst= cv2.perspectiveTransform(position1.reshape(-1,1,2),np.linalg.inv(tf1_matrix)) #reshape needed for persp.transform
+        dst= dst.reshape(-1,2)
+        
+        dist=np.zeros((len(position2),len(dst)))
+        for ii in range(0, len(position2)):
+            for jj in range(0, len(dst)):
+                dist[ii,jj]=np.sqrt((position2[ii,0]-dst[jj,0])**2+(position2[ii,1]-dst[jj,1])**2)
+        pts1, pts2 = [], []
+        for ii in range(0,len(position2)):
+            jj=np.where(dist[ii,:]==min(dist[ii,:]))
+            if dist[ii,jj]<4:
+                pts1.append(position1[jj])
+                pts2.append(position2[ii])
+        pts1 = np.array(pts1).astype(np.float32)
+        pts2 = np.array(pts2).astype(np.float32)             
+                    
+        transformation_matrixC,mask=cv2.findHomography(pts2,pts1, cv2.RANSAC,20)
+        
 
-    pts1 = np.array(pts1).astype(np.float32)
-    pts2 = np.array(pts2).astype(np.float32)
-    
-    transformation_matrixC, mask = cv2.findHomography(pts2, pts1, cv2.RANSAC,20)
-              
-    A=pts1[0:len(matches) : int(len(matches)/15)]
-    im3 = cv2.drawMatchesKnn(gray1, kps1, gray2, kps2,matches[1:100] , None, flags=2)
-    if show:
-        plt.figure(1)
-        plt.imshow(im3)
-        plt.title('mapping matching keypoints')
-        plt.show
-        
     # produce an image in which the overlay between two channels is shown
     array_size=np.shape(gray2)
     imC=cv2.warpPerspective(gray2, transformation_matrixC, array_size[::-1] )
     
     #cv2.imshow("transformed ", im4)
     if show:
-        plt.figure(2,figsize=(18,9))
-        plt.subplot(1,1,1)
-        plt.subplot(1,5,1),
-        plt.imshow(gray1, extent=[0,array_size[1],0,array_size[0]], aspect=1)
-        plt.title('green channel')
-            
-        plt.subplot(1,5,2),
-        plt.imshow(gray2, extent=[0,array_size[1],0,array_size[0]], aspect=1)
-        plt.title('red channel')    
-        
-        plt.subplot(1,5,3),
-        plt.imshow(imC, extent=[0,array_size[1],0,array_size[0]], aspect=1)
-        plt.title('red transformed')
-        plt.show()
-    
-        plt.subplot(1,5,4),
-        A=(gray1>0)+2*(gray2>0)
-        plt.imshow(A, extent=[0,array_size[1],0,array_size[0]], aspect=1)
-       # plt.colorbar()
-        plt.title( '#b{:d} #g{:d} # y{:d}'.format(np.sum(A==1),np.sum(A==2),np.sum(A==3))   ) 
-            
-        plt.subplot(1,5,5),
+        plt.figure(11,figsize=(18,9))
+#        plt.subplot(1,1,1)
+#        plt.subplot(1,6,1),
+#        plt.imshow(gray1, extent=[0,array_size[1],0,array_size[0]], aspect=1)
+#        plt.title('green channel')
+#            
+#        plt.subplot(1,6,2),
+#        plt.imshow(gray2, extent=[0,array_size[1],0,array_size[0]], aspect=1)
+#        plt.title('red channel')    
+#        
+#        plt.subplot(1,6,3),
+#        plt.imshow(imC, extent=[0,array_size[1],0,array_size[0]], aspect=1)
+#        plt.title('red transformed')
+#        plt.show()
+#    
+#        plt.subplot(1,6,4),
+#        A=(gray1>0)+2*(gray2>0)
+#        plt.imshow(A, extent=[0,array_size[1],0,array_size[0]], aspect=1)
+#       # plt.colorbar()
+#        plt.title( 'unaligned #(yellow) spots overlap {:d}'.format(np.sum(A==3))     ) 
+#            
+        plt.subplot(1,6,6),
         AA=(gray1>0)+2*(imC>0)
         plt.imshow((gray1>0)+2*(imC>0), extent=[0,array_size[1],0,array_size[0]], aspect=1)
         #plt.colorbar()
-        plt.title(  '#b{:d} #g{:d} # y{:d}'.format(np.sum(AA==1),np.sum(AA==2),np.sum(AA==3)) )    
+        plt.title(  'automatic align \n#spots overlap {:d}'.format(np.sum(AA==3))   )    
         plt.show()
         plt.pause(0.05)
 

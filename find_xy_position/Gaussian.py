@@ -3,6 +3,8 @@
 Created on Tue Apr 16 15:27:35 2019
 
 @author: https://stackoverflow.com/questions/7687679/how-to-generate-2d-gaussian-with-python
+
+make a 2D Gaussian
 """
 import numpy as np
 

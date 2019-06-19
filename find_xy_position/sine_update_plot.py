@@ -3,6 +3,8 @@
 Created on Tue May  7 16:20:12 2019
 
 @author: mwdocter
+
+see how to get a plot to update programmatically when updated in a loop
 """
 
 import matplotlib.pyplot as plt

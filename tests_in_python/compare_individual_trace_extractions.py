@@ -3,6 +3,10 @@
 Created on Tue May 14 11:12:14 2019
 
 @author: mwdocter
+
+three parts: first part checks the difference between different extraction methods (point from image)
+second part: check how many traces do have acceptor or donor signal
+third part: tries to find best match of traces between IDL and Python (usefull if pks file is missing)
 """
 import sys
 import time

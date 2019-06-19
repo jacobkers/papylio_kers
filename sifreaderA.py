@@ -2,7 +2,10 @@
 """
 Created on Mon Apr 15 11:18:26 2019
 
-@author: https://github.com/lightingghost/sifreader/blob/master/sifreader/sifreader.py
+@author: https://github.com/lightingghost/sifreader/blob/master/sifreader/sifreader.py, mwdocter
+
+Andor does not provide a sif reader for Python. Many details can be found by trial and error in sifx
+in the metadata file you can actually find the pixel encoding
 """
 
 import os

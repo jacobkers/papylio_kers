@@ -2,7 +2,9 @@
 """
 Created on Fri Sep 14 15:24:46 2018
 
-@author: ivoseverins
+@author: ivoseverins, adapted by margreet
+
+just to have my own copy (I know, github) and play with it
 """
 
 import os # Miscellaneous operating system interfaces - to be able to switch from Mac to Windows

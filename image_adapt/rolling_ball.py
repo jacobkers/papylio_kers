@@ -3,6 +3,7 @@
 Created on Mon Apr 15 15:16:25 2019
 
 @author: mwdocter
+this code takes an images, calculates the rolling_ball background, and subtracts it
 """
 #http://imagejdocu.tudor.lu/doku.php?id=gui:process:subtract_background
 #Based on the a „rolling ball“ algorithm described in Stanley Sternberg's article, „Biomedical Image Processing“, IEEE Computer, January 1983. 

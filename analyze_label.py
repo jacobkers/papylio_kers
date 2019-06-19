@@ -3,6 +3,8 @@
 Created on Wed Apr 17 13:50:42 2019
 
 @author: https://stackoverflow.com/questions/35854197/how-to-use-opencvs-connected-components-with-stats-in-python
+
+returns the number of spots, and per spot its centroid and the number of pixels (can be used to discard too large spots)
 """
 import cv2
 import numpy as np
@@ -46,6 +48,5 @@ def analyze(src):
             size_label=np.delete(size_label,ii, axis=0)
     num_labels=   len(ctrd) 
 
-
-        
+      
     return num_labels,size_label, ctrd

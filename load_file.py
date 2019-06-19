@@ -3,6 +3,8 @@
 Created on Mon Apr  8 10:45:41 2019
 
 @author: mwdocter
+
+main function = read_one_page, which then refers to reading a tif/pma/sifx file
 """
 import os
 import re
@@ -16,7 +18,8 @@ from sifreaderA import SIFFile
 from autopick.do_before import clear_all
 clear_all()
 
-def read_one_page(root,name,pageNb): # distributes to specific readers (sif/tif/pma)
+def read_one_page(image_fn,pageNb): # distributes to specific readers (sif/tif/pma)
+    root, name = os.path.split(image_fn)
     for string2compare in ['.pma$','.tif$','.sifx$','.sif$']:
         A=re.search(string2compare,name)
         im0,hdim,vdim,nImages=-1,0,0,0
@@ -156,32 +159,32 @@ def read_one_page_sifx2(root,name, pageNb,A):
 #        
 #    ALLm=ALL(end:-1:1,:);    
     
-
-if 0: #test pma
-    mainPath='H:\\projects\\research practicum\\single molecule fluorescence\\Matlab\\HJA-data from Ivo'
-elif 0: #test multipage tif
-    mainPath='N:\\tnw\\BN\\CMJ\\Shared\\Margreet\\180920 super resolution folder\\190326 data superres C1 D1-210'
-elif 1:
-    #mainPath='N:\\tnw\\BN\\CMJ\\Shared\\Margreet\\older\\170111 cmos camera\\data\\170228 cy37'
-    mainPath='E:\\CMJ trace analysis\\test data'
-elif 0: 
-    mainPath='N:\\tnw\\BN\\CMJ\\Shared\\Margreet\\181218 - First single-molecule sample (GattaQuant)\\RawData'
-#read in pma data
-for root, dirs, fileNames in os.walk(mainPath, topdown=False):
-    for name in fileNames:
-        # detect whether you would like to read a pma file, sif(x), or multipage tif
-        im0,hdim,vdim,nImages=read_one_page(root,name,0)
-        im1=read_one_page(root,name,1)[0]
-        im100=read_one_page(root,name,100)[0]
-        if type(im0)!=int:
-            plt.figure(1)
-            plt.subplot(1,3,1)
-            plt.imshow(im0)
-            plt.subplot(1,3,2)
-            plt.imshow(im1)
-            plt.subplot(1,3,3)
-            plt.imshow(im100)
-            plt.show()
-        
-            break #for testing do only the first one in the file directory
-        
+# BELOW A TEST IS DESCRIBED
+#if 0: #test pma
+#    mainPath='H:\\projects\\research practicum\\single molecule fluorescence\\Matlab\\HJA-data from Ivo'
+#elif 0: #test multipage tif
+#    mainPath='N:\\tnw\\BN\\CMJ\\Shared\\Margreet\\180920 super resolution folder\\190326 data superres C1 D1-210'
+#elif 1:
+#    #mainPath='N:\\tnw\\BN\\CMJ\\Shared\\Margreet\\older\\170111 cmos camera\\data\\170228 cy37'
+#    mainPath='E:\\CMJ trace analysis\\test data'
+#elif 0: 
+#    mainPath='N:\\tnw\\BN\\CMJ\\Shared\\Margreet\\181218 - First single-molecule sample (GattaQuant)\\RawData'
+##read in pma data
+#for root, dirs, fileNames in os.walk(mainPath, topdown=False):
+#    for name in fileNames:
+#        # detect whether you would like to read a pma file, sif(x), or multipage tif
+#        im0,hdim,vdim,nImages=read_one_page(root,name,0)
+#        im1=read_one_page(root,name,1)[0]
+#        im100=read_one_page(root,name,100)[0]
+#        if type(im0)!=int:
+#            plt.figure(1)
+#            plt.subplot(1,3,1)
+#            plt.imshow(im0)
+#            plt.subplot(1,3,2)
+#            plt.imshow(im1)
+#            plt.subplot(1,3,3)
+#            plt.imshow(im100)
+#            plt.show()
+#        
+#            break #for testing do only the first one in the file directory
+#        

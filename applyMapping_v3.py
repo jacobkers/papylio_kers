@@ -3,6 +3,7 @@
 Created on Tue Apr  2 16:40:50 2019
 
 @author: mwdocter
+make a transform, find spots, extract traces, save all traces
 """
 
 # change file name and idr in lines 54 and below
@@ -43,7 +44,7 @@ plt.show()
 plt.pause(0.05) # in hope the figures display with mapping images
 
 print('Are you satisfied with the mapping (yes/no)?')
-x = input()
+x = 'y'#input()
 if x[0]!='y': # do manual mapping
     transform_matrix=autopick.pick_spots_akaze_manual.mapping(file_tetra,show=1,bg=None, tol=0,f=10000)[0]
 plt.show()
@@ -164,7 +165,7 @@ if name.endswith('sifx') : # sifx
 #    nImages=A.stacksize
         
 t = time.time()  
-for ii in range(0,nImages):
+for ii in range(0,35):#range(0,nImages):
     if name.endswith(".sifx"):
         name2=A.filelist[ii]
         im=(read_one_page_sifx2(root,name2,ii, A))[0] # this one opens, closes all the time
@@ -183,22 +184,29 @@ for ii in range(0,nImages):
     # for later concern: compare the three outcomes of the three approaches and compare to find the best
     imA=cv2.warpPerspective(IM_acceptor.astype(float), transform_matrix,array_size[::-1])
 
-       
-    for jj in range(0,pts_number):
+    t = time.time()        
+    for jj in range(0,27):#range(0,pts_number):
+  
+#        t = time.time() 
         xpix=ptsG[jj][1]
         ypix=ptsG[jj][0]
-        
+#        elapsed = time.time() - t; print('time 0 takes  {0:f}'.format(elapsed));t = time.time()  
         if 1: #already incorporated in reshaping ptsG xpix>10 and xpix<hdim/2-10 and ypix>10 and ypix<vdim-10 and label_size[jj]<100 and dstG[jj,1]>10 and dstG[jj,1]<hdim-10 and dstG[jj,0]>10 and dstG[jj,0]<vdim/2-10: #also include dstG here!!!!
             xpix_int=int(xpix)
             ypix_int=int(ypix)
-            
+#            elapsed = time.time() - t; print('time 1 takes  {0:f}'.format(elapsed));t = time.time()  
             #first crop around spot, then do multiplication
             impixD=IM_donor[ (xpix_int-5) : (xpix_int+6) , (ypix_int-5) : (ypix_int+6)]
+#            elapsed = time.time() - t; print('time 2 takes  {0:f}'.format(elapsed));t = time.time()  
+#            elapsed = time.time() - t; print('time 3 takes  {0:f}'.format(elapsed));t = time.time()  
             GG=makeGaussian(11, fwhm=3, center=(ypix-ypix_int+5,xpix-xpix_int+5))
+#            elapsed = time.time() - t; print('time 4 takes  {0:f}'.format(elapsed));t = time.time()  
             multipD=impixD*GG
+#            elapsed = time.time() - t; print('time 5 takes  {0:f}'.format(elapsed));t = time.time()  
             donor[jj,ii]=np.sum(multipD)
-#            if jj==82: #testing purposes
-#                print(ii,np.sum(multipD),donor[jj,ii])
+#            elapsed = time.time() - t; print('time 6 takes  {0:f}'.format(elapsed));t = time.time()  
+            if jj==82: #testing purposes
+                print(ii,np.sum(multipD),donor[jj,ii])
             if show:
                     plt.subplot(1,3,1)
                     plt.imshow(impixD)
@@ -212,7 +220,7 @@ for ii in range(0,nImages):
             impixA=imA[ (xpix_int-5) : (xpix_int+6) , (ypix_int-5) : (ypix_int+6)]
             multip=impixA*GG
             acceptor[jj,ii]=np.sum(multip)
-            
+#            elapsed = time.time() - t; print('time 7 takes  {0:f}'.format(elapsed));t = time.time()  
             if 1: #testing approaches
                 # approach 2, find transformed coordinates in individual images
                 xf=dstG[jj][1]#approach2: transformcoordinates, NOTE: xy are swapped here
@@ -224,8 +232,8 @@ for ii in range(0,nImages):
                 GGB=makeGaussian(11, fwhm=3, center=(yf-yf_int+5,xf-xf_int+5))#approach2: transformcoordinates
                 multipB=impixB*GGB#approach2: transformcoordinates
                 acceptorB[jj,ii]=np.sum(multipB)
-                
-                # approach 3, find transformed coordinates in im_correct (full image)
+#                elapsed = time.time() - t; print('time 8 takes  {0:f}'.format(elapsed));t = time.time()  
+#                 approach 3, find transformed coordinates in im_correct (full image)
                 xf2=dstG2[jj][1]#approach3
                 yf2=dstG2[jj][0]#approach3
                 xf2_int=int(xf2)#approach3
@@ -235,96 +243,97 @@ for ii in range(0,nImages):
                 GGC=makeGaussian(11, fwhm=3, center=(yf2-yf2_int+5,xf2-xf2_int+5))#approach3
                 multipC=impixC*GGC#approach3
                 acceptorC[jj,ii]=np.sum(multipC)
+#                elapsed = time.time() - t; print('time 9 takes  {0:f}'.format(elapsed));t = time.time()  
        # else: print([jj,ptsG[jj][1],ptsG[jj][0],dstG[jj,0],dstG[jj,1],label_size[jj]])
 
-elapsed = time.time() - t   
-print('after extracting intensities of all positions all image {0:f}'.format(elapsed))
+elapsed = time.time() - t; print('after extracting intensities of all positions all image {0:f}'.format(elapsed))
   
+if 0: #no saving
 # save all traces file
 # in comparison to IDL: film_l=nImages, num_good=pts_number
 # in comparison to Trace.m: 
-Nframes=nImages
-Ntraces=pts_number
-Ncolours=2
-with open(root+'\\'+name[:-4]+'-P.traces', 'w') as outfile:
-    off = np.array([Nframes], dtype=np.int32)
-    off.tofile(outfile)
-    off = np.array([2*Ntraces], dtype=np.int16)
-    off.tofile(outfile)
-    time_tr=np.zeros((Nframes,2*Ntraces))
-    for jj in range(2*Ntraces//Ncolours):
-            time_tr[:,jj*2] = donor[jj,:]
-            time_tr[:,jj*2+1]=  acceptor[jj,:]
-    off = np.array((time_tr), dtype=np.int16)
-    off.tofile(outfile)
-elapsed = time.time() - t   
-print('after saving traces to file {0:f}'.format(elapsed))
-
-if 1: #testing approaches
-     
-    with open(root+'\\'+name[:-4]+'-PB.traces', 'w') as outfile:
+    Nframes=nImages
+    Ntraces=pts_number
+    Ncolours=2
+    with open(root+'\\'+name[:-4]+'-P.traces', 'w') as outfile:
         off = np.array([Nframes], dtype=np.int32)
         off.tofile(outfile)
         off = np.array([2*Ntraces], dtype=np.int16)
         off.tofile(outfile)
         time_tr=np.zeros((Nframes,2*Ntraces))
         for jj in range(2*Ntraces//Ncolours):
-            time_tr[:,jj*2] = donor[jj,:]
-            time_tr[:,jj*2+1]=  acceptorB[jj,:]
+                time_tr[:,jj*2] = donor[jj,:]
+                time_tr[:,jj*2+1]=  acceptor[jj,:]
         off = np.array((time_tr), dtype=np.int16)
         off.tofile(outfile)
     elapsed = time.time() - t   
     print('after saving traces to file {0:f}'.format(elapsed))
     
-    with open(root+'\\'+name[:-4]+'-PC.traces', 'w') as outfile:
-        off = np.array([Nframes], dtype=np.int32)
-        off.tofile(outfile)
-        off = np.array([2*Ntraces], dtype=np.int16)
-        off.tofile(outfile)
-        time_tr=np.zeros((Nframes,2*Ntraces))
-        for jj in range(2*Ntraces//Ncolours):
-            time_tr[:,jj*2] = donor[jj,:]
-            time_tr[:,jj*2+1]=  acceptorC[jj,:]
-        off = np.array((time_tr), dtype=np.int16)
-        off.tofile(outfile)
-    elapsed = time.time() - t   
-    print('after saving traces to file {0:f}'.format(elapsed))
-
-if 1: #testing approaches
-    #saving to pks file
-    with open(root+'\\'+name[:-4]+'-PC.pks', 'w') as outfile:
-         for jj in range(0,pts_number):
-             pix0=ptsG[jj][0]
-             pix1=ptsG[jj][1]
-             outfile.write(' {0:4.0f} {1:4.4f} {2:4.4f} {3:4.4f} {4:4.4f} \n'.format((jj*2)+1, pix0, pix1, 0, 0, width4=4, width6=6))
-             pix0=dstG2[jj][0]
-             pix1=dstG2[jj][1]
-             outfile.write(' {0:4.0f} {1:4.4f} {2:4.4f} {3:4.4f} {4:4.4f} \n'.format((jj*2)+2, pix0, pix1, 0, 0, width4=4, width6=6))
-
-#saving to .map file
-P=np.zeros((4,4))   
-tm=np.linalg.inv(transform_matrix)      
-P[0,0]=tm[0,2]
-P[0,1]=tm[0,1]
-P[1,0]=tm[0,0]
-Q=np.zeros((4,4))         
-Q[0,0]=tm[1,2]
-Q[0,1]=tm[1,1]
-Q[1,0]=tm[1,0]
-with open(root+'\\'+name[:-4]+'-P.map', 'w') as outfile:
-   for ii in range (P.size):
-       outfile.write('{0:4.10e}\n'.format(np.hstack(P)[ii]))
-   for ii in range (Q.size):
-       outfile.write('{0:4.10e}\n'.format(np.hstack(Q)[ii]))
-
-#saving to .coeff file:
-with open(root+'\\'+name[:-4]+'-P.coeff', 'w') as outfile:
-    outfile.write('{0:4.10e}\n'.format(transform_matrix[0,2]+256))
-    outfile.write('{0:4.10e}\n'.format(transform_matrix[0,0]))
-    outfile.write('{0:4.10e}\n'.format(transform_matrix[0,1]))
-    outfile.write('{0:4.10e}\n'.format(transform_matrix[1,2]))
-    outfile.write('{0:4.10e}\n'.format(transform_matrix[1,0]))
-    outfile.write('{0:4.10e}\n'.format(transform_matrix[1,1]))
-                    
-       
+    if 1: #testing approaches
+         
+        with open(root+'\\'+name[:-4]+'-PB.traces', 'w') as outfile:
+            off = np.array([Nframes], dtype=np.int32)
+            off.tofile(outfile)
+            off = np.array([2*Ntraces], dtype=np.int16)
+            off.tofile(outfile)
+            time_tr=np.zeros((Nframes,2*Ntraces))
+            for jj in range(2*Ntraces//Ncolours):
+                time_tr[:,jj*2] = donor[jj,:]
+                time_tr[:,jj*2+1]=  acceptorB[jj,:]
+            off = np.array((time_tr), dtype=np.int16)
+            off.tofile(outfile)
+        elapsed = time.time() - t   
+        print('after saving traces to file {0:f}'.format(elapsed))
+        
+        with open(root+'\\'+name[:-4]+'-PC.traces', 'w') as outfile:
+            off = np.array([Nframes], dtype=np.int32)
+            off.tofile(outfile)
+            off = np.array([2*Ntraces], dtype=np.int16)
+            off.tofile(outfile)
+            time_tr=np.zeros((Nframes,2*Ntraces))
+            for jj in range(2*Ntraces//Ncolours):
+                time_tr[:,jj*2] = donor[jj,:]
+                time_tr[:,jj*2+1]=  acceptorC[jj,:]
+            off = np.array((time_tr), dtype=np.int16)
+            off.tofile(outfile)
+        elapsed = time.time() - t   
+        print('after saving traces to file {0:f}'.format(elapsed))
     
+    if 1: #testing approaches
+        #saving to pks file
+        with open(root+'\\'+name[:-4]+'-PC.pks', 'w') as outfile:
+             for jj in range(0,pts_number):
+                 pix0=ptsG[jj][0]
+                 pix1=ptsG[jj][1]
+                 outfile.write(' {0:4.0f} {1:4.4f} {2:4.4f} {3:4.4f} {4:4.4f} \n'.format((jj*2)+1, pix0, pix1, 0, 0, width4=4, width6=6))
+                 pix0=dstG2[jj][0]
+                 pix1=dstG2[jj][1]
+                 outfile.write(' {0:4.0f} {1:4.4f} {2:4.4f} {3:4.4f} {4:4.4f} \n'.format((jj*2)+2, pix0, pix1, 0, 0, width4=4, width6=6))
+    
+    #saving to .map file
+    P=np.zeros((4,4))   
+    tm=np.linalg.inv(transform_matrix)      
+    P[0,0]=tm[0,2]
+    P[0,1]=tm[0,1]
+    P[1,0]=tm[0,0]
+    Q=np.zeros((4,4))         
+    Q[0,0]=tm[1,2]
+    Q[0,1]=tm[1,1]
+    Q[1,0]=tm[1,0]
+    with open(root+'\\'+name[:-4]+'-P.map', 'w') as outfile:
+       for ii in range (P.size):
+           outfile.write('{0:4.10e}\n'.format(np.hstack(P)[ii]))
+       for ii in range (Q.size):
+           outfile.write('{0:4.10e}\n'.format(np.hstack(Q)[ii]))
+    
+    #saving to .coeff file:
+    with open(root+'\\'+name[:-4]+'-P.coeff', 'w') as outfile:
+        outfile.write('{0:4.10e}\n'.format(transform_matrix[0,2]+256))
+        outfile.write('{0:4.10e}\n'.format(transform_matrix[0,0]))
+        outfile.write('{0:4.10e}\n'.format(transform_matrix[0,1]))
+        outfile.write('{0:4.10e}\n'.format(transform_matrix[1,2]))
+        outfile.write('{0:4.10e}\n'.format(transform_matrix[1,0]))
+        outfile.write('{0:4.10e}\n'.format(transform_matrix[1,1]))
+                        
+           
+        

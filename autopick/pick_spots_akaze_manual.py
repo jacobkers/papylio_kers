@@ -1,3 +1,11 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Tue Apr  2 13:08:00 2019
+
+@author: mwdocter
+
+click on 10 (!) points and then make a (manual) transformation matrix
+"""
 # # NOTES # #
 # Install the packages opencv and opencv-contrib.
 # Both versions of OpenCV have to be lower than 3.4.3.
@@ -15,9 +23,7 @@ import matplotlib.pyplot as plt
 from skimage import filters #  Image processing in Python — scikit-image
 import numpy as np
 import bisect #This module provides support for maintaining a list in sorted order without having to sort the list after each insertion.
-from image_adapt.find_threshold import remove_background
-
-
+from image_adapt.find_threshold import remove_background, get_threshold
 
 def imghist(img): #img is a np.array
     binrange = [np.min(img), np.max(img)]
@@ -113,17 +119,18 @@ def mapping(file_tetra, show=0, f=None,bg=None, tol=1): #'E:\CMJ trace analysis\
     if type(bg)==type(None):
         # take two different backgrounds, one for donor, one for acceptor channel
         sh=np.shape(image_tetra)
-        thr_donor=remove_background(image_tetra[:,1:sh[0]//2])[1]
-        thr_acceptor=remove_background(image_tetra[:,sh[0]//2:])[1]
+        thr_donor=get_threshold(image_tetra[:,1:sh[0]//2])
+        thr_acceptor=get_threshold(image_tetra[:,sh[0]//2:])
         bg=np.zeros(sh)
         bg[:,1:sh[0]//2]=thr_donor
         bg[:,sh[0]//2:]=thr_acceptor
-    image_tetra=image_tetra.astype(float)-bg
-    image_tetra[image_tetra<0]=0
+    image_tetra=remove_background(image_tetra.astype(float),bg)
+#    image_tetra=image_tetra.astype(float)-bg
+#    image_tetra[image_tetra<0]=0
     image_tetra=image_tetra.astype(np.uint16)    
     position1=[]
     position2=[]
-    # left, right, enhanced left and enhanced right image for keypoint detection
+    # left, right, enhanced left and enhanced right image for keypoint detection, adapt f
     while np.shape(position1)[0]<50 or np.shape(position2)[0]<50 : 
         # while loop to lower f and increase the number of spots found
         l, r, l_enh, r_enh = enhance_blobies(image_tetra,f, tol)
@@ -160,7 +167,7 @@ def mapping(file_tetra, show=0, f=None,bg=None, tol=1): #'E:\CMJ trace analysis\
     ax2 = fig.add_subplot(1,2,2,sharex=ax1,sharey=ax1) 
     ax2.imshow(gray2)
     
-    points_left=plt.ginput(11)
+    points_left=plt.ginput(4) # adapted it to be 4, I expected 3 to work, to match with IDL code
     points_right=points_left.copy()
     [ax1.plot(xx,yy,markersize=10, c='w', marker='o', fillstyle='none') for xx,yy in points_left]
         
@@ -199,6 +206,7 @@ def mapping(file_tetra, show=0, f=None,bg=None, tol=1): #'E:\CMJ trace analysis\
     matches=len(points_left)   
     for ii in range(matches):
         xp_new=0*xp
+        yp_new=0*yp
         ax1.set_xlim(points_left[ii][0]-50, points_left[ii][0]+50)
         ax1.set_ylim(points_left[ii][1]-50, points_left[ii][1]+50)
         line1=ax1.plot(points_left[ii][0],points_left[ii][1],markersize=10, c='y', marker='+', fillstyle='none')      
@@ -232,8 +240,9 @@ def mapping(file_tetra, show=0, f=None,bg=None, tol=1): #'E:\CMJ trace analysis\
     # now loop over each spot to update its position in a zoomed in window
     
     # get the points_right to match syntax pts1, pts2
-    
-    transformation_matrixC, mask = cv2.findHomography(np.array(points_right), np.array(points_left), cv2.RANSAC,20)
+    points_right=np.array(points_right)
+    points_left=np.array(points_left)
+    transformation_matrixC, mask = cv2.findHomography(points_right, points_left, cv2.RANSAC,20)
               
 ##    A=pts1[0:len(matches) : int(len(matches)/15)]
 #    if len(matches)>20:
@@ -255,34 +264,34 @@ def mapping(file_tetra, show=0, f=None,bg=None, tol=1): #'E:\CMJ trace analysis\
     if show:
         plt.figure(11, figsize=(18,9))
         plt.subplot(1,1,1)
-        plt.subplot(1,5,1),
+        plt.subplot(1,6,1),
         plt.imshow(gray1, extent=[0,array_size[1],0,array_size[0]], aspect=1)
         plt.title('green channel')
             
-        plt.subplot(1,5,2),
+        plt.subplot(1,6,2),
         plt.imshow(gray2, extent=[0,array_size[1],0,array_size[0]], aspect=1)
         plt.title('red channel')    
         
-        plt.subplot(1,5,3),
+        plt.subplot(1,6,3),
         plt.imshow(imC, extent=[0,array_size[1],0,array_size[0]], aspect=1)
         plt.title('red transformed')
         plt.show()
     
-        plt.subplot(1,5,4),
+        plt.subplot(1,6,4),
         A=(gray1>0)+2*(gray2>0)
         plt.imshow(A, extent=[0,array_size[1],0,array_size[0]], aspect=1)
        # plt.colorbar()
-        plt.title( '#b{:d} #g{:d} # y{:d}'.format(np.sum(A==1),np.sum(A==2),np.sum(A==3))   ) 
+        plt.title( 'unaligned #(yellow) \nspots overlap {:d}'.format(np.sum(A==3))   ) 
             
-        plt.subplot(1,5,5),
+        plt.subplot(1,6,5),
         AA=(gray1>0)+2*(imC>0)
         plt.imshow((gray1>0)+2*(imC>0), extent=[0,array_size[1],0,array_size[0]], aspect=1)
         #plt.colorbar()
-        plt.title(  '#b{:d} #g{:d} # y{:d}'.format(np.sum(AA==1),np.sum(AA==2),np.sum(AA==3)) )    
+        plt.title(  'manual align \n#spots overlap y{:d}'.format(np.sum(AA==3)) )    
         plt.show()
         plt.pause(0.05)
 
 # ask whether the user agree, if not: rerun with clicking corresponding points
 # cv2.getAffineTransform(src, dst) → retval
-        
+    plt.figure(10), plt.close()            
     return  transformation_matrixC, points_left, points_right

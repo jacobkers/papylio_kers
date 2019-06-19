@@ -3,6 +3,8 @@
 Created on Tue Apr  2 09:33:48 2019
 
 @author: mwdocter
+
+draw matches between keypoints (which apparently include more than just location)
 """
 #https://stackoverflow.com/questions/36796025/how-do-you-use-akaze-in-open-cv-on-python
 import cv2

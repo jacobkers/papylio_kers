@@ -3,6 +3,8 @@
 Created on Thu May 16 14:53:51 2019
 
 @author: mwdocter
+
+find out best way how to save traces
 """
 root='N:\\tnw\\BN\\CMJ\\Shared\\Margreet\\20181203_HJ_training\\#3.10_0.1mg-ml_streptavidin_50pM_HJC_G_movies'
 name='hel4.pma'

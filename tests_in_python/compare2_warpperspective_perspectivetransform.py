@@ -3,6 +3,8 @@
 Created on Thu May 16 11:17:13 2019
 
 @author: mwdocter
+
+compare the use of P&Q with use of transform_matrix -> same?
 """
 import numpy as np 
 import cv2

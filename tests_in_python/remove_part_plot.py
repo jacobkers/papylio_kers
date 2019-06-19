@@ -3,6 +3,8 @@
 Created on Wed May  8 10:05:44 2019
 
 @author: mwdocter
+
+see how to get rid of (part) of a figure
 """
 
 import matplotlib.pyplot as plt
@@ -13,11 +15,10 @@ fig = plt.figure()
 ax  = fig.add_subplot(1, 2, 1)
 pnt1 = ax.plot(a,'b-*') # this uses up an additional 230 Mb of memory.
 fig.canvas.draw()
-fig.canvas.flush_events()
+#fig.canvas.flush_events()
 # can I get the memory back?
 l = pnt1[0]
-l.remove()
+l.remove() # full figure is gone
 del l
-del lines
 # not releasing memory
 ax.cla() 

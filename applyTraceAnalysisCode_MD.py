@@ -2,7 +2,13 @@
 """
 Created on Wed Nov  7 10:50:59 2018
 
-@author: ivoseverins
+@author: ivoseverins, adapted by margreet to play with my own code
+
+for example: 
+    make histogram of fret values
+    read in pks value and make scatter plot
+    plot individual traces
+
 """
 # this code is used to analyse the difference between data analyzed through IDL
 # and data analyzed through Python.

@@ -3,6 +3,8 @@
 Created on Tue Apr  2 16:40:50 2019
 
 @author: mwdocter
+order = transform - find spot locations - extract traces - save all
+
 """
 
 # applyMapping: file in other folder which needs to improt mapping from pick_spots_akaze

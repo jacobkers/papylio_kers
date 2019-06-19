@@ -1,3 +1,11 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Tue Apr  2 13:08:00 2019
+
+@author: mwdocter
+
+find spots and make transformation, see Shirani's report
+"""
 # # NOTES # #
 # Install the packages opencv and opencv-contrib.
 # Both versions of OpenCV have to be lower than 3.4.3.

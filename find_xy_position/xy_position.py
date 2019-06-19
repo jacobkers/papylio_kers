@@ -3,6 +3,8 @@
 Created on Tue Apr  2 17:04:10 2019
 
 @author: mwdocter
+
+pts1&2 are found, as well as the transformation between them, to be adapted
 """
 
 from do_before import clear_all

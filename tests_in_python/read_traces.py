@@ -3,6 +3,8 @@
 Created on Thu Apr 18 13:54:18 2019
 
 @author: mwdocter
+
+used to check whether the traces and pks from Python have similar structure as generated from IDL
 """
 import numpy as np
 import matplotlib.pyplot as plt

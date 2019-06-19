@@ -3,6 +3,8 @@
 Created on Tue May  7 13:44:54 2019
 
 @author: mwdocter
+
+more advanced listener, you can move a selected points udlr with the arrow keys, and press esc when done
 """
 from pynput.keyboard import Key, Listener
 import matplotlib.pyplot as plt
