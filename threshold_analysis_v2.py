@@ -20,11 +20,9 @@ def make_differences(trace, Ndif=2):
     return differences
 
 
-def stepfinder(trace, exposure_time=0.1, threshold=100, include_start=True,
-               include_end=True, max_steps=10):
-    Nframes = trace.size
-    time = np.linspace(0, Nframes*exposure_time, Nframes)
-
+def stepfinder(trace, threshold=100, include_start=True,
+               include_end=True, max_steps=20):
+    trace = np.copy(trace)
     if include_start:
         trace[0] = 0
         trace[1] = 0
@@ -35,23 +33,22 @@ def stepfinder(trace, exposure_time=0.1, threshold=100, include_start=True,
     start_frames = []
     stop_frames = []
     for i in range(trace.size):
-        if i < len(trace)-4:
+        if i < len(trace)-2:
             dif1 = trace[i+1] - trace[i]
             dif2 = trace[i+2] - trace[i]
-
 
             if dif1 > threshold and dif2 > threshold\
                                 and trace[i] < threshold:
                 for j in range(i, len(trace)):
-                    if j < len(trace)-4:
+                    if j < len(trace)-2:
                         dif1 = trace[j+1] - trace[j]
                         dif2 = trace[j+2] - trace[j]
 
 
                         if dif1 < -threshold and dif2 < -threshold\
-                                    and trace[j+4] < trace[i] + 0.33*trace[j]:
-                            start_frames.append(i)
-                            stop_frames.append(j)
+                                    and trace[j+2] < trace[i] + 0.33*trace[j]:
+                            start_frames.append(i-1)
+                            stop_frames.append(j-1)
                             break
 
     if not include_end and len(start_frames) == len(stop_frames) + 1: # if the
@@ -78,84 +75,10 @@ def stepfinder(trace, exposure_time=0.1, threshold=100, include_start=True,
         return {"start_frames": start_frames, "stop_frames": stop_frames}
     else:
 #        print "steps found: " + str(len(start_frames))
-        res={"start_times": [time[start] for start in start_frames],
-                   "stop_times": [time[stop] for stop in stop_frames],
-                   "start_frames": start_frames,
-                   "stop_frames": stop_frames,
-                   "dwell_times": [(time[stop] - time[start]) for start, stop in zip(start_frames, stop_frames)],
-                   "threshold": threshold
-                   }
+        res={ "start_frames": start_frames,
+             "stop_frames": stop_frames,
+             "threshold": threshold}
         return res
-
-
-def stepfinder2(trace="red", exposure_time=0.1, threshold=100, include_start=True,
-               include_end=True, max_steps=10):
-    Nframes = trace.size
-    time = np.linspace(0, Nframes*exposure_time, Nframes)
-
-    if include_start:
-        trace[0] = 0
-        trace[1] = 0
-    if include_end:
-        trace[-1] = 0
-        trace[-2] = 0
-
-    start_frames = []
-    stop_frames = []
-    for i in range(trace.size):
-        if i < len(trace)-4:
-            dif1 = trace[i+1] - trace[i]
-            dif2 = trace[i+2] - trace[i]
-
-
-            if dif1 > threshold and dif2 > threshold\
-                                and trace[i] < threshold:
-                for j in range(i, len(trace)):
-                    if j < len(trace)-4:
-                        dif1 = trace[j+1] - trace[j]
-                        dif2 = trace[j+2] - trace[j]
-
-
-                        if dif1 < -threshold and dif2 < -threshold\
-                                    and trace[j+4] < trace[i] + 0.33*trace[j]:
-                            start_frames.append(i)
-                            stop_frames.append(j)
-                            break
-
-    if not include_end and len(start_frames) == len(stop_frames) + 1: # if the
-            start_frames = start_frames[:-1] # exclude the last start_frame
-
-    if len(start_frames) != len(stop_frames):  # sometimes 2 consecutive frames both satisfy the threshold condition for very big jumps
-        start_temp = np.copy(start_frames)
-        stop_temp = np.copy(stop_frames)
-        for i, start in enumerate(start_temp):
-            if  start_temp[i] - start_temp[i-1] == 1:
-                start_frames.remove(start)
-        for i, stop in enumerate(stop_temp):
-            if  stop_temp[i] - stop_temp[i-1] == 1:
-                stop_frames.remove(stop)
-
-    if len(start_frames) != len(stop_frames): # if the problem remains
-        print ("something is wrong")
-        print ("start frames: "+str(start_frames))
-        print ("stop frames: "+str(stop_frames))
-        return {"start_frames": start_frames, "stop_frames": stop_frames}
-
-    elif len(start_frames) > max_steps:
-        print ("Found more steps than the limit of "+str(max_steps))
-        return {"start_frames": start_frames, "stop_frames": stop_frames}
-    else:
-#        print "steps found: " + str(len(start_frames))
-        res={"start_times": [time[start] for start in start_frames],
-                   "stop_times": [time[stop] for stop in stop_frames],
-                   "start_frames": start_frames,
-                   "stop_frames": stop_frames,
-                   "dwell_times": [(time[stop] - time[start]) for start, stop in zip(start_frames, stop_frames)],
-                   "threshold": threshold
-                   }
-        return res
-
-
 
 
 def plot_steps(trace="red", exposure_time=0.1, steps={},
@@ -189,32 +112,6 @@ def plot_steps(trace="red", exposure_time=0.1, steps={},
             plt.pause(0.001)
     plt.ion()
 
-def analyzer (name="", threshold=70, read_selected=True, Ndif="4"):
-    if read_selected:
-        data = read_selected_traces ("selected_"+name)
-    else:
-        data = read_traces(name+".traces")
-    time = data["time"]
-    Nmolecules = data["Nmolecules"]
-    print ("{} molecules will be analyzed".format(Nmolecules))
-    #
-    dwell_times = []
-    for i in range(Nmolecules):
-        print ("working on {}/{} molecules in:".format(i, Nmolecules))
-        print (d[2:])
-#        tr = data["acceptor"][i]
-        tr = data["donor"][i]
-        steps = stepfinder(tr, time, threshold=threshold, filter_trace=False, Ndif=Ndif)
-        plot_save_steps(tr, time, steps, name=data["names"][i],
-                        display_plot=False, save_folder="traces_thr_"+str(threshold)+"_"+Ndif+"dif_"+name)
-        if "dwell_times" in steps.keys():
-            for dwell in steps["dwell_times"]:
-                if dwell > 0:  # take into account only the positive dwell times
-                    dwell_times.append(dwell)
-    dwell_times = np.array(dwell_times)
-#    print "Found {} dwell times out of {} traces".format(len(dwell_times), Nmolecules)
-    np.savetxt("./dwell_times_threshold_"+str(threshold)+"_"+Ndif+"dif_{}.dat".format(name), dwell_times)
-    return dwell_times
 
 
 #read_selected = True

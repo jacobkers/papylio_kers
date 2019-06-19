@@ -1,9 +1,6 @@
+*.pptx
 __pycache__/
 twoColourExampleData/
 *test*
-
 *.xml
-
 *.iml
-
-*.pyc

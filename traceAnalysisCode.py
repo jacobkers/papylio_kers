@@ -5,23 +5,28 @@ Created on Fri Sep 14 15:24:46 2018
 @author: ivoseverins
 """
 
-import os
+import os # Miscellaneous operating system interfaces - to be able to switch from Mac to Windows
 import re # Regular expressions
 import warnings
+#<<<<<<< HEAD
+import numpy as np #scientific computing with Python
+import matplotlib.pyplot as plt #Provides a MATLAB-like plotting framework
+import itertools #Functions creating iterators for efficient looping
+#=======
 import numpy as np
-
+np.seterr(divide='ignore', invalid='ignore')
+import pandas as pd
+import matplotlib.pyplot as plt
+import itertools
+from threshold_analysis_v2 import stepfinder
 # Use the following instead of: import matplotlib as mpl
 #from matplotlib import use
 #use('WXAgg')
-from matplotlib import pyplot as plt
-
-import itertools
-from .threshold_analysis import stepfinder, plot_steps
-import multiprocessing as mp
-from functools import wraps, partial
+import pickle
+#>>>>>>> 34f1179a282a5fbfafdff8c3abd9e7e166bb40c0
 
 class Experiment:
-    def __init__(self, mainPath, exposure_time=0.1):
+    def __init__(self, mainPath, exposure_time=None):
         self.name = os.path.basename(mainPath)
         self.mainPath = mainPath
         self.files = list()
@@ -35,6 +40,7 @@ class Experiment:
     @property
     def molecules(self):
         return [molecule for file in self.files for molecule in file.molecules]
+
     @property
     def selectedFiles(self):
         return [file for file in self.files if file.isSelected]
@@ -116,7 +122,7 @@ class File:
         self.extensions = list()
         self.experiment = experiment
         self.molecules = list()
-        self.exposure_time = exposure_time
+        self.exposure_time = exposure_time  #Here the exposure time is given but it should be found from the log file if possible
 
         self.isSelected = False
 
@@ -137,16 +143,25 @@ class File:
         self.extensions.append(extension)
         print(extension)
         importFunctions = {'.pks'        : self.importPksFile,
-                           '.traces'     : self.importTracesFile}
+                           '.traces'     : self.importTracesFile,
+                           '.sim'       : self.importSimFile
+                           }
 
         importFunctions.get(extension, print)()
 #        if extension == '.pks':
             #self.importPksFile()
 
     def importPksFile(self):
+        print()
         # Background value stored in pks file is not imported yet
         Ncolours = self.experiment.Ncolours
+#<<<<<<< HEAD
+        
+   #     pks = np.genfromtxt(self.name + '.pks', delimiter='      ')  #MD190104 you get an error when using 6 spaces for tab
+        pks = np.genfromtxt(self.name + '.pks')  #MD190104 By default, any consecutive whitespaces act as delimiter.
+#=======
         pks = np.genfromtxt(self.name + '.pks', delimiter='      ')
+#>>>>>>> 34f1179a282a5fbfafdff8c3abd9e7e166bb40c0
         Ntraces = np.shape(pks)[0]
 
         if not self.molecules:
@@ -162,12 +177,9 @@ class File:
 
     def importTracesFile(self):
         Ncolours = self.experiment.Ncolours
-
         file = open(self.name + '.traces', 'r')
-
         self.Nframes = np.fromfile(file, dtype=np.int32, count=1).item()
         Ntraces = np.fromfile(file, dtype=np.int16, count=1).item()
-
         if not self.molecules:
             for molecule in range(0, Ntraces, Ncolours):
                 self.addMolecule()
@@ -177,97 +189,84 @@ class File:
 
         for i, molecule in enumerate(self.molecules):
             molecule.intensity = orderedData[:,i,:]
+        file.close()
+
+    def importSimFile(self):
+        file = open(self.name + '.sim', 'rb')
+        self.data = pickle.load(file)
+        red, green  = self.data['red'], self.data['green']
+        Ntraces = red.shape[0]
+        self.Nframes = red.shape[1]
+
+        if not self.molecules:
+            for molecule in range(0, Ntraces):
+                self.addMolecule()
+
+        for i, molecule in enumerate(self.molecules):
+            molecule.intensity = np.vstack((green[i], red[i]))
+        file.close()
 
     def addMolecule(self):
-        self.molecules.append(Molecule(self, self.exposure_time))
+        self.molecules.append(Molecule(self))
+        self.molecules[-1].index = len(self.molecules)  # this is the molecule number
 
     def histogram(self):
         histogram(self.molecules)
 
-    def find_dwell_times(self, trace, **params):
-        dwell_times = [mol.find_steps(trace, **params)["dwell_times"]
-                       for mol in self.molecules]
-        return dwell_times
-
-#    def find_molecule_dwell_times(self, trace, **params):
-#        @wraps (self.find_molecule_dwell_times)
-#        def inner(mol):
-#            if mol.dwell_times(trace, **params) != {}:  # this is where the dwell-time calculation is performed
-#                    dwell_times = (mol.dwell_times(trace, **params)["dwell_times"])
-#            else:
-#                    dwell_times = []
-#            return dwell_times
-##        inner.__module__ = "__main__"
-#        return inner
-
-#    def find_molecule_dwell_times(self,mol, trace, **params):
-#        if mol.dwell_times(trace, **params) != {}:  # this is where the dwell-time calculation is performed
-#                dwell_times = (mol.dwell_times(trace, **params)["dwell_times"])
-#        else:
-#                dwell_times = []
-#        return dwell_times
-#
-#
-#    def find_dwell_times_mp(self, trace, **params):
-#        pool = mp.Pool(mp.cpu_count() - 1)
-##        finders = [self.find_molecule_dwell_times(mol) for mol in self.molecules]
-#        func = self.find_molecule_dwell_times(mol, trace, **params)
-##        func.module__ = "__main__"
-#        trace_list = [trace for i in len(self.molecules)]
-#        params_list = [params for i in len(self.molecules)]
-#        dwell_times = pool.starmap(func, (self.molecules, trace_list, params_list))
-#        pool.stop()
-#        pool.join()
-#        return dwell_times
-
+    def importExcel(self, filename=None):
+        if filename is None:
+            filename = self.name+'_steps_data.xlsx'
+        try:
+            steps_data = pd.read_excel(filename, index_col=[0,1],
+                                            dtype={'kon':np.str})       # reads from the 1st excel sheet of the file
+        except FileNotFoundError:
+            return
+        molecules = steps_data.index.unique(0)
+        indices = [int(m.split()[-1]) for m in molecules]
+        for mol in self.molecules:
+            if mol.index not in indices:
+                continue
+            mol.steps = steps_data.loc[f'mol {mol.index}']
+            k = [int(i) for i in mol.steps.kon[0]]
+            mol.kon_boolean = np.array(k).astype(bool).reshape((3,3))
 
 
 class Molecule:
 
-    def __init__(self, file, exposure_time):
+    def __init__(self, file):
         self.file = file
+        self.index = None
         self.coordinates = None
         self.intensity = None
-        self.exposure_time = exposure_time
 
         self.isSelected = False
 
-        self.dwell_times_auto = {"red":{}, "green":{},
-                                 "E":{}}
+        self.steps = None  #Defined in other classes as: pd.DataFrame(columns=['frame', 'trace', 'state', 'method','thres'])
+        self.kon_boolean = None  # 3x3 matrix that is indicates whether the kon will be calculated from the beginning, in-between molecules or for the end only
 
-    def I(self, emission):
-        return self.intensity[emission, :]
+    def I(self, emission, Ioff=0):
+        return self.intensity[emission, :] - Ioff
 
-    def E(self):
-        return self.I(1) / ( self.I(0) + self.I(1) )
+    def E(self, Imin=0, alpha=0):  # alpha correction is not implemented yet, this is just a reminder
+        red = np.copy(self.I(1))
+        green = self.I(0)
+        np.putmask(red, red<Imin, 0)  # the mask makes all elements of acceptor that are below the Imin zero, for E caclulation
+        return (red - alpha*green) / (green + red - alpha*green)
 
     def plot(self):
         plt.plot(self.intensity[0,:], 'g')
         plt.plot(self.intensity[1,:], 'r')
         plt.show()
+#MD190104: why not add a subplot with FRET here as well, to match with display Matlab?
 
+#<<<<<<< HEAD
+    #def dwelltime
+#=======
+    @property
+    def find_steps(self):
+        return stepfinder
 
-    def __apply_to_trace(self, function):
-        def inner (trace, **params):
-            if trace in ["green"]:
-                return function(self.intensity[0, :], exposure_time=self.exposure_time, **params)
-            if trace in ["red"]:
-                return function(self.intensity[1, :], exposure_time=self.exposure_time, **params)
-            if trace in ["E"]:
-                return function(self.E(), exposure_time=self.exposure_time, **params)
-            else:
-                print("You didn't input correct key for trace")
-
-        return inner
-
-    def find_steps(self, trace, **params):
-        dwells = self.__apply_to_trace(stepfinder)(trace, **params)
-        self.dwell_times_auto[trace] = dwells
-        return dwells
-
-    def plot_trace(self, trace, **params):
-        return self.__apply_to_trace(plot_steps)(trace, **params)
-
+#>>>>>>> 34f1179a282a5fbfafdff8c3abd9e7e166bb40c0
 
 def histogram(input, axis, makeFit = False):
     if not input: return None
@@ -286,10 +285,10 @@ def histogram(input, axis, makeFit = False):
     axis.hist(data,100, range = (0,1))
 
     if makeFit:
-        fit(data, axis)
+        fit_hist(data, axis)
 
 
-def fit(data, axis):
+def fit_hist(data, axis):
 
     hist, bin_edges = np.histogram(data,100, range = (0,1))
     bin_centers = (bin_edges[0:-1]+bin_edges[1:])/2
