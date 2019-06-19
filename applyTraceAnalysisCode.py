@@ -20,10 +20,7 @@ os.chdir(os.path.dirname(os.path.abspath(__file__)))
 exp = Experiment(mainPath)
 
 
-exp.histogram()
-
-
-
+exp.histogram(makeFit = True)
 
 
 

@@ -1,1 +1,11 @@
+#<<<<<<< HEAD
 *.pptx
+#=======
+__pycache__/
+twoColourExampleData/
+*test*
+
+*.xml
+
+*.iml
+#>>>>>>> 34f1179a282a5fbfafdff8c3abd9e7e166bb40c0
