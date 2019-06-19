@@ -1,10 +1,10 @@
 *.pptx
+
 development _ not to be included in git/
+
 __pycache__/
 twoColourExampleData/
 *test*
-
 *.xml
-
 *.iml
 
