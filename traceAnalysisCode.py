@@ -8,13 +8,13 @@ Created on Fri Sep 14 15:24:46 2018
 import os # Miscellaneous operating system interfaces - to be able to switch from Mac to Windows
 import re # Regular expressions
 import warnings
-#<<<<<<< HEAD
 import numpy as np #scientific computing with Python
 import matplotlib.pyplot as plt #Provides a MATLAB-like plotting framework
 import itertools #Functions creating iterators for efficient looping
 np.seterr(divide='ignore', invalid='ignore')
 import pandas as pd
 from threshold_analysis_v2 import stepfinder
+from pathlib import Path # For efficient path manipulation
 # Use the following instead of: import matplotlib as mpl
 #from matplotlib import use
 #use('WXAgg')
@@ -24,7 +24,7 @@ import pickle
 class Experiment:
     def __init__(self, mainPath, exposure_time=None):
         self.name = os.path.basename(mainPath)
-        self.mainPath = mainPath
+        self.mainPath = Path(mainPath)
         self.files = list()
         self.Ncolours = 2
         self.exposure_time = exposure_time
@@ -48,48 +48,77 @@ class Experiment:
         return [molecule for file in self.files for molecule in file.selectedMolecules]
 
     def addAllFilesInMainPath(self):
-        # Only works/tested for files in the main folder for now
 
-        for root, dirs, fileNames in os.walk('.', topdown=False):
 
-            for fileName in fileNames:
-                    print(root)
-                    print(fileName)
+        ## Find all unique files in all subfolders
+        
+        # Get all the files in all subfolders of the mainpath and remove their suffix (extensions)
+        # Also make sure only relevant files are included (exclude folders, averaged tif files, data folders and .dat files)
+        files = [p.relative_to(self.mainPath).with_suffix('') for p in self.mainPath.glob('**/*')
+                    if  (p.is_file() & 
+                        ('_ave' not in p.name) & 
+                        ('.' not in str(p.with_suffix(''))) &
+                        (p.suffix != '.dat') 
+                        )
+                    ]
+        
+        uniqueFiles = np.unique(files)
 
-                    self.addFile(root, fileName)
+        for file in uniqueFiles:
+            self.addFile(file)
 
-            for name in dirs:
-                warnings.warn('Import of files in subfolders does not work properly yet')
-                print(os.path.join(root, name))
 
-    def addFile(self, relativePath, fileName):
-        fileNameSearch = re.search('(hel[0-9]*)(.*\..*)', fileName)
+#        # Only works/tested for files in the main folder for now
+#        for root, dirs, fileNames in os.walk('.', topdown=False):
+#
+#            for fileName in fileNames:
+#                    print(root)
+#                    print(fileName)
+#
+#                    self.addFile(root, fileName)
+#
+#            for name in dirs:
+#                warnings.warn('Import of files in subfolders does not work properly yet')
+#                print(os.path.join(root, name))
 
-        if fileNameSearch:
-            name, extension = fileNameSearch.groups()
+    def addFile(self, relativeFilePath):
+        
+        relativeFilePath = Path(relativeFilePath)
 
-            fullPath = os.path.join(relativePath, name)
+        
+        # if there is no extension, add all files with the same name with all extensions
+        # if there is an extension just add that file if the filename is the same
+        
+        
+        
+        
+        #fileNameSearch = re.search('(hel[0-9]*)(.*\..*)', fileName)
+
+        #if fileNameSearch:
+        #    name, extension = fileNameSearch.groups()
+
+        #    fullPath = os.path.join(relativePath, name)
 
             # Test whether file is already in experiment
-            for file in self.files:
-                if file.fullPath == fullPath:
-                    foundFile = file
-                    break
-            else:
-                foundFile = None
+        for file in self.files:
+            if file.relativeFilePath == relativeFilePath:
+                file.update()
+                break
+        else:
+            self.files.append(File(relativeFilePath, self, self.exposure_time))
 
             # If not found: add file and extension, or if the file is already there then add the extention to it.
             # If the file and extension are already imported, display a warning message.
-            if not foundFile:
-                self.files.append(File(relativePath, name, self, self.exposure_time))
-                self.files[-1].addExtension(extension)
-            else:
-                if extension not in foundFile.extensions:
-                    foundFile.addExtension(extension)
-                else:
-                    warnings.warn(fullPath + extension + ' already imported')
-        else:
-            warnings.warn('FileName ' + fileName + ' not added, filename should contain hel...')
+#            if not foundFile:
+#                self.files.append(File(relativePath, name, self, self.exposure_time))
+#                self.files[-1].addExtension(extension)
+#            else:
+#                if extension not in foundFile.extensions:
+#                    foundFile.addExtension(extension)
+#                else:
+#                    warnings.warn(fullPath + extension + ' already imported')
+#        else:
+#            warnings.warn('FileName ' + fileName + ' not added, filename should contain hel...')
 
 
     def histogram(self, axis = None, fileSelection = False, moleculeSelection = False, makeFit = False):
@@ -112,18 +141,22 @@ class Experiment:
             input("Press enter to continue")
 
 class File:
-    def __init__(self, relativePath, name, experiment, exposure_time):
-        self.relativePath = relativePath
-        self.name = name
+    def __init__(self, relativeFilePath, experiment, exposure_time):
+        relativeFilePath = Path(relativeFilePath)
+        
+        self.relativePath = relativeFilePath.parent
+        self.name = relativeFilePath.name
         self.extensions = list()
         self.experiment = experiment
         self.molecules = list()
         self.exposure_time = exposure_time  #Here the exposure time is given but it should be found from the log file if possible
 
         self.isSelected = False
+        
+        self.findAndAddExtensions()
 
     @property
-    def fullPath(self):
+    def relativeFilePath(self):
         return os.path.join(self.relativePath, self.name)
 
     @property
@@ -135,12 +168,22 @@ class File:
     def selectedMolecules(self):
         return [molecule for molecule in self.molecules if molecule.isSelected]
 
-    def addExtension(self, extension):
-        self.extensions.append(extension)
-        print(extension)
+    def findAndAddExtensions(self):
+        foundFiles = [file.name for file in self.experiment.mainPath.joinpath(self.relativePath).glob(self.name+'*.*')]
+        foundExtensions = [file[len(self.name):] for file in foundFiles]
+        newExtensions = [extension for extension in foundExtensions if extension not in self.extensions]
+        self.extensions = newExtensions
+        for extension in newExtensions: self.importExtension(extension)
+
+    def importExtension(self, extension):
+         
+        #print(f.relative_to(self.experiment.mainPath))
+        
+        #self.extensions.append(extension)
+        #print(extension)
         importFunctions = {'.pks'        : self.importPksFile,
                            '.traces'     : self.importTracesFile,
-                           '.sim'       : self.importSimFile
+                           '.sim'        : self.importSimFile
                            }
 
         importFunctions.get(extension, print)()
@@ -153,7 +196,7 @@ class File:
         Ncolours = self.experiment.Ncolours
         
    #     pks = np.genfromtxt(self.name + '.pks', delimiter='      ')  #MD190104 you get an error when using 6 spaces for tab
-        pks = np.genfromtxt(self.name + '.pks')  #MD190104 By default, any consecutive whitespaces act as delimiter.
+        pks = np.genfromtxt(str(self.relativeFilePath) + '.pks')  #MD190104 By default, any consecutive whitespaces act as delimiter.
 
         Ntraces = np.shape(pks)[0]
 
@@ -170,7 +213,7 @@ class File:
 
     def importTracesFile(self):
         Ncolours = self.experiment.Ncolours
-        file = open(self.name + '.traces', 'r')
+        file = open(str(self.relativeFilePath) + '.traces', 'r')
         self.Nframes = np.fromfile(file, dtype=np.int32, count=1).item()
         Ntraces = np.fromfile(file, dtype=np.int16, count=1).item()
         if not self.molecules:
@@ -185,7 +228,7 @@ class File:
         file.close()
 
     def importSimFile(self):
-        file = open(self.name + '.sim', 'rb')
+        file = open(str(self.relativeFilePath) + '.sim', 'rb')
         self.data = pickle.load(file)
         red, green  = self.data['red'], self.data['green']
         Ntraces = red.shape[0]
