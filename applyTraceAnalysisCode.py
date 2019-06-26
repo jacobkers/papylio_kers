@@ -8,15 +8,15 @@ Created on Wed Nov  7 10:50:59 2018
 
 
 import os
-#os.chdir(r'D:\ivoseverins\SURFdrive\Promotie\Code\Python\traceAnalysis')
-os.chdir(r'/Users/ivoseverins/SURFdrive/Promotie/Code/Python')
-from traceAnalysis.traceAnalysisCode import *
+os.chdir(r'D:\ivoseverins\SURFdrive\Promotie\Code\Python\traceAnalysis')
+#os.chdir(r'/Users/ivoseverins/SURFdrive/Promotie/Code/Python/traceAnalysis')
+from traceAnalysisCode import *
 
-#mainPath = r'D:\ivoseverins\SURFdrive\Promotie\Code\Python\traceAnalysis\twoColourExampleData\HJ A'
-#mainPath = './twoColourExampleData/HJ A'
+mainPath = r'D:\ivoseverins\SURFdrive\Promotie\Code\Python\traceAnalysis\twoColourExampleData'
+#mainPath = './twoColourExampleData'
+#mainPath=r'H:\projects\research practicum\single molecule fluorescence\Matlab\HJA-data from Ivo '
 
-mainPath=r'H:\projects\research practicum\single molecule fluorescence\Matlab\HJA-data from Ivo '
-os.chdir(os.path.dirname(os.path.abspath(__file__)))
+#os.chdir(os.path.dirname(os.path.abspath(__file__)))
 #os.chdir('./traceAnalysis')
 #mainPath = './twoColourExampleData/HJ A'
 
@@ -26,7 +26,7 @@ os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 exp = Experiment(mainPath)
 
-
+#exp.addFile('.count.dat')
 #exp.histogram(makeFit = True)
 
 
