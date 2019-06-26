@@ -4,27 +4,29 @@ Created on Fri Sep 14 15:24:46 2018
 
 @author: ivoseverins
 """
+#Use the following two lines on Mac
+#from matplotlib import use
+#use('WXAgg')
+import matplotlib.pyplot as plt #Provides a MATLAB-like plotting framework
 
 import os # Miscellaneous operating system interfaces - to be able to switch from Mac to Windows
 import re # Regular expressions
 import warnings
 import numpy as np #scientific computing with Python
-import matplotlib.pyplot as plt #Provides a MATLAB-like plotting framework
+#import matplotlib.pyplot as plt #Provides a MATLAB-like plotting framework
 import itertools #Functions creating iterators for efficient looping
 np.seterr(divide='ignore', invalid='ignore')
-import pandas as pd
+#import pandas as pd
 from threshold_analysis_v2 import stepfinder
 from pathlib import Path # For efficient path manipulation
-# Use the following instead of: import matplotlib as mpl
-#from matplotlib import use
-#use('WXAgg')
+
 import pickle
 
 
 class Experiment:
     def __init__(self, mainPath, exposure_time=None):
         self.name = os.path.basename(mainPath)
-        self.mainPath = Path(mainPath)
+        self.mainPath = Path(mainPath).absolute()
         self.files = list()
         self.Ncolours = 2
         self.exposure_time = exposure_time
@@ -82,7 +84,6 @@ class Experiment:
 #                print(os.path.join(root, name))
 
     def addFile(self, relativeFilePath):
-        
         relativeFilePath = Path(relativeFilePath)
 
         
@@ -106,7 +107,7 @@ class Experiment:
                 break
         else:
             self.files.append(File(relativeFilePath, self, self.exposure_time))
-
+            
             # If not found: add file and extension, or if the file is already there then add the extention to it.
             # If the file and extension are already imported, display a warning message.
 #            if not foundFile:
@@ -186,12 +187,14 @@ class File:
                            '.sim'        : self.importSimFile
                            }
 
-        importFunctions.get(extension, print)()
+        importFunctions.get(extension, self.noneFunction)()
 #        if extension == '.pks':
             #self.importPksFile()
 
+    def noneFunction(self):
+        return
+
     def importPksFile(self):
-        print()
         # Background value stored in pks file is not imported yet
         Ncolours = self.experiment.Ncolours
         

@@ -2,9 +2,12 @@
 
 development _ not to be included in git/
 
-__pycache__/
+__pycache__
+__pycache__/*.pyc
 twoColourExampleData/
 *test*
 *.xml
 *.iml
+*.*.pyc
 
+*.pyc
