@@ -18,50 +18,86 @@ from image_adapt.sifreaderA import SIFFile
 from autopick.do_before import clear_all
 clear_all()
 
-def read_one_page(image_fn,pageNb): # distributes to specific readers (sif/tif/pma)
+def read_one_page(image_fn,pageNb,A=None): # distributes to specific readers (sif/tif/pma)
     root, name = os.path.split(image_fn)
     for string2compare in ['.pma$','.tif$','.sifx$','.sif$']:
-        A=re.search(string2compare,name)
-        im0,hdim,vdim,nImages=-1,0,0,0
-        if A!=None: 
+        AA=re.search(string2compare,name)
+        im0=0
+        if AA!=None: 
             #print(name, string2compare)
             if string2compare=='.pma$':
-                im0,hdim,vdim,nImages=read_one_page_pma(root,name,pageNb)
-            elif A!=None and string2compare=='.tif$':
-                im0,hdim,vdim,nImages=read_one_page_tif(root,name,pageNb)
-            elif A!=None and string2compare=='.sifx$':
-                im0,hdim,vdim,nImages=read_one_page_sifx(root,name,pageNb)
+                im0=read_one_page_pma(root,name,pageNb,A)
+            elif string2compare=='.tif$':
+                im0=read_one_page_tif(root,name,pageNb)
+            elif string2compare=='.sifx$':
+                im0=read_one_page_sifx(root,name,pageNb,A)
 #            elif A!=None and string2compare=='.sif$':
 #                im0,hdim,vdim,nImages=read_one_page_sif(root,name,pageNb)
             break
-    return im0,hdim,vdim,nImages    
+    return im0
+
+def read_header(image_fn): # distributes to specific readers (sif/tif/pma)
+    root, name = os.path.split(image_fn)
+    for string2compare in ['.pma$','.tif$','.sifx$','.sif$']:
+        AA=re.search(string2compare,name)
+        if AA!=None: 
+            #print(name, string2compare)
+            if string2compare=='.pma$':
+                hdim,vdim,nImages,A=read_header_pma(root,name)
+            elif string2compare=='.tif$':
+                hdim,vdim,nImages=read_header_tif(root,name)
+                A=None
+            elif string2compare=='.sifx$':
+                hdim,vdim,nImages,A=read_header_sifx(root,name)
+#            elif A!=None and string2compare=='.sif$':
+#                im0,hdim,vdim,nImages=read_one_page_sif(root,name,pageNb)
+            break
+    return hdim,vdim,nImages,A
     
-def read_one_page_pma(root,name, pageNb=0):
-    
+def read_header_pma(root,name):
+    statinfo = os.stat(root+'\\'+name)       
+    #determine 8 bits or 16 bits
+    A=re.search('_16.pma$',name)
     with open(root+'\\'+name, 'rb') as fid:
         hdim = np.fromfile(fid, np.int16,count=1)
         vdim=  np.fromfile(fid, np.int16,count=1)
         hdim=int(hdim[0])
         vdim=int(vdim[0])
-    statinfo = os.stat(root+'\\'+name)
-    nImages=int((statinfo.st_size-4)/(hdim*vdim))
     
-    #determine 8 bits or 16 bits
-    A=re.search('_16.pma$',name)
-    if A==None: #8 bits
-        with open(root+'\\'+name, 'rb') as fid: #did the offset reset?    
+    nImages=int((statinfo.st_size-4)/(hdim*vdim))
+        
+    return hdim,vdim,nImages,A
+
+def read_one_page_pma(root,name, pageNb=0,A=None):
+     
+    with open(root+'\\'+name, 'rb') as fid:
+        hdim = np.fromfile(fid, np.int16,count=1)
+        vdim=  np.fromfile(fid, np.int16,count=1)
+        hdim=int(hdim[0])
+        vdim=int(vdim[0])
+    
+        if A==None: #8 bits
+#        with open(root+'\\'+name, 'rb') as fid: #did the offset reset?    # is already open
             # for image pageNb, 4 for skipping header, plus certain amount of images to read image pageNb
             fid.seek(4+ (pageNb*(hdim*vdim)), os.SEEK_SET)
             im=np.reshape(np.fromfile(fid,np.int8,count=hdim*vdim),(hdim,vdim))
-    else:
-        with open(root+'\\'+name, 'rb') as fid: #did the offset reset?  
+        else:
+#        with open(root+'\\'+name, 'rb') as fid: #did the offset reset?  #is already open
             fid.seek(4+ 2*pageNb*(hdim*vdim), os.SEEK_SET)
             msb=np.reshape(np.fromfile(fid,np.int8,count=(hdim*vdim)),(hdim,vdim))
             lsb=np.reshape(np.fromfile(fid,np.int8,count=(hdim*vdim)),(hdim,vdim))
 #            msb = np.core.records.fromfile(fid, 'int8', offset=4+ 2*pageNb*(hdim*vdim), shape=(hdim,vdim)) # for first image
 #            lsb = np.core.records.fromfile(fid, 'int8', offset=4+ (1+2*pageNb)*(hdim*vdim), shape=(hdim,vdim)) # for first image
             im=256*msb+lsb;
-    return im, hdim,vdim,nImages # still need to convert im
+    return im # still need to convert im
+
+def read_header_tif(root,name):
+    with tifffile.TiffFile(root+'\\'+name) as tif:
+        tifpage=tif.pages
+    nImages=(len(tifpage))   
+    im = tifpage[0].asarray()
+    hdim,vdim=np.shape(im)
+    return hdim,vdim,nImages
     
 def read_one_page_tif(root,name, pageNb=0):
     t = time.time()
@@ -80,7 +116,7 @@ def read_one_page_tif(root,name, pageNb=0):
   
          if nImages==1:
              #return -1,0,0,0
-             0
+             im=tifpage[0].asarray()
          elif (nImages-1)>=pageNb:
               im = tifpage[pageNb].asarray()
          else:
@@ -89,7 +125,7 @@ def read_one_page_tif(root,name, pageNb=0):
          hdim,vdim=np.shape(im)
     elapsed = time.time() - t
     print(elapsed),
-    return im, hdim,vdim, nImages#, elapsed
+    return im
 
     
 def read_one_page_sif(root,name,pageNb=0):
@@ -99,18 +135,17 @@ def read_one_page_sif(root,name,pageNb=0):
     
     print('sif not working yet')
     return im, 
-    
-def read_one_page_sifx(root,name,pageNb=0):
+
+def read_header_sifx(root,name):
  #   filelist = [x for x in os.listdir(root) if x.endswith("spool.dat")]
     A=SIFFile(root+'\\Spooled files.sifx')
     hh=A.height
     ww=A.width
     nImages=A.stacksize
-    im=read_one_page_sifx2(root,name,pageNb,A)
-#   
-    return im, hh,ww, nImages
+  
+    return hh,ww, nImages,A
    
-def read_one_page_sifx2(root,name, pageNb,A):
+def read_one_page_sifx(root,name, pageNb,A):
      count=A.height*A.width*3//2
      #name should follow from A.filelist
      with open(root+'\\'+A.filelist[pageNb], 'rb') as fid:
@@ -136,6 +171,7 @@ def read_one_page_sifx2(root,name, pageNb,A):
          tifffile.imwrite(root+"Python image.tif" , im ,  photometric='minisblack')
         
      return im   
+ 
 # MATLAB code    
 #    filename='0000000000spool.dat'
 #    % filedir='D:\data\personal data\20190110 testing matlab image conversion\spool\';

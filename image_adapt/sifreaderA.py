@@ -135,21 +135,23 @@ class SIFFile(object):
 #                self.wavelength_coefficients = 0
             #elif 21: # (b'65537 1 500 200',)
             #elif 7 < ii < headerlen - 12:
-            elif len(line) == 37 and line[0:6] == b'65539 ':#len(line) == 17
-                    # and line[7] == b'x01' and line[8] == b'x20' \
-                    # and line[9] == b'x00':
-                    headerlen = headerlen + 12
-                   
-            elif ii == 43: #headerlen - 2:
-                if line[:12] == b'Pixel number':
-                    line = line[12:]
+###            elif len(line) == 37 and line[0:6] == b'65539 ':#len(line) == 17
+###                   # and line[7] == b'x01' and line[8] == b'x20' \
+###                   # and line[9] == b'x00':
+###                    headerlen = headerlen + 12
+#                   
+###            elif ii == 43: #headerlen - 2:
+            elif line[:12] == b'Pixel number' and len(line)>14:
+                line = line[12:]
                 tokens = line.split()
                 if len(tokens) < 6:
                     raise Exception('Not able to read stacksize.')
                 self.yres = int(tokens[2])
                 self.xres = int(tokens[3])
                 self.stacksize = int(tokens[5])
-            elif ii == 44: #headerlen - 1:  ( b'65538 1 2048 2048 1 1 1 0')
+###            elif ii == 44: #headerlen - 1:  ( b'65538 1 2048 2048 1 1 1 0')
+                #continue with next line
+                line = f.readline().strip()
     #            print(ii),print(line)
                 tokens = line.decode('utf-8').split()
 #                print(tokens)
@@ -167,6 +169,7 @@ class SIFFile(object):
 #                 self.top=self.bottom+self.height
 #                 self.xbin=1
 #                 self.ybin=1
+                break
      
         f.close()
 
