@@ -26,11 +26,14 @@ import time
 class ImageCollection(object):
     def __init__(self, tetra_fn, image_fn, **kwargs):
         self.image_fn = image_fn
-        self.mapping = Mapping(tetra_fn)
+       
         #self.set_background_and_transformation() # Carlos: isn't this double, you call set_background twice, Margreet: this is the bg of the image, not the tetra_image. Same formulas though
         self.pks_fn=kwargs.get('pks_fn',image_fn) # default pks_fn=image_fn, but you could give in a different name; ImageCollection(name, name, pks_fn='   ')
         self.choice_channel=kwargs.get('choice_channel','d') #default 'd', 'd' for donor, 'a' for acceptor, 'da' for the sum
-
+        self.generic_map=kwargs.get('generic',0)
+        self.ii=np.array(range(1024*1024))
+    
+        self.mapping = Mapping(tetra_fn,generic=self.generic_map)
         (self.background,
          self.threshold,
          self.pts_number,
@@ -55,8 +58,8 @@ class ImageCollection(object):
         sum 20 image, find spots& background. Then loop over all image, do background subtract+ extract traces
         :return:
         """
-        hdim, vdim, n_images,A = read_header(self.image_fn)
-        im_array = np.dstack([(read_one_page(self.image_fn, pageNb=ii,A=A)).astype(float) for ii in range(20)])
+        hdim, vdim, n_images,self.A = read_header(self.image_fn)
+        im_array = np.dstack([(read_one_page(self.image_fn, pageNb=jj,A=self.A,ii=self.ii)).astype(float) for jj in range(20)])
         im_mean20 = np.mean(im_array, axis=2).astype(int)
         bg = rollingball(im_mean20)[1]
         im_mean20_correct = im_mean20 - bg
@@ -89,8 +92,8 @@ class ImageCollection(object):
             if self.pks_fn== self.image_fn: # if they are the same, reuse im_mean20_correct; im_mean20_correctA is not stored/exported
                 im_mean20_correctA=im_mean20_correct
             else: #otherwise make your own im_mean correct for pks detection
-                hdim, vdim, n_images,A = read_one_page(self.image_fn, pageNb=0)
-                im_array = np.dstack([(read_one_page(self.image_fn, pageNb=ii),A).astype(float) for ii in range(20)])
+                hdim, vdim, n_images,A = read_one_page(self.image_fn, pageNb=0,A=self.A,ii=self.ii)
+                im_array = np.dstack([read_one_page(self.image_fn, pageNb=jj,A=self.A,ii=self.ii).astype(float) for jj in range(20)])
                 im_mean20 = np.mean(im_array, axis=2).astype(int)
                 bg = rollingball(im_mean20)[1]
                 im_mean20_correctA = im_mean20 - bg
@@ -167,13 +170,13 @@ class ImageCollection(object):
         im_correct[im_correct < 0] = 0
         return remove_background(im_correct, self.threshold)
 
-    def get_image(self, idx,A):
-        img= read_one_page(self.image_fn, idx,A)
+    def get_image(self, idx):
+        img= read_one_page(self.image_fn, idx,self.A, self.ii)
         #img = self.subtract_background(img)
         return Image(img, self.vdim, self.mapping._tf2_matrix, self.ptsG, self.dstG, self.pts_number, self.Gauss)
     
-    def get_image_show(self, idx,A):
-        img= read_one_page(self.image_fn, idx,A)
+    def get_image_show(self, idx):
+        img= read_one_page(self.image_fn, idx,self.A,self.ii)
         plt.figure(idx)
         ax1=plt.subplot(1,2,1)
         ax1.imshow(img)
@@ -188,7 +191,7 @@ class ImageCollection(object):
         return Image(img, self.vdim, self.mapping._tf2_matrix, self.ptsG, self.dstG, self.pts_number, self.Gauss)
     
     
-    def get_all_traces(self,A):
+    def get_all_traces(self):
         root, name = os.path.split(self.image_fn)
         traces_fn=os.path.join(root,name[:-4]+'-P.traces') 
         Ncolours=2
@@ -207,9 +210,9 @@ class ImageCollection(object):
             acceptor=np.zeros((self.n_images,self.pts_number))
            
             t0 = time.time()  
-            for ii in range(self.n_images):
+            for ii in range(len(self.A.filelist)): #self.n_images
                 print(ii)
-                img=self.get_image(ii,A)
+                img=self.get_image(ii)
                 donor[ii,:]=img.donor
                 acceptor[ii,:]=img.acceptor
             t1=time.time()

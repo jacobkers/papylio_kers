@@ -18,7 +18,7 @@ from image_adapt.sifreaderA import SIFFile
 from autopick.do_before import clear_all
 clear_all()
 
-def read_one_page(image_fn,pageNb,A=None): # distributes to specific readers (sif/tif/pma)
+def read_one_page(image_fn,pageNb,A=None,ii=None): # distributes to specific readers (sif/tif/pma)
     root, name = os.path.split(image_fn)
     for string2compare in ['.pma$','.tif$','.sifx$','.sif$']:
         AA=re.search(string2compare,name)
@@ -30,7 +30,7 @@ def read_one_page(image_fn,pageNb,A=None): # distributes to specific readers (si
             elif string2compare=='.tif$':
                 im0=read_one_page_tif(root,name,pageNb)
             elif string2compare=='.sifx$':
-                im0=read_one_page_sifx(root,name,pageNb,A)
+                im0=read_one_page_sifx(root,name,pageNb,A,ii)
 #            elif A!=None and string2compare=='.sif$':
 #                im0,hdim,vdim,nImages=read_one_page_sif(root,name,pageNb)
             break
@@ -142,21 +142,44 @@ def read_header_sifx(root,name):
     hh=A.height
     ww=A.width
     nImages=A.stacksize
+    LL=len(A.filelist)
+    new_filelist=[]
+    
+    #making new_list with correct numerical image name
+    for ii in range(LL):
+        filename=A.filelist[ii]
+        new_filelist.append(filename[9::-1])
+        
+    #merge the old and new filenames into 2D list    
+    def merge(list1, list2): 
+        merged_list = [(list1[i], list2[i]) for i in range(0, len(list1))] 
+        return merged_list 
+    AA=merge(A.filelist,new_filelist)
+    
+    #sort the 2d list to the second element=new filename
+    BB=AA.copy()
+    def takeSecond(elem):
+        return elem[1]
+    BB.sort(key=takeSecond)
+    
+    for ii in range(LL):
+        #do something with ....
+        #print([ii,BB[ii][0],BB[ii][1]])
+        A.filelist[ii]=BB[ii][0]
   
     return hh,ww, nImages,A
    
-def read_one_page_sifx(root,name, pageNb,A):
+def read_one_page_sifx(root,name, pageNb,A,ii):
      count=A.height*A.width*3//2
      #name should follow from A.filelist
      with open(root+'\\'+A.filelist[pageNb], 'rb') as fid:
           raw=np.uint16(np.fromfile(fid,np.uint8,count))
      
      #print([A.height,A.width,A.stacksize,np.shape(raw)])        
-     ii=np.array(range(1024*1024))
      AA=raw[ii*6+0]*16 + (raw[ii*6+1]%16)
-     BB=raw[ii*6+2]*16 + raw[ii*6+1]//16
-     CC=raw[ii*6+3]*16 + raw[ii*6+4]%16
-     DD=raw[ii*6+5]*16 + raw[ii*6+4]//16 
+     BB=raw[ii*6+2]*16 + (raw[ii*6+1]//16)
+     CC=raw[ii*6+3]*16 + (raw[ii*6+4]%16)
+     DD=raw[ii*6+5]*16 + (raw[ii*6+4]//16) 
           
      ALL=np.uint16(np.zeros(A.height*A.width))
      ALL[0::4] = AA

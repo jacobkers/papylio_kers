@@ -1,6 +1,6 @@
 *.pptx
 
-development _ not to be included in git/
+development_not_to_be_included_in_git/
 
 __pycache__/
 twoColourExampleData/
