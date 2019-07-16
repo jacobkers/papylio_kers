@@ -11,15 +11,17 @@ import wx.dataview
 import wx.lib.agw.hypertreelist as HTL
 import wx.lib.agw.aui as aui
 import os
-from traceAnalysisCode import Experiment
+from traceAnalysisCode import Experiment, File
 
-import matplotlib as mpl
 
-#Use the following for plt on Mac, instead of: import matplotlib.pyplot as plt
+
+#Use the following two lines on Mac
 #from matplotlib import use
 #use('WXAgg')
 
 from matplotlib import pyplot as plt
+
+import matplotlib as mpl
 
 from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg as FigureCanvas
 from matplotlib.backends.backend_wxagg import NavigationToolbar2WxAgg as NavigationToolbar
@@ -39,7 +41,7 @@ class HistogramPanel(wx.Frame):
 class MainFrame(wx.Frame):
     def __init__(self, parent, title):
         
-        wx.Frame.__init__(self, parent, title='Trace Analysis', size=(1200,700))
+        wx.Frame.__init__(self, parent, title='Trace Analysis', size=(300,700))
 
         #self.panel1 = wx.Panel(self, wx.ID_ANY, size = (200,200))
         #self.panel2 = wx.Panel(self, wx.ID_ANY, size = (200,200))
@@ -71,8 +73,10 @@ class MainFrame(wx.Frame):
         
         
         # HyperTreeList
-        self.tree = HTL.HyperTreeList(self, wx.ID_ANY, wx.DefaultPosition, wx.Size(200,300),
-                                      HTL.TR_MULTIPLE)
+        self.tree = HyperTreeListPlus(self, wx.ID_ANY, wx.DefaultPosition, wx.Size(200,300),
+                                      HTL.TR_MULTIPLE | HTL.TR_EXTENDED | wx.TR_HIDE_ROOT)
+        #self.tree = HTL.HyperTreeList(self, wx.ID_ANY, wx.DefaultPosition, wx.Size(200,300),
+        #                              HTL.TR_MULTIPLE | HTL.TR_EXTENDED)
         self.Bind(HTL.EVT_TREE_ITEM_CHECKED, self.Test)
 
         # TreeListCtrl
@@ -105,9 +109,9 @@ class MainFrame(wx.Frame):
            
         self.Show(True)
         
-        self.createTree(r'D:\ivoseverins\SURFdrive\Promotie\Code\Python\traceAnalysis\twoColourExampleData\HJ A')
+        self.createTree(r'D:\ivoseverins\SURFdrive\Promotie\Code\Python\traceAnalysis\twoColourExampleData')
         #self.createTree(r'D:\SURFdrive\Promotie\Code\Python\traceAnalysis\twoColourExampleData\HJ A')
-        #self.createTree(r'/Users/ivoseverins/SURFdrive/Promotie/Code/Python/traceAnalysis/twoColourExampleData/HJ A')
+        #self.createTree(r'/Users/ivoseverins/SURFdrive/Promotie/Code/Python/traceAnalysis/twoColourExampleData')
 
 
 
@@ -139,15 +143,20 @@ class MainFrame(wx.Frame):
         
         self.experiment.histogram(self.histogram.panel.axis, fileSelection = True)
         
-        self.tree.AddColumn('Files')
-        self.tree.AddColumn('Molecules')
+        self.tree.AddColumn('Files', width=150)
+        self.tree.AddColumn('Molecules', width=75)
+        self.tree.AddColumn('Selected', width=75)
         self.experimentRoot = self.tree.AddRoot(self.experiment.name)
         
         for file in self.experiment.files:
-            item = self.tree.AppendItem(self.experimentRoot, file.name, ct_type = 1, data = file)
-            self.tree.SetItemText(item, 'test', 1)
+            
+            item = self.tree.AddFile(file)
+            
+            #self.tree.SetItemText(item, 'test', 1)
         
         self.tree.Expand(self.experimentRoot)
+
+            
     #### End of temporary function
     
     def OnAbout(self,event):
@@ -201,8 +210,48 @@ class PlotPanel(wx.Panel):
         sizer.Add(self.toolbar, 0, wx.LEFT | wx.EXPAND)
         self.SetSizer(sizer)
     
-    
 
+class HyperTreeListPlus(HTL.HyperTreeList):   
+    #def __init__(self, arg, *args, **kwargs):
+    #    super(HyperTreeListPlus, self).__init__(arg, *args, **kwargs)
+    
+#    def AppendItem(self, arg, *args, **kwargs):
+#        #print(arg)
+#        #print(*kwargs)
+#        print(self)
+#        return super().AppendItem(arg, *args, **kwargs)
+
+    def AddFile(self, file):
+        root = self.GetRootItem()
+        
+        folders = file.relativePath.parts
+        
+        nodeItemNames = [item.GetText() for item in root.GetChildren() if item.GetData() == None]
+        
+        parentItem = root
+        for folder in folders:
+
+            nodeItems = [item for item in parentItem.GetChildren() if item.GetData() == None]
+            nodeItemNames = [item.GetText() for item in nodeItems]
+
+            if folder not in nodeItemNames:
+                parentItem = self.AppendItem(parentItem, folder, ct_type = 0, data = None)
+            else:
+                parentItem = nodeItems[nodeItemNames.index(folder)]
+        
+        item = self.AppendItem(parentItem, file.name, ct_type = 1, data = file)
+
+        self.insertDataIntoColumns(item)
+
+        return item
+    
+    def insertDataIntoColumns(self, item):
+        itemData = item.GetData()
+        if type(itemData) is File:
+            self.SetItemText(item, str(len(itemData.molecules)), 1) # Should be in a different method
+            self.SetItemText(item, str(len(itemData.selectedMolecules)), 2) 
+
+    
 #class Plot(wx.Panel):
 #    def __init__(self, parent, id=-1, dpi=None, **kwargs):
 #        wx.Panel.__init__(self, parent, id=id, **kwargs)
