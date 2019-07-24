@@ -4,9 +4,13 @@ Created on Fri Sep 14 15:24:46 2018
 
 @author: ivoseverins
 """
-#Use the following two lines on Mac
-#from matplotlib import use
-#use('WXAgg')
+#Use the following lines on Mac
+from sys import platform
+if platform == "darwin":
+    from matplotlib import use
+    use('WXAgg')
+
+
 import matplotlib.pyplot as plt #Provides a MATLAB-like plotting framework
 
 import os # Miscellaneous operating system interfaces - to be able to switch from Mac to Windows
@@ -269,6 +273,10 @@ class File:
             k = [int(i) for i in mol.steps.kon[0]]
             mol.kon_boolean = np.array(k).astype(bool).reshape((3,3))
 
+    def select(self, axis=None):
+        for molecule in self.molecules:
+            molecule.plot(axis=axis)
+            input("Press enter to continue")
 
 class Molecule:
 
@@ -292,10 +300,11 @@ class Molecule:
         np.putmask(red, red<Imin, 0)  # the mask makes all elements of acceptor that are below the Imin zero, for E caclulation
         return (red - alpha*green) / (green + red - alpha*green)
 
-    def plot(self):
-        plt.plot(self.intensity[0,:], 'g')
-        plt.plot(self.intensity[1,:], 'r')
-        plt.show()
+    def plot(self, axis=None):
+        if not axis: axis = plt.gca()
+        axis.plot(self.intensity[0,:], 'g')
+        axis.plot(self.intensity[1,:], 'r')
+        #plt.show()
 #MD190104: why not add a subplot with FRET here as well, to match with display Matlab?
 
     @property

@@ -15,9 +15,11 @@ from traceAnalysisCode import Experiment, File
 
 
 
-#Use the following two lines on Mac
-#from matplotlib import use
-#use('WXAgg')
+#Use the following lines on Mac
+from sys import platform
+if platform == "darwin":
+    from matplotlib import use
+    use('WXAgg')
 
 from matplotlib import pyplot as plt
 
@@ -27,16 +29,6 @@ from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg as FigureCanvas
 from matplotlib.backends.backend_wxagg import NavigationToolbar2WxAgg as NavigationToolbar
 
 
-class HistogramPanel(wx.Frame):
-    def __init__(self, title='Histogram', parent=None):
-        wx.Frame.__init__(self, parent=parent, title=title)
-        self.panel = PlotPanel(self)
-        self.parent = parent
-        self.Bind(wx.EVT_CLOSE, self.OnClose)
-
-    def OnClose(self,event):
-        self.parent.viewMenuShowHistogram.Check(False)
-        self.Hide()
 
 class MainFrame(wx.Frame):
     def __init__(self, parent, title):
@@ -62,14 +54,25 @@ class MainFrame(wx.Frame):
         # View menu in Menu bar
         viewMenu = wx.Menu()
         self.viewMenuShowHistogram = viewMenu.AppendCheckItem(wx.ID_ANY,"&Show histogram", "Show histogram")
+        self.viewMenuShowTrace = viewMenu.AppendCheckItem(wx.ID_ANY,"&Show trace", "Show trace")
 
         self.Bind(wx.EVT_MENU, self.OnShowHistogram, self.viewMenuShowHistogram)
+        self.Bind(wx.EVT_MENU, self.OnShowTrace, self.viewMenuShowTrace)
 
+        # Select menu in Menu bar
+        selectMenu = wx.Menu()
+        self.selectMenuManualSelection = selectMenu.Append(wx.ID_ANY,"&Manual selection", "Manual selection")
+        
+        self.Bind(wx.EVT_MENU, self.OnManualSelection, self.selectMenuManualSelection)
+        
         # Menu bar        x
         menuBar = wx.MenuBar()
         menuBar.Append(fileMenu,"&File")
         menuBar.Append(viewMenu,"&View")
+        menuBar.Append(selectMenu,"&Select")
         self.SetMenuBar(menuBar)
+        
+
         
         
         # HyperTreeList
@@ -77,8 +80,9 @@ class MainFrame(wx.Frame):
                                       HTL.TR_MULTIPLE | HTL.TR_EXTENDED | wx.TR_HIDE_ROOT)
         #self.tree = HTL.HyperTreeList(self, wx.ID_ANY, wx.DefaultPosition, wx.Size(200,300),
         #                              HTL.TR_MULTIPLE | HTL.TR_EXTENDED)
-        self.Bind(HTL.EVT_TREE_ITEM_CHECKED, self.Test)
+        
 
+        
         # TreeListCtrl
         #self.tree = wx.dataview.TreeListCtrl(self, wx.ID_ANY, wx.DefaultPosition, wx.Size(200,300),
         #                                     wx.dataview.TL_CHECKBOX | wx.dataview.TL_MULTIPLE)
@@ -89,6 +93,7 @@ class MainFrame(wx.Frame):
         
         
         self.histogram = HistogramPanel(parent=self)
+        self.trace = TracePanel(parent=self)
         #self.histogram = PlotPanel(self)
         #self.histogram.figure.gca().plot([1, 2, 3, 4, 5], [2, 1, 4, 2, 3])
         #self.histogram.figure.gca().hist([1, 2, 3, 4, 5])
@@ -170,15 +175,27 @@ class MainFrame(wx.Frame):
     def OnShowHistogram(self,event):
         if event.IsChecked(): self.histogram.Show()
         elif ~event.IsChecked(): self.histogram.Hide()
+        
+    def OnShowTrace(self,event):
+        if event.IsChecked(): 
+            self.trace.Show()
+            self.trace.PlotTrace(self.experiment.files[0].molecules[0])
+        elif ~event.IsChecked(): self.trace.Hide()
+        
+    def OnManualSelection(self, event):
+        file = self.tree.GetSelection().GetData()
+        print(file.name)
+        self.trace.LoopThroughMolecules(file.molecules)
+        
     
     # TreeListCtrl event handlers
-    def Test(self, event):
-        item = event.GetItem()
-        #newItemCheckedState = bool(self.tree.GetCheckedState(item))
-        newItemCheckedState = bool(item.IsChecked())
-        #file = self.tree.GetItemData(item)
-        file = self.tree.GetItemPyData(item)
-        file.isSelected = newItemCheckedState
+#    def Test(self, event):
+#        item = event.GetItem()
+#        #newItemCheckedState = bool(self.tree.GetCheckedState(item))
+#        newItemCheckedState = bool(item.IsChecked())
+#        #file = self.tree.GetItemData(item)
+#        file = self.tree.GetItemPyData(item)
+#        file.isSelected = newItemCheckedState
 
 
         # self.histogram.axis.clear()
@@ -187,14 +204,76 @@ class MainFrame(wx.Frame):
         # self.histogram.canvas.Refresh()
 
         #print(self.h.IsShown())
-        if self.histogram.IsShown():
-            self.histogram.panel.axis.clear()
-            self.experiment.histogram(self.histogram.panel.axis, fileSelection=True)
-            self.histogram.panel.canvas.draw()
-            self.histogram.panel.canvas.Refresh()
+#        if self.histogram.IsShown():
+#            self.histogram.panel.axis.clear()
+#            self.experiment.histogram(self.histogram.panel.axis, fileSelection=True)
+#            self.histogram.panel.canvas.draw()
+#            self.histogram.panel.canvas.Refresh()
+        self.histogram.PlotHistogram()
 
 
+class HistogramPanel(wx.Frame):
+    def __init__(self, title='Histogram', parent=None):
+        wx.Frame.__init__(self, parent=parent, title=title)
+        self.panel = PlotPanel(self)
+        self.parent = parent
+        self.Bind(wx.EVT_CLOSE, self.OnClose)
 
+    def PlotHistogram(self, fileSelection = True, moleculeSelection = False):
+        if self.IsShown():
+            self.panel.axis.clear()
+            self.parent.experiment.histogram(self.panel.axis, fileSelection=fileSelection)
+            self.panel.canvas.draw()
+            self.panel.canvas.Refresh()
+
+    def OnClose(self,event):
+        self.parent.viewMenuShowHistogram.Check(False)
+        self.Hide()
+
+class TracePanel(wx.Frame):
+    def __init__(self, title='Trace', parent=None):
+        wx.Frame.__init__(self, parent=parent, title=title)
+        self.panel = PlotPanel(self)
+        self.parent = parent
+        self.Bind(wx.EVT_CLOSE, self.OnClose)
+        
+        self.moleculesToLoopThrough = None
+        
+        self.currentMolecule = None
+    
+    def Show(self):
+        self.PlotTrace(self.currentMolecule)
+        super().Show()
+        
+    def OnClose(self,event):
+        self.parent.viewMenuShowTrace.Check(False)
+        self.Hide()
+    
+    def PlotTrace(self, molecule):
+        self.currentMolecule = molecule
+        if self.IsShown():
+            self.panel.axis.clear()
+            molecule.plot(axis = self.panel.axis)
+            self.panel.canvas.draw()
+            self.panel.canvas.Refresh()
+            print(str(molecule.index))
+            
+    def LoopThroughMolecules(self, molecules):
+        self.moleculesToLoopThrough = molecules
+        self.panel.canvas.Bind(wx.EVT_KEY_DOWN, self.GoToNextMolecule)
+        self.Show()
+        self.PlotTrace(molecules[0])
+        print('LoopThrough')
+        
+    def GoToNextMolecule(self, event):
+        nextMoleculeIndex = self.moleculesToLoopThrough.index(self.currentMolecule)+1
+        if (nextMoleculeIndex < len(self.moleculesToLoopThrough)):
+            nextMolecule = self.moleculesToLoopThrough[nextMoleculeIndex]
+            self.PlotTrace(nextMolecule)
+        else:
+            self.panel.canvas.Unbind(wx.EVT_KEY_DOWN)
+        
+        
 
 class PlotPanel(wx.Panel):
     def __init__(self, parent, id=-1, dpi=None, **kwargs):
@@ -212,8 +291,10 @@ class PlotPanel(wx.Panel):
     
 
 class HyperTreeListPlus(HTL.HyperTreeList):   
-    #def __init__(self, arg, *args, **kwargs):
-    #    super(HyperTreeListPlus, self).__init__(arg, *args, **kwargs)
+    def __init__(self, arg, *args, **kwargs):
+        super(HyperTreeListPlus, self).__init__(arg, *args, **kwargs)
+
+        self.Bind(HTL.EVT_TREE_ITEM_CHECKED, self.OnItemChecked)
     
 #    def AppendItem(self, arg, *args, **kwargs):
 #        #print(arg)
@@ -235,7 +316,7 @@ class HyperTreeListPlus(HTL.HyperTreeList):
             nodeItemNames = [item.GetText() for item in nodeItems]
 
             if folder not in nodeItemNames:
-                parentItem = self.AppendItem(parentItem, folder, ct_type = 0, data = None)
+                parentItem = self.AppendItem(parentItem, folder, ct_type = 1, data = None)
             else:
                 parentItem = nodeItems[nodeItemNames.index(folder)]
         
@@ -249,7 +330,31 @@ class HyperTreeListPlus(HTL.HyperTreeList):
         itemData = item.GetData()
         if type(itemData) is File:
             self.SetItemText(item, str(len(itemData.molecules)), 1) # Should be in a different method
-            self.SetItemText(item, str(len(itemData.selectedMolecules)), 2) 
+            self.SetItemText(item, str(len(itemData.selectedMolecules)), 2)
+    
+    
+    
+    def OnItemChecked(self, event):
+        item = event.GetItem()
+        #newItemCheckedState = bool(self.tree.GetCheckedState(item))
+        newItemCheckedState = bool(item.IsChecked())
+        #file = self.tree.GetItemData(item)
+        file = self.GetItemPyData(item)
+        file.isSelected = newItemCheckedState
+
+
+        # self.histogram.axis.clear()
+        # self.experiment.histogram(self.histogram.axis, fileSelection = True)
+        # self.histogram.canvas.draw()
+        # self.histogram.canvas.Refresh()
+
+        #print(self.h.IsShown())
+#        if self.histogram.IsShown():
+#            self.histogram.panel.axis.clear()
+#            self.experiment.histogram(self.histogram.panel.axis, fileSelection=True)
+#            self.histogram.panel.canvas.draw()
+#            self.histogram.panel.canvas.Refresh()
+        self.Parent.histogram.PlotHistogram()
 
     
 #class Plot(wx.Panel):
