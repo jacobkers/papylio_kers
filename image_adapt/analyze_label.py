@@ -40,9 +40,9 @@ def analyze(src):
     #apparentely centroids is already np.mean
     
     # remove all pixels at the edge (within 10 pix) 
-    hdim,vdim=np.shape(src)
+    dim1,dim0=np.shape(src)
     for ii in range(num_labels-1,-1,-1):
-        discard=ctrd[ii,0]<10 or ctrd[ii,1]<10 or ctrd[ii,0]>hdim/2-10 or ctrd[ii,1]>vdim-10 or size_label[ii]>100
+        discard=ctrd[ii,0]<10 or ctrd[ii,1]<10 or ctrd[ii,0]>dim0-10 or ctrd[ii,1]>dim1-10 or size_label[ii]>100
         if discard:
             ctrd=np.delete(ctrd,ii, axis=0)
             size_label=np.delete(size_label,ii, axis=0)
