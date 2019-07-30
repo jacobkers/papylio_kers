@@ -10,13 +10,11 @@ simple listener, in order to give keyboard commands and respond to it
 from pynput.keyboard import Key, Listener
 
 def on_press(key):
-    print('{0} pressed'.format(
-        key))
+    print('{0} pressed'.format(key))
     return key
 
 def on_release(key):
-    print('{0} release'.format(
-        key))
+    print('{0} release'.format(key))
     return False
     if key == Key.esc:
         # Stop listener

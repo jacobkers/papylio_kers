@@ -10,7 +10,7 @@ this code takes an images, calculates the rolling_ball background, and subtracts
 import scipy.ndimage as scim
 import skimage
 from skimage.morphology import ball
-#import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 
 def rollingball(*args): # Matlab[im_out,im_bg]=rollingball(im_in,size_ball,im_bg)
     varargin = args
@@ -19,7 +19,6 @@ def rollingball(*args): # Matlab[im_out,im_bg]=rollingball(im_in,size_ball,im_bg
         size_ball=30
     else:
         size_ball=varargin[1]
-        
     if len(varargin)<3:
         # from https://stackoverflow.com/questions/29320954/rolling-ball-background-subtraction-algorithm-for-opencv
         # Create 3D ball structure
@@ -30,8 +29,9 @@ def rollingball(*args): # Matlab[im_out,im_bg]=rollingball(im_in,size_ball,im_bg
         s = s[:h, :, :].sum(axis=0)
         # Rescale weights into 0-255
         s = (255 * (s - s.min())) / (s.max()- s.min())
-        ss=s[25:76,25:76]
+        ss=s[2*h//4:2*3*h//4,2*h//4:2*3*h//4]
         ss = (255 * (ss - ss.min())) / (ss.max()- ss.min())
+       
         #im_bg=scim.grey_closing(im_in,structure=ss)
         im_bg=skimage.morphology.opening(im_in,ss)
         #im_out = scim.white_tophat(im, structure=s)

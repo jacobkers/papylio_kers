@@ -54,7 +54,7 @@ while xp!=xp_new or yp!=yp_new:
 
     xp_new=[xx for xx,yy in points_right]
     yp_new=[yy for xx,yy in points_right]
-    print(xp_new[0],yp_new[0])
+#    print(xp_new[0],yp_new[0])
 
     line1.set_xdata(xp)
     line1.set_ydata(yp)

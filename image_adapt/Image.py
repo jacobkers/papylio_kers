@@ -5,8 +5,8 @@ Created on Jun 2019
 
 for each image inside an image collection you can process the image (extract trace values)
 """
-from find_xy_position.Gaussian import makeGaussian
-import cv2
+#from find_xy_position.Gaussian import makeGaussian
+#import cv2
 
 import numpy as np
 
@@ -24,8 +24,8 @@ class Image(object):
 
     def process_image(self): #extract traces
         IM_donor = self.image[:, 0:int(self.vdim / 2)]
-        IM_acceptor = self.image[:, int(self.vdim / 2):]
-        array_size = np.shape(IM_acceptor)
+#        IM_acceptor = self.image[:, int(self.vdim / 2):]
+#        array_size = np.shape(IM_acceptor)
 #        imA = cv2.warpPerspective(IM_acceptor.astype(float), self.tm, array_size[::-1])
 
         donor = np.zeros(self.pts_number)
@@ -38,9 +38,9 @@ class Image(object):
             xpix_int = int(xpix)
             ypix_int = int(ypix)
             # first crop around spot, then do multiplication
-            impixD =  IM_donor[(xpix_int - 5): (xpix_int + 6), (ypix_int - 5): (ypix_int + 6)]
-            GG = self.gauss #makeGaussian(11, fwhm=3, center=(ypix - ypix_int + 5, xpix - xpix_int + 5))
-            multipD = impixD * GG
+            sG2=len(self.gauss)//2
+            impixD =  IM_donor[(xpix_int - sG2): (xpix_int + sG2+1), (ypix_int - sG2): (ypix_int + sG2+1)]
+            multipD = impixD * self.gauss
             donor[jj] = np.sum(multipD)
 
             xf2 = self.dstG[jj][1]  # approach3
@@ -48,9 +48,8 @@ class Image(object):
             xf2_int = int(xf2)  # approach3
             yf2_int = int(yf2)  # approach3
 
-            impixC = self.image[(xf2_int - 5): (xf2_int + 6), (yf2_int - 5): (yf2_int + 6)]
-            GGC = self.gauss#GGC = makeGaussian(11, fwhm=3, center=(yf2 - yf2_int + 5, xf2 - xf2_int + 5))  # approach3
-            multipC = impixC * GGC  # approach3
+            impixC = self.image[(xf2_int - sG2): (xf2_int + sG2+1), (yf2_int - sG2): (yf2_int +sG2+1)]
+            multipC = impixC * self.gauss  # approach3
             acceptor[jj] = np.sum(multipC)
         
         self.acceptor=acceptor ## added by margreet

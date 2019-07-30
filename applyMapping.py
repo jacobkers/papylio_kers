@@ -6,61 +6,48 @@ meant for mapping, but now with class implementation
 """
 import os
 from image_adapt.ImageCollection import ImageCollection
-from image_adapt. Mapping import Mapping
+#from image_adapt. Mapping import Mapping
 import numpy as np
 import matplotlib.pyplot as plt
-import time
+#import time
 
-if 0: # use for trial on loadig data
+plt.close('all')
+if 0: # use for trial on HJ example data for RP practicum
     tetra_fn=os.path.normpath('N:/tnw/BN/CMJ/Shared/Margreet/20181203_HJ_training/mapping/rough_ave.tif')
-    tmp=Mapping(tetra_fn)
-    root=os.path.normpath("N:/tnw/BN/CMJ/Shared/Margreet/20181203_HJ_training/#3.10_0.1mg-ml_streptavidin_50pM_HJC_G_movies")
-    name='hel4.pma'
-    image_fn=os.path.join(root,name)
+   # image_fn=os.path.normpath(r"N:\tnw\BN\CMJ\Shared\Margreet\20181203_HJ_training\#1.10_0.1mg-ml_streptavidin_50pM_HJA_G_movies\hel2.pma")
+    # do NOT use #1 pma, there are hardly any anticorrelated traces to be found.
+    image_fn=os.path.normpath("N:/tnw/BN/CMJ/Shared/Margreet/20181203_HJ_training/#3.10_0.1mg-ml_streptavidin_50pM_HJC_G_movies\hel4.pma")
+   
     imc = ImageCollection(tetra_fn, image_fn)  # **kwargs, 'pks_fn'= ; choice_channel='d'
 
-elif 0: # remove -P.pks and -P.traces in the root folder, to test analysis on pms file
-    tetra_fn=os.path.normpath('N:/tnw/BN/CMJ/Shared/Margreet/20181203_HJ_training/mapping/rough_ave.tif')
-    root=os.path.normpath(r"N:\tnw\BN\CMJ\Shared\Margreet\20181203_HJ_training\#1.10_0.1mg-ml_streptavidin_50pM_HJA_G_movies")
-    name='hel2.pma'                          
-    image_fn=os.path.join(root,name)
-    imc = ImageCollection(tetra_fn, image_fn)  # **kwargs, 'pks_fn'= ; choice_channel='d'
-
-elif 0:
-    tetra_fn=os.path.normpath(r'M:\tnw\bn\cmj\Shared\margreet\Cy3 G50\cmos tetra G2,4 v2.tif')
-    root=os.path.normpath(r'M:\tnw\bn\cmj\Shared\margreet\Cy3 G50')
+elif 0: # use for trial on CMOS data, only Cy3 here, so no anticorrelation
+    ## tetra_fn=os.path.normpath(r'N:\tnw\BN\CMJ\Shared\Margreet\190628 HJ long TIR-Ivo\Cy3 G50\cmos tetra G2,4 v2.tif') 
+    ## unfortunatelymapiing goes well for the above image, but this map does not seem to fit on the data below
+    root=os.path.normpath(r'N:\tnw\BN\CMJ\Shared\Margreet\190628 HJ long TIR-Ivo\Cy3 G50')
     name='Spooled files.sifx'
     image_fn=os.path.join(root,name)
+    tetra_fn=image_fn ##here having the same tetra as image file does not work
     imc = ImageCollection(tetra_fn, image_fn)  # **kwargs, 'pks_fn'= ; choice_channel='d'
 
-elif 0:
-    tetra_fn=os.path.normpath(r'M:\tnw\bn\cmj\Shared\margreet\Cy3 G50\cmos tetra G2,4 v2.tif')
-    root=os.path.normpath(r"N:\tnw\BN\CMJ\Shared\Margreet\190628 HJ long TIR-Ivo\HJ G50")
+elif 1: # this is a great data set: Holliday Junction (so test anticorrelation) on Ivo's setup
+    tetra_fn=os.path.normpath(r'N:\tnw\BN\CMJ\Shared\Margreet\190628 HJ long TIR-Ivo\Cy3 G50\cmos tetra G2,4 v2.tif') 
+    ## unfortunatelymapiing goes well for the aboe image, but this map does not seem to fit on the data below
+    root=os.path.normpath(r'N:\tnw\BN\CMJ\Shared\Margreet\190628 HJ long TIR-Ivo\HJ 120mW_3_long')
     name='Spooled files.sifx'
     image_fn=os.path.join(root,name)
+    tetra_fn=image_fn # used the data itself to do mappping, since for the Cy3 G50 this was also better.
     imc = ImageCollection(tetra_fn, image_fn)  # **kwargs, 'pks_fn'= ; choice_channel='d'
 
-    
-elif 0:
-    tetra_fn=os.path.normpath(r'N:\tnw\BN\CMJ\Shared\Margreet\181218 - First single-molecule sample (GattaQuant)\Signal  - Image Series-16 bit.tif')
-    root=os.path.normpath("N:/tnw/BN/CMJ/Shared/Margreet/181218 - First single-molecule sample (GattaQuant)/RawData") 
-    name='Spooled files.sifx'
+else:
+    tetra_fn=os.path.normpath(r'N:\tnw\BN\CMJ\Shared\Margreet\20190620 - Demo Chirlmin\Mapping (old files)\rough_ave.tif')
+    root=os.path.normpath(r'N:\tnw\BN\CMJ\Shared\Margreet\20190620 - Demo Chirlmin\HJ 50mM Mg 2x intensity (20mW)')
+    name='hel20.pma'# or 21,22,23
     image_fn=os.path.join(root,name)
-    imc = ImageCollection(tetra_fn, image_fn)  # **kwargs, 'pks_fn'= ; choice_channel='d'
+    imc = ImageCollection(tetra_fn, image_fn) 
     
-    # 
-elif 1: 
-    tetra_fn=os.path.normpath(r'E:\CMJ trace analysis\development_not_to_be_included_in_git\cmos tetra G2,4 v2.tif')
-    tmp=Mapping(tetra_fn)
-else: 
-    tetra_fn=os.path.normpath(r'N:\tnw\BN\CMJ\Shared\Margreet\20181203_HJ_training\mapping\rough_ave.tif')
-    tmp=Mapping(tetra_fn)
-    
-#
-
 ###
-if 0:
-    donor,acceptor=imc.get_all_traces() # 40 seconds for 166 traces from 200 images of 512x512, reduced to 24 sec
+if 1:
+    donor,acceptor=imc.get_all_traces() # 18 seconds for 222 traces from 2000 images of 512x512
     ##donor,acceptor=imc.get_all_traces_sifx_fast()
 #
 ##example codes to return data from mapping, image collection
@@ -89,20 +76,35 @@ if 0:
     import numpy as np
     import tifffile as TIFF
     for ii in range(5):
-        im=imc.get_image(ii,A).image
+        im=imc.get_image(ii).image
         print(ii)
         naam=r'M:\tnw\bn\cmj\Shared\margreet\Cy3 G50\ModifiedData\Python'+'{:03d}'.format(ii)+'.tif'
         TIFF.imwrite(naam, np.uint16(im))
         
-if 0:
- 
+if 0:    #show traces for which a matching acceptor point is found
     BB=[]
-    for ii in range(imc.pts_number):
-        if np.amax(acceptor[:,ii])-np.amin(acceptor[:,ii])>100:
-            BB.append(ii)
- 
+    if imc.choice_channel=='d': 
+        dist=np.zeros((len(imc.ptsG2),len(imc.dstG)))
+        for ii in range(0, len(imc.ptsG2)):
+                for jj in range(0, len(imc.dstG)):
+                    dist[ii,jj]=np.sqrt((imc.ptsG2[ii][0]-imc.dstG[jj][0])**2+(imc.ptsG2[ii][1]-imc.dstG[jj][1])**2)
+    elif imc.choice_channel=='a': 
+        dist=np.zeros((len(imc.ptsG2),len(imc.ptsG)))
+        for ii in range(0, len(imc.ptsG2)):
+                for jj in range(0, len(imc.ptsG)):
+                    dist[ii,jj]=np.sqrt((imc.ptsG2[ii][0]-imc.ptsG[jj][0])**2+(imc.ptsG2[ii][1]-imc.ptsG[jj][1])**2)
+    for ii in range(0,len(imc.ptsG2)):
+        jj=np.where(dist[ii,:]==min(dist[ii,:]))[0][0] # use only 0th element
+        if dist[ii,jj]<4 and ii==np.where(dist[:,jj]==min(dist[:,jj]))[0][0]: 
+            BB.append(jj)
+    BB.sort()                
+    plt.figure(20)
+
+    
+    for jj in range(len(BB)):
+            ii=BB[jj]
             bg_add_subtr=1
-            ii=677
+            ###ii=220
             plt.subplot(2,1,2), plt.cla()
             plt.subplot(2,1,1), plt.cla()
             plt.subplot(2,1,1),
@@ -121,7 +123,53 @@ if 0:
             else:
                 fret= acceptor[:,ii] /(donor[:,ii]+acceptor[:,ii])
             plt.plot(fret,'b')
-            plt.pause(0.1)
-            plt.waitforbuttonpress(2)
+            plt.pause(5)
+#            plt.waitforbuttonpress(5)
+if 1:
+    plt.close('all')
+    BB=range(0,imc.pts_number)
+    selected=np.zeros(np.shape(BB))
+#    BB=[]
+#    for ii in range(imc.pts_number):
+#        if np.amax(acceptor[:,ii])-np.amin(acceptor[:,ii])>150:
+#            BB.append(ii)
+    for jj in range(0,len(BB)):
+            ii=BB[jj]
             
-         
+            ###ii=220
+            for kk in range(1,5):
+                plt.subplot(4,1,kk), plt.cla()
+            
+            plt.subplot(4,1,1)
+            plt.plot(donor[:,ii]-np.amin(donor[:,ii]),'g')
+            plt.plot(acceptor[:,ii]-np.amin(acceptor[:,ii]),'r')
+            plt.xlim((0,650))
+            plt.title([ii,imc.ptsG[ii,:]])
+            
+            plt.subplot(4,1,3)
+            plt.plot(donor[:,ii],'g')
+            plt.plot(acceptor[:,ii],'r')
+            plt.xlim((0,650))
+           
+            plt.subplot(4,1,2)
+            fret=(acceptor[:,ii]-np.amin(acceptor[:,ii]))/(donor[:,ii]+acceptor[:,ii]-np.amin(donor[:,ii])-np.amin(acceptor[:,ii]))
+            plt.plot(fret,'b')
+            plt.xlim((0,650))
+            
+            plt.subplot(4,1,4)
+            fret= acceptor[:,ii] /(donor[:,ii]+acceptor[:,ii])
+            plt.plot(fret)
+            plt.xlim((0,650))
+            plt.pause(0.1)
+            A=input()
+            try: selected[jj]=int(A)
+            except: 
+                if A=='x': break
+            
+            if np.mod(jj,100)==0:
+                name='Spooled files.sifx'
+                np.savetxt(os.path.join(root,'traces_select'), selected  )
+                np.savetxt(os.path.join(root,'traces_select.txt'), selected  ,fmt='%1d')
+     np.savetxt(os.path.join(root,'traces_select'), selected  )
+     np.savetxt(os.path.join(root,'traces_select.txt'), selected  ,fmt='%1d')
+             
