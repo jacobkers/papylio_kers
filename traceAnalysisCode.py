@@ -4,7 +4,7 @@ Created on Fri Sep 14 15:24:46 2018
 
 @author: ivoseverins
 """
-#Use the following lines on Mac
+# Use the following lines on Mac
 from sys import platform
 if platform == "darwin":
     from matplotlib import use
@@ -18,10 +18,10 @@ import re # Regular expressions
 import warnings
 import numpy as np #scientific computing with Python
 #import matplotlib.pyplot as plt #Provides a MATLAB-like plotting framework
-import itertools #Functions creating iterators for efficient looping
+#import itertools #Functions creating iterators for efficient looping
 np.seterr(divide='ignore', invalid='ignore')
 #import pandas as pd
-from threshold_analysis_v2 import stepfinder
+#from threshold_analysis_v2 import stepfinder
 from pathlib import Path # For efficient path manipulation
 
 import pickle
