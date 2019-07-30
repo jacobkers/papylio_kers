@@ -8,17 +8,17 @@ Created on Wed Nov  7 10:50:59 2018
 
 
 import os
-os.chdir(r'D:\ivoseverins\SURFdrive\Promotie\Code\Python\traceAnalysis')
-#os.chdir(r'/Users/ivoseverins/SURFdrive/Promotie/Code/Python/traceAnalysis')
+#os.chdir(r'D:\ivoseverins\SURFdrive\Promotie\Code\Python\traceAnalysis')
+os.chdir(r'/Users/ivoseverins/SURFdrive/Promotie/Code/Python/traceAnalysis')
 from traceAnalysisCode import *
 
-mainPath = r'D:\ivoseverins\SURFdrive\Promotie\Code\Python\traceAnalysis\twoColourExampleData'
-#mainPath = './twoColourExampleData'
+#mainPath = r'D:\ivoseverins\SURFdrive\Promotie\Code\Python\traceAnalysis\twoColourExampleData'
+mainPath = './twoColourExampleData'
 #mainPath=r'H:\projects\research practicum\single molecule fluorescence\Matlab\HJA-data from Ivo '
 
 #os.chdir(os.path.dirname(os.path.abspath(__file__)))
 #os.chdir('./traceAnalysis')
-#mainPath = './twoColourExampleData/HJ A'
+mainPath = './twoColourExampleData/HJ A'
 
 
 
