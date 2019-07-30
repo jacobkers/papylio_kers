@@ -5,15 +5,13 @@ Created on Fri Sep 14 15:44:52 2018
 @author: ivoseverins
 """
 
+# If you get the error wxApp must be created first, restart kernel
+
 #!/usr/bin/env python
 import wx #cross-platform GUI API
 import wx.dataview
 import wx.lib.agw.hypertreelist as HTL
-import wx.lib.agw.aui as aui
-import os
 from traceAnalysisCode import Experiment, File
-
-
 
 #Use the following lines on Mac
 from sys import platform
@@ -21,10 +19,7 @@ if platform == "darwin":
     from matplotlib import use
     use('WXAgg')
 
-from matplotlib import pyplot as plt
-
 import matplotlib as mpl
-
 from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg as FigureCanvas
 from matplotlib.backends.backend_wxagg import NavigationToolbar2WxAgg as NavigationToolbar
 
@@ -114,8 +109,8 @@ class MainFrame(wx.Frame):
            
         self.Show(True)
         
-        self.createTree(r'D:\ivoseverins\SURFdrive\Promotie\Code\Python\traceAnalysis\twoColourExampleData')
-        #self.createTree(r'D:\SURFdrive\Promotie\Code\Python\traceAnalysis\twoColourExampleData\HJ A')
+        #self.createTree(r'D:\ivoseverins\SURFdrive\Promotie\Code\Python\traceAnalysis\twoColourExampleData')
+        #self.createTree(r'D:\SURFdrive\Promotie\Code\Python\traceAnalysis\twoColourExampleData')
         #self.createTree(r'/Users/ivoseverins/SURFdrive/Promotie/Code/Python/traceAnalysis/twoColourExampleData')
 
 
