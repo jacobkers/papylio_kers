@@ -9,6 +9,7 @@ from image_adapt.ImageCollection import ImageCollection
 #from image_adapt. Mapping import Mapping
 import numpy as np
 import matplotlib.pyplot as plt
+from image_adapt.distance_calculation import dist_calc 
 #import time
 
 plt.close('all')
@@ -48,8 +49,7 @@ else:
 ###
 if 1:
     donor,acceptor=imc.get_all_traces() # 18 seconds for 222 traces from 2000 images of 512x512
-    ##donor,acceptor=imc.get_all_traces_sifx_fast()
-#
+   
 ##example codes to return data from mapping, image collection
 #    img = imc.get_image(0,A)
 #    #tmp._tf2_matrix
@@ -63,16 +63,18 @@ if 1:
 #imc.get_image(4,A)
 #plt.figure(10), plt.plot(donor[:,1478])
 ##
-if 0:
-    for ii in range(1731,1732):#imc.pts_number):
+if 0: #visualise donor, acceptor
+    for ii in range(imc.pts_number):
         if np.amax(donor[:,ii])>200:
-            plt.plot(donor[:,ii])
+            plt.cla()
+            plt.plot(donor[:,ii],'g')
+            plt.plot(acceptor[:,ii],'r')
 #            plt.ylim([0, 300])
             plt.title([ii,imc.ptsG[ii,:]])
-            plt.pause(0.1)
-            #plt.cla()
+            plt.pause(0.2)
+           
             
-if 0:
+if 0: #write an image
     import numpy as np
     import tifffile as TIFF
     for ii in range(5):
@@ -81,28 +83,16 @@ if 0:
         naam=r'M:\tnw\bn\cmj\Shared\margreet\Cy3 G50\ModifiedData\Python'+'{:03d}'.format(ii)+'.tif'
         TIFF.imwrite(naam, np.uint16(im))
         
-if 0:    #show traces for which a matching acceptor point is found
-    BB=[]
+if 0: #show traces for which a matching acceptor point is found, higher change on interesting acceptor signal
+    # note BB, dist is calculated standard with threshold LEN=4       
     if imc.choice_channel=='d': 
-        dist=np.zeros((len(imc.ptsG2),len(imc.dstG)))
-        for ii in range(0, len(imc.ptsG2)):
-                for jj in range(0, len(imc.dstG)):
-                    dist[ii,jj]=np.sqrt((imc.ptsG2[ii][0]-imc.dstG[jj][0])**2+(imc.ptsG2[ii][1]-imc.dstG[jj][1])**2)
+        BB=dist_calc(imc.ptsG2,imc.dstG)[0] # ptsG2 is mapped donor, dstG is acceptor
     elif imc.choice_channel=='a': 
-        dist=np.zeros((len(imc.ptsG2),len(imc.ptsG)))
-        for ii in range(0, len(imc.ptsG2)):
-                for jj in range(0, len(imc.ptsG)):
-                    dist[ii,jj]=np.sqrt((imc.ptsG2[ii][0]-imc.ptsG[jj][0])**2+(imc.ptsG2[ii][1]-imc.ptsG[jj][1])**2)
-    for ii in range(0,len(imc.ptsG2)):
-        jj=np.where(dist[ii,:]==min(dist[ii,:]))[0][0] # use only 0th element
-        if dist[ii,jj]<4 and ii==np.where(dist[:,jj]==min(dist[:,jj]))[0][0]: 
-            BB.append(jj)
-    BB.sort()                
+        BB=dist_calc(imc.ptsG2,imc.ptsG)[0]
     plt.figure(20)
 
-    
     for jj in range(len(BB)):
-            ii=BB[jj]
+            ii=BB[jj][1]
             bg_add_subtr=1
             ###ii=220
             plt.subplot(2,1,2), plt.cla()
@@ -123,9 +113,10 @@ if 0:    #show traces for which a matching acceptor point is found
             else:
                 fret= acceptor[:,ii] /(donor[:,ii]+acceptor[:,ii])
             plt.plot(fret,'b')
-            plt.pause(5)
-#            plt.waitforbuttonpress(5)
-if 1:
+            plt.pause(0.1)
+            plt.waitforbuttonpress(5)
+            
+if 0: #show all donor, acceptor, fret traces. Give plain enter for noninteresting traces, give 1 + enter for interesting traces
     plt.close('all')
     BB=range(0,imc.pts_number)
     selected=np.zeros(np.shape(BB))
@@ -170,6 +161,7 @@ if 1:
                 name='Spooled files.sifx'
                 np.savetxt(os.path.join(root,'traces_select'), selected  )
                 np.savetxt(os.path.join(root,'traces_select.txt'), selected  ,fmt='%1d')
-     np.savetxt(os.path.join(root,'traces_select'), selected  )
-     np.savetxt(os.path.join(root,'traces_select.txt'), selected  ,fmt='%1d')
+    np.savetxt(os.path.join(root,'traces_select'), selected  )
+    np.savetxt(os.path.join(root,'traces_select.txt'), selected  ,fmt='%1d')
+
              

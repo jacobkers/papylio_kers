@@ -14,6 +14,7 @@ import tifffile as TIFF
 import matplotlib.pyplot as plt
 import cv2
 from image_adapt.find_threshold import remove_background, get_threshold
+from autopick.pick_spots_akaze_ALL import load_map, load_coeff
 
 class Mapping:#(object):
     def __init__(self, tetra_fname,f=10000, generic=0):
@@ -21,36 +22,12 @@ class Mapping:#(object):
         if generic==1:
             print('generic')
            
-            self._tf1_matrix =np.zeros((3,3))
-            self._tf1_matrix[2,2]=1
             save_fn=os.path.join(os.path.split(tetra_fname)[0],'generic.coeff') 
-            with open(save_fn, 'r') as infile:
-                self._tf1_matrix[0,2]    =float(infile.readline())-256
-                self._tf1_matrix[0,0]    =float(infile.readline())
-                self._tf1_matrix[0,1]    =float(infile.readline())
-                self._tf1_matrix[1,2]    =float(infile.readline())
-                self._tf1_matrix[1,0]    =float(infile.readline())
-                self._tf1_matrix[1,1]    =float(infile.readline())
-                
-            self.P=np.zeros((4,4))   
-            self.Q=np.zeros((4,4))         
-            self._tf2_matrix=np.zeros((3,3))
+            self._tf1_matrix =load_coeff(save_fn)
+                           
             save_fn=os.path.join(os.path.split(tetra_fname)[0],'generic.map')  
-            with open(save_fn, 'r') as infile:
-                for ii in range(0,16):
-                    self.P[ii//4,ii%4]=float(infile.readline())
-                for ii in range(0,16):
-                    self.Q[ii//4,ii%4]=float(infile.readline())
-                
-            self._tf2_matrix[0,2]=self.P[0,0]
-            self._tf2_matrix[0,1]=self.P[0,1]
-            self._tf2_matrix[0,0]=self.P[1,0]
-            self._tf2_matrix[1,2]=self.Q[0,0]
-            self._tf2_matrix[1,1]=self.Q[0,1]
-            self._tf2_matrix[1,0]=self.Q[1,0]
-            self._tf2_matrix[2,2]=1
-            self._tf2_matrix=np.linalg.inv(self._tf2_matrix)
-            
+            self.P,self.Q,self._tf2_matrix=load_map(save_fn) 
+                        
         else:
             self.manual_align()
             self.automatic_align()
@@ -116,7 +93,8 @@ class Mapping:#(object):
             plt.plot(self.points_left[ii][0],self.points_left[ii][1], 'wo',markerfacecolor='none', markersize=10)
             plt.plot(self.points_right[ii][0],self.points_right[ii][1], 'ws',markerfacecolor='none', markersize=15)
             plt.plot(self.points_right[ii][0]+len(image_tetra_raw)//2,self.points_right[ii][1], 'ws',markerfacecolor='none', markersize=15)
-            plt.plot(dstGm[ii][0]+len(image_tetra_raw)//2,dstGm[ii][1], 'wd',markerfacecolor='none', markersize=10)
+            plt.plot(dstGm[ii][0],dstGm[ii][1], 'wd',markerfacecolor='none', markersize=10)
+                 #plt.plot(dstGm[ii][0]+len(image_tetra_raw)//2,dstGm[ii][1], 'wd',markerfacecolor='none', markersize=10)
         plt.title('tetraspeck+manual mapping')
         PL.savefig(self._tetra_fn[:-4]+'-P VIS manual mapping.tif')   
             
@@ -164,3 +142,9 @@ class Mapping:#(object):
             plt.plot(self.position2[ii][0]-np.shape(image_tetra)[0]//2,self.position2[ii][1], 'ks',markerfacecolor='none', markersize=6)
         PL.savefig(self._tetra_fn[:-4]+'-P VIS pos_overlap.tif')  
         PL.set_size_inches(5,10, forward=True)
+        
+
+    
+    
+   
+                 

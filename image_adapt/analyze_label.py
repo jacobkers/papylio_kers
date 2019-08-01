@@ -43,30 +43,30 @@ def analyze(src):
     #        centroids[ii,1]=np.mean(yy)
         #apparentely centroids is already np.mean
         
-    elif 0:
-        #also old version, fL does not depend on image at all
-        ctrd=[]
-        if len(src)>512: LL=50*16
-        else: LL=200 
-        fL=50000
-        tol=1
-        while np.shape(ctrd)[0]<LL: 
-            # while loop to lower f and increase the number of spots found
-            gray1= enhance_blobies_single(src[:, :src.shape[1]//2],fL, tol)
-            # initialize the AKAZE descriptor, then detect keypoints and extract
-            # local invariant descriptors from the image
-            detector = cv2.AKAZE_create()
-            (kps1, descs1) = detector.detectAndCompute(gray1, None)
-            ctrd=cv2.KeyPoint_convert(kps1);
-            fL=fL*0.9
-    else:
-       
-        fL=get_threshold(src)
-        gray1=enhance_blobies_single(src,fL,1) #remove_background(src, fL)
-        detector = cv2.AKAZE_create()
-        (kps1, descs1) = detector.detectAndCompute(gray1, None)
-        ctrd=cv2.KeyPoint_convert(kps1);
-            
+#    elif 0:
+#        #also old version, fL does not depend on image at all
+#        ctrd=[]
+#        if len(src)>512: LL=50*16
+#        else: LL=200 
+#        fL=50000
+#        tol=1
+#        while np.shape(ctrd)[0]<LL: 
+#            # while loop to lower f and increase the number of spots found
+#            gray1= enhance_blobies_single(src[:, :src.shape[1]//2],fL, tol)
+#            # initialize the AKAZE descriptor, then detect keypoints and extract
+#            # local invariant descriptors from the image
+#            detector = cv2.AKAZE_create()
+#            (kps1, descs1) = detector.detectAndCompute(gray1, None)
+#            ctrd=cv2.KeyPoint_convert(kps1);
+#            fL=fL*0.9
+#    else:
+#       
+    fL=get_threshold(src)
+    gray1=enhance_blobies_single(src,fL,1) #remove_background(src, fL)
+    detector = cv2.AKAZE_create()
+    (kps1, descs1) = detector.detectAndCompute(gray1, None)
+    ctrd=np.array(cv2.KeyPoint_convert(kps1))
+                
     # remove all pixels at the edge (within 10 pix) 
     num_labels=   len(ctrd) 
     dim1,dim0=np.shape(src)

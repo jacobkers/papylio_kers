@@ -28,7 +28,9 @@ import numpy as np
 import bisect #This module provides support for maintaining a list in sorted order without having to sort the list after each insertion.
 from image_adapt.find_threshold import remove_background, get_threshold
 import os
-from image_adapt.polywarp import polywarp
+from image_adapt.polywarp import polywarp, polywarp_apply
+from image_adapt.distance_calculation import dist_calc
+import image_adapt
 
 def imghist(img): 
 #img is a np.array, imghist makes a histogram
@@ -152,48 +154,34 @@ def mapping_manual(file_tetra, show=0, f=None,bg=None, tol=1):
 # for later keypoint detection, you need a threshold, which depends on the image
 #start f depends on max (image_tetra), only interesting if you are going to not load both manual&automatic alignments
     if not( os.path.isfile(save_fn) and os.path.isfile(os.path.join(root,name[:-4]+'-P.map')) ):
+        position1 = image_adapt.analyze_label.analyze(image_tetra[:, :image_tetra.shape[1]//2])[2]  
+        position2=  image_adapt.analyze_label.analyze(image_tetra[:, image_tetra.shape[1]//2:])[2]  
         fL=get_threshold(image_tetra[:, :image_tetra.shape[1]//2])
         fR=get_threshold(image_tetra[:, image_tetra.shape[1]//2:])
-
+#
         gray1= enhance_blobies_single(image_tetra[:, :image_tetra.shape[1]//2],fL, tol)
-#                # initialize the AKAZE descriptor, then detect keypoints and extract
-#                # local invariant descriptors from the image
-        detector = cv2.AKAZE_create()
-        (kps1, descs1) = detector.detectAndCompute(gray1, None)
-        position1=cv2.KeyPoint_convert(kps1);
-
+##                # initialize the AKAZE descriptor, then detect keypoints and extract
+##                # local invariant descriptors from the image
+#        detector = cv2.AKAZE_create()
+#        (kps1, descs1) = detector.detectAndCompute(gray1, None)
+#        position1=cv2.KeyPoint_convert(kps1);
+#
         gray2= enhance_blobies_single(image_tetra[:, image_tetra.shape[1]//2:],fR, tol)
-#                # initialize the AKAZE descriptor, then detect keypoints and extract
-#                # local invariant descriptors from the image
-        detector = cv2.AKAZE_create()
-        (kps2, descs2) = detector.detectAndCompute(gray2, None)
-        position2=cv2.KeyPoint_convert(kps2);
+##                # initialize the AKAZE descriptor, then detect keypoints and extract
+##                # local invariant descriptors from the image
+#        detector = cv2.AKAZE_create()
+#        (kps2, descs2) = detector.detectAndCompute(gray2, None)
+#        position2=cv2.KeyPoint_convert(kps2);
         
     transformation_matrixC=np.zeros((3,3))
     transformation_matrixC[2,2]=1
 # if the transformation matrix has been produced previously, and saved to .coeff file, load it    
     if os.path.isfile(save_fn):
         #import from .coeff file:
-        with open(save_fn, 'r') as infile:
-            transformation_matrixC[0,2]    =float(infile.readline())-256
-            transformation_matrixC[0,0]    =float(infile.readline())
-            transformation_matrixC[0,1]    =float(infile.readline())
-            transformation_matrixC[1,2]    =float(infile.readline())
-            transformation_matrixC[1,0]    =float(infile.readline())
-            transformation_matrixC[1,1]    =float(infile.readline())
+        transformation_matrixC=load_coeff(save_fn) 
         # also load the detected points            
-        with open(os.path.join(root,name[:-4]+'-P.coeffpoints') , 'r') as infile:
-            if image_tetra.shape[1]<=512: rm=4
-            else: rm=10
-            points_right=np.zeros((rm,2))   
-            points_left=np.zeros((rm,2))
-            for ii in range(0,rm):
-                A=infile.readline().split()
-                points_left[ii,0]=float(A[0])
-                points_left[ii,1]=float(A[1])
-                A=infile.readline().split()
-                points_right[ii,0]=float(A[0])
-                points_right[ii,1]=float(A[1])
+        points_left,points_right=load_coeffpoints(os.path.join(root,name[:-4]+'-P.coeffpoints'),image_tetra.shape[1] )
+        
         try: fL
         except NameError: fL,fR=f,f
         return  transformation_matrixC,points_right,points_left,fL,fR
@@ -356,19 +344,11 @@ def mapping_manual(file_tetra, show=0, f=None,bg=None, tol=1):
         plt.figure(10), plt.close()            
                
     #saving to .coeff file:
-        with open(save_fn, 'w') as outfile:
-            outfile.write('{0:4.10e}\n'.format(transformation_matrixC[0,2]+256))
-            outfile.write('{0:4.10e}\n'.format(transformation_matrixC[0,0]))
-            outfile.write('{0:4.10e}\n'.format(transformation_matrixC[0,1]))
-            outfile.write('{0:4.10e}\n'.format(transformation_matrixC[1,2]))
-            outfile.write('{0:4.10e}\n'.format(transformation_matrixC[1,0]))
-            outfile.write('{0:4.10e}\n'.format(transformation_matrixC[1,1]))
+        save_coeff(save_fn,transformation_matrixC)
     # also save the found points
-        with open (os.path.join(root,name[:-4]+'-P.coeffpoints'),'w' )    as outfile:
-            for ii in range (len(points_left)):
-               outfile.write('{0:4.10e} {1:4.10e}\n'.format(points_left[ii,0],points_left[ii,1]))
-               outfile.write('{0:4.10e} {1:4.10e}\n'.format(points_right[ii,0],points_right[ii,1]))
-            
+        
+        save_coeffpoints(os.path.join(root,name[:-4]+'-P.coeffpoints'), points_left,points_right)
+          
     return  transformation_matrixC,points_right,points_left, fL,fR
 
 
@@ -380,67 +360,18 @@ def mapping_automatic(file_tetra, tf1_matrix,show=0, fL=None,fR=None,bg=None, to
     
 # if auto mapping has been done, load the transformation matrix and found points, no need to recalculate
     if os.path.isfile(save_fn ):
-        P=np.zeros((4,4))   
-        Q=np.zeros((4,4))         
+        P,Q,transformation_matrixC=load_map(save_fn)
         
-        tm=np.zeros((3,3))
-        
-    # load transformation matrix
-        with open(save_fn, 'r') as infile:
-            for ii in range(0,16):
-                P[ii//4,ii%4]=float(infile.readline())
-            for ii in range(0,16):
-                Q[ii//4,ii%4]=float(infile.readline())
-                
-        tm[0,2]=P[0,0]
-        tm[0,1]=P[0,1]
-        tm[0,0]=P[1,0]
-        tm[1,2]=Q[0,0]
-        tm[1,1]=Q[0,1]
-        tm[1,0]=Q[1,0]
-        tm[2,2]=1
-        transformation_matrixC=np.linalg.inv(tm)
            
     #load found points, matched between channels: 
         #pts1 is location found in donor, pts2 is location found in acceptor channel
         #dstG is transformed pts1 location, to hopefully match with pts2 location
-        with open(os.path.join(root,name[:-4]+'-P mappoints') , 'r') as infile:
-            pts1=[]  
-            pts2=[]
-            dst2=[]
-            for ii in range(0,20000): ##
-                ii
-                try:
-                    A=infile.readline().split()
-                    pts1.append([float(A[0]),float(A[1])])
-                    A=infile.readline().split()
-                    pts2.append([float(A[0]),float(A[1])])
-                    A=infile.readline().split()
-                    dst2.append([float(A[0]),float(A[1])])
-                except:
-                    break
-        pts1=  np.array(pts1)      
-        pts2=  np.array(pts2)      
-        dst2=  np.array(dst2)   
-        deg=3
+        
+        pts1,pts2,dst2=load_mappoints(os.path.join(root,name[:-4]+'-P mappoints'))
+        deg=len(P)-1
         P21,Q21=polywarp(pts1[:,0],pts1[:,1],pts2[:,0],pts2[:,1],degree=deg) 
     # load found positions (unmatched between channels)
-        with open (os.path.join(root,name[:-4]+'-P mapposition1'),'r' )    as infile:
-            position1=[]  
-            for ii in range (20000):
-                try:
-                    A=infile.readline().split()
-                    position1.append([float(A[0]),float(A[1])])
-                except:
-                  break
-        with open (os.path.join(root,name[:-4]+'-P mapposition2'),'r' )    as infile:
-            position2=[]  
-            for ii in range (20000):
-                try:
-                    A=infile.readline().split()
-                    position2.append([float(A[0]),float(A[1])])
-                except:
-                  break              
+        position1,position2=load_mapposition12(os.path.join(root,name[:-4]+'-P mapposition1'))
 
     else: 
 # calculate the automatic mapping
@@ -481,93 +412,50 @@ def mapping_automatic(file_tetra, tf1_matrix,show=0, fL=None,fR=None,bg=None, to
         PL.savefig(file_tetra[:-4]+'-P image_tetra.tif')      
         image_tetra=image_tetra.astype(np.uint16)    
 
-# default for 16 bits 50000, for 8 bits 200 (=256*50000/64000), you should get fL,fR from the manual mapping
-        if fL==None:
-            if np.max(image_tetra_raw)>256:
-                f=50000
-            else:
-                f=200
-            fL=f
-            fR=f       
-            # adapt image, lower threshold to match a certain number of spots
-            
-            # left, right, enhanced left and enhanced right image for keypoint detection, adapt f
-#$$$$$$ BLACK BOX NUMBER #$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
-            if len(image_tetra)==2048: LL=50*16
-            else: LL=200
-#$$$$$$ BLACK BOX NUMBER #$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
-            position1=[]
-            position2=[]
-            fL=get_threshold(image_tetra[:, :image_tetra.shape[1]//2])
-            fR=get_threshold(image_tetra[:, image_tetra.shape[1]//2:])
+        fL=get_threshold(image_tetra[:, :image_tetra.shape[1]//2])
+        fR=get_threshold(image_tetra[:, image_tetra.shape[1]//2:])
 
-#            while np.shape(position1)[0]<LL: 
-#                # while loop to lower f and increase the number of spots found
-#                gray1= enhance_blobies(image_tetra[:, :image_tetra.shape[1]//2],fL, tol)
-#                # initialize the AKAZE descriptor, then detect keypoints and extract
-#                # local invariant descriptors from the image
-#                detector = cv2.AKAZE_create()
-#                (kps1, descs1) = detector.detectAndCompute(gray1, None)
-#                position1=cv2.KeyPoint_convert(kps1);
-#                fL=fL*0.9
-#    
-#            while  np.shape(position2)[0]<LL : 
-#                # while loop to lower f and increase the number of spots found
-#                gray2= enhance_blobies(image_tetra[:, image_tetra.shape[1]//2:],fR, tol)
-#                
-#                #lraw, rraw, gray1raw, gray2raw = enhance_blobies(image_tetra_raw,f, tol)
-#                
-#                # initialize the AKAZE descriptor, then detect keypoints and extract
-#                # local invariant descriptors from the image
-#                detector = cv2.AKAZE_create()
-#                (kps2, descs2) = detector.detectAndCompute(gray2, None)
-#                position2=cv2.KeyPoint_convert(kps2);
-#                fR=fR*0.9
-            
         gray1= enhance_blobies_single(image_tetra[:, :image_tetra.shape[1]//2],fL, tol)
         gray2= enhance_blobies_single(image_tetra[:, image_tetra.shape[1]//2:],fR, tol) 
         
-        try: position1 #might have been just calculated, if fL==None 
-        except NameError:
-            # initialize the AKAZE descriptor, then detect keypoints and extract local invariant descriptors from the image
-            # such descriptor seems to be more than just the location of the spot
-            detector = cv2.AKAZE_create()
-            (kps1, descs1) = detector.detectAndCompute(gray1, None)
-            (kps2, descs2) = detector.detectAndCompute(gray2, None)
-            position1=cv2.KeyPoint_convert(kps1);
-            position2=cv2.KeyPoint_convert(kps2);
+        position1 = image_adapt.analyze_label.analyze(image_tetra[:, :image_tetra.shape[1]//2])[2]  
+        position2=  image_adapt.analyze_label.analyze(image_tetra[:, image_tetra.shape[1]//2:])[2]  
+
+        for ii in range(np.amax(np.shape(position2))):  #adapt position2 to right channel asap
+            position2[ii][0]=position2[ii][0]+ np.shape(image_tetra)[0]//2
             
-            PL=plt.figure(1,figsize=(40,40)); plt. subplot(1,1,1)
-            plt.imshow(image_tetra, vmin=np.amin(image_tetra), vmax=np.amin(image_tetra)+20)
-            for ii in range((np.amax(np.shape(position1)))): 
-                plt.plot(position1[ii][0],position1[ii][1], 'wo',markerfacecolor='none', markersize=5)
-            for ii in range((np.amax(np.shape(position2)))): 
-                plt.plot(position2[ii][0]+len(image_tetra)//2,position2[ii][1], 'ws',markerfacecolor='none', markersize=5)
-            PL.savefig(file_tetra[:-4]+'-P positions.tif')
-            if show: print('length position 1 is '); print(len(position1))
-            if show: print('length position 2 is '); print(len(position2))
+        PL=plt.figure(1,figsize=(40,40)); plt. subplot(1,1,1)
+        plt.imshow(image_tetra, vmin=np.amin(image_tetra), vmax=np.amin(image_tetra)+20)
+        for ii in range((np.amax(np.shape(position1)))): 
+            plt.plot(position1[ii,0],position1[ii,1], 'wo',markerfacecolor='none', markersize=5)
+        for ii in range((np.amax(np.shape(position2)))): 
+            plt.plot(position2[ii,0],position2[ii,1], 'ws',markerfacecolor='none', markersize=5)
+        PL.savefig(file_tetra[:-4]+'-P positions.tif')
+        if show: print('length position 1 is '); print(len(position1))
+        if show: print('length position 2 is '); print(len(position2))
          
 # find matching points (no other features) based on the manual mapping
         dst= cv2.perspectiveTransform(position1.reshape(-1,1,2),np.linalg.inv(tf1_matrix)) #reshape needed for persp.transform
         dst= dst.reshape(-1,2)
+        for ii in range(np.amax(np.shape(dst))): #adapt dst to right channel asap
+            dst[ii][0]=dst[ii][0]+ np.shape(image_tetra)[0]//2
+        
         if show: print('shape position1 is '); print(np.shape(position1))   
-        if show: print('shape position2 is '); print(np.shape(position2))   
-        dist=np.zeros((len(position2),len(dst)))
-        for ii in range(0, len(position2)):
-            for jj in range(0, len(dst)):
-                dist[ii,jj]=np.sqrt((position2[ii,0]-dst[jj,0])**2+(position2[ii,1]-dst[jj,1])**2)
-        pts1, pts2 = [], []
-        for ii in range(0,len(position2)):
-            jj=np.where(dist[ii,:]==min(dist[ii,:]))[0][0] # use only 0th element
-            if dist[ii,jj]<20 and ii==np.where(dist[:,jj]==min(dist[:,jj]))[0][0]: 
-    ## note: preselection is done with 20. With severe misalignment, this number should be adapted
-    ## check whether and ii==np.where(dist[:,jj]==min(dist[:,jj]))[0][0]
-                pts1.append(position1[jj])
-                pts2.append(position2[ii])
+        if show: print('shape position2 is '); print(np.shape(position2)) 
+        if len(gray1)<=512: 
+            LEN=4
+        else:
+            LEN=20 # for CMOS
+        BB, dist=dist_calc(position2,dst,LEN)
+        pts1, pts2 = [], []    
+        for jj in range(len(BB)):
+            pts1.append(position1[BB[jj,1]])
+            pts2.append(position2[BB[jj,0]])
+            
         if show: print([np.shape(ii),np.shape(jj)])
         pts1 = np.array(pts1).astype(np.float32)
         pts2 = np.array(pts2).astype(np.float32)             
-        if show: print('shape pts1 is '); print(np.shape(pts1))            
+        if 1: print('shape pts1 is '); print(np.shape(pts1))            
         if show: print('shape pts2 is '); print(np.shape(pts2))
 # find the transformation matrix linear          
         transformation_matrixC,mask=cv2.findHomography(pts2,pts1, cv2.RANSAC,20)
@@ -588,70 +476,45 @@ def mapping_automatic(file_tetra, tf1_matrix,show=0, fL=None,fR=None,bg=None, to
             plt.show()
             plt.pause(0.05)
             
-        if 0:
-        #saving to .map file, old approach to approximate P&Q
-            P=np.zeros((4,4))   
-            tm=np.linalg.inv(transformation_matrixC)      
-            P[0,0]=tm[0,2]
-            P[0,1]=tm[0,1]
-            P[1,0]=tm[0,0]
-            Q=np.zeros((4,4))         
-            Q[0,0]=tm[1,2]
-            Q[0,1]=tm[1,1]
-            Q[1,0]=tm[1,0]
-#find the nonlinear polywarp
+        
+        #the nonlinear polywarp
         deg=3
-        P,Q=polywarp(pts2[:,0],pts2[:,1],pts1[:,0],pts1[:,1],degree=deg) 
-        P21,Q21=polywarp(pts1[:,0],pts1[:,1],pts2[:,0],pts2[:,1],degree=deg) 
+        if 1: #works well
+            P,Q=polywarp(pts2[:,0],pts2[:,1],pts1[:,0],pts1[:,1],degree=deg) 
+            P21,Q21=polywarp(pts1[:,0],pts1[:,1],pts2[:,0],pts2[:,1],degree=deg) 
+        else:#backup if linear transformation was not correctly found
+            P,Q=polywarp(pts2[:,0]-np.shape(image_tetra)[0]//2 ,pts2[:,1],pts1[:,0],pts1[:,1],degree=deg) 
+            P21,Q21=polywarp(pts1[:,0],pts1[:,1],pts2[:,0]-np.shape(image_tetra)[0]//2 ,pts2[:,1],degree=deg)     
+            
+            P[0,0]=P[0,0]+np.shape(image_tetra)[0]//2
         # maybe later on you might find a need for orders higher than 3
             
-        with open(save_fn, 'w') as outfile:
-           for ii in range (P.size):
-               outfile.write('{0:4.10e}\n'.format(np.hstack(P)[ii]))
-           for ii in range (Q.size):
-               outfile.write('{0:4.10e}\n'.format(np.hstack(Q)[ii]))
+        save_map(save_fn,P,Q)
         
-        # save all found matching points
-        if 0: #old non linear way
-            dst2 = cv2.perspectiveTransform(pts1.reshape(-1, 1, 2), np.linalg.inv(transformation_matrixC))#transform_matrix))
-            dst2 = dstG.reshape(-1, 2)
-        else:
-            dst2=np.zeros(np.shape(pts1))
-            dst2[:,0]=[np.sum([P[ii,jj]*pts1[kk,0]**ii * pts1[kk,1]**jj for ii in range(deg+1) for jj in range(deg+1)]) for kk in range(len(pts1))]
-            dst2[:,1]=[np.sum([Q[ii,jj]*pts1[kk,0]**ii * pts1[kk,1]**jj for ii in range(deg+1) for jj in range(deg+1)]) for kk in range(len(pts1))]
+        dst2=polywarp_apply(P,Q,pts1)# [np.sum([P[ii,jj]*pts1[kk,0]**ii * pts1[kk,1]**jj for ii in range(deg+1) for jj in range(deg+1)]) for kk in range(len(pts1))]
+                                         #[np.sum([Q[ii,jj]*pts1[kk,0]**ii * pts1[kk,1]**jj for ii in range(deg+1) for jj in range(deg+1)]) for kk in range(len(pts1))]
             
 # double check selected points are not within 10 pixels of the boundary               
         for ii in range(len(dst2)-1,-1,-1): # range(5,-1,-1)=5,4,3,2,1,0
-            discard_dst2=dst2[ii,0]<10 or dst2[ii,1]<10 or dst2[ii,0]>np.shape(image_tetra)[0]//2-10 or dst2[ii,1]>np.shape(image_tetra)[1]-10
             discard_pts1=pts1[ii,0]<10 or pts1[ii,1]<10 or pts1[ii,0]>np.shape(image_tetra)[0]//2-10 or pts1[ii,1]>np.shape(image_tetra)[1]-10
-            discard_pts2=pts2[ii,0]<10 or pts2[ii,1]<10 or pts2[ii,0]>np.shape(image_tetra)[0]//2-10 or pts2[ii,1]>np.shape(image_tetra)[1]-10
+            discard_pts2=pts2[ii,0]<10+np.shape(image_tetra)[0]//2 or pts2[ii,1]<10 or pts2[ii,0]>np.shape(image_tetra)[0]-10 or pts2[ii,1]>np.shape(image_tetra)[1]-10
+            discard_dst2=dst2[ii,0]<10+np.shape(image_tetra)[0]//2 or dst2[ii,1]<10 or dst2[ii,0]>np.shape(image_tetra)[0]-10 or dst2[ii,1]>np.shape(image_tetra)[1]-10
             discard=discard_dst2+discard_pts1+discard_pts2
             if discard:
                 pts1=np.delete(pts1,ii, axis=0)
                 pts2=np.delete(pts2,ii, axis=0)
                 dst2=np.delete(dst2,ii, axis=0)
 
-#actual locations of pts2,ptsG,position2 are in right channel, so add half of the horizontal dimension
-        for ii in range(np.amax(np.shape(pts2))): 
-            pts2[ii][0]=pts2[ii][0]+ np.shape(image_tetra)[0]//2
-            dst2[ii][0]=dst2[ii][0]+ np.shape(image_tetra)[0]//2
-        for ii in range(np.amax(np.shape(position2))): 
-            position2[ii][0]=position2[ii][0]+ np.shape(image_tetra)[0]//2
+##actual locations of pts2,ptsG,position2 are in right channel, so add half of the horizontal dimension
+#        for ii in range(np.amax(np.shape(pts2))): 
+#            pts2[ii][0]=pts2[ii][0]+ np.shape(image_tetra)[0]//2
+#            dst2[ii][0]=dst2[ii][0]+ np.shape(image_tetra)[0]//2
+
                          
 # save selected points to file            
-        with open (os.path.join(root,name[:-4]+'-P mappoints'),'w' )    as outfile:
-            for ii in range (len(pts1)):
-               outfile.write('{0:4.10e} {1:4.10e}\n'.format(pts1[ii,0],pts1[ii,1]))
-               outfile.write('{0:4.10e} {1:4.10e}\n'.format(pts2[ii,0],pts2[ii,1]))
-               outfile.write('{0:4.10e} {1:4.10e}\n'.format(dst2[ii,0],dst2[ii,1]))
-            
+        save_mappoints(os.path.join(root,name[:-4]+'-P mappoints'),pts1,pts2,dst2)
 #save all found positions            
-        with open (os.path.join(root,name[:-4]+'-P mapposition1'),'w' )    as outfile:
-            for ii in range (len(position1)):
-               outfile.write('{0:4.10e} {1:4.10e}\n'.format(position1[ii,0],position1[ii,1]))
-        with open (os.path.join(root,name[:-4]+'-P mapposition2'),'w' )    as outfile:
-            for ii in range (len(position2)):         
-               outfile.write('{0:4.10e} {1:4.10e}\n'.format(position2[ii,0],position2[ii,1]))
+        save_mapposition12(os.path.join(root,name[:-4]+'-P mapposition1'),position1,position2 )  
             
 # plot markers around the found spots     and save to dile
         if not(os.path.isfile(file_tetra[:-4]+'-P selected.tif')):
@@ -692,3 +555,128 @@ def mapping_automatic(file_tetra, tf1_matrix,show=0, fL=None,fR=None,bg=None, to
     #print('done with automatic align')
     
     return  P,Q, transformation_matrixC, position1, position2, pts1, pts2, dst2, P21, Q21
+
+def load_coeff(filename):
+    tf1_matrix =np.zeros((3,3))
+    tf1_matrix[2,2]=1
+    with open(filename, 'r') as infile:
+        tf1_matrix[0,2]    =float(infile.readline())
+        tf1_matrix[0,0]    =float(infile.readline())
+        tf1_matrix[0,1]    =float(infile.readline())
+        tf1_matrix[1,2]    =float(infile.readline())
+        tf1_matrix[1,0]    =float(infile.readline())
+        tf1_matrix[1,1]    =float(infile.readline()) 
+    return tf1_matrix    
+
+def save_coeff(filename,transformation_matrixC):  
+    #saving to .coeff file:
+    with open(filename, 'w') as outfile:
+        outfile.write('{0:4.10e}\n'.format(transformation_matrixC[0,2]))
+        outfile.write('{0:4.10e}\n'.format(transformation_matrixC[0,0]))
+        outfile.write('{0:4.10e}\n'.format(transformation_matrixC[0,1]))
+        outfile.write('{0:4.10e}\n'.format(transformation_matrixC[1,2]))
+        outfile.write('{0:4.10e}\n'.format(transformation_matrixC[1,0]))
+        outfile.write('{0:4.10e}\n'.format(transformation_matrixC[1,1]))
+            
+def load_coeffpoints(filename,LEN):
+    with open(filename) as infile:
+        if LEN<=512: rm=4
+        else: rm=10
+        points_right=np.zeros((rm,2))   
+        points_left=np.zeros((rm,2))
+        for ii in range(0,rm):
+            A=infile.readline().split()
+            points_left[ii,0]=float(A[0])
+            points_left[ii,1]=float(A[1])
+            A=infile.readline().split()
+            points_right[ii,0]=float(A[0])
+            points_right[ii,1]=float(A[1])
+    return points_left, points_right
+
+def save_coeffpoints(filename, points_left,points_right):
+     with open (filename,'w' )    as outfile:
+            for ii in range (len(points_left)):
+               outfile.write('{0:4.10e} {1:4.10e}\n'.format(points_left[ii,0],points_left[ii,1]))
+               outfile.write('{0:4.10e} {1:4.10e}\n'.format(points_right[ii,0],points_right[ii,1]))
+        
+def load_map(filename):
+    P=np.zeros((4,4))   
+    Q=np.zeros((4,4))         
+    tf2_matrix=np.zeros((3,3))
+    with open(filename, 'r') as infile:
+        for ii in range(0,16):
+            P[ii//4,ii%4]=float(infile.readline())
+        for ii in range(0,16):
+            Q[ii//4,ii%4]=float(infile.readline())
+                
+    tf2_matrix[0,2]=P[0,0]
+    tf2_matrix[0,1]=P[0,1]
+    tf2_matrix[0,0]=P[1,0]
+    tf2_matrix[1,2]=Q[0,0]
+    tf2_matrix[1,1]=Q[0,1]
+    tf2_matrix[1,0]=Q[1,0]
+    tf2_matrix[2,2]=1
+    tf2_matrix=np.linalg.inv(tf2_matrix)   ## is this necessary?  
+    return P,Q,tf2_matrix
+    
+def save_map(filename,P,Q):
+    with open(filename, 'w') as outfile:
+           for ii in range (P.size):
+               outfile.write('{0:4.10e}\n'.format(np.hstack(P)[ii]))
+           for ii in range (Q.size):
+               outfile.write('{0:4.10e}\n'.format(np.hstack(Q)[ii]))
+        
+def load_mappoints(filename):
+    with open(filename , 'r') as infile:
+            pts1=[]  
+            pts2=[]
+            dst2=[]
+            for ii in range(0,20000): ## is 20000 enough?
+                ii
+                try:
+                    A=infile.readline().split()
+                    pts1.append([float(A[0]),float(A[1])])
+                    A=infile.readline().split()
+                    pts2.append([float(A[0]),float(A[1])])
+                    A=infile.readline().split()
+                    dst2.append([float(A[0]),float(A[1])])
+                except:
+                    break
+    pts1=  np.array(pts1)      
+    pts2=  np.array(pts2)      
+    dst2=  np.array(dst2) 
+    return pts1,pts2,dst2          
+        
+def save_mappoints(filename,pts1,pts2,dst2):
+    with open (filename,'w' )    as outfile:
+            for ii in range (len(pts1)):
+               outfile.write('{0:4.10e} {1:4.10e}\n'.format(pts1[ii,0],pts1[ii,1]))
+               outfile.write('{0:4.10e} {1:4.10e}\n'.format(pts2[ii,0],pts2[ii,1]))
+               outfile.write('{0:4.10e} {1:4.10e}\n'.format(dst2[ii,0],dst2[ii,1]))
+               
+def load_mapposition12(filename):
+    with open (filename,'r' )    as infile:
+            position1=[]  
+            for ii in range (20000):
+                try:
+                    A=infile.readline().split()
+                    position1.append([float(A[0]),float(A[1])])
+                except:
+                  break
+    with open (filename[:-1]+'2','r' )    as infile:
+            position2=[]  
+            for ii in range (20000):
+                try:
+                    A=infile.readline().split()
+                    position2.append([float(A[0]),float(A[1])])
+                except:
+                  break   
+    return position1, position2   
+
+def save_mapposition12(filename, position1, position2):
+    with open (filename,'w' )    as outfile:
+            for ii in range (len(position1)):
+               outfile.write('{0:4.10e} {1:4.10e}\n'.format(position1[ii,0],position1[ii,1]))
+    with open (filename[:-1]+'2','w' )    as outfile:
+            for ii in range (len(position2)):
+               outfile.write('{0:4.10e} {1:4.10e}\n'.format(position2[ii,0],position2[ii,1]))              

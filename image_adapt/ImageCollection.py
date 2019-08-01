@@ -24,6 +24,7 @@ import image_adapt.analyze_label # note analyze label is differently from the ap
 import os
 from find_xy_position.Gaussian import makeGaussian
 import time
+from image_adapt.polywarp import polywarp, polywarp_apply
  
 class ImageCollection(object):
     def __init__(self, tetra_fn, image_fn, **kwargs):
@@ -97,6 +98,7 @@ class ImageCollection(object):
                      ptsG.append([float(A.split()[1]),float(A.split()[2])])
                      A=infile.readline()
                      dstG.append([float(A.split()[1]),float(A.split()[2])])
+                     
              ptsG=np.array(ptsG)
              dstG=np.array(dstG)
              pts_number =len(ptsG)
@@ -137,24 +139,20 @@ class ImageCollection(object):
             if self.choice_channel=='d': 
             # with donor channel ptsG, calculate position in acceptor dstG
                 pts_number, label_size, ptsG = image_adapt.analyze_label.analyze(im_mean20_correctA[:, 0:vdim//2])       
-                ptsG2 = image_adapt.analyze_label.analyze(im_mean20_correctA[:, vdim//2:])[2]  
-#                dstG = cv2.perspectiveTransform(ptsG.reshape(-1, 1, 2), np.linalg.inv(self.mapping._tf2_matrix))#transform_matrix))
-#                dstG = dstG.reshape(-1, 2)
-                dstG=np.zeros(np.shape(ptsG))
-                deg=3
-                dstG[:,0]=[np.sum([self.mapping.P[ii,jj]*ptsG[kk,0]**ii * ptsG[kk,1]**jj for ii in range(deg+1) for jj in range(deg+1)]) for kk in range(len(ptsG))]
-                dstG[:,1]=[np.sum([self.mapping.Q[ii,jj]*ptsG[kk,0]**ii * ptsG[kk,1]**jj for ii in range(deg+1) for jj in range(deg+1)]) for kk in range(len(ptsG))]
-            #discard point close to edge image
+                ptsG2 = image_adapt.analyze_label.analyze(im_mean20_correctA[:, vdim//2:])[2] 
+                ptsG2 = np.array([[ii[0] + hdim/2, ii[1]] for ii in ptsG2])
+
+                dstG=polywarp_apply(self.mapping.P,self.mapping.Q,ptsG)
+           #discard point close to edge image
                 for ii in range(pts_number-1,-1,-1): # range(5,-1,-1)=5,4,3,2,1,0
-                    discard_dstG=dstG[ii,0]<10 or dstG[ii,1]<10 or dstG[ii,0]>hdim/2-10 or dstG[ii,1]>vdim-10
+                    discard_dstG=dstG[ii,0]<hdim//2-10 or dstG[ii,1]<10 or dstG[ii,0]>hdim-10 or dstG[ii,1]>vdim-10
                     discard_ptsG=ptsG[ii,0]<10 or ptsG[ii,1]<10 or ptsG[ii,0]>hdim/2-10 or ptsG[ii,1]>vdim-10
                     discard=discard_dstG+discard_ptsG
                     if discard:
                         ptsG=np.delete(ptsG,ii, axis=0)
                         dstG=np.delete(dstG,ii, axis=0)
                 pts_number=len(ptsG) 
-                dstG = np.array([[ii[0] + hdim/2, ii[1]] for ii in dstG]) # do this after discarding based on half sized image
-                ptsG2 = np.array([[ii[0] + hdim/2, ii[1]] for ii in ptsG2])
+                
                 print(pts_number)
             
             elif self.choice_channel=='a':
@@ -163,19 +161,16 @@ class ImageCollection(object):
                 ptsG2 = image_adapt.analyze_label.analyze(im_mean20_correctA[:, :vdim//2])[2]  
 #                ptsG = cv2.perspectiveTransform(dstG.reshape(-1, 1, 2),(self.mapping._tf2_matrix))#transform_matrix))
 #                ptsG = ptsG.reshape(-1, 2)
-                ptsG=np.zeros(np.shape(dstG))
-                deg=3
-                ptsG[:,0]=[np.sum([self.mapping.P21[ii,jj]*dstG[kk,0]**ii * dstG[kk,1]**jj for ii in range(deg+1) for jj in range(deg+1)]) for kk in range(len(dstG))]
-                ptsG[:,1]=[np.sum([self.mapping.Q21[ii,jj]*dstG[kk,0]**ii * dstG[kk,1]**jj for ii in range(deg+1) for jj in range(deg+1)]) for kk in range(len(dstG))]
+                ptsG=polywarp_apply(self.mapping.P21,self.mapping.Q21,dstG)
+               
             #discard point close to edge image
                 for ii in range(pts_number-1,-1,-1): # range(5,-1,-1)=5,4,3,2,1,0
-                    discard_dstG=dstG[ii,0]<10 or dstG[ii,1]<10 or dstG[ii,0]>hdim/2-10 or dstG[ii,1]>vdim-10
+                    discard_dstG=dstG[ii,0]<hdim//2-10 or dstG[ii,1]<10 or dstG[ii,0]>hdim-10 or dstG[ii,1]>vdim-10
                     discard_ptsG=ptsG[ii,0]<10 or ptsG[ii,1]<10 or ptsG[ii,0]>hdim/2-10 or ptsG[ii,1]>vdim-10
                     discard=discard_dstG+discard_ptsG
                     if discard:
                         ptsG=np.delete(ptsG,ii, axis=0)
                         dstG=np.delete(dstG,ii, axis=0)
-                dstG = np.array([[ii[0] + hdim/2, ii[1]] for ii in dstG])
                 pts_number=   len(ptsG) 
                 print(pts_number)
            
@@ -311,55 +306,3 @@ class ImageCollection(object):
         
         return donor, acceptor
     
-#    def get_all_traces_sifx_fast(self): ## the idea was that for pma you can make a faster mechanism, for sifx with multiple files not
-#        root, name = os.path.split(self.image_fn)
-#        traces_fn=os.path.join(root,name[:-4]+'-PP.traces') 
-#        Ncolours=2
-#        if os.path.isfile(traces_fn):
-#             with open(traces_fn, 'r') as infile:
-#                 Nframes = np.fromfile(infile, dtype = np.int32, count = 1).item()
-#                 Ntraces = np.fromfile(infile, dtype = np.int16, count = 1).item()
-#                 rawData = np.fromfile(infile, dtype = np.int16, count = Ncolours*Nframes * Ntraces)
-#             orderedData = np.reshape(rawData.ravel(), (Ncolours, Ntraces//Ncolours, Nframes), order = 'F') 
-#             donor=orderedData[0,:,:]   
-#             acceptor=orderedData[1,:,:]
-#             donor=np.transpose(donor)
-#             acceptor=np.transpose(acceptor)
-#        else:
-#            donor=np.zeros(( self.n_images,self.pts_number))
-#            acceptor=np.zeros((self.n_images,self.pts_number))
-#            from image_adapt.sifreaderA import SIFFile
-#            A=SIFFile(root+'\\Spooled files.sifx')
-#                  
-#         
-#            t0 = time.time()  
-#            for ii in range(self.n_images):
-#                print(ii)
-#                img=  read_one_page_sifx(root,name, ii,A)
-#                t1=time.time(); elapsed_time=t1-t0; print(elapsed_time)    
-#                img = self.subtract_background(img)
-#                t1=time.time(); elapsed_time=t1-t0; print(elapsed_time)    
-#                img=Image(img, self.hdim, self.mapping._tf2_matrix, self.ptsG, self.dstG, self.pts_number, self.Gauss)
-#                t1=time.time(); elapsed_time=t1-t0; print(elapsed_time)    
-#                donor[ii,:]=img.donor
-#                acceptor[ii,:]=img.acceptor
-#            t1=time.time(); elapsed_time=t1-t0; print(elapsed_time)    
-#            
-#            #root, name = os.path.split(self.image_fn)
-#            
-#            #if os.path.isfile(trace_fn):
-#               
-#            with open(traces_fn, 'w') as outfile:
-#                 off = np.array([self.n_images], dtype=np.int32)
-#                 off.tofile(outfile)
-#                 off = np.array([2*self.pts_number], dtype=np.int16)
-#                 off.tofile(outfile)
-#                 time_tr=np.zeros((self.n_images,2*self.pts_number))
-#                 Ncolours=2
-#                 for jj in range(2*self.pts_number//Ncolours):
-#                     time_tr[:,jj*2] = donor[:,jj]
-#                     time_tr[:,jj*2+1]=  acceptor[:,jj]
-#                 off = np.array((time_tr), dtype=np.int16)
-#                 off.tofile(outfile)
-#        
-#        return donor, acceptor

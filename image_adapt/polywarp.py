@@ -64,3 +64,11 @@ def polywarp(xi,yi,xo,yo,degree=1):
     print ("ky",ky)
 
     return kx,ky
+
+
+def polywarp_apply(P,Q,pts1):
+     deg=len(P)-1
+     dst=np.zeros(np.shape(pts1))
+     dst[:,0]=[np.sum([P[ii,jj]*pts1[kk,0]**ii * pts1[kk,1]**jj for ii in range(deg+1) for jj in range(deg+1)]) for kk in range(len(pts1))]
+     dst[:,1]=[np.sum([Q[ii,jj]*pts1[kk,0]**ii * pts1[kk,1]**jj for ii in range(deg+1) for jj in range(deg+1)]) for kk in range(len(pts1))]
+     return(dst)
