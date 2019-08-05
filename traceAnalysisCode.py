@@ -61,9 +61,10 @@ class Experiment:
         # Also make sure only relevant files are included (exclude folders, averaged tif files, data folders and .dat files)
         files = [p.relative_to(self.mainPath).with_suffix('') for p in self.mainPath.glob('**/*')
                     if  (p.is_file() & 
-                        ('_ave' not in p.name) & 
-                        ('.' not in str(p.with_suffix(''))) &
-                        (p.suffix != '.dat') 
+                        ('_' not in p.name) & 
+                        #('\\.' not in str(p.with_suffix(''))) & # Can be removed, line below is better  - Ivo
+                        ('.' not in [s[0] for s in p.parts]) &
+                        (p.suffix not in ['.dat','.db']) 
                         )
                     ]
         
@@ -109,7 +110,7 @@ class Experiment:
                 file.update()
                 break
         else:
-            self.files.append(File(relativeFilePath, self, self.exposure_time))
+            self.files.append(File(relativeFilePath, self))
             
             # If not found: add file and extension, or if the file is already there then add the extention to it.
             # If the file and extension are already imported, display a warning message.
