@@ -72,7 +72,9 @@ class MainFrame(wx.Frame):
         
         # HyperTreeList
         self.tree = HyperTreeListPlus(self, wx.ID_ANY, wx.DefaultPosition, wx.Size(200,300),
-                                      HTL.TR_MULTIPLE | HTL.TR_EXTENDED | wx.TR_HIDE_ROOT)
+                                      0,
+                                      wx.TR_HIDE_ROOT | HTL.TR_MULTIPLE | HTL.TR_EXTENDED | 
+                                      HTL.TR_HAS_BUTTONS | HTL.TR_LINES_AT_ROOT)
         #self.tree = HTL.HyperTreeList(self, wx.ID_ANY, wx.DefaultPosition, wx.Size(200,300),
         #                              HTL.TR_MULTIPLE | HTL.TR_EXTENDED)
         
@@ -118,10 +120,17 @@ class MainFrame(wx.Frame):
 
     # File menu event handlers
     def OnOpen(self,event):
-        self.experimentRoot = ''
-        dlg = wx.DirDialog(self, "Choose a directory", self.experimentRoot)
+        self.experimentPath = ''
+        dlg = wx.DirDialog(self, "Choose a directory", self.experimentPath)
         if dlg.ShowModal() == wx.ID_OK:
-            self.createTree(dlg.GetPath())
+            experimentPath = dlg.GetPath()
+            self.experiment = Experiment(experimentPath)
+            
+            self.tree.AddExperiment(self.experiment)
+            
+            self.experiment.histogram(self.histogram.panel.axis, fileSelection = True)
+
+            
 #            self.experimentRoot = dlg.GetPath()
 #            print(self.experimentRoot)
 #            exp = Experiment(self.experimentRoot)
@@ -134,30 +143,7 @@ class MainFrame(wx.Frame):
 #            
 #            self.tree.Expand(self.experimentRoot)
     
-    # Temporary function to automate data import
-    def createTree(self, experimentRoot):
-        self.experimentRoot = experimentRoot
-        print(self.experimentRoot)
-        self.experiment = Experiment(self.experimentRoot)
-        
-        
-        self.experiment.histogram(self.histogram.panel.axis, fileSelection = True)
-        
-        self.tree.AddColumn('Files', width=150)
-        self.tree.AddColumn('Molecules', width=75)
-        self.tree.AddColumn('Selected', width=75)
-        self.experimentRoot = self.tree.AddRoot(self.experiment.name)
-        
-        for file in self.experiment.files:
-            
-            item = self.tree.AddFile(file)
-            
-            #self.tree.SetItemText(item, 'test', 1)
-        
-        self.tree.Expand(self.experimentRoot)
 
-            
-    #### End of temporary function
     
     def OnAbout(self,event):
         dlg = wx.MessageDialog(self, 'Software for trace analysis', 'About Trace Analysis', wx.OK)
@@ -289,6 +275,12 @@ class HyperTreeListPlus(HTL.HyperTreeList):
     def __init__(self, arg, *args, **kwargs):
         super(HyperTreeListPlus, self).__init__(arg, *args, **kwargs)
 
+        self.AddColumn('Files', width=150)
+        self.AddColumn('Molecules', width=75)
+        self.AddColumn('Selected', width=75)
+        
+        self.root = self.AddRoot('root')
+
         self.Bind(HTL.EVT_TREE_ITEM_CHECKED, self.OnItemChecked)
     
 #    def AppendItem(self, arg, *args, **kwargs):
@@ -297,22 +289,38 @@ class HyperTreeListPlus(HTL.HyperTreeList):
 #        print(self)
 #        return super().AppendItem(arg, *args, **kwargs)
 
-    def AddFile(self, file):
-        root = self.GetRootItem()
+    def AddExperiment(self, experiment):
+        experimentItemNames = [item.GetText() for item in self.root.GetChildren()]
+        if experiment.name not in experimentItemNames:
+            experimentItem = self.AppendItem(self.root, experiment.name, ct_type = 1, data = experiment)
         
+        print(experiment.name)
+        
+        for file in experiment.files:
+            self.AddFile(file, experimentItem)
+            
+            #self.tree.SetItemText(item, 'test', 1)
+        
+        self.Expand(experimentItem)
+
+    def AddFile(self, file, experimentItem):
+                
         folders = file.relativePath.parts
         
-        nodeItemNames = [item.GetText() for item in root.GetChildren() if item.GetData() == None]
+        nodeItemNames = [item.GetText() for item in experimentItem.GetChildren() if item.GetData() == None]
         
-        parentItem = root
+        parentItem = experimentItem
         for folder in folders:
-
+            
+            # Get the folderItems and folder names for the current folderItem
             nodeItems = [item for item in parentItem.GetChildren() if item.GetData() == None]
             nodeItemNames = [item.GetText() for item in nodeItems]
 
             if folder not in nodeItemNames:
+                # Add new item for the folder and set parentItem to this item
                 parentItem = self.AppendItem(parentItem, folder, ct_type = 1, data = None)
             else:
+                # Set parent item to the found folderItem
                 parentItem = nodeItems[nodeItemNames.index(folder)]
         
         item = self.AppendItem(parentItem, file.name, ct_type = 1, data = file)
