@@ -64,10 +64,13 @@ class Experiment:
                         ('_' not in p.name) & 
                         #('\\.' not in str(p.with_suffix(''))) & # Can be removed, line below is better  - Ivo
                         ('.' not in [s[0] for s in p.parts]) &
-                        (p.suffix not in ['.dat','.db']) 
+                        (p.suffix not in ['.dat','.db', '.ini']) 
                         )
                     ]
-        
+        for i, file in enumerate(files):
+            if (file.name == 'Spooled files'):
+               files[i] = files[i].parent
+
         uniqueFiles = np.unique(files)
 
         for file in uniqueFiles:
@@ -148,17 +151,23 @@ class Experiment:
 class File:
     def __init__(self, relativeFilePath, experiment):
         relativeFilePath = Path(relativeFilePath)
+        self.experiment = experiment
+        
         
         self.relativePath = relativeFilePath.parent
         self.name = relativeFilePath.name
         self.extensions = list()
-        self.experiment = experiment
+        
         self.molecules = list()
         self.exposure_time = None #Here the exposure time is given but it should be found from the log file if possible
 
         self.isSelected = False
         
         self.findAndAddExtensions()
+
+    
+    def __repr__(self):
+        return(f'{self.__class__.__name__}({self.name})')
 
     @property
     def relativeFilePath(self):
@@ -173,10 +182,14 @@ class File:
         return [molecule for molecule in self.molecules if molecule.isSelected]
 
     def findAndAddExtensions(self):
-        foundFiles = [file.name for file in self.experiment.mainPath.joinpath(self.relativePath).glob(self.name+'*.*')]
+        foundFiles = [file.name for file in self.experiment.mainPath.joinpath(self.relativePath).glob(self.name+'*')]
         foundExtensions = [file[len(self.name):] for file in foundFiles]
+        
+        # For the special case of a sifx file, which is located inside a folder
+        if '' in foundExtensions: foundExtensions[foundExtensions.index('')] = '.sifx'
+        
         newExtensions = [extension for extension in foundExtensions if extension not in self.extensions]
-        self.extensions = newExtensions
+        self.extensions = self.extensions + newExtensions
         for extension in newExtensions: self.importExtension(extension)
 
     def importExtension(self, extension):
@@ -186,7 +199,8 @@ class File:
         #self.extensions.append(extension)
         #print(extension)
         importFunctions = {'.pks'        : self.importPksFile,
-                           '.traces'     : self.importTracesFile
+                           '.traces'     : self.importTracesFile,
+                           '.sifx'       : self.importSifxFile
 #                           '.sim'        : self.importSimFile
                            }
 
@@ -196,6 +210,9 @@ class File:
 
     def noneFunction(self):
         return
+
+    def importSifxFile(self):
+        print('sifx')
 
     def importPksFile(self):
         # Background value stored in pks file is not imported yet
