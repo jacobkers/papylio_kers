@@ -4,7 +4,7 @@ Created on Fri Sep 14 15:24:46 2018
 
 @author: ivoseverins
 """
-#Use the following lines on Mac
+# Use the following lines on Mac
 from sys import platform
 if platform == "darwin":
     from matplotlib import use
@@ -18,22 +18,21 @@ import re # Regular expressions
 import warnings
 import numpy as np #scientific computing with Python
 #import matplotlib.pyplot as plt #Provides a MATLAB-like plotting framework
-import itertools #Functions creating iterators for efficient looping
+#import itertools #Functions creating iterators for efficient looping
 np.seterr(divide='ignore', invalid='ignore')
 #import pandas as pd
-from threshold_analysis_v2 import stepfinder
+#from threshold_analysis_v2 import stepfinder
 from pathlib import Path # For efficient path manipulation
 
-import pickle
+#import pickle
 
 
 class Experiment:
-    def __init__(self, mainPath, exposure_time=None):
+    def __init__(self, mainPath):
         self.name = os.path.basename(mainPath)
         self.mainPath = Path(mainPath).absolute()
         self.files = list()
         self.Ncolours = 2
-        self.exposure_time = exposure_time
 
         os.chdir(mainPath)
 
@@ -62,9 +61,10 @@ class Experiment:
         # Also make sure only relevant files are included (exclude folders, averaged tif files, data folders and .dat files)
         files = [p.relative_to(self.mainPath).with_suffix('') for p in self.mainPath.glob('**/*')
                     if  (p.is_file() & 
-                        ('_ave' not in p.name) & 
-                        ('.' not in str(p.with_suffix(''))) &
-                        (p.suffix != '.dat') 
+                        ('_' not in p.name) & 
+                        #('\\.' not in str(p.with_suffix(''))) & # Can be removed, line below is better  - Ivo
+                        ('.' not in [s[0] for s in p.parts]) &
+                        (p.suffix not in ['.dat','.db']) 
                         )
                     ]
         
@@ -110,7 +110,7 @@ class Experiment:
                 file.update()
                 break
         else:
-            self.files.append(File(relativeFilePath, self, self.exposure_time))
+            self.files.append(File(relativeFilePath, self))
             
             # If not found: add file and extension, or if the file is already there then add the extention to it.
             # If the file and extension are already imported, display a warning message.
@@ -146,7 +146,7 @@ class Experiment:
             input("Press enter to continue")
 
 class File:
-    def __init__(self, relativeFilePath, experiment, exposure_time):
+    def __init__(self, relativeFilePath, experiment):
         relativeFilePath = Path(relativeFilePath)
         
         self.relativePath = relativeFilePath.parent
@@ -154,7 +154,7 @@ class File:
         self.extensions = list()
         self.experiment = experiment
         self.molecules = list()
-        self.exposure_time = exposure_time  #Here the exposure time is given but it should be found from the log file if possible
+        self.exposure_time = None #Here the exposure time is given but it should be found from the log file if possible
 
         self.isSelected = False
         
@@ -168,7 +168,6 @@ class File:
     def coordinates(self):
         return np.concatenate([[molecule.coordinates[0, :]
                                 for molecule in self.molecules]])
-
     @property
     def selectedMolecules(self):
         return [molecule for molecule in self.molecules if molecule.isSelected]
@@ -187,8 +186,8 @@ class File:
         #self.extensions.append(extension)
         #print(extension)
         importFunctions = {'.pks'        : self.importPksFile,
-                           '.traces'     : self.importTracesFile,
-                           '.sim'        : self.importSimFile
+                           '.traces'     : self.importTracesFile
+#                           '.sim'        : self.importSimFile
                            }
 
         importFunctions.get(extension, self.noneFunction)()
@@ -234,20 +233,20 @@ class File:
             molecule.intensity = orderedData[:,i,:]
         file.close()
 
-    def importSimFile(self):
-        file = open(str(self.relativeFilePath) + '.sim', 'rb')
-        self.data = pickle.load(file)
-        red, green  = self.data['red'], self.data['green']
-        Ntraces = red.shape[0]
-        self.Nframes = red.shape[1]
-
-        if not self.molecules:
-            for molecule in range(0, Ntraces):
-                self.addMolecule()
-
-        for i, molecule in enumerate(self.molecules):
-            molecule.intensity = np.vstack((green[i], red[i]))
-        file.close()
+#    def importSimFile(self):
+#        file = open(str(self.relativeFilePath) + '.sim', 'rb')
+#        self.data = pickle.load(file)
+#        red, green  = self.data['red'], self.data['green']
+#        Ntraces = red.shape[0]
+#        self.Nframes = red.shape[1]
+#
+#        if not self.molecules:
+#            for molecule in range(0, Ntraces):
+#                self.addMolecule()
+#
+#        for i, molecule in enumerate(self.molecules):
+#            molecule.intensity = np.vstack((green[i], red[i]))
+#        file.close()
 
     def addMolecule(self):
         self.molecules.append(Molecule(self))
@@ -256,22 +255,22 @@ class File:
     def histogram(self):
         histogram(self.molecules)
 
-    def importExcel(self, filename=None):
-        if filename is None:
-            filename = self.name+'_steps_data.xlsx'
-        try:
-            steps_data = pd.read_excel(filename, index_col=[0,1],
-                                            dtype={'kon':np.str})       # reads from the 1st excel sheet of the file
-        except FileNotFoundError:
-            return
-        molecules = steps_data.index.unique(0)
-        indices = [int(m.split()[-1]) for m in molecules]
-        for mol in self.molecules:
-            if mol.index not in indices:
-                continue
-            mol.steps = steps_data.loc[f'mol {mol.index}']
-            k = [int(i) for i in mol.steps.kon[0]]
-            mol.kon_boolean = np.array(k).astype(bool).reshape((3,3))
+#    def importExcel(self, filename=None):
+#        if filename is None:
+#            filename = self.name+'_steps_data.xlsx'
+#        try:
+#            steps_data = pd.read_excel(filename, index_col=[0,1],
+#                                            dtype={'kon':np.str})       # reads from the 1st excel sheet of the file
+#        except FileNotFoundError:
+#            return
+#        molecules = steps_data.index.unique(0)
+#        indices = [int(m.split()[-1]) for m in molecules]
+#        for mol in self.molecules:
+#            if mol.index not in indices:
+#                continue
+#            mol.steps = steps_data.loc[f'mol {mol.index}']
+#            k = [int(i) for i in mol.steps.kon[0]]
+#            mol.kon_boolean = np.array(k).astype(bool).reshape((3,3))
 
     def select(self, axis=None):
         for molecule in self.molecules:
@@ -288,8 +287,8 @@ class Molecule:
 
         self.isSelected = False
 
-        self.steps = None  #Defined in other classes as: pd.DataFrame(columns=['frame', 'trace', 'state', 'method','thres'])
-        self.kon_boolean = None  # 3x3 matrix that is indicates whether the kon will be calculated from the beginning, in-between molecules or for the end only
+        #self.steps = None  #Defined in other classes as: pd.DataFrame(columns=['frame', 'trace', 'state', 'method','thres'])
+        #self.kon_boolean = None  # 3x3 matrix that is indicates whether the kon will be calculated from the beginning, in-between molecules or for the end only
 
     def I(self, emission, Ioff=0):
         return self.intensity[emission, :] - Ioff
@@ -307,9 +306,9 @@ class Molecule:
         #plt.show()
 #MD190104: why not add a subplot with FRET here as well, to match with display Matlab?
 
-    @property
-    def find_steps(self):
-        return stepfinder
+#    @property
+#    def find_steps(self):
+#        return stepfinder
 
 
 def histogram(input, axis, makeFit = False):
@@ -325,6 +324,9 @@ def histogram(input, axis, makeFit = False):
 #        else:
 #            molecules.append(i.molecules)
     molecules = input
+    
+    #data = np.concatenate([molecule.intensity[0,:] for molecule in molecules])
+    #axis.hist(data,100)
     data = np.concatenate([molecule.E() for molecule in molecules])
     axis.hist(data,100, range = (0,1))
 

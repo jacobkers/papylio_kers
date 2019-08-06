@@ -8,30 +8,16 @@ Created on Wed Nov  7 10:50:59 2018
 
 
 import os
-#os.chdir(r'D:\ivoseverins\SURFdrive\Promotie\Code\Python\traceAnalysis')
-os.chdir(r'/Users/ivoseverins/SURFdrive/Promotie/Code/Python/traceAnalysis')
-from traceAnalysisCode import *
 
-#mainPath = r'D:\ivoseverins\SURFdrive\Promotie\Code\Python\traceAnalysis\twoColourExampleData'
+# Change path to traceAnalysis directory (assuming this file is in that directory)
+os.chdir(os.path.dirname(os.path.abspath(__file__)))
+from traceAnalysisCode import Experiment
+
+# Define path to data, replace by your own directory
+# (Now it is set to the twoColourExampleData folder in the traceAnalysis directory)
 mainPath = './twoColourExampleData'
-#mainPath=r'H:\projects\research practicum\single molecule fluorescence\Matlab\HJA-data from Ivo '
-
-#os.chdir(os.path.dirname(os.path.abspath(__file__)))
-#os.chdir('./traceAnalysis')
-mainPath = './twoColourExampleData/HJ A'
 
 
-
-
-
+# Initialize an experiment
 exp = Experiment(mainPath)
 
-#exp.addFile('.count.dat')
-#exp.histogram(makeFit = True)
-
-
-
-#files = os.listdir(e.mainPath)
-#filenames = list(set([re.search('hel[0-9]*',file).group() for file in files]))
-#
-#for filename in filenames: e.addFile(filename,r'.')
