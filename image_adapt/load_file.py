@@ -169,12 +169,15 @@ def read_header_sifx(root,name):
   
     return hh,ww, nImages,A
    
-def read_one_page_sifx(root,name, pageNb,A,ii):
+def read_one_page_sifx(root,name, pageNb,A,ii=0):
      count=A.height*A.width*3//2
      #name should follow from A.filelist
      with open(root+'\\'+A.filelist[pageNb], 'rb') as fid:
           raw=np.uint16(np.fromfile(fid,np.uint8,count))
      
+     
+     ii = np.array(range(int(A.width/2)*int(A.height/2)))
+        
      #print([A.height,A.width,A.stacksize,np.shape(raw)])        
      AA=raw[ii*6+0]*16 + (raw[ii*6+1]%16)
      BB=raw[ii*6+2]*16 + (raw[ii*6+1]//16)

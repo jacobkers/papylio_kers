@@ -16,6 +16,7 @@ from image_adapt.find_threshold import remove_background
 from image_adapt.find_threshold import get_threshold
 import matplotlib.pyplot as plt
 import numpy as np
+import tifffile as TIFF
 #from cached_property import cached_property
 from image_adapt.Mapping import Mapping
 from image_adapt.Image import Image
@@ -30,10 +31,19 @@ class Movie(object):
     def __init__(self, filepath):#, **kwargs):
         self.filepath = filepath
        
+        if self.filepath.suffix == '.sifx':
+            self.writepath = self.filepath.parent.parent
+            self.name = self.filepath.parent.name
+        else:
+            self.writepath = self.filepath.parent
+            self.name = self.filepath.with_suffix('').name
+        
+        self.read_header()
+        
         #self.set_background_and_transformation() # Carlos: isn't this double, you call set_background twice, Margreet: this is the bg of the image, not the tetra_image. Same formulas though
         
         #Ivo: This is a good idea I think, but I think we should put this option in the method that produces the pks file.
-        #self.pks_fn=kwargs.get('pks_fn',image_fn) # default pks_fn=image_fn, but you could give in a different name; ImageCollection(name, name, pks_fn='   ')
+        #self.pks_fn=kwargs.get('pks_fn',filepath) # default pks_fn=filepath, but you could give in a different name; ImageCollection(name, name, pks_fn='   ')
         
         #Ivo: same here
         #self.choice_channel=kwargs.get('choice_channel','d') #default 'd', 'd' for donor, 'a' for acceptor, 'da' for the sum
@@ -49,9 +59,6 @@ class Movie(object):
 #         self.dstG,
 #         self.ptsG,
 #         self.im_mean20_correct,
-#         self.n_images,
-#         self.hdim,
-#         self.vdim,
 #         self.Gauss,
 #         self.ptsG2) = self.set_background_and_transformation()
 #        self.show_selected_spots()
@@ -59,40 +66,78 @@ class Movie(object):
 #    @cached_property
 #    def read_one_page(self):
 #        return read_one_page ##normally this funciton needs two inputs, why not here?
-#        if '.pma' in self.image_fn:
+#        if '.pma' in self.filepath:
 #            return read_one_page_pma
-#        elif '.tif' in self.image_fn:
+#        elif '.tif' in self.filepath:
 #            return read_one_page_tif
 
     def __repr__(self):
-        return(f'{self.__class__.__name__}({str(self.filename)})')
+        return(f'{self.__class__.__name__}({str(self.filepath)})')
+
+    def read_header(self):
+        self.width_pixels, self.height_pixels, self.number_of_frames, self.movie_file_object = read_header(self.filepath)
+
+    def get_channel(self, image, channel = 'd'):
+        sh = np.shape(image)
+        if channel in ['d', 'donor']:
+            return image[:,:sh[0]//2]
+        elif channel in ['a','acceptor']:
+            return image[:,sh[0]//2:]
+        
+    def saveas_tif(self):
+        tif_filepath = self.writepath.joinpath(self.name+'.tif')
+        for i in range(self.number_of_frames):
+            
+            #frame = self.get_image(ii).image
+            frame = read_one_page(self.filepath, pageNb=i, A = self.movie_file_object)
+            print(i)
+            #naam=r'M:\tnw\bn\cmj\Shared\margreet\Cy3 G50\ModifiedData\Python'+'{:03d}'.format(ii)+'.tif'
+            TIFF.imwrite(tif_filepath, np.uint16(frame))
+            
+
+    def make_average_tif(self, number_of_frames = 20, write = False):
+        frame_list = [(read_one_page(self.filepath, pageNb=i, A=self.movie_file_object)).astype(float) 
+                        for i in range(np.min([self.number_of_frames, number_of_frames]))]
+        frame_array = np.dstack(frame_list)
+        frame_array_mean = np.mean(frame_array, axis=2).astype(int)
+        
+        if write:
+            tif_filepath = self.writepath.joinpath(self.name+'_ave.tif')
+            TIFF.imwrite(tif_filepath, np.uint16(frame_array_mean))
+        
+        return frame_array_mean
+    
+    
+    def subtract_background(self, image, method = 'per_channel'):
+        if method == 'rollingball':
+            background = rollingball(image,self.width_pixels/10)[1] # this one is not used in pick_spots_akaze
+            image_correct = image - background
+            image_correct[image_correct < 0] = 0       
+            threshold = get_threshold(image_correct)
+            return remove_background(image_correct,threshold)  
+        elif method == 'per_channel': #maybe there is a better name
+            sh=np.shape(image)
+            threshold_donor = get_threshold(self.get_channel(image,'donor'))
+            threshold_acceptor = get_threshold(self.get_channel(image, 'acceptor'))
+            background=np.zeros(np.shape(image))
+            background[:,0:sh[0]//2]=threshold_donor
+            background[:,sh[0]//2:]=threshold_acceptor
+            return remove_background(image,background)
+        
+        # note: optionally a fixed threshold can be set, like with IDL
+        # note 2: do we need a different threshold for donor and acceptor?
 
     def set_background_and_transformation(self):
         """
         sum 20 image, find spots& background. Then loop over all image, do background subtract+ extract traces
         :return:
         """
-        hdim, vdim, n_images,self.A = read_header(self.image_fn)
-        im_array = np.dstack([(read_one_page(self.image_fn, pageNb=jj,A=self.A,ii=self.ii)).astype(float) for jj in range(20)])
-        im_mean20 = np.mean(im_array, axis=2).astype(int)
-        if 0:
-            bg = rollingball(im_mean20,hdim/10)[1] # this one is not used in pick_spots_akaze
-            im_mean20_correct = im_mean20 - bg
-            im_mean20_correct[im_mean20_correct < 0] = 0       
-            threshold = get_threshold(im_mean20_correct)
-            im_mean20_correct=remove_background(im_mean20_correct,threshold)  
-        else:
-            sh=np.shape(im_mean20)
-            thr_donor=get_threshold(im_mean20[:,1:sh[0]//2])
-            thr_acceptor=get_threshold(im_mean20[:,sh[0]//2:])
-            bg=np.zeros(sh)
-            bg[:,1:sh[0]//2]=thr_donor
-            bg[:,sh[0]//2:]=thr_acceptor
-            im_mean20_correct=remove_background(im_mean20,bg)   
         
-        #note: optionally a fixed threshold can be set, like with IDL
-        # note 2: do we need a different threshold for donor and acceptor?
+        im_mean20 = self.make_average_tif(number_of_frames=20)
         
+        im_mean20_correct = self.subtract_background(im_mean20, method = 'per_channel')
+        
+       
         root, name = os.path.split(self.pks_fn)
         pks_fn=os.path.join(root,name[:-4]+'-P.pks') 
         pks2_fn=os.path.join(root,name[:-4]+'-P2.pks') 
@@ -124,13 +169,13 @@ class Movie(object):
                      ptsG2.append([float(A.split()[1]),float(A.split()[2])])
         else: 
         # if you cannot load the pks data, calculate it
-            if self.pks_fn== self.image_fn: 
+            if self.pks_fn== self.filepath: 
             # if they are the same, reuse im_mean20_correct; im_mean20_correctA is not stored/exported
                 im_mean20_correctA=im_mean20_correct
             else: 
             #otherwise make your own im_mean correct for pks detection
-                hdim, vdim, n_images,A = read_header(self.pks_fn)
-                im_array = np.dstack([read_one_page(self.pks_fn, pageNb=jj,A=self.A,ii=self.ii).astype(float) for jj in range(20)])
+                self.width_pixels, self.height_pixels,  self.number_of_frames,A = read_header(self.pks_fn)
+                im_array = np.dstack([read_one_page(self.pks_fn, pageNb=jj,A=self.movie_file_object,ii=self.ii).astype(float) for jj in range(20)])
                 im_mean20 = np.mean(im_array, axis=2).astype(int)
                 if 0: #older version, not matching pick spots
                     bg = rollingball(im_mean20)[1]
@@ -148,15 +193,15 @@ class Movie(object):
                     im_mean20_correctA=remove_background(im_mean20,bg)   
             if self.choice_channel=='d': 
             # with donor channel ptsG, calculate position in acceptor dstG
-                pts_number, label_size, ptsG = image_adapt.analyze_label.analyze(im_mean20_correctA[:, 0:vdim//2])       
-                ptsG2 = image_adapt.analyze_label.analyze(im_mean20_correctA[:, vdim//2:])[2] 
-                ptsG2 = np.array([[ii[0] + hdim/2, ii[1]] for ii in ptsG2])
+                pts_number, label_size, ptsG = image_adapt.analyze_label.analyze(im_mean20_correctA[:, 0:self.height_pixels//2])       
+                ptsG2 = image_adapt.analyze_label.analyze(im_mean20_correctA[:, self.height_pixels//2:])[2] 
+                ptsG2 = np.array([[ii[0] + self.width_pixels/2, ii[1]] for ii in ptsG2])
 
                 dstG=polywarp_apply(self.mapping.P,self.mapping.Q,ptsG)
            #discard point close to edge image
                 for ii in range(pts_number-1,-1,-1): # range(5,-1,-1)=5,4,3,2,1,0
-                    discard_dstG=dstG[ii,0]<hdim//2-10 or dstG[ii,1]<10 or dstG[ii,0]>hdim-10 or dstG[ii,1]>vdim-10
-                    discard_ptsG=ptsG[ii,0]<10 or ptsG[ii,1]<10 or ptsG[ii,0]>hdim/2-10 or ptsG[ii,1]>vdim-10
+                    discard_dstG=dstG[ii,0]<self.width_pixels//2-10 or dstG[ii,1]<10 or dstG[ii,0]>self.width_pixels-10 or dstG[ii,1]>self.height_pixels-10
+                    discard_ptsG=ptsG[ii,0]<10 or ptsG[ii,1]<10 or ptsG[ii,0]>self.width_pixels/2-10 or ptsG[ii,1]>self.height_pixels-10
                     discard=discard_dstG+discard_ptsG
                     if discard:
                         ptsG=np.delete(ptsG,ii, axis=0)
@@ -167,16 +212,16 @@ class Movie(object):
             
             elif self.choice_channel=='a':
             # with acceptor dstG, calculate position in donor channel ptsG
-                pts_number, label_size, dstG = image_adapt.analyze_label.analyze(im_mean20_correctA[:, vdim//2:])   
-                ptsG2 = image_adapt.analyze_label.analyze(im_mean20_correctA[:, :vdim//2])[2]  
+                pts_number, label_size, dstG = image_adapt.analyze_label.analyze(im_mean20_correctA[:, self.height_pixels//2:])   
+                ptsG2 = image_adapt.analyze_label.analyze(im_mean20_correctA[:, :self.height_pixels//2])[2]  
 #                ptsG = cv2.perspectiveTransform(dstG.reshape(-1, 1, 2),(self.mapping._tf2_matrix))#transform_matrix))
 #                ptsG = ptsG.reshape(-1, 2)
                 ptsG=polywarp_apply(self.mapping.P21,self.mapping.Q21,dstG)
                
             #discard point close to edge image
                 for ii in range(pts_number-1,-1,-1): # range(5,-1,-1)=5,4,3,2,1,0
-                    discard_dstG=dstG[ii,0]<hdim//2-10 or dstG[ii,1]<10 or dstG[ii,0]>hdim-10 or dstG[ii,1]>vdim-10
-                    discard_ptsG=ptsG[ii,0]<10 or ptsG[ii,1]<10 or ptsG[ii,0]>hdim/2-10 or ptsG[ii,1]>vdim-10
+                    discard_dstG=dstG[ii,0]<self.width_pixels//2-10 or dstG[ii,1]<10 or dstG[ii,0]>self.width_pixels-10 or dstG[ii,1]>self.height_pixels-10
+                    discard_ptsG=ptsG[ii,0]<10 or ptsG[ii,1]<10 or ptsG[ii,0]>self.width_pixels/2-10 or ptsG[ii,1]>self.height_pixels-10
                     discard=discard_dstG+discard_ptsG
                     if discard:
                         ptsG=np.delete(ptsG,ii, axis=0)
@@ -187,7 +232,7 @@ class Movie(object):
             elif self.choice_channel=='da':
                 print('I have no clue yet how to do this')
                 # most likely they do not overlap before finding transformation, so what is the point of doing D+A?
-                #pts_number, label_size, ptsG = analyze_label.analyze(im_mean20_correctA[:, 0:vdim//2+im_mean20_correctA[:, vdim//2:]])                                
+                #pts_number, label_size, ptsG = analyze_label.analyze(im_mean20_correctA[:, 0:self.height_pixels//2+im_mean20_correctA[:, self.height_pixels//2:]])                                
             else:
                 print('make up your mind, choose wisely d/a/da')
             
@@ -214,7 +259,7 @@ class Movie(object):
         ALL_GAUSS=makeGaussian(sizeGauss, fwhm=3, center=(sizeGauss//2, sizeGauss//2))          
 #$$$$$$ BLACK BOX NUMBER #$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
           
-        return bg, pts_number, dstG, ptsG, im_mean20_correct, n_images, hdim, vdim, ALL_GAUSS, ptsG2
+        return bg, pts_number, dstG, ptsG, im_mean20_correct, ALL_GAUSS, ptsG2
 
     def show_selected_spots(self):
     #make a plot with selected spots
@@ -226,7 +271,7 @@ class Movie(object):
             plt.plot(self.dstG[ii][0],self.dstG[ii][1], 'wv',markerfacecolor='none', markersize=8)
         for ii in range((np.amax(np.shape(self.ptsG2)))):
             plt.plot(self.ptsG2[ii][0],self.ptsG2[ii][1],'y^',markerfacecolor='none', markersize=8)
-        PL.savefig(self.image_fn[:-4]+'-P data found spots.tif')
+        PL.savefig(self.filepath[:-4]+'-P data found spots.tif')
         
         PL=plt.figure(15,figsize=(40,40))
         if self.choice_channel=='d': 
@@ -240,20 +285,20 @@ class Movie(object):
             plt.plot(self.dstG[ii][0]-len(self.im_mean20_correct)//2,self.dstG[ii][1], 'kv',markerfacecolor='none', markersize=8)
        
         
-        PL.savefig(self.image_fn[:-4]+'-P data location spots.tif')  
-        
-    def subtract_background(self, im):
-        im_correct = im - self.background
-        im_correct[im_correct < 0] = 0
-        return remove_background(im_correct, self.threshold)
+        PL.savefig(self.filepath[:-4]+'-P data location spots.tif')  
+  
+#    def subtract_background(self, im):
+#        im_correct = im - self.background
+#        im_correct[im_correct < 0] = 0
+#        return remove_background(im_correct, self.threshold)
 
     def get_image(self, idx):
-        img= read_one_page(self.image_fn, idx,self.A, self.ii)
+        img= read_one_page(self.filepath, idx, self.movie_file_object, self.ii)
         #img = self.subtract_background(img)
-        return Image(img, self.vdim, self.mapping._tf2_matrix, self.ptsG, self.dstG, self.pts_number, self.Gauss)
+        return Image(img, self.height_pixels, self.mapping._tf2_matrix, self.ptsG, self.dstG, self.pts_number, self.Gauss)
     
     def get_image_show(self, idx, hs,ws,siz): # example hs=650,ws=950,siz=20
-        img= read_one_page(self.image_fn, idx,self.A,self.ii)
+        img= read_one_page(self.filepath, idx,self.movie_file_object,self.ii)
         plt.figure(idx)
         ax1=plt.subplot(1,2,1)
         ax1.imshow(img)
@@ -265,11 +310,11 @@ class Movie(object):
         ax2.imshow(img)
         ax2.set_xlim(hs,hs+siz)
         ax2.set_ylim(ws, ws+siz)
-        return Image(img, self.vdim, self.mapping._tf2_matrix, self.ptsG, self.dstG, self.pts_number, self.Gauss)
+        return Image(img, self.height_pixels, self.mapping._tf2_matrix, self.ptsG, self.dstG, self.pts_number, self.Gauss)
     
     def get_all_traces(self):
     # reutnr donor and acceptor for the full data set
-        root, name = os.path.split(self.image_fn)
+        root, name = os.path.split(self.filepath)
         traces_fn=os.path.join(root,name[:-4]+'-P.traces') 
         Ncolours=2
         if os.path.isfile(traces_fn):
@@ -285,11 +330,11 @@ class Movie(object):
              acceptor=np.transpose(acceptor)
         else:
         # go through all images, extract donor and acceptor signal
-            donor=np.zeros(( self.n_images,self.pts_number))
-            acceptor=np.zeros((self.n_images,self.pts_number))
+            donor=np.zeros(( self.number_of_frames,self.pts_number))
+            acceptor=np.zeros((self.number_of_frames,self.pts_number))
            
             t0 = time.time()  
-            for ii in range(self.n_images): #self.n_images also works for pm, len(self.A.filelist) not
+            for ii in range(self.number_of_frames): #self.number_of_frames also works for pm, len(self.movie_file_object.filelist) not
                 print(ii)
                 img=self.get_image(ii)
                 donor[ii,:]=img.donor # will multiply with gaussian, spot location is not drift compensated
@@ -297,16 +342,16 @@ class Movie(object):
             t1=time.time()
             elapsed_time=t1-t0; print(elapsed_time)    
             
-            #root, name = os.path.split(self.image_fn)
+            #root, name = os.path.split(self.filepath)
             
             #if os.path.isfile(trace_fn):
                
             with open(traces_fn, 'w') as outfile:
-                 off = np.array([self.n_images], dtype=np.int32)
+                 off = np.array([self.number_of_frames], dtype=np.int32)
                  off.tofile(outfile)
                  off = np.array([2*self.pts_number], dtype=np.int16)
                  off.tofile(outfile)
-                 time_tr=np.zeros((self.n_images,2*self.pts_number))
+                 time_tr=np.zeros((self. number_of_frames,2*self.pts_number))
                  Ncolours=2
                  for jj in range(2*self.pts_number//Ncolours):
                      time_tr[:,jj*2] = donor[:,jj]
