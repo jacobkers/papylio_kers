@@ -26,28 +26,35 @@ from find_xy_position.Gaussian import makeGaussian
 import time
 from image_adapt.polywarp import polywarp, polywarp_apply
  
-class ImageCollection(object):
-    def __init__(self, tetra_fn, image_fn, **kwargs):
-        self.image_fn = image_fn
+class Movie(object):
+    def __init__(self, filepath):#, **kwargs):
+        self.filepath = filepath
        
         #self.set_background_and_transformation() # Carlos: isn't this double, you call set_background twice, Margreet: this is the bg of the image, not the tetra_image. Same formulas though
-        self.pks_fn=kwargs.get('pks_fn',image_fn) # default pks_fn=image_fn, but you could give in a different name; ImageCollection(name, name, pks_fn='   ')
-        self.choice_channel=kwargs.get('choice_channel','d') #default 'd', 'd' for donor, 'a' for acceptor, 'da' for the sum
-        self.generic_map=kwargs.get('generic',0)
-        self.ii=np.array(range(1024*1024))
+        
+        #Ivo: This is a good idea I think, but I think we should put this option in the method that produces the pks file.
+        #self.pks_fn=kwargs.get('pks_fn',image_fn) # default pks_fn=image_fn, but you could give in a different name; ImageCollection(name, name, pks_fn='   ')
+        
+        #Ivo: same here
+        #self.choice_channel=kwargs.get('choice_channel','d') #default 'd', 'd' for donor, 'a' for acceptor, 'da' for the sum
+        
+        #Ivo: what are these?
+        #self.generic_map=kwargs.get('generic',0)
+        #self.ii=np.array(range(1024*1024))
     
-        self.mapping = Mapping(tetra_fn,generic=self.generic_map)
-        (self.background,
-         self.pts_number,
-         self.dstG,
-         self.ptsG,
-         self.im_mean20_correct,
-         self.n_images,
-         self.hdim,
-         self.vdim,
-         self.Gauss,
-         self.ptsG2) = self.set_background_and_transformation()
-        self.show_selected_spots()
+        #Ivo: Commented this because I would like to be able to instantiate the object without doing this initially
+        #self.mapping = Mapping(tetra_fn,generic=self.generic_map)
+#        (self.background,
+#         self.pts_number,
+#         self.dstG,
+#         self.ptsG,
+#         self.im_mean20_correct,
+#         self.n_images,
+#         self.hdim,
+#         self.vdim,
+#         self.Gauss,
+#         self.ptsG2) = self.set_background_and_transformation()
+#        self.show_selected_spots()
  
 #    @cached_property
 #    def read_one_page(self):
@@ -56,6 +63,9 @@ class ImageCollection(object):
 #            return read_one_page_pma
 #        elif '.tif' in self.image_fn:
 #            return read_one_page_tif
+
+    def __repr__(self):
+        return(f'{self.__class__.__name__}({str(self.filename)})')
 
     def set_background_and_transformation(self):
         """

@@ -23,6 +23,7 @@ np.seterr(divide='ignore', invalid='ignore')
 #import pandas as pd
 #from threshold_analysis_v2 import stepfinder
 from pathlib import Path # For efficient path manipulation
+from image_adapt.movie import Movie
 
 #import pickle
 
@@ -212,7 +213,8 @@ class File:
         return
 
     def importSifxFile(self):
-        print('sifx')
+        imageFilePath = self.experiment.mainPath.joinpath(self.relativeFilePath).joinpath('Spooled files.sifx')
+        self.movie = Movie(imageFilePath)
 
     def importPksFile(self):
         # Background value stored in pks file is not imported yet
