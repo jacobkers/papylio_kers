@@ -27,7 +27,7 @@ from find_xy_position.Gaussian import makeGaussian
 import time
 from image_adapt.polywarp import polywarp, polywarp_apply
  
-class Movie(object):
+class Movie():
     def __init__(self, filepath):#, **kwargs):
         self.filepath = filepath
        
@@ -105,6 +105,8 @@ class Movie(object):
             tif_filepath = self.writepath.joinpath(self.name+'_ave.tif')
             TIFF.imwrite(tif_filepath, np.uint16(frame_array_mean))
         
+        self.average_tif = frame_array_mean
+        
         return frame_array_mean
     
     
@@ -119,13 +121,166 @@ class Movie(object):
             sh=np.shape(image)
             threshold_donor = get_threshold(self.get_channel(image,'donor'))
             threshold_acceptor = get_threshold(self.get_channel(image, 'acceptor'))
-            background=np.zeros(np.shape(image))
+            background = np.zeros(np.shape(image))
             background[:,0:sh[0]//2]=threshold_donor
             background[:,sh[0]//2:]=threshold_acceptor
             return remove_background(image,background)
         
         # note: optionally a fixed threshold can be set, like with IDL
         # note 2: do we need a different threshold for donor and acceptor?
+
+
+    def find_peaks(self, image = None):
+        if image is None: image = self.average_tif
+      
+        coordinates = image_adapt.analyze_label.analyze(image)[2]
+
+        return coordinates
+
+    def within_margin(self, coordinates, 
+                      edge = np.array([[0,1024],[0,2048]]), 
+                      margin = 10):
+        
+        criteria = np.array([[coordinates[0] > edge[0,0] + margin],
+                             [coordinates[0] < edge[0,1] - margin],
+                             [coordinates[1] > edge[1,0] + margin],
+                             [coordinates[1] < edge[1,1] - margin] 
+        ])
+        
+        return criterial.all(axis=0)
+
+    
+    def get_acceptor_coordinates(self, donor_coordinates):
+        acceptor_coordinates = polywarp_apply(self.mapping.P,self.mapping.Q,donor_coordinates)
+        return acceptor_coordinates
+    
+    def get_donor_coordinates(self, acceptor_coordinates):
+        donor_coordinates = polywarp_apply(self.mapping.P21,self.mapping.Q21,acceptor_coordinates)
+        return donor_coordinates
+    
+    def write_coordinates_to_pks_file(self, coordinates):
+        pks_filepath = self.writepath.joinpath(self.name+'.pks')
+        with pks_filepath.open('w') as outfile:
+            for i, coordinate in enumerate(coordinates):
+                outfile.write(' {0:4.0f} {1:4.4f} {2:4.4f} {3:4.4f} {4:4.4f} \n'.format(i, coordinate[0], coordinate[1], 0, 0, width4=4, width6=6))
+    
+    def generate_pks_file(self, channel):
+        
+        image_mean = self.make_average_tif(number_of_frames=20)
+        
+        image_mean_corrected = self.subtract_background(image_mean, method = 'per_channel')
+        
+        
+        if channel == 'd':
+            donor_coordinates = self.find_peaks(self.get_channel(image_mean_corrected, 'donor'))
+            acceptor_coordinates = self.get_acceptor_coordinates(donor_coordinates)
+        
+        elif channel == 'a':
+            acceptor_coordinates = self.find_peaks(self.get_channel(image_mean_corrected, 'acceptor'))
+            donor_coordinates = self.get_donor_coordinates(acceptor_coordinates)
+          
+        elif channel == 'da':
+            print('I have no clue yet how to do this')
+            # most likely they do not overlap before finding transformation, so what is the point of doing D+A?
+            #pts_number, label_size, ptsG = analyze_label.analyze(im_mean20_correctA[:, 0:self.height_pixels//2+im_mean20_correctA[:, self.height_pixels//2:]])       
+
+            # Ivo: I think they always transform the entire image of the acceptor channel using the mapping file, 
+            # so that they do overlap. From what I can see in IDL at least.
+
+        else:
+            print('make up your mind, choose wisely d/a/da')    
+
+
+        # Discard point close to edge image
+        donor_edge = np.array([[0,self.width_pixels//2],[0,self.height_pixels]])
+        acceptor_edge = np.array([[self.width_pixels//2,self.width_pixels],[0,self.height_pixels]])
+        margin = 10
+                
+        both_within_margin = (self.within_margin(donor_coordinates, donor_edge, margin) & 
+                                  self.within_margin(acceptor_coordinates, acceptor_edge, margin) )
+        
+        donor_coordinates = donor_coordinates[both_within_margin]
+        acceptor_coordinates = acceptor_coordinates[both_within_margin]
+        
+        all_coordinates = np.array([donor_coordinates,acceptor_coordinates])
+        s = all_coordinates.shape
+        all_coordinates = np.reshape(all_coordinates.T,(s[0],s[1]*s[2])).T
+        
+        self.write_coordinates_to_pks_file(all_coordinates)
+        
+    
+#    
+#        if self.choice_channel=='d': 
+#            # with donor channel ptsG, calculate position in acceptor dstG
+#                pts_number, label_size, ptsG = image_adapt.analyze_label.analyze(im_mean20_correctA[:, 0:self.height_pixels//2])       
+#                ptsG2 = image_adapt.analyze_label.analyze(im_mean20_correctA[:, self.height_pixels//2:])[2] 
+#                ptsG2 = np.array([[ii[0] + self.width_pixels/2, ii[1]] for ii in ptsG2])
+#
+#                dstG=polywarp_apply(self.mapping.P,self.mapping.Q,ptsG)
+#           #discard point close to edge image
+#                for ii in range(pts_number-1,-1,-1): # range(5,-1,-1)=5,4,3,2,1,0
+#                    discard_dstG=dstG[ii,0]<self.width_pixels//2-10 or dstG[ii,1]<10 or dstG[ii,0]>self.width_pixels-10 or dstG[ii,1]>self.height_pixels-10
+#                    discard_ptsG=ptsG[ii,0]<10 or ptsG[ii,1]<10 or ptsG[ii,0]>self.width_pixels/2-10 or ptsG[ii,1]>self.height_pixels-10
+#                    discard=discard_dstG+discard_ptsG
+#                    if discard:
+#                        ptsG=np.delete(ptsG,ii, axis=0)
+#                        dstG=np.delete(dstG,ii, axis=0)
+#                pts_number=len(ptsG) 
+#                
+#                print(pts_number)
+##            
+#            elif self.choice_channel=='a':
+#            # with acceptor dstG, calculate position in donor channel ptsG
+#                pts_number, label_size, dstG = image_adapt.analyze_label.analyze(im_mean20_correctA[:, self.height_pixels//2:])   
+#                ptsG2 = image_adapt.analyze_label.analyze(im_mean20_correctA[:, :self.height_pixels//2])[2]  
+##                ptsG = cv2.perspectiveTransform(dstG.reshape(-1, 1, 2),(self.mapping._tf2_matrix))#transform_matrix))
+##                ptsG = ptsG.reshape(-1, 2)
+#                ptsG=polywarp_apply(self.mapping.P21,self.mapping.Q21,dstG)
+#               
+#            #discard point close to edge image
+#                for ii in range(pts_number-1,-1,-1): # range(5,-1,-1)=5,4,3,2,1,0
+#                    discard_dstG=dstG[ii,0]<self.width_pixels//2-10 or dstG[ii,1]<10 or dstG[ii,0]>self.width_pixels-10 or dstG[ii,1]>self.height_pixels-10
+#                    discard_ptsG=ptsG[ii,0]<10 or ptsG[ii,1]<10 or ptsG[ii,0]>self.width_pixels/2-10 or ptsG[ii,1]>self.height_pixels-10
+#                    discard=discard_dstG+discard_ptsG
+#                    if discard:
+#                        ptsG=np.delete(ptsG,ii, axis=0)
+#                        dstG=np.delete(dstG,ii, axis=0)
+#                pts_number=   len(ptsG) 
+#                print(pts_number)
+#           
+#            elif self.choice_channel=='da':
+#                print('I have no clue yet how to do this')
+#                # most likely they do not overlap before finding transformation, so what is the point of doing D+A?
+#                #pts_number, label_size, ptsG = analyze_label.analyze(im_mean20_correctA[:, 0:self.height_pixels//2+im_mean20_correctA[:, self.height_pixels//2:]])                                
+#            else:
+#                print('make up your mind, choose wisely d/a/da')
+#            
+#            #saving to pks file
+#            with open(pks_fn, 'w') as outfile:
+#                for jj in range(0,pts_number):
+#                    pix0=ptsG[jj][0]
+#                    pix1=ptsG[jj][1]
+#                    outfile.write(' {0:4.0f} {1:4.4f} {2:4.4f} {3:4.4f} {4:4.4f} \n'.format((jj*2)+1, pix0, pix1, 0, 0, width4=4, width6=6))
+#                    pix0=dstG[jj][0]
+#                    pix1=dstG[jj][1]
+#                    outfile.write(' {0:4.0f} {1:4.4f} {2:4.4f} {3:4.4f} {4:4.4f} \n'.format((jj*2)+2, pix0, pix1, 0, 0, width4=4, width6=6))
+#            
+#            root, name = os.path.split(self.pks_fn)
+#            pks_fn=os.path.join(root,name[:-4]+'-P2.pks') 
+#            with open(pks_fn, 'w') as outfile:
+#                for jj in range(len(ptsG2)):
+#                    pix0=ptsG2[jj][0]
+#                    pix1=ptsG2[jj][1]
+#                    outfile.write(' {0:4.0f} {1:4.4f} {2:4.4f} {3:4.4f} {4:4.4f} \n'.format((jj*2)+1, pix0, pix1, 0, 0, width4=4, width6=6))
+#        
+##$$$$$$ BLACK BOX NUMBER #$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$        
+#        sizeGauss=11
+#        ALL_GAUSS=makeGaussian(sizeGauss, fwhm=3, center=(sizeGauss//2, sizeGauss//2))          
+##$$$$$$ BLACK BOX NUMBER #$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+#          
+#        return bg, pts_number, dstG, ptsG, im_mean20_correct, ALL_GAUSS, ptsG2
+#    
+
 
     def set_background_and_transformation(self):
         """
@@ -174,7 +329,7 @@ class Movie(object):
                 im_mean20_correctA=im_mean20_correct
             else: 
             #otherwise make your own im_mean correct for pks detection
-                self.width_pixels, self.height_pixels,  self.number_of_frames,A = read_header(self.pks_fn)
+                self.width_pixels, self.height_pixels,  self.number_of_frames, A = read_header(self.pks_fn)
                 im_array = np.dstack([read_one_page(self.pks_fn, pageNb=jj,A=self.movie_file_object,ii=self.ii).astype(float) for jj in range(20)])
                 im_mean20 = np.mean(im_array, axis=2).astype(int)
                 if 0: #older version, not matching pick spots
