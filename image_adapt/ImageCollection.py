@@ -34,9 +34,9 @@ class ImageCollection(object):
         self.pks_fn=kwargs.get('pks_fn',image_fn) # default pks_fn=image_fn, but you could give in a different name; ImageCollection(name, name, pks_fn='   ')
         self.choice_channel=kwargs.get('choice_channel','d') #default 'd', 'd' for donor, 'a' for acceptor, 'da' for the sum
         self.generic_map=kwargs.get('generic',0)
-        self.ii=np.array(range(1024*1024))
-    
         self.mapping = Mapping(tetra_fn,generic=self.generic_map)
+        iL=self.mapping.dim//2
+        self.ii=np.array(range(iL*iL))######MAKE MORE GENERIC
         (self.background,
          self.pts_number,
          self.dstG,
@@ -181,7 +181,7 @@ class ImageCollection(object):
             else:
                 print('make up your mind, choose wisely d/a/da')
             
-            #saving to pks file
+            #saving to pks file, ptsG points found in donor, dstG mapped donor to acceptor (in case of acceptor dstG is found and ptsG is mapped)
             with open(pks_fn, 'w') as outfile:
                 for jj in range(0,pts_number):
                     pix0=ptsG[jj][0]
@@ -191,6 +191,7 @@ class ImageCollection(object):
                     pix1=dstG[jj][1]
                     outfile.write(' {0:4.0f} {1:4.4f} {2:4.4f} {3:4.4f} {4:4.4f} \n'.format((jj*2)+2, pix0, pix1, 0, 0, width4=4, width6=6))
             
+            # pks is the found points in acceptor channel
             root, name = os.path.split(self.pks_fn)
             pks_fn=os.path.join(root,name[:-4]+'-P2.pks') 
             with open(pks_fn, 'w') as outfile:
@@ -240,7 +241,7 @@ class ImageCollection(object):
     def get_image(self, idx):
         img= read_one_page(self.image_fn, idx,self.A, self.ii)
         #img = self.subtract_background(img)
-        return Image(img, self.vdim, self.mapping._tf2_matrix, self.ptsG, self.dstG, self.pts_number, self.Gauss)
+        return Image(img, self.vdim, self.ptsG, self.dstG, self.pts_number, self.Gauss)
     
     def get_image_show(self, idx, hs,ws,siz): # example hs=650,ws=950,siz=20
         img= read_one_page(self.image_fn, idx,self.A,self.ii)
@@ -255,7 +256,7 @@ class ImageCollection(object):
         ax2.imshow(img)
         ax2.set_xlim(hs,hs+siz)
         ax2.set_ylim(ws, ws+siz)
-        return Image(img, self.vdim, self.mapping._tf2_matrix, self.ptsG, self.dstG, self.pts_number, self.Gauss)
+        return Image(img, self.vdim, self.ptsG, self.dstG, self.pts_number, self.Gauss)
     
     def get_all_traces(self):
     # reutnr donor and acceptor for the full data set

@@ -10,7 +10,7 @@ Shamelessly copied, well tested against IDL procedure
 import numpy as np
 #from scipy.optimize import curve_fit
 
-def polywarp(xi,yi,xo,yo,degree=1):
+def polywarp(xi,yi,xo,yo,degree=3):
     """
     Fit a function of the form
     xi = sum over i and j from 0 to degree of: kx[i,j] * xo^j * yo^i
@@ -59,9 +59,9 @@ def polywarp(xi,yi,xo,yo,degree=1):
    # print( "kk",kk)
     #print( "x[0,:]",x[0,:])
     kx = np.dot(kk.T,x[0,:]).reshape(degree+1,degree+1)
-    print ("kx",kx)
+   # print ("kx",kx)
     ky = np.dot(kk.T,x[1,:]).reshape(degree+1,degree+1)
-    print ("ky",ky)
+    #print ("ky",ky)
 
     return kx,ky
 

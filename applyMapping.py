@@ -21,16 +21,16 @@ if 0: # use for trial on HJ example data for RP practicum
    
     imc = ImageCollection(tetra_fn, image_fn)  # **kwargs, 'pks_fn'= ; choice_channel='d'
 
-elif 0: # use for trial on CMOS data, only Cy3 here, so no anticorrelation
-    ## tetra_fn=os.path.normpath(r'N:\tnw\BN\CMJ\Shared\Margreet\190628 HJ long TIR-Ivo\Cy3 G50\cmos tetra G2,4 v2.tif') 
+elif 1: # use for trial on CMOS data, only Cy3 here, so no anticorrelation
+    tetra_fn=os.path.normpath(r'N:\tnw\BN\CMJ\Shared\Margreet\190628 HJ long TIR-Ivo\Cy3 G50\cmos tetra G2,4 v2.tif') 
     ## unfortunatelymapiing goes well for the above image, but this map does not seem to fit on the data below
     root=os.path.normpath(r'N:\tnw\BN\CMJ\Shared\Margreet\190628 HJ long TIR-Ivo\Cy3 G50')
     name='Spooled files.sifx'
     image_fn=os.path.join(root,name)
-    tetra_fn=image_fn ##here having the same tetra as image file does not work
+   #tetra_fn=image_fn ##here having the same tetra as image file does not work
     imc = ImageCollection(tetra_fn, image_fn)  # **kwargs, 'pks_fn'= ; choice_channel='d'
 
-elif 1: # this is a great data set: Holliday Junction (so test anticorrelation) on Ivo's setup
+elif 0: # this is a great data set: Holliday Junction (so test anticorrelation) on Ivo's setup
     tetra_fn=os.path.normpath(r'N:\tnw\BN\CMJ\Shared\Margreet\190628 HJ long TIR-Ivo\Cy3 G50\cmos tetra G2,4 v2.tif') 
     ## unfortunatelymapiing goes well for the aboe image, but this map does not seem to fit on the data below
     root=os.path.normpath(r'N:\tnw\BN\CMJ\Shared\Margreet\190628 HJ long TIR-Ivo\HJ 120mW_3_long')
@@ -39,7 +39,7 @@ elif 1: # this is a great data set: Holliday Junction (so test anticorrelation) 
     tetra_fn=image_fn # used the data itself to do mappping, since for the Cy3 G50 this was also better.
     imc = ImageCollection(tetra_fn, image_fn)  # **kwargs, 'pks_fn'= ; choice_channel='d'
 
-else:
+elif 0:
     tetra_fn=os.path.normpath(r'N:\tnw\BN\CMJ\Shared\Margreet\20190620 - Demo Chirlmin\Mapping (old files)\rough_ave.tif')
     root=os.path.normpath(r'N:\tnw\BN\CMJ\Shared\Margreet\20190620 - Demo Chirlmin\HJ 50mM Mg 2x intensity (20mW)')
     name='hel20.pma'# or 21,22,23
@@ -47,7 +47,7 @@ else:
     imc = ImageCollection(tetra_fn, image_fn) 
     
 ###
-if 1:
+if 0:
     donor,acceptor=imc.get_all_traces() # 18 seconds for 222 traces from 2000 images of 512x512
    
 ##example codes to return data from mapping, image collection
@@ -164,4 +164,26 @@ if 0: #show all donor, acceptor, fret traces. Give plain enter for noninterestin
     np.savetxt(os.path.join(root,'traces_select'), selected  )
     np.savetxt(os.path.join(root,'traces_select.txt'), selected  ,fmt='%1d')
 
-             
+if 0: #trial to export a certain spot
+    import cv2
+    import os
+    import numpy as np
+    import matplotlib.pyplot as plt
+    
+    video_name =image_fn[:-5]+'video.avi'
+    A=np.zeros((200,100))
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    video = cv2.VideoWriter(video_name, fourcc, 20.0,(200,100),isColor=0)
+   
+    jj=2062
+    for ii in range(0,100,imc.n_images): #self.n_images also works for pm, len(self.A.filelist) not
+        print(ii)
+        img=imc.get_image(ii)
+        A[0:100,:]=img[imc.pts1[ii,0]+range(-50,50),imc.pts1[ii,0]+range(-50,50)]
+        A[100:,:]= img[imc.pts2[ii,0]+range(-50,50),imc.pts2[ii,0]+range(-50,50)]
+        
+        plt.imshow(A)
+       # video.write(cv2.merge([A,A,A]))
+        video.write(A)
+    cv2.destroyAllWindows()
+    video.release()             

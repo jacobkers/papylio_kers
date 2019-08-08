@@ -178,13 +178,13 @@ def mapping_manual(file_tetra, show=0, f=None,bg=None, tol=1):
 # if the transformation matrix has been produced previously, and saved to .coeff file, load it    
     if os.path.isfile(save_fn):
         #import from .coeff file:
-        transformation_matrixC=load_coeff(save_fn) 
+        P,Q=load_map(save_fn) 
         # also load the detected points            
         points_left,points_right=load_coeffpoints(os.path.join(root,name[:-4]+'-P.coeffpoints'),image_tetra.shape[1] )
         
         try: fL
         except NameError: fL,fR=f,f
-        return  transformation_matrixC,points_right,points_left,fL,fR
+        return  P,Q,points_right,points_left,fL,fR
 #else calculate the l(linear) transformation matrix
     else:
     # click on 4 points in donor image
@@ -305,54 +305,34 @@ def mapping_manual(file_tetra, show=0, f=None,bg=None, tol=1):
         points_left=np.array(points_left)
         if show: print('the number of right points are  ' );    print(points_right)
         if show: print('the number of left points are  ' );     print(points_left)
-        transformation_matrixC, mask = cv2.findHomography(points_right, points_left, cv2.RANSAC,20)
-        #transformation_matrixC, mask = cv2.getPerspectiveTransform(points_right, points_left)         
-    # produce an image in which the overlay between two channels is shown
-        array_size=np.shape(gray2)
-        imC=cv2.warpPerspective(gray2, transformation_matrixC, array_size[::-1] )
-        
-        if show:
-            plt.figure(11, figsize=(18,9))
-            plt.subplot(1,1,1)
-            plt.subplot(1,6,1),
-            plt.imshow(gray1, extent=[0,array_size[1],0,array_size[0]], aspect=1)
-            plt.title('green channel')
-                
-            plt.subplot(1,6,2),
-            plt.imshow(gray2, extent=[0,array_size[1],0,array_size[0]], aspect=1)
-            plt.title('red channel')    
+        save_coeffpoints(os.path.join(root,name[:-4]+'-P.coeffpoints'), points_left,points_right)
+       
+        if 0: # old
+            transformation_matrixC, mask = cv2.findHomography(points_right, points_left, cv2.RANSAC,20)
+            #transformation_matrixC, mask = cv2.getPerspectiveTransform(points_right, points_left)         
+            # produce an image in which the overlay between two channels is shown
+            array_size=np.shape(gray2)
+            imC=cv2.warpPerspective(gray2, transformation_matrixC, array_size[::-1] )
+        else:
+            for ii in range(np.amax(np.shape(points_right))): #adapt dst to right channel asap
+                points_right[ii][0]=points_right[ii][0]+ np.shape(image_tetra)[0]//2
             
-            plt.subplot(1,6,3),
-            plt.imshow(imC, extent=[0,array_size[1],0,array_size[0]], aspect=1)
-            plt.title('red transformed')
-            plt.show()
+            #try to get the largest amount of orders: length of arrays must be greater than (degree+1)^2
+            degree= int(np.floor(np.sqrt(len(points_right))-1))
+            P,Q=polywarp(points_right[:,0],points_right[:,1],points_left[:,0],points_left[:,1],degree) 
         
-            plt.subplot(1,6,4),
-            A=(gray1>0)+2*(gray2>0)
-            plt.imshow(A, extent=[0,array_size[1],0,array_size[0]], aspect=1)
-           # plt.colorbar()
-            plt.title( 'unaligned #(yellow) \nspots overlap {:d}'.format(np.sum(A==3))   ) 
-                
-            plt.subplot(1,6,5),
-            AA=(gray1>0)+2*(imC>0)
-            plt.imshow((gray1>0)+2*(imC>0), extent=[0,array_size[1],0,array_size[0]], aspect=1)
-            #plt.colorbar()
-            plt.title(  'manual align \n#spots overlap y{:d}'.format(np.sum(AA==3)) )    
-            plt.show()
-            plt.pause(0.05)
-    
-        plt.figure(10), plt.close()            
-               
-    #saving to .coeff file:
-        save_coeff(save_fn,transformation_matrixC)
+        
+    #saving to .coeff file, in similar way as .map file
+        save_map(save_fn,P,Q)
     # also save the found points
         
         save_coeffpoints(os.path.join(root,name[:-4]+'-P.coeffpoints'), points_left,points_right)
-          
-    return  transformation_matrixC,points_right,points_left, fL,fR
+    
+    print(P,Q,points_right,points_left, fL,fR)  
+    return  P,Q,points_right,points_left, fL,fR
 
 
-def mapping_automatic(file_tetra, tf1_matrix,show=0, fL=None,fR=None,bg=None, tol=1 ): #'E:\CMJ trace analysis\\autopick\\tetraspeck.tif'
+def mapping_automatic(file_tetra, Pmanual,Qmanual,show=0, fL=None,fR=None,bg=None, tol=1 ): #'E:\CMJ trace analysis\\autopick\\tetraspeck.tif'
 # this function finds all spots, and alignes them with a polywarp function (higher order, not only linear transformation)    
     root, name = os.path.split(file_tetra)
     save_fn=os.path.join(root,name[:-4]+'-P.map') 
@@ -360,7 +340,7 @@ def mapping_automatic(file_tetra, tf1_matrix,show=0, fL=None,fR=None,bg=None, to
     
 # if auto mapping has been done, load the transformation matrix and found points, no need to recalculate
     if os.path.isfile(save_fn ):
-        P,Q,transformation_matrixC=load_map(save_fn)
+        P,Q=load_map(save_fn)
         
            
     #load found points, matched between channels: 
@@ -435,11 +415,14 @@ def mapping_automatic(file_tetra, tf1_matrix,show=0, fL=None,fR=None,bg=None, to
         if show: print('length position 2 is '); print(len(position2))
          
 # find matching points (no other features) based on the manual mapping
-        dst= cv2.perspectiveTransform(position1.reshape(-1,1,2),np.linalg.inv(tf1_matrix)) #reshape needed for persp.transform
-        dst= dst.reshape(-1,2)
-        for ii in range(np.amax(np.shape(dst))): #adapt dst to right channel asap
-            dst[ii][0]=dst[ii][0]+ np.shape(image_tetra)[0]//2
-        
+        if 0: #old
+            dst= cv2.perspectiveTransform(position1.reshape(-1,1,2),np.linalg.inv(tf1_matrix)) #reshape needed for persp.transform
+            dst= dst.reshape(-1,2)
+            for ii in range(np.amax(np.shape(dst))): #adapt dst to right channel asap
+                dst[ii][0]=dst[ii][0]+ np.shape(image_tetra)[0]//2
+        else:
+            dst=polywarp_apply(Pmanual,Qmanual,position1)
+            
         if show: print('shape position1 is '); print(np.shape(position1))   
         if show: print('shape position2 is '); print(np.shape(position2)) 
         if len(gray1)<=512: 
@@ -554,7 +537,7 @@ def mapping_automatic(file_tetra, tf1_matrix,show=0, fL=None,fR=None,bg=None, to
             
     #print('done with automatic align')
     
-    return  P,Q, transformation_matrixC, position1, position2, pts1, pts2, dst2, P21, Q21
+    return  P,Q, position1, position2, pts1, pts2, dst2, P21, Q21
 
 def load_coeff(filename):
     tf1_matrix =np.zeros((3,3))
@@ -568,15 +551,15 @@ def load_coeff(filename):
         tf1_matrix[1,1]    =float(infile.readline()) 
     return tf1_matrix    
 
-def save_coeff(filename,transformation_matrixC):  
-    #saving to .coeff file:
-    with open(filename, 'w') as outfile:
-        outfile.write('{0:4.10e}\n'.format(transformation_matrixC[0,2]))
-        outfile.write('{0:4.10e}\n'.format(transformation_matrixC[0,0]))
-        outfile.write('{0:4.10e}\n'.format(transformation_matrixC[0,1]))
-        outfile.write('{0:4.10e}\n'.format(transformation_matrixC[1,2]))
-        outfile.write('{0:4.10e}\n'.format(transformation_matrixC[1,0]))
-        outfile.write('{0:4.10e}\n'.format(transformation_matrixC[1,1]))
+#def save_coeff(filename,transformation_matrixC):  
+#    #saving to .coeff file:
+#    with open(filename, 'w') as outfile:
+#        outfile.write('{0:4.10e}\n'.format(transformation_matrixC[0,2]))
+#        outfile.write('{0:4.10e}\n'.format(transformation_matrixC[0,0]))
+#        outfile.write('{0:4.10e}\n'.format(transformation_matrixC[0,1]))
+#        outfile.write('{0:4.10e}\n'.format(transformation_matrixC[1,2]))
+#        outfile.write('{0:4.10e}\n'.format(transformation_matrixC[1,0]))
+#        outfile.write('{0:4.10e}\n'.format(transformation_matrixC[1,1]))
             
 def load_coeffpoints(filename,LEN):
     with open(filename) as infile:
@@ -600,24 +583,40 @@ def save_coeffpoints(filename, points_left,points_right):
                outfile.write('{0:4.10e} {1:4.10e}\n'.format(points_right[ii,0],points_right[ii,1]))
         
 def load_map(filename):
-    P=np.zeros((4,4))   
-    Q=np.zeros((4,4))         
-    tf2_matrix=np.zeros((3,3))
-    with open(filename, 'r') as infile:
-        for ii in range(0,16):
-            P[ii//4,ii%4]=float(infile.readline())
-        for ii in range(0,16):
-            Q[ii//4,ii%4]=float(infile.readline())
-                
-    tf2_matrix[0,2]=P[0,0]
-    tf2_matrix[0,1]=P[0,1]
-    tf2_matrix[0,0]=P[1,0]
-    tf2_matrix[1,2]=Q[0,0]
-    tf2_matrix[1,1]=Q[0,1]
-    tf2_matrix[1,0]=Q[1,0]
-    tf2_matrix[2,2]=1
-    tf2_matrix=np.linalg.inv(tf2_matrix)   ## is this necessary?  
-    return P,Q,tf2_matrix
+#    tf2_matrix=np.zeros((3,3))
+    A=np.zeros((100,1))
+    with open(filename, 'r') as infile: # with degree variable, range is not standard (0,16)
+        for ii in range(0,len(A)):
+            AA=infile.readline()
+            if AA!='' or AA==0: 
+                A[ii]=AA
+            else:
+                A=A[:ii]
+                break
+        #now read into P,Q
+        deg=int(np.sqrt(len(A)//2)-1)
+        P=np.zeros((deg+1,deg+1))   
+        Q=np.zeros((deg+1,deg+1))
+        for ii in range(0,len(A)//2):
+            P[ii//(deg+1),ii%(deg+1)]=float(A[ii])
+        for jj in range(0,len(A)//2):
+            Q[jj//(deg+1),jj%(deg+1)]=float(A[ii+jj+1])
+#        for ii in range(0,16):
+#            P[ii//4,ii%4]=float(infile.readline())
+#        for ii in range(0,16):
+#            Q[ii//4,ii%4]=float(infile.readline())
+#            
+            
+#                
+#    tf2_matrix[0,2]=P[0,0]
+#    tf2_matrix[0,1]=P[0,1]
+#    tf2_matrix[0,0]=P[1,0]
+#    tf2_matrix[1,2]=Q[0,0]
+#    tf2_matrix[1,1]=Q[0,1]
+#    tf2_matrix[1,0]=Q[1,0]
+#    tf2_matrix[2,2]=1
+#    tf2_matrix=np.linalg.inv(tf2_matrix)   ## is this necessary?  
+    return P,Q
     
 def save_map(filename,P,Q):
     with open(filename, 'w') as outfile:
