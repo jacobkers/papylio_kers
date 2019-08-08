@@ -30,6 +30,7 @@ from image_adapt.polywarp import polywarp, polywarp_apply
 class Movie():
     def __init__(self, filepath):#, **kwargs):
         self.filepath = filepath
+        self.average_tif = None
        
         if self.filepath.suffix == '.sifx':
             self.writepath = self.filepath.parent.parent
@@ -93,7 +94,7 @@ class Movie():
             print(i)
             #naam=r'M:\tnw\bn\cmj\Shared\margreet\Cy3 G50\ModifiedData\Python'+'{:03d}'.format(ii)+'.tif'
             TIFF.imwrite(tif_filepath, np.uint16(frame))
-            
+    
 
     def make_average_tif(self, number_of_frames = 20, write = False):
         frame_list = [(read_one_page(self.filepath, pageNb=i, A=self.movie_file_object)).astype(float) 
@@ -108,6 +109,12 @@ class Movie():
         self.average_tif = frame_array_mean
         
         return frame_array_mean
+    
+    def show_average_tif(self):
+        plt.figure()
+        if self.average_tif is None: self.make_average_tif()
+        plt.imshow(self.average_tif)
+        plt.show()
     
     
     def subtract_background(self, image, method = 'per_channel'):
@@ -209,8 +216,72 @@ class Movie():
         self.write_coordinates_to_pks_file(all_coordinates)
         
     
-#    
-#        if self.choice_channel=='d': 
+
+#    def set_background_and_transformation(self):
+#        """
+#        sum 20 image, find spots& background. Then loop over all image, do background subtract+ extract traces
+#        :return:
+#        """
+#        
+#        im_mean20 = self.make_average_tif(number_of_frames=20)
+#        
+#        im_mean20_correct = self.subtract_background(im_mean20, method = 'per_channel')
+#        
+#       
+#        root, name = os.path.split(self.pks_fn)
+#        pks_fn=os.path.join(root,name[:-4]+'-P.pks') 
+#        pks2_fn=os.path.join(root,name[:-4]+'-P2.pks') 
+#        if os.path.isfile(pks2_fn): 
+#        # if you can load the pks data, load it
+#             ptsG=[]
+#             dstG=[]
+#             with open(pks_fn, 'r') as infile:
+#                 for jj in range(0,10000): # there will be a time when more than 10000 frames are generated
+#                     A=infile.readline()
+#                     if A=='':
+#                         break
+#                     ptsG.append([float(A.split()[1]),float(A.split()[2])])
+#                     A=infile.readline()
+#                     dstG.append([float(A.split()[1]),float(A.split()[2])])
+#                     
+#             ptsG=np.array(ptsG)
+#             dstG=np.array(dstG)
+#             pts_number =len(ptsG)
+#             im_mean20_correctA=im_mean20_correct
+#             
+#             ptsG2=[]
+#             with open(pks2_fn, 'r') as infile:
+#                for jj in range(0,pts_number):
+#                    for jj in range(0,10000): # there will be a time when more than 10000 frames are generated
+#                     A=infile.readline()
+#                     if A=='':
+#                         break
+#                     ptsG2.append([float(A.split()[1]),float(A.split()[2])])
+#        else: 
+#        # if you cannot load the pks data, calculate it
+#            if self.pks_fn== self.filepath: 
+#            # if they are the same, reuse im_mean20_correct; im_mean20_correctA is not stored/exported
+#                im_mean20_correctA=im_mean20_correct
+#            else: 
+#            #otherwise make your own im_mean correct for pks detection
+#                self.width_pixels, self.height_pixels,  self.number_of_frames, A = read_header(self.pks_fn)
+#                im_array = np.dstack([read_one_page(self.pks_fn, pageNb=jj,A=self.movie_file_object,ii=self.ii).astype(float) for jj in range(20)])
+#                im_mean20 = np.mean(im_array, axis=2).astype(int)
+#                if 0: #older version, not matching pick spots
+#                    bg = rollingball(im_mean20)[1]
+#                    im_mean20_correctA = im_mean20 - bg
+#                    im_mean20_correctA[im_mean20_correctA < 0] = 0       
+#                    threshold = get_threshold(im_mean20_correctA)
+#                    im_mean20_correctA=remove_background(im_mean20_correctA,threshold)      
+#                else:
+#                    sh=np.shape(im_mean20)
+#                    thr_donor=get_threshold(im_mean20[:,1:sh[0]//2])
+#                    thr_acceptor=get_threshold(im_mean20[:,sh[0]//2:])
+#                    bg=np.zeros(sh)
+#                    bg[:,1:sh[0]//2]=thr_donor
+#                    bg[:,sh[0]//2:]=thr_acceptor
+#                    im_mean20_correctA=remove_background(im_mean20,bg)   
+#            if self.choice_channel=='d': 
 #            # with donor channel ptsG, calculate position in acceptor dstG
 #                pts_number, label_size, ptsG = image_adapt.analyze_label.analyze(im_mean20_correctA[:, 0:self.height_pixels//2])       
 #                ptsG2 = image_adapt.analyze_label.analyze(im_mean20_correctA[:, self.height_pixels//2:])[2] 
@@ -228,7 +299,7 @@ class Movie():
 #                pts_number=len(ptsG) 
 #                
 #                print(pts_number)
-##            
+#            
 #            elif self.choice_channel=='a':
 #            # with acceptor dstG, calculate position in donor channel ptsG
 #                pts_number, label_size, dstG = image_adapt.analyze_label.analyze(im_mean20_correctA[:, self.height_pixels//2:])   
@@ -279,142 +350,6 @@ class Movie():
 ##$$$$$$ BLACK BOX NUMBER #$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
 #          
 #        return bg, pts_number, dstG, ptsG, im_mean20_correct, ALL_GAUSS, ptsG2
-#    
-
-
-    def set_background_and_transformation(self):
-        """
-        sum 20 image, find spots& background. Then loop over all image, do background subtract+ extract traces
-        :return:
-        """
-        
-        im_mean20 = self.make_average_tif(number_of_frames=20)
-        
-        im_mean20_correct = self.subtract_background(im_mean20, method = 'per_channel')
-        
-       
-        root, name = os.path.split(self.pks_fn)
-        pks_fn=os.path.join(root,name[:-4]+'-P.pks') 
-        pks2_fn=os.path.join(root,name[:-4]+'-P2.pks') 
-        if os.path.isfile(pks2_fn): 
-        # if you can load the pks data, load it
-             ptsG=[]
-             dstG=[]
-             with open(pks_fn, 'r') as infile:
-                 for jj in range(0,10000): # there will be a time when more than 10000 frames are generated
-                     A=infile.readline()
-                     if A=='':
-                         break
-                     ptsG.append([float(A.split()[1]),float(A.split()[2])])
-                     A=infile.readline()
-                     dstG.append([float(A.split()[1]),float(A.split()[2])])
-                     
-             ptsG=np.array(ptsG)
-             dstG=np.array(dstG)
-             pts_number =len(ptsG)
-             im_mean20_correctA=im_mean20_correct
-             
-             ptsG2=[]
-             with open(pks2_fn, 'r') as infile:
-                for jj in range(0,pts_number):
-                    for jj in range(0,10000): # there will be a time when more than 10000 frames are generated
-                     A=infile.readline()
-                     if A=='':
-                         break
-                     ptsG2.append([float(A.split()[1]),float(A.split()[2])])
-        else: 
-        # if you cannot load the pks data, calculate it
-            if self.pks_fn== self.filepath: 
-            # if they are the same, reuse im_mean20_correct; im_mean20_correctA is not stored/exported
-                im_mean20_correctA=im_mean20_correct
-            else: 
-            #otherwise make your own im_mean correct for pks detection
-                self.width_pixels, self.height_pixels,  self.number_of_frames, A = read_header(self.pks_fn)
-                im_array = np.dstack([read_one_page(self.pks_fn, pageNb=jj,A=self.movie_file_object,ii=self.ii).astype(float) for jj in range(20)])
-                im_mean20 = np.mean(im_array, axis=2).astype(int)
-                if 0: #older version, not matching pick spots
-                    bg = rollingball(im_mean20)[1]
-                    im_mean20_correctA = im_mean20 - bg
-                    im_mean20_correctA[im_mean20_correctA < 0] = 0       
-                    threshold = get_threshold(im_mean20_correctA)
-                    im_mean20_correctA=remove_background(im_mean20_correctA,threshold)      
-                else:
-                    sh=np.shape(im_mean20)
-                    thr_donor=get_threshold(im_mean20[:,1:sh[0]//2])
-                    thr_acceptor=get_threshold(im_mean20[:,sh[0]//2:])
-                    bg=np.zeros(sh)
-                    bg[:,1:sh[0]//2]=thr_donor
-                    bg[:,sh[0]//2:]=thr_acceptor
-                    im_mean20_correctA=remove_background(im_mean20,bg)   
-            if self.choice_channel=='d': 
-            # with donor channel ptsG, calculate position in acceptor dstG
-                pts_number, label_size, ptsG = image_adapt.analyze_label.analyze(im_mean20_correctA[:, 0:self.height_pixels//2])       
-                ptsG2 = image_adapt.analyze_label.analyze(im_mean20_correctA[:, self.height_pixels//2:])[2] 
-                ptsG2 = np.array([[ii[0] + self.width_pixels/2, ii[1]] for ii in ptsG2])
-
-                dstG=polywarp_apply(self.mapping.P,self.mapping.Q,ptsG)
-           #discard point close to edge image
-                for ii in range(pts_number-1,-1,-1): # range(5,-1,-1)=5,4,3,2,1,0
-                    discard_dstG=dstG[ii,0]<self.width_pixels//2-10 or dstG[ii,1]<10 or dstG[ii,0]>self.width_pixels-10 or dstG[ii,1]>self.height_pixels-10
-                    discard_ptsG=ptsG[ii,0]<10 or ptsG[ii,1]<10 or ptsG[ii,0]>self.width_pixels/2-10 or ptsG[ii,1]>self.height_pixels-10
-                    discard=discard_dstG+discard_ptsG
-                    if discard:
-                        ptsG=np.delete(ptsG,ii, axis=0)
-                        dstG=np.delete(dstG,ii, axis=0)
-                pts_number=len(ptsG) 
-                
-                print(pts_number)
-            
-            elif self.choice_channel=='a':
-            # with acceptor dstG, calculate position in donor channel ptsG
-                pts_number, label_size, dstG = image_adapt.analyze_label.analyze(im_mean20_correctA[:, self.height_pixels//2:])   
-                ptsG2 = image_adapt.analyze_label.analyze(im_mean20_correctA[:, :self.height_pixels//2])[2]  
-#                ptsG = cv2.perspectiveTransform(dstG.reshape(-1, 1, 2),(self.mapping._tf2_matrix))#transform_matrix))
-#                ptsG = ptsG.reshape(-1, 2)
-                ptsG=polywarp_apply(self.mapping.P21,self.mapping.Q21,dstG)
-               
-            #discard point close to edge image
-                for ii in range(pts_number-1,-1,-1): # range(5,-1,-1)=5,4,3,2,1,0
-                    discard_dstG=dstG[ii,0]<self.width_pixels//2-10 or dstG[ii,1]<10 or dstG[ii,0]>self.width_pixels-10 or dstG[ii,1]>self.height_pixels-10
-                    discard_ptsG=ptsG[ii,0]<10 or ptsG[ii,1]<10 or ptsG[ii,0]>self.width_pixels/2-10 or ptsG[ii,1]>self.height_pixels-10
-                    discard=discard_dstG+discard_ptsG
-                    if discard:
-                        ptsG=np.delete(ptsG,ii, axis=0)
-                        dstG=np.delete(dstG,ii, axis=0)
-                pts_number=   len(ptsG) 
-                print(pts_number)
-           
-            elif self.choice_channel=='da':
-                print('I have no clue yet how to do this')
-                # most likely they do not overlap before finding transformation, so what is the point of doing D+A?
-                #pts_number, label_size, ptsG = analyze_label.analyze(im_mean20_correctA[:, 0:self.height_pixels//2+im_mean20_correctA[:, self.height_pixels//2:]])                                
-            else:
-                print('make up your mind, choose wisely d/a/da')
-            
-            #saving to pks file
-            with open(pks_fn, 'w') as outfile:
-                for jj in range(0,pts_number):
-                    pix0=ptsG[jj][0]
-                    pix1=ptsG[jj][1]
-                    outfile.write(' {0:4.0f} {1:4.4f} {2:4.4f} {3:4.4f} {4:4.4f} \n'.format((jj*2)+1, pix0, pix1, 0, 0, width4=4, width6=6))
-                    pix0=dstG[jj][0]
-                    pix1=dstG[jj][1]
-                    outfile.write(' {0:4.0f} {1:4.4f} {2:4.4f} {3:4.4f} {4:4.4f} \n'.format((jj*2)+2, pix0, pix1, 0, 0, width4=4, width6=6))
-            
-            root, name = os.path.split(self.pks_fn)
-            pks_fn=os.path.join(root,name[:-4]+'-P2.pks') 
-            with open(pks_fn, 'w') as outfile:
-                for jj in range(len(ptsG2)):
-                    pix0=ptsG2[jj][0]
-                    pix1=ptsG2[jj][1]
-                    outfile.write(' {0:4.0f} {1:4.4f} {2:4.4f} {3:4.4f} {4:4.4f} \n'.format((jj*2)+1, pix0, pix1, 0, 0, width4=4, width6=6))
-        
-#$$$$$$ BLACK BOX NUMBER #$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$        
-        sizeGauss=11
-        ALL_GAUSS=makeGaussian(sizeGauss, fwhm=3, center=(sizeGauss//2, sizeGauss//2))          
-#$$$$$$ BLACK BOX NUMBER #$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
-          
-        return bg, pts_number, dstG, ptsG, im_mean20_correct, ALL_GAUSS, ptsG2
 
     def show_selected_spots(self):
     #make a plot with selected spots

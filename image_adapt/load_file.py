@@ -170,26 +170,35 @@ def read_header_sifx(root,name):
     return hh,ww, nImages,A
    
 def read_one_page_sifx(root,name, pageNb,A,ii=0):
-     count=A.height*A.width*3//2
-     #name should follow from A.filelist
-     with open(root+'\\'+A.filelist[pageNb], 'rb') as fid:
-          raw=np.uint16(np.fromfile(fid,np.uint8,count))
-     
-     
-     ii = np.array(range(int(A.width/2)*int(A.height/2)))
+    if (A.xbin == 2) and (A.ybin == 2):
+         count=A.height*A.width*4
+         #name should follow from A.filelist
+         with open(root+'\\'+A.filelist[pageNb], 'rb') as fid:
+             raw=np.uint16(np.fromfile(fid,np.uint8,count))
+       
+        ALL = raw[0::4]+raw[1::4]*256
         
-     #print([A.height,A.width,A.stacksize,np.shape(raw)])        
-     AA=raw[ii*6+0]*16 + (raw[ii*6+1]%16)
-     BB=raw[ii*6+2]*16 + (raw[ii*6+1]//16)
-     CC=raw[ii*6+3]*16 + (raw[ii*6+4]%16)
-     DD=raw[ii*6+5]*16 + (raw[ii*6+4]//16) 
-          
-     ALL=np.uint16(np.zeros(A.height*A.width))
-     ALL[0::4] = AA
-     ALL[1::4] = BB
-     ALL[2::4] = CC
-     ALL[3::4] = DD
-          
+    else:
+        count=A.height*A.width*3//2
+         #name should follow from A.filelist
+         with open(root+'\\'+A.filelist[pageNb], 'rb') as fid:
+              raw=np.uint16(np.fromfile(fid,np.uint8,count))
+         
+         
+         ii = np.array(range(int(A.width/2)*int(A.height/2)))
+            
+         #print([A.height,A.width,A.stacksize,np.shape(raw)])        
+         AA=raw[ii*6+0]*16 + (raw[ii*6+1]%16)
+         BB=raw[ii*6+2]*16 + (raw[ii*6+1]//16)
+         CC=raw[ii*6+3]*16 + (raw[ii*6+4]%16)
+         DD=raw[ii*6+5]*16 + (raw[ii*6+4]//16) 
+              
+         ALL=np.uint16(np.zeros(A.height*A.width))
+         ALL[0::4] = AA
+         ALL[1::4] = BB
+         ALL[2::4] = CC
+         ALL[3::4] = DD
+              
      im=np.reshape(ALL,(A.height, A.width))
      im=np.rot90(im)     
      if 0: # for testing match real data
@@ -198,6 +207,7 @@ def read_one_page_sifx(root,name, pageNb,A,ii=0):
         
      return im   
  
+    
 # MATLAB code    
 #    filename='0000000000spool.dat'
 #    % filedir='D:\data\personal data\20190110 testing matlab image conversion\spool\';
