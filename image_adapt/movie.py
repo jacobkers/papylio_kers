@@ -26,11 +26,14 @@ import os
 from find_xy_position.Gaussian import makeGaussian
 import time
 from image_adapt.polywarp import polywarp, polywarp_apply
+import cv2
+import scipy.ndimage as ndimage
+import scipy.ndimage.filters as filters
  
 class Movie():
     def __init__(self, filepath):#, **kwargs):
         self.filepath = filepath
-        
+        self._average_image = None
        
         if self.filepath.suffix == '.sifx':
             self.writepath = self.filepath.parent.parent
@@ -115,9 +118,18 @@ class Movie():
         
         return frame_array_mean
     
-    def show_average_tif(self):
+    def show_average_tif(self, mode='2d'):
         plt.figure()
-        plt.imshow(self.average_image)
+        if mode == '2d':
+            plt.imshow(self.average_image)
+        if mode == '3d':
+            from matplotlib import cm
+            ax = plt.gca(projection='3d')
+            X = np.arange(self.average_image.shape[1])
+            Y = np.arange(self.average_image.shape[0])
+            X, Y = np.meshgrid(X, Y)
+            ax.plot_surface(X,Y,self.average_image, cmap=cm.coolwarm,
+                                   linewidth=0, antialiased=False)
         plt.show()
     
     
@@ -141,25 +153,78 @@ class Movie():
         # note 2: do we need a different threshold for donor and acceptor?
 
 
-    def find_peaks(self, image = None, method = 'AKAZE'):
+    def find_peaks(self, image = None, method = 'AKAZE', threshold = 100):
         if image is None: image = self.average_image
         
         if method == 'AKAZE':
             coordinates = image_adapt.analyze_label.analyze(image)[2]
         elif method == 'threshold':
-            print('test')
+            image = ((image-450)/850*255).astype('uint8')
+            ret,image_thresholded = cv2.threshold(image,threshold,255,cv2.THRESH_BINARY)
+               
+            im2, contours, hierarchy = cv2.findContours(image_thresholded,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_NONE)
+            x=[]
+            y=[]
+        
+            colorImg = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
             
+            coordinates = []
+        
+            for c in contours:
+                # calculate moments for each contour
+                M = cv2.moments(c)
+               
+                # calculate x,y coordinate of center
+            
+                if M["m00"] != 0:
+                    cX = int(M["m10"] / M["m00"])
+                    cY = int(M["m01"] / M["m00"])
+                    
+                    x = np.append(x,cX)
+                    y = np.append(y,cY)
+                else:
+                    cX, cY = 0, 0
+        
+                cv2.circle(colorImg, (cX, cY), 8, (0, 0, 255), thickness=1)
+        
+                coordinates.append(np.array([cX,cY]))
+            
+            coordinates = np.array(coordinates)
 
+        
+        elif method == 'local-maximum':
+            neighborhood_size = 10
+                
+            image_max = filters.maximum_filter(image, neighborhood_size)
+            maxima = (image == image_max)
+            image_min = filters.minimum_filter(image, neighborhood_size)
+            diff = ((image_max - image_min) > threshold)
+            maxima[diff == 0] = 0
+            
+            labeled, num_objects = ndimage.label(maxima)
+            coordinates = np.fliplr(np.array(ndimage.center_of_mass(image, labeled, range(1, num_objects+1))))
+            
         return coordinates
+    
+    def show_coordinates(self, image, coordinates, **kwargs):
+        plt.figure()
+#        sorted_intensities = np.sort(image)
+#        vmin = np.percentile(sorted_intensities, 5)
+#        vmax = np.percentile(sorted_intensities, 99)
+        plt.imshow(image, **kwargs)
+        plt.scatter(coordinates[:,0],coordinates[:,1], marker = 'o', facecolors='none', edgecolors='r')
+        #plt.show()
+        
+        plt.savefig(self.writepath.joinpath(self.name+'_ave_circles.png'), dpi=600)
 
-    def within_margin(self, coordinates, 
+    def is_within_margin(self, coordinates, 
                       edge = np.array([[0,1024],[0,2048]]), 
                       margin = 10):
         
-        criteria = np.array([[coordinates[0] > edge[0,0] + margin],
-                             [coordinates[0] < edge[0,1] - margin],
-                             [coordinates[1] > edge[1,0] + margin],
-                             [coordinates[1] < edge[1,1] - margin] 
+        criteria = np.array([(coordinates[:,0] > edge[0,0] + margin),
+                             (coordinates[:,0] < edge[0,1] - margin),
+                             (coordinates[:,1] > edge[1,0] + margin),
+                             (coordinates[:,1] < edge[1,1] - margin) 
         ])
         
         return criteria.all(axis=0)
@@ -211,8 +276,8 @@ class Movie():
         acceptor_edge = np.array([[self.width_pixels//2,self.width_pixels],[0,self.height_pixels]])
         margin = 10
                 
-        both_within_margin = (self.within_margin(donor_coordinates, donor_edge, margin) & 
-                                  self.within_margin(acceptor_coordinates, acceptor_edge, margin) )
+        both_within_margin = (self.is_within_margin(donor_coordinates, donor_edge, margin) & 
+                                  self.is_within_margin(acceptor_coordinates, acceptor_edge, margin) )
         
         donor_coordinates = donor_coordinates[both_within_margin]
         acceptor_coordinates = acceptor_coordinates[both_within_margin]

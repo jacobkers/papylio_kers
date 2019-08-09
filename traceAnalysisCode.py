@@ -168,7 +168,7 @@ class File:
 
     
     def __repr__(self):
-        return(f'{self.__class__.__name__}({self.name})')
+        return(f'{self.__class__.__name__}({self.relativePath.joinpath(self.name)})')
 
     @property
     def relativeFilePath(self):
