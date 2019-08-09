@@ -30,7 +30,7 @@ from image_adapt.polywarp import polywarp, polywarp_apply
 class Movie():
     def __init__(self, filepath):#, **kwargs):
         self.filepath = filepath
-        self.average_tif = None
+        
        
         if self.filepath.suffix == '.sifx':
             self.writepath = self.filepath.parent.parent
@@ -74,6 +74,11 @@ class Movie():
 
     def __repr__(self):
         return(f'{self.__class__.__name__}({str(self.filepath)})')
+        
+    @property
+    def average_image(self):
+        if self._average_image is None: self.make_average_tif()
+        return self._average_image
 
     def read_header(self):
         self.width_pixels, self.height_pixels, self.number_of_frames, self.movie_file_object = read_header(self.filepath)
@@ -106,14 +111,13 @@ class Movie():
             tif_filepath = self.writepath.joinpath(self.name+'_ave.tif')
             TIFF.imwrite(tif_filepath, np.uint16(frame_array_mean))
         
-        self.average_tif = frame_array_mean
+        self._average_image = frame_array_mean
         
         return frame_array_mean
     
     def show_average_tif(self):
         plt.figure()
-        if self.average_tif is None: self.make_average_tif()
-        plt.imshow(self.average_tif)
+        plt.imshow(self.average_image)
         plt.show()
     
     
@@ -137,10 +141,14 @@ class Movie():
         # note 2: do we need a different threshold for donor and acceptor?
 
 
-    def find_peaks(self, image = None):
-        if image is None: image = self.average_tif
-      
-        coordinates = image_adapt.analyze_label.analyze(image)[2]
+    def find_peaks(self, image = None, method = 'AKAZE'):
+        if image is None: image = self.average_image
+        
+        if method == 'AKAZE':
+            coordinates = image_adapt.analyze_label.analyze(image)[2]
+        elif method == 'threshold':
+            print('test')
+            
 
         return coordinates
 
@@ -154,7 +162,7 @@ class Movie():
                              [coordinates[1] < edge[1,1] - margin] 
         ])
         
-        return criterial.all(axis=0)
+        return criteria.all(axis=0)
 
     
     def get_acceptor_coordinates(self, donor_coordinates):
