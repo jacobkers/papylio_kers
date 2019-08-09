@@ -175,11 +175,10 @@ def read_one_page_sifx(root,name, pageNb,A,ii=0):
          #name should follow from A.filelist
          with open(root+'\\'+A.filelist[pageNb], 'rb') as fid:
              raw=np.uint16(np.fromfile(fid,np.uint8,count))
-       
-        ALL = raw[0::4]+raw[1::4]*256
+         ALL = raw[0::4]+raw[1::4]*256
         
     else:
-        count=A.height*A.width*3//2
+         count=A.height*A.width*3//2
          #name should follow from A.filelist
          with open(root+'\\'+A.filelist[pageNb], 'rb') as fid:
               raw=np.uint16(np.fromfile(fid,np.uint8,count))
@@ -199,13 +198,13 @@ def read_one_page_sifx(root,name, pageNb,A,ii=0):
          ALL[2::4] = CC
          ALL[3::4] = DD
               
-     im=np.reshape(ALL,(A.height, A.width))
-     im=np.rot90(im)     
-     if 0: # for testing match real data
-         plt.imshow(im)
-         tifffile.imwrite(root+"Python image.tif" , im ,  photometric='minisblack')
-        
-     return im   
+    im=np.reshape(ALL,(A.height, A.width))
+    im=np.rot90(im)     
+    if 0: # for testing match real data
+        plt.imshow(im)
+        tifffile.imwrite(root+"Python image.tif" , im ,  photometric='minisblack')
+    
+    return im   
  
     
 # MATLAB code    
