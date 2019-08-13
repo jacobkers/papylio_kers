@@ -8,32 +8,32 @@ returns the number of spots, and per spot its centroid and the number of pixels 
 """
 import cv2
 import numpy as np
-from autopick.pick_spots_akaze_ALL import enhance_blobies_single
-from image_adapt.find_threshold import get_threshold #,remove_background
+from ..autopick.pick_spots_akaze_ALL import enhance_blobies_single
+from .find_threshold import get_threshold #,remove_background
  
-def analyze(src):
-    if 0:
-        # old version
-        ret, thresh = cv2.threshold(src.astype(np.uint8),0,1,cv2.THRESH_BINARY)
-    
-        # You need to choose 4 or 8 for connectivity type
-        connectivity = 4  
-        # Perform the operation
-        output = cv2.connectedComponentsWithStats(thresh, connectivity, cv2.CV_32S)
-        # Get the results
-        # The first cell is the number of labels
-        num_labels = output[0]
-        # The second cell is the label matrix
-        labels = output[1]
-        
-        size_label=np.zeros(num_labels)
-        for jj in range(num_labels):
-            size_label[jj]=np.sum(labels==jj)
-        
-        # The third cell is the stat matrix
-        #stats = output[2]
-        # The fourth cell is the centroid matrix
-        ctrd = output[3]
+def analyze(src, threshold = None):
+#    if 0:
+#        # old version
+#        ret, thresh = cv2.threshold(src.astype(np.uint8),0,1,cv2.THRESH_BINARY)
+#    
+#        # You need to choose 4 or 8 for connectivity type
+#        connectivity = 4  
+#        # Perform the operation
+#        output = cv2.connectedComponentsWithStats(thresh, connectivity, cv2.CV_32S)
+#        # Get the results
+#        # The first cell is the number of labels
+#        num_labels = output[0]
+#        # The second cell is the label matrix
+#        labels = output[1]
+#        
+#        size_label=np.zeros(num_labels)
+#        for jj in range(num_labels):
+#            size_label[jj]=np.sum(labels==jj)
+#        
+#        # The third cell is the stat matrix
+#        #stats = output[2]
+#        # The fourth cell is the centroid matrix
+#        ctrd = output[3]
         
     #    for ii in num_labels:
     #        LL=labels.copy()
@@ -60,8 +60,11 @@ def analyze(src):
 #            ctrd=cv2.KeyPoint_convert(kps1);
 #            fL=fL*0.9
 #    else:
-#       
-    fL=get_threshold(src)
+#   
+    if not threshold:
+        fL=get_threshold(src)
+    else:
+        fL = threshold
     gray1=enhance_blobies_single(src,fL,1) #remove_background(src, fL)
     detector = cv2.AKAZE_create()
     (kps1, descs1) = detector.detectAndCompute(gray1, None)

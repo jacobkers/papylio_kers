@@ -8,24 +8,26 @@ so imagecollection is a class ;)
 
 warning blackboax number: (size+fwhm) gauss for extracting donor&acceptor
 """
-from image_adapt.load_file import read_one_page#_pma, read_one_page_tif
-from image_adapt.load_file import read_header
-from image_adapt.rolling_ball import rollingball
 
-from image_adapt.find_threshold import remove_background
-from image_adapt.find_threshold import get_threshold
+
+from .load_file import read_one_page#_pma, read_one_page_tif
+from .load_file import read_header
+from .rolling_ball import rollingball
+
+from .find_threshold import remove_background
+from .find_threshold import get_threshold
 import matplotlib.pyplot as plt
 import numpy as np
 import tifffile as TIFF
 #from cached_property import cached_property
-from image_adapt.Mapping import Mapping
-from image_adapt.Image import Image
-import image_adapt.analyze_label # note analyze label is differently from the approach in pick spots
+from .Mapping import Mapping
+from .Image import Image
+from .analyze_label import analyze # note analyze label is differently from the approach in pick spots
 #import cv2
 import os
-from find_xy_position.Gaussian import makeGaussian
+from ..find_xy_position.Gaussian import makeGaussian
 import time
-from image_adapt.polywarp import polywarp, polywarp_apply
+from .polywarp import polywarp, polywarp_apply
 import cv2
 import scipy.ndimage as ndimage
 import scipy.ndimage.filters as filters

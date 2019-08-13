@@ -23,7 +23,7 @@ np.seterr(divide='ignore', invalid='ignore')
 #import pandas as pd
 #from threshold_analysis_v2 import stepfinder
 from pathlib import Path # For efficient path manipulation
-from image_adapt.movie import Movie
+from .image_adapt.movie import Movie
 
 #import pickle
 
@@ -65,7 +65,7 @@ class Experiment:
                         ('_' not in p.name) & 
                         #('\\.' not in str(p.with_suffix(''))) & # Can be removed, line below is better  - Ivo
                         ('.' not in [s[0] for s in p.parts]) &
-                        (p.suffix not in ['.dat','.db', '.ini']) 
+                        (p.suffix not in ['.dat','.db', '.ini','.py']) 
                         )
                     ]
         for i, file in enumerate(files):

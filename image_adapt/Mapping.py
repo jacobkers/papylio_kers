@@ -7,14 +7,14 @@ a seperate file for doing mapping.
 this should be adapted to start with manual 3 points, then automated numerous points.
 like the idl code, and save .coeff and .map files
 """
-import autopick.pick_spots_akaze_ALL
+from ..autopick.pick_spots_akaze_ALL import mapping_manual, mapping_automatic
 import numpy as np
 import os
 import tifffile as TIFF
 import matplotlib.pyplot as plt
 import cv2
-from image_adapt.find_threshold import remove_background, get_threshold
-from autopick.pick_spots_akaze_ALL import load_map, load_coeff
+from .find_threshold import remove_background, get_threshold
+from ..autopick.pick_spots_akaze_ALL import load_map, load_coeff
 
 class Mapping:#(object):
     def __init__(self, tetra_fname,f=10000, generic=0):
@@ -39,7 +39,7 @@ class Mapping:#(object):
         return self._tetra_fn
 
     def manual_align(self):
-        self._tf1_matrix, self.points_right,self.points_left, self.fL,self.fR= autopick.pick_spots_akaze_ALL.mapping_manual(self._tetra_fn,
+        self._tf1_matrix, self.points_right,self.points_left, self.fL,self.fR= mapping_manual(self._tetra_fn,
                                                                              show=0,
                                                                              bg=None,
                                                                              tol=0, f=None)
@@ -49,7 +49,7 @@ class Mapping:#(object):
     
     #@tetra_fn.setter
     def automatic_align(self):
-        self.P,self.Q,self._tf2_matrix,self.position1, self.position2, self.pts1, self.pts2,self.dst2, self.P21,self.Q21 = autopick.pick_spots_akaze_ALL.mapping_automatic(self._tetra_fn,self._tf1_matrix,
+        self.P,self.Q,self._tf2_matrix,self.position1, self.position2, self.pts1, self.pts2,self.dst2, self.P21,self.Q21 = mapping_automatic(self._tetra_fn,self._tf1_matrix,
                                                                         show=0,
                                                                         bg=None,
                                                                         tol=0, fL=self.fL,fR=self.fR)
