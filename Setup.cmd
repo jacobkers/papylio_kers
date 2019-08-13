@@ -1,6 +1,7 @@
-py -3.7 -m pip install numpy==1.16.4
-py -3.7 -m pip install matplotlib==3.1.0
-py -3.7 -m pip install wxpython==4.0.4
-py -3.7 -m pip install pathlib2==2.3.4
-
+IF NOT EXIST %~dp0\.git\ (
+	git clone --depth=1 https://gitlab.tudelft.nl/ivoseverins/traceanalysis.git
+	.\traceAnalysis\Libraries.cmd
+) ELSE (
+	ECHO 'Already a git repository present'
+)
 pause

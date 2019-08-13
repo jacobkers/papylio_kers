@@ -1,3 +1,3 @@
 git pull --ff-only
-.\Setup.cmd
+.\Libraries.cmd
 pause
