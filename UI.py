@@ -11,7 +11,7 @@ Created on Fri Sep 14 15:44:52 2018
 import wx #cross-platform GUI API
 import wx.dataview
 import wx.lib.agw.hypertreelist as HTL
-from traceAnalysisCode import Experiment, File
+from traceAnalysis.traceAnalysisCode import Experiment, File
 
 #Use the following lines on Mac
 from sys import platform
