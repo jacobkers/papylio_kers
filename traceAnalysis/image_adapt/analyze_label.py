@@ -8,8 +8,8 @@ returns the number of spots, and per spot its centroid and the number of pixels 
 """
 import cv2
 import numpy as np
-from ..autopick.pick_spots_akaze_ALL import enhance_blobies_single
-from .find_threshold import get_threshold #,remove_background
+from autopick.pick_spots_akaze_ALL import enhance_blobies_single
+from image_adapt.find_threshold import get_threshold #,remove_background
  
 def analyze(src, threshold = None):
 #    if 0:

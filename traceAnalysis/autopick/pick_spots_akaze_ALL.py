@@ -17,7 +17,7 @@ warning: black box numbers: manual input: 4 points, minimum # points to be found
 # code via Shirani Bisnajak (BEP 2018-2019)
 
 #https://opencv-python-tutroals.readthedocs.io/en/latest/py_tutorials/py_feature2d/py_matcher/py_matcher.html
-from .do_before import clear_all
+from autopick.do_before import clear_all
 clear_all()
 import cv2 #computer vision?
 #from PIL import Image # Python Imaging Library (PIL)
@@ -26,10 +26,10 @@ import matplotlib.pyplot as plt
 #from skimage import filters #  Image processing in Python — scikit-image
 import numpy as np
 import bisect #This module provides support for maintaining a list in sorted order without having to sort the list after each insertion.
-from ..image_adapt.find_threshold import remove_background, get_threshold
+from image_adapt.find_threshold import remove_background, get_threshold
 import os
-from ..image_adapt.polywarp import polywarp, polywarp_apply
-from ..image_adapt.distance_calculation import dist_calc
+from image_adapt.polywarp import polywarp, polywarp_apply
+from image_adapt.distance_calculation import dist_calc
 #import image_adapt
 
 def imghist(img): 

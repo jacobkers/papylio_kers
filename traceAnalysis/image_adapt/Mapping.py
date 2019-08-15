@@ -7,14 +7,14 @@ a seperate file for doing mapping.
 this should be adapted to start with manual 3 points, then automated numerous points.
 like the idl code, and save .coeff and .map files
 """
-from ..autopick.pick_spots_akaze_ALL import mapping_manual, mapping_automatic
+from autopick.pick_spots_akaze_ALL import mapping_manual, mapping_automatic
 import numpy as np
 import os
 import tifffile as TIFF
 import matplotlib.pyplot as plt
 import cv2
-from .find_threshold import remove_background, get_threshold
-from ..autopick.pick_spots_akaze_ALL import load_map, load_coeff
+from image_adapt.find_threshold import remove_background, get_threshold
+from autopick.pick_spots_akaze_ALL import load_map, load_coeff
 
 class Mapping:#(object):
     def __init__(self, tetra_fname,f=10000, generic=0):

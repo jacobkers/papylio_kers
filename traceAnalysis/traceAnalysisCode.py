@@ -23,7 +23,7 @@ np.seterr(divide='ignore', invalid='ignore')
 #import pandas as pd
 #from threshold_analysis_v2 import stepfinder
 from pathlib import Path # For efficient path manipulation
-from .image_adapt.movie import Movie
+from image_adapt.movie import Movie
 
 #import pickle
 

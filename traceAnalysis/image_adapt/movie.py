@@ -10,37 +10,38 @@ warning blackboax number: (size+fwhm) gauss for extracting donor&acceptor
 """
 
 
-from .load_file import read_one_page#_pma, read_one_page_tif
-from .load_file import read_header
-from .rolling_ball import rollingball
+from image_adapt.load_file import read_one_page#_pma, read_one_page_tif
+from image_adapt.load_file import read_header
+from image_adapt.rolling_ball import rollingball
 
-from .find_threshold import remove_background
-from .find_threshold import get_threshold
+from image_adapt.find_threshold import remove_background
+from image_adapt.find_threshold import get_threshold
 import matplotlib.pyplot as plt
 import numpy as np
 import tifffile as TIFF
+from pathlib import Path
 #from cached_property import cached_property
-from .Mapping import Mapping
-from .Image import Image
-from .analyze_label import analyze # note analyze label is differently from the approach in pick spots
+from image_adapt.Mapping import Mapping
+from image_adapt.Image import Image
+from image_adapt.analyze_label import analyze # note analyze label is differently from the approach in pick spots
 #import cv2
 import os
-from ..find_xy_position.Gaussian import makeGaussian
+from find_xy_position.Gaussian import makeGaussian
 import time
-from .polywarp import polywarp, polywarp_apply
+from image_adapt.polywarp import polywarp, polywarp_apply
 import cv2
 import scipy.ndimage as ndimage
 import scipy.ndimage.filters as filters
  
 class Movie():
     def __init__(self, filepath):#, **kwargs):
-        self.filepath = filepath
+        self.filepath = Path(filepath)
         self._average_image = None
        
-        if self.filepath.suffix == '.sifx':
-            self.writepath = self.filepath.parent.parent
-            self.name = self.filepath.parent.name
-        else:
+        if not self.filepath.suffix == '.sifx':
+#            self.writepath = self.filepath.parent.parent
+#            self.name = self.filepath.parent.name
+#        else:
             self.writepath = self.filepath.parent
             self.name = self.filepath.with_suffix('').name
         
@@ -100,14 +101,17 @@ class Movie():
         for i in range(self.number_of_frames):
             
             #frame = self.get_image(ii).image
-            frame = read_one_page(self.filepath, pageNb=i, A = self.movie_file_object)
+            #frame = read_one_page(self.filepath, pageNb=i, A = self.movie_file_object)
+            frame = self.read_frame(frame_number = i)
             print(i)
             #naam=r'M:\tnw\bn\cmj\Shared\margreet\Cy3 G50\ModifiedData\Python'+'{:03d}'.format(ii)+'.tif'
             TIFF.imwrite(tif_filepath, np.uint16(frame))
     
 
     def make_average_tif(self, number_of_frames = 20, write = False):
-        frame_list = [(read_one_page(self.filepath, pageNb=i, A=self.movie_file_object)).astype(float) 
+#        frame_list = [(read_one_page(self.filepath, pageNb=i, A=self.movie_file_object)).astype(float) 
+#                        for i in range(np.min([self.number_of_frames, number_of_frames]))]
+        frame_list = [(self.read_frame(frame_number=i)).astype(float) 
                         for i in range(np.min([self.number_of_frames, number_of_frames]))]
         frame_array = np.dstack(frame_list)
         frame_array_mean = np.mean(frame_array, axis=2).astype(int)
