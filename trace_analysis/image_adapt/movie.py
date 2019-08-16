@@ -117,7 +117,8 @@ class Movie():
         
         if write:
             tif_filepath = self.writepath.joinpath(self.name+'_ave.tif')
-            TIFF.imwrite(tif_filepath, np.uint16(frame_array_mean))
+            if self.bitdepth == 16: TIFF.imwrite(tif_filepath, np.uint16(frame_array_mean))
+            elif self.bitdepth == 8: TIFF.imwrite(tif_filepath, np.uint8(frame_array_mean))
         
         self._average_image = frame_array_mean
         

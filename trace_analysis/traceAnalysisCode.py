@@ -25,6 +25,7 @@ np.seterr(divide='ignore', invalid='ignore')
 from pathlib import Path # For efficient path manipulation
 from trace_analysis.image_adapt.movie import Movie
 from trace_analysis.image_adapt.sifx_file import SifxFile
+from trace_analysis.image_adapt.pma_file import PmaFile
 
 #import pickle
 
@@ -173,7 +174,11 @@ class File:
 
     @property
     def relativeFilePath(self):
-        return os.path.join(self.relativePath, self.name)
+        return self.relativePath.joinpath(self.name)
+    
+    @property
+    def absoluteFilePath(self):
+        return self.experiment.mainPath.joinpath(self.relativeFilePath)
 
     @property
     def coordinates(self):
@@ -202,7 +207,8 @@ class File:
         #print(extension)
         importFunctions = {'.pks'        : self.importPksFile,
                            '.traces'     : self.importTracesFile,
-                           '.sifx'       : self.importSifxFile
+                           '.sifx'       : self.importSifxFile,
+                           '.pma'        : self.importPmaFile
 #                           '.sim'        : self.importSimFile
                            }
 
@@ -214,8 +220,12 @@ class File:
         return
 
     def importSifxFile(self):
-        imageFilePath = self.experiment.mainPath.joinpath(self.relativeFilePath).joinpath('Spooled files.sifx')
+        imageFilePath = self.absoluteFilePath.joinpath('Spooled files.sifx')
         self.movie = SifxFile(imageFilePath)
+    
+    def importPmaFile(self):
+        imageFilePath = self.absoluteFilePath.with_suffix('.pma')
+        self.movie = PmaFile(imageFilePath)
 
     def importPksFile(self):
         # Background value stored in pks file is not imported yet

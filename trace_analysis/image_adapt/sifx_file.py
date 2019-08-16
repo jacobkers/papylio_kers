@@ -24,6 +24,7 @@ class SifxFile(Movie):
         self.folderpath = self.filepath.parent
         self.writepath = self.filepath.parent.parent
         self.name = self.filepath.parent.name
+        self.bitdepth = 16
         self.read_header()
         self.find_filelist()
 
@@ -163,7 +164,7 @@ class SifxFile(Movie):
         self.m_offset = self.filesize - self.datasize - 8
     
        
-    def read_frame(self, frame_number,ii=0):
+    def read_frame(self, frame_number):
         if (self.xbin == 2) and (self.ybin == 2):
              count=self.height*self.width*4
              #name should follow from A.filelist
@@ -181,10 +182,10 @@ class SifxFile(Movie):
                  self.ii = np.array(range(int(self.width/2)*int(self.height/2)))
                 
              #print([A.height,A.width,A.stacksize,np.shape(raw)])        
-             AA=raw[ii*6+0]*16 + (raw[ii*6+1]%16)
-             BB=raw[ii*6+2]*16 + (raw[ii*6+1]//16)
-             CC=raw[ii*6+3]*16 + (raw[ii*6+4]%16)
-             DD=raw[ii*6+5]*16 + (raw[ii*6+4]//16) 
+             AA=raw[self.ii*6+0]*16 + (raw[self.ii*6+1]%16)
+             BB=raw[self.ii*6+2]*16 + (raw[self.ii*6+1]//16)
+             CC=raw[self.ii*6+3]*16 + (raw[self.ii*6+4]%16)
+             DD=raw[self.ii*6+5]*16 + (raw[self.ii*6+4]//16) 
                   
              ALL=np.uint16(np.zeros(self.height*self.width))
              ALL[0::4] = AA
