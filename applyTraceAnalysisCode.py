@@ -13,14 +13,14 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 # Change path to traceAnalysis directory (assuming this file is in that directory)
-os.chdir(os.path.dirname(os.path.abspath(__file__)))
-from traceAnalysis.traceAnalysisCode import Experiment
+#os.chdir(os.path.dirname(os.path.abspath(__file__)))
+from trace_analysis import Experiment
 
 # Define path to data, replace by your own directory
 # (Now it is set to the twoColourExampleData folder in the traceAnalysis directory)
 mainPath = r'./twoColourExampleData'
 mainPath = r'O:\Ivo\20190710 - Single-molecule setup (TIR-I)'
-mainPath = r'C:\Users\Ivo Severins\Desktop\Single-molecule miseq'
+mainPath = r'D:\ivoseverins\Desktop\sifx testdata'
 
 # Initialize an experiment
 exp = Experiment(mainPath)

@@ -5,15 +5,16 @@ Created on Thu Aug 15 14:41:47 2019
 @author: Ivo Severins, Margreet Doctor, https://github.com/lightingghost/sifreader/blob/master/sifreader/sifreader.py
 """
 
+from pathlib import Path
 import os, sys
-sys.path.append(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
+   
 
 import time
 import numpy as np
 import matplotlib.pyplot as plt
 import tifffile
 
-from image_adapt.movie import Movie
+from trace_analysis.image_adapt.movie import Movie
 
 
 class SifxFile(Movie):

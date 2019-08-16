@@ -13,9 +13,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 import time
 #from sifreader.sifreader import SIFFile
-from image_adapt.sifreaderA import SIFFile
+from trace_analysis.image_adapt.sifreaderA import SIFFile
 
-from autopick.do_before import clear_all
+from trace_analysis.autopick.do_before import clear_all
 clear_all()
 
 def read_one_page(image_fn,pageNb,A=None,ii=None): # distributes to specific readers (sif/tif/pma)

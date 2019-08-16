@@ -9,30 +9,29 @@ so imagecollection is a class ;)
 warning blackboax number: (size+fwhm) gauss for extracting donor&acceptor
 """
 
-
-from image_adapt.load_file import read_one_page#_pma, read_one_page_tif
-from image_adapt.load_file import read_header
-from image_adapt.rolling_ball import rollingball
-
-from image_adapt.find_threshold import remove_background
-from image_adapt.find_threshold import get_threshold
-import matplotlib.pyplot as plt
-import numpy as np
-import tifffile as TIFF
-from pathlib import Path
-#from cached_property import cached_property
-from image_adapt.Mapping import Mapping
-from image_adapt.Image import Image
-from image_adapt.analyze_label import analyze # note analyze label is differently from the approach in pick spots
-#import cv2
 import os
-from find_xy_position.Gaussian import makeGaussian
 import time
-from image_adapt.polywarp import polywarp, polywarp_apply
+from pathlib import Path
+import tifffile as TIFF
+import numpy as np
+import matplotlib.pyplot as plt
 import cv2
 import scipy.ndimage as ndimage
 import scipy.ndimage.filters as filters
- 
+
+
+from trace_analysis.image_adapt.load_file import read_one_page#_pma, read_one_page_tif
+from trace_analysis.image_adapt.load_file import read_header
+from trace_analysis.image_adapt.rolling_ball import rollingball
+from trace_analysis.image_adapt.find_threshold import remove_background, get_threshold
+from trace_analysis.image_adapt.Mapping import Mapping
+from trace_analysis.image_adapt.Image import Image
+from trace_analysis.image_adapt.analyze_label import analyze # note analyze label is differently from the approach in pick spots
+from trace_analysis.find_xy_position.Gaussian import makeGaussian
+from trace_analysis.image_adapt.polywarp import polywarp, polywarp_apply
+#from cached_property import cached_property
+
+
 class Movie():
     def __init__(self, filepath):#, **kwargs):
         self.filepath = Path(filepath)
