@@ -11,8 +11,7 @@ for each image inside an image collection you can process the image (extract tra
 import numpy as np
 
 class Image(object):
-    def __init__(self, im, vdim, tm, ptsG, dstG, pts_number,Gauss):
-        self.tm = tm
+    def __init__(self, im, vdim, ptsG, dstG, pts_number,Gauss):
         self.vdim = vdim
         self.image = im
         self.ptsG = ptsG
