@@ -1,3 +1,4 @@
+ECHO OFF
 git pull --ff-only
-.\Setup.cmd
+CALL Libraries.cmd
 pause
