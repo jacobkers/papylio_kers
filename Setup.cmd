@@ -1,4 +1,4 @@
-
+ECHO OFF
 ECHO  %~dp0%.git\
 IF EXIST %~dp0%.git\ (
 	ECHO 'Already a git repository present'
