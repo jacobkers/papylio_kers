@@ -24,18 +24,19 @@ from trace_analysis.image_adapt.load_file import read_one_page#_pma, read_one_pa
 from trace_analysis.image_adapt.load_file import read_header
 from trace_analysis.image_adapt.rolling_ball import rollingball
 from trace_analysis.image_adapt.find_threshold import remove_background, get_threshold
-from trace_analysis.image_adapt.Mapping import Mapping
+#from trace_analysis.image_adapt.Mapping import Mapping
 from trace_analysis.image_adapt.Image import Image
 from trace_analysis.image_adapt.analyze_label import analyze # note analyze label is differently from the approach in pick spots
 from trace_analysis.find_xy_position.Gaussian import makeGaussian
 from trace_analysis.image_adapt.polywarp import polywarp, polywarp_apply
 #from cached_property import cached_property
+from trace_analysis.mapping.mapping import Mapping2
 
-
-class Movie():
+class Movie:
     def __init__(self, filepath):#, **kwargs):
         self.filepath = Path(filepath)
         self._average_image = None
+        self.is_mapping_movie = False
        
         if not self.filepath.suffix == '.sifx':
 #            self.writepath = self.filepath.parent.parent
@@ -88,7 +89,8 @@ class Movie():
     def read_header(self):
         self.width_pixels, self.height_pixels, self.number_of_frames, self.movie_file_object = read_header(self.filepath)
 
-    def get_channel(self, image, channel = 'd'):
+    def get_channel(self, image = None, channel = 'd'):
+        if image is None: image = self.average_image
         sh = np.shape(image)
         if channel in ['d', 'donor']:
             return image[:,:sh[0]//2]
@@ -110,10 +112,16 @@ class Movie():
     def make_average_tif(self, number_of_frames = 20, write = False):
 #        frame_list = [(read_one_page(self.filepath, pageNb=i, A=self.movie_file_object)).astype(float) 
 #                        for i in range(np.min([self.number_of_frames, number_of_frames]))]
-        frame_list = [(self.read_frame(frame_number=i)).astype(float) 
-                        for i in range(np.min([self.number_of_frames, number_of_frames]))]
-        frame_array = np.dstack(frame_list)
-        frame_array_mean = np.mean(frame_array, axis=2).astype(int)
+#         frame_list = [(self.read_frame(frame_number=i)).astype(float)
+#                         for i in range(np.min([self.number_of_frames, number_of_frames]))]
+#         frame_array = np.dstack(frame_list)
+#         frame_array_mean = np.mean(frame_array, axis=2).astype(int)
+
+        frame_array_sum = np.zeros((self.height, self.width))
+        for i in range(np.min([self.number_of_frames, number_of_frames])):
+            frame_array_sum = frame_array_sum + self.read_frame(frame_number=i).astype(float)
+
+        frame_array_mean = (frame_array_sum / number_of_frames).astype(int)
         
         if write:
             tif_filepath = self.writepath.joinpath(self.name+'_ave.tif')
@@ -163,9 +171,10 @@ class Movie():
         if image is None: image = self.average_image
         
         if method == 'AKAZE':
-            coordinates = image_adapt.analyze_label.analyze(image)[2]
+            coordinates = analyze(image)[2]
         elif method == 'threshold':
             image = ((image-450)/850*255).astype('uint8')
+            if threshold is None: threshold = (np.max(image) + np.min(image)) / 2
             ret,image_thresholded = cv2.threshold(image,threshold,255,cv2.THRESH_BINARY)
                
             im2, contours, hierarchy = cv2.findContours(image_thresholded,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_NONE)
@@ -199,14 +208,16 @@ class Movie():
 
         
         elif method == 'local-maximum':
-            neighborhood_size = 10
+            neighborhood_size = 5
                 
             image_max = filters.maximum_filter(image, neighborhood_size)
             maxima = (image == image_max)
             image_min = filters.minimum_filter(image, neighborhood_size)
+
             diff = ((image_max - image_min) > threshold)
             maxima[diff == 0] = 0
-            
+
+
             labeled, num_objects = ndimage.label(maxima)
             coordinates = np.fliplr(np.array(ndimage.center_of_mass(image, labeled, range(1, num_objects+1))))
             
@@ -224,8 +235,10 @@ class Movie():
         plt.savefig(self.writepath.joinpath(self.name+'_ave_circles.png'), dpi=600)
 
     def is_within_margin(self, coordinates, 
-                      edge = np.array([[0,1024],[0,2048]]), 
+                      edge = None, 
                       margin = 10):
+        
+        if edge is None: edge = np.array([[0,self.width//2],[0,self.height]])
         
         criteria = np.array([(coordinates[:,0] > edge[0,0] + margin),
                              (coordinates[:,0] < edge[0,1] - margin),
@@ -236,11 +249,20 @@ class Movie():
         return criteria.all(axis=0)
 
     
-    def get_acceptor_coordinates(self, donor_coordinates):
+    def get_channel_coordinates(self, within_margin = True, show = False, channel = 'donor', threshold = 100):
+        image = self.get_channel(self.average_image, channel)
+        coordinates = self.find_peaks(image, method = 'local-maximum', threshold = threshold)
+        coordinates = coordinates[self.is_within_margin(coordinates)]
+        
+        if show == True: self.show_coordinates(image, coordinates)
+        
+        return coordinates
+    
+    def calculate_acceptor_coordinates(self, donor_coordinates):
         acceptor_coordinates = polywarp_apply(self.mapping.P,self.mapping.Q,donor_coordinates)
         return acceptor_coordinates
     
-    def get_donor_coordinates(self, acceptor_coordinates):
+    def calculate_donor_coordinates(self, acceptor_coordinates):
         donor_coordinates = polywarp_apply(self.mapping.P21,self.mapping.Q21,acceptor_coordinates)
         return donor_coordinates
     
@@ -259,11 +281,11 @@ class Movie():
         
         if channel == 'd':
             donor_coordinates = self.find_peaks(self.get_channel(image_mean_corrected, 'donor'))
-            acceptor_coordinates = self.get_acceptor_coordinates(donor_coordinates)
+            acceptor_coordinates = self.calculate_acceptor_coordinates(donor_coordinates)
         
         elif channel == 'a':
             acceptor_coordinates = self.find_peaks(self.get_channel(image_mean_corrected, 'acceptor'))
-            donor_coordinates = self.get_donor_coordinates(acceptor_coordinates)
+            donor_coordinates = self.calculate_donor_coordinates(acceptor_coordinates)
           
         elif channel == 'da':
             print('I have no clue yet how to do this')
@@ -278,8 +300,8 @@ class Movie():
 
 
         # Discard point close to edge image
-        donor_edge = np.array([[0,self.width_pixels//2],[0,self.height_pixels]])
-        acceptor_edge = np.array([[self.width_pixels//2,self.width_pixels],[0,self.height_pixels]])
+        donor_edge = np.array([[0,self.width//2],[0,self.height]])
+        acceptor_edge = np.array([[self.width//2,self.width],[0,self.height]])
         margin = 10
                 
         both_within_margin = (self.is_within_margin(donor_coordinates, donor_edge, margin) & 
@@ -293,6 +315,19 @@ class Movie():
         all_coordinates = np.reshape(all_coordinates.T,(s[0],s[1]*s[2])).T
         
         self.write_coordinates_to_pks_file(all_coordinates)
+        
+
+    def use_for_mapping(self):
+        self.is_mapping_movie = True
+        donor = self.get_channel_coordinates(channel = 'donor',
+                                             threshold = self.threshold['point-selection'][0])
+        acceptor = self.get_channel_coordinates(channel = 'acceptor',
+                                                threshold = self.threshold['point-selection'][1])
+        self.mapping = Mapping2(donor, acceptor)
+
+        return self.mapping
+
+        
         
     
 

@@ -27,6 +27,9 @@ class SifxFile(Movie):
         self.bitdepth = 16
         self.read_header()
         self.find_filelist()
+        self.threshold = {  'view':             (0,200),
+                            'point-selection':  (45,25)
+                            }
 
     def find_filelist(self):
         self.filelist=[p.relative_to(self.filepath.parent) for p in self.filepath.parent.glob('*spool.dat')]

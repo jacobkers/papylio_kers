@@ -43,7 +43,7 @@ class Mapping:#(object):
         return self._tetra_fn
 
     def manual_align(self):
-        self.Pmanual,self.Qmanual, self.points_right,self.points_left, self.fL,self.fR= autopick.pick_spots_akaze_ALL.mapping_manual(self._tetra_fn,
+        self.Pmanual,self.Qmanual, self.points_right,self.points_left, self.fL,self.fR= mapping_manual(self._tetra_fn,
                                                                              show=0,
                                                                              bg=None,
                                                                              tol=0, f=None)
@@ -53,7 +53,7 @@ class Mapping:#(object):
 
     #@tetra_fn.setter
     def automatic_align(self):
-        self.P,self.Q,self.position1, self.position2, self.pts1, self.pts2,self.dst2, self.P21,self.Q21 = autopick.pick_spots_akaze_ALL.mapping_automatic(self._tetra_fn,self.Pmanual,self.Qmanual,
+        self.P,self.Q,self.position1, self.position2, self.pts1, self.pts2,self.dst2, self.P21,self.Q21 = mapping_automatic(self._tetra_fn,self.Pmanual,self.Qmanual,
                                                                         show=0,
                                                                         bg=None,
                                                                         tol=0, fL=self.fL,fR=self.fR)

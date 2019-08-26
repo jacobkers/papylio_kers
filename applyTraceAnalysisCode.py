@@ -6,7 +6,6 @@ Created on Wed Nov  7 10:50:59 2018
 """
 
 
-
 import os
 
 import numpy as np
@@ -21,23 +20,73 @@ from trace_analysis import Experiment
 mainPath = r'./twoColourExampleData'
 mainPath = r'O:\Ivo\20190710 - Single-molecule setup (TIR-I)'
 mainPath = r'D:\ivoseverins\Desktop\sifx testdata'
+mainPath = r'D:\ivoseverins\Desktop\pma testdata\Newly analyzed'
+mainPath = r'D:\ivoseverins\SURFdrive\Promotie\Code\Python\traceAnalysis\twoColourExampleData\sifx'
+
 
 # Initialize an experiment
 exp = Experiment(mainPath)
+mov = exp.files[-1].movie
+
+#Mapping(mappingFilePath)
+mov.make_average_tif(write = True)
+
+
+exp.files[-1].use_for_mapping()
+
+#mov.mapping.show_mapping_transformation()
+
+
+#
+# channel = 'donor'
+#
+# image = mov.get_channel(mov.average_image, channel)
+# plt.imshow(image, vmin = 0, vmax = 200)
+# coordinates = mov.find_peaks(image, method='local-maximum')
+# coordinates = coordinates[mov.is_within_margin(coordinates)]
+#
+#
+# plt.scatter(coordinates[:,0],coordinates[:,1])
+
+
+
+# mov.show_coordinates(image, coordinates)
+#
+#
+#
+#
+#
+#
+#
+#
+
+
+
+
+
+# from trace_analysis.coordinate_transformations import transform
+# from trace_analysis.icp import icp
+#
+# T, distances, i = icp(donor,acceptor, tolerance=0.0001)
+#
+# acceptor_calculated = transform(donor, T)
+# #
+
+
 
 #plt.ioff()
 #for i, file in enumerate(exp.files):
 #    mov = file.movie
 #    #image_mean = mov.make_average_tif()
 #    #image_mean_corrected = mov.subtract_background(image_mean)
-#    
+#
 #    im = mov.get_channel(mov.average_image, 'a')
 #    coordinates = mov.find_peaks(im , method='local-maximum', threshold = 125)
-#    
+#
 #    coordinates = coordinates[mov.is_within_margin(coordinates, edge = np.array([[0,512],[0,1024]]), margin = 20)]
-#    
+#
 #    mov.show_coordinates(im,coordinates,vmin=450,vmax=850)
-#    
+#
 #    mov.write_coordinates_to_pks_file(coordinates)
 #    print(f'{i+1} out of {len(exp.files)}')
 

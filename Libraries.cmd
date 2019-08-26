@@ -1,4 +1,9 @@
-py -3.7 -m pip install numpy==1.16.4
-py -3.7 -m pip install matplotlib==3.1.0
+py -3.7 -m pip install numpy==1.17
+py -3.7 -m pip install matplotlib==3.1.1
 py -3.7 -m pip install wxpython==4.0.4
 py -3.7 -m pip install pathlib2==2.3.4
+py -3.7 -m pip install tifffile==2019.7.26
+py -3.7 -m pip install opencv-python==4.1.0.25
+py -3.7 -m pip install scipy==1.3.1
+py -3.7 -m pip install scikit-image==0.15.0
+py -3.7 -m pip install scikit-learn==0.21.3

@@ -124,7 +124,7 @@ def mapping_manual(file_tetra, show=0, f=None,bg=None, tol=1):
 # Open image
     if type(file_tetra)==str:
         import re 
-        from image_adapt.load_file import read_one_page, read_header
+        from trace_analysis.image_adapt.load_file import read_one_page, read_header
         if re.search('tif',file_tetra)!=None: 
             image_tetra_raw = TIFF.imread(file_tetra)
         elif re.search('sifx',file_tetra)!=None: 
@@ -154,8 +154,9 @@ def mapping_manual(file_tetra, show=0, f=None,bg=None, tol=1):
 # for later keypoint detection, you need a threshold, which depends on the image
 #start f depends on max (image_tetra), only interesting if you are going to not load both manual&automatic alignments
     if not( os.path.isfile(save_fn) and os.path.isfile(os.path.join(root,name[:-4]+'-P.map')) ):
-        position1 = image_adapt.analyze_label.analyze(image_tetra[:, :image_tetra.shape[1]//2])[2]  
-        position2=  image_adapt.analyze_label.analyze(image_tetra[:, image_tetra.shape[1]//2:])[2]  
+        from trace_analysis.image_adapt.analyze_label import analyze
+        position1 = analyze(image_tetra[:, :image_tetra.shape[1]//2])[2]  
+        position2=  analyze(image_tetra[:, image_tetra.shape[1]//2:])[2]  
         fL=get_threshold(image_tetra[:, :image_tetra.shape[1]//2])
         fR=get_threshold(image_tetra[:, image_tetra.shape[1]//2:])
 #
@@ -358,7 +359,7 @@ def mapping_automatic(file_tetra, Pmanual,Qmanual,show=0, fL=None,fR=None,bg=Non
     # Open image
         if type(file_tetra)==str:
             import re 
-            from image_adapt.load_file import read_one_page, read_header
+            from trace_analysis.image_adapt.load_file import read_one_page, read_header
             if re.search('tif',file_tetra)!=None: 
                 image_tetra_raw = TIFF.imread(file_tetra)
             elif re.search('sifx',file_tetra)!=None: 
@@ -398,8 +399,9 @@ def mapping_automatic(file_tetra, Pmanual,Qmanual,show=0, fL=None,fR=None,bg=Non
         gray1= enhance_blobies_single(image_tetra[:, :image_tetra.shape[1]//2],fL, tol)
         gray2= enhance_blobies_single(image_tetra[:, image_tetra.shape[1]//2:],fR, tol) 
         
-        position1 = image_adapt.analyze_label.analyze(image_tetra[:, :image_tetra.shape[1]//2])[2]  
-        position2=  image_adapt.analyze_label.analyze(image_tetra[:, image_tetra.shape[1]//2:])[2]  
+        from trace_analysis.image_adapt.analyze_label import analyze
+        position1 = analyze(image_tetra[:, :image_tetra.shape[1]//2])[2]  
+        position2 = analyze(image_tetra[:, image_tetra.shape[1]//2:])[2]  
 
         for ii in range(np.amax(np.shape(position2))):  #adapt position2 to right channel asap
             position2[ii][0]=position2[ii][0]+ np.shape(image_tetra)[0]//2

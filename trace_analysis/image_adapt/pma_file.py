@@ -26,6 +26,12 @@ class PmaFile(Movie):
         
         #determine 8 bits or 16 bits
         self.bitdepth = 16 if (self.filepath.name[-7:-4]=='_16') else 8
+
+        self.threshold = {  'view':             (0,200),
+                            'point-selection':  (45,25)
+                            }
+
+
         self.read_header()
 #        self.find_filelist()
 #
