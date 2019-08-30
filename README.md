@@ -6,12 +6,14 @@ Software for single-molecule trace analysis
 
 If not yet installed:
 
-### Install python 3.7
-Install the python version 3.7 from https://www.python.org/downloads/  
+### Install miniconda python 3.7 64-bit
+Install miniconda python version 3.7 64-bit from https://docs.conda.io/en/latest/miniconda.html  
+    IMPORTANT: Under advanced options tick the box "Add Anaconda to my PATH enivronment variable"
 
 ### Install git
 Install git from https://git-scm.com/download/win  
-	Use all standard settings (on the page "Adjusting your PATH enivronment" make sure that you choose "Git from the command line and also from 3rd party software")
+	Use all standard settings  
+	IMPORTANT: On the page "Adjusting your PATH enivronment" make sure that you choose "Git from the command line and also from 3rd party software"
 
 ## Installing
 
