@@ -165,6 +165,7 @@ class File:
         self.exposure_time = None #Here the exposure time is given but it should be found from the log file if possible
 
         self.isSelected = False
+        self.is_mapping_file = False
         
         self.findAndAddExtensions()
 
@@ -306,6 +307,12 @@ class File:
         for molecule in self.molecules:
             molecule.plot(axis=axis)
             input("Press enter to continue")
+
+    def use_for_mapping(self):
+        self.is_mapping_file = True
+        mapping = self.movie.use_for_mapping()
+        for file in self.experiment.files:
+            file.movie.mapping = mapping
 
 class Molecule:
 

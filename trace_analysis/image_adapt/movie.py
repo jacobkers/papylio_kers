@@ -37,6 +37,7 @@ class Movie:
         self.filepath = Path(filepath)
         self._average_image = None
         self.is_mapping_movie = False
+        self.number_of_colours = 2
        
         if not self.filepath.suffix == '.sifx':
 #            self.writepath = self.filepath.parent.parent
@@ -219,8 +220,12 @@ class Movie:
 
 
             labeled, num_objects = ndimage.label(maxima)
-            coordinates = np.fliplr(np.array(ndimage.center_of_mass(image, labeled, range(1, num_objects+1))))
-            
+            if num_objects > 0:
+                coordinates = np.fliplr(np.array(ndimage.center_of_mass(image, labeled, range(1, num_objects+1))))
+            else:
+                coordinates = np.array([])
+                print('No peaks found')
+
         return coordinates
     
     def show_coordinates(self, image, coordinates, **kwargs):
@@ -259,11 +264,13 @@ class Movie:
         return coordinates
     
     def calculate_acceptor_coordinates(self, donor_coordinates):
-        acceptor_coordinates = polywarp_apply(self.mapping.P,self.mapping.Q,donor_coordinates)
+        # acceptor_coordinates = polywarp_apply(self.mapping.P,self.mapping.Q,donor_coordinates)
+        acceptor_coordinates = self.mapping.transform_coordinates(donor_coordinates)
         return acceptor_coordinates
     
     def calculate_donor_coordinates(self, acceptor_coordinates):
-        donor_coordinates = polywarp_apply(self.mapping.P21,self.mapping.Q21,acceptor_coordinates)
+        # donor_coordinates = polywarp_apply(self.mapping.P21,self.mapping.Q21,acceptor_coordinates)
+        donor_coordinates = self.mapping.transform_coordinates(acceptor_coordinates)
         return donor_coordinates
     
     def write_coordinates_to_pks_file(self, coordinates):
@@ -515,20 +522,28 @@ class Movie:
         ax2.set_xlim(hs,hs+siz)
         ax2.set_ylim(ws, ws+siz)
         return Image(img, self.height_pixels, self.mapping._tf2_matrix, self.ptsG, self.dstG, self.pts_number, self.Gauss)
-    
+
+    def write_traces_to_traces_file(self, coordinates):
+        traces_filepath = self.writepath.joinpath(self.name + '.traces')
+        with traces_filepath.open('w') as outfile:
+            for i, coordinate in enumerate(coordinates):
+                outfile.write(
+                    ' {0:4.0f} {1:4.4f} {2:4.4f} {3:4.4f} {4:4.4f} \n'.format(i, coordinate[0], coordinate[1], 0, 0,
+                                                                              width4=4, width6=6))
+
     def get_all_traces(self):
     # reutnr donor and acceptor for the full data set
-        root, name = os.path.split(self.filepath)
-        traces_fn=os.path.join(root,name[:-4]+'-P.traces') 
-        Ncolours=2
+    #     root, name = os.path.split(self.filepath)
+    #     traces_fn=os.path.join(root,name[:-4]+'-P.traces')
+
         if os.path.isfile(traces_fn):
         # load if traces file already exist
              with open(traces_fn, 'r') as infile:
                  Nframes = np.fromfile(infile, dtype = np.int32, count = 1).item()
                  Ntraces = np.fromfile(infile, dtype = np.int16, count = 1).item()
-                 rawData = np.fromfile(infile, dtype = np.int16, count = Ncolours*Nframes * Ntraces)
-             orderedData = np.reshape(rawData.ravel(), (Ncolours, Ntraces//Ncolours, Nframes), order = 'F') 
-             donor=orderedData[0,:,:]   
+                 rawData = np.fromfile(infile, dtype = np.int16, count = self.number_of_colours*Nframes * Ntraces)
+             orderedData = np.reshape(rawData.ravel(), (self.number_of_colours, Ntraces//self.number_of_colours, Nframes), order = 'F')
+             donor=orderedData[0,:,:]
              acceptor=orderedData[1,:,:]
              donor=np.transpose(donor)
              acceptor=np.transpose(acceptor)
@@ -555,7 +570,7 @@ class Movie:
                  off.tofile(outfile)
                  off = np.array([2*self.pts_number], dtype=np.int16)
                  off.tofile(outfile)
-                 time_tr=np.zeros((self. number_of_frames,2*self.pts_number))
+                 time_tr=np.zeros((self.number_of_frames,2*self.pts_number))
                  Ncolours=2
                  for jj in range(2*self.pts_number//Ncolours):
                      time_tr[:,jj*2] = donor[:,jj]

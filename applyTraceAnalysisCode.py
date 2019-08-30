@@ -14,6 +14,7 @@ from matplotlib import pyplot as plt
 # Change path to traceAnalysis directory (assuming this file is in that directory)
 #os.chdir(os.path.dirname(os.path.abspath(__file__)))
 from trace_analysis import Experiment
+from trace_analysis.mapping.mapping import Mapping2
 
 # Define path to data, replace by your own directory
 # (Now it is set to the twoColourExampleData folder in the traceAnalysis directory)
@@ -22,17 +23,19 @@ mainPath = r'O:\Ivo\20190710 - Single-molecule setup (TIR-I)'
 mainPath = r'D:\ivoseverins\Desktop\sifx testdata'
 mainPath = r'D:\ivoseverins\Desktop\pma testdata\Newly analyzed'
 mainPath = r'D:\ivoseverins\SURFdrive\Promotie\Code\Python\traceAnalysis\twoColourExampleData\sifx'
-
+mainPath = r'D:\ivoseverins\Desktop\20190820 drift test microfluidic for multiple imaging rounds of same FOV\1. First test run for drift'
 
 # Initialize an experiment
 exp = Experiment(mainPath)
-mov = exp.files[-1].movie
+#mov = exp.files[0].movie
+
+
 
 #Mapping(mappingFilePath)
-mov.make_average_tif(write = True)
+#mov.make_average_tif(write = True)
 
 
-exp.files[-1].use_for_mapping()
+#exp.files[-1].use_for_mapping()
 
 #mov.mapping.show_mapping_transformation()
 
