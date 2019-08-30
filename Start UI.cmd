@@ -1,1 +1,3 @@
-py -3.7 ui.py
+call conda activate trace_analysis
+python ui.py
+call conda deactivate
