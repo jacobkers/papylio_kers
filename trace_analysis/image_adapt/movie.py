@@ -174,11 +174,23 @@ class Movie:
         if method == 'AKAZE':
             coordinates = analyze(image)[2]
         elif method == 'threshold':
-            image = ((image-450)/850*255).astype('uint8')
+            #image = ((image-450)/850*255).astype('uint8')
+            lower_bound = np.min(image)
+            upper_bound = np.percentile(image.flatten(),99.999)
+
+            # Change threshold and image to 8-bit, as cv2 can only analyse 8-bit images
+            # threshold = ((threshold - lower_bound) / (upper_bound - lower_bound) * 255)
+            # threshold = np.clip(threshold, 0, 255).astype('uint8')
+            image = ((image - lower_bound) / (upper_bound - lower_bound) * 255)
+            image = np.clip(image, 0, 255).astype('uint8')
+
             if threshold is None: threshold = (np.max(image) + np.min(image)) / 2
             ret,image_thresholded = cv2.threshold(image,threshold,255,cv2.THRESH_BINARY)
-               
-            im2, contours, hierarchy = cv2.findContours(image_thresholded,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_NONE)
+            # image_thresholded = cv2.adaptiveThreshold(image, 255, cv2.ADAPTIVE_THRESH_MEAN_C, \
+            #                         cv2.THRESH_BINARY, 11, 2)
+
+            print('test')
+            contours, hierarchy = cv2.findContours(image_thresholded,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_NONE)
             x=[]
             y=[]
         
@@ -209,7 +221,7 @@ class Movie:
 
         
         elif method == 'local-maximum':
-            neighborhood_size = 5
+            neighborhood_size = 10
                 
             image_max = filters.maximum_filter(image, neighborhood_size)
             maxima = (image == image_max)
@@ -244,13 +256,14 @@ class Movie:
                       margin = 10):
         
         if edge is None: edge = np.array([[0,self.width//2],[0,self.height]])
-        
+        if coordinates.size == 0: return np.array([])
+
         criteria = np.array([(coordinates[:,0] > edge[0,0] + margin),
                              (coordinates[:,0] < edge[0,1] - margin),
                              (coordinates[:,1] > edge[1,0] + margin),
-                             (coordinates[:,1] < edge[1,1] - margin) 
+                             (coordinates[:,1] < edge[1,1] - margin)
         ])
-        
+
         return criteria.all(axis=0)
 
     
@@ -277,8 +290,9 @@ class Movie:
         pks_filepath = self.writepath.joinpath(self.name+'.pks')
         with pks_filepath.open('w') as outfile:
             for i, coordinate in enumerate(coordinates):
-                outfile.write(' {0:4.0f} {1:4.4f} {2:4.4f} {3:4.4f} {4:4.4f} \n'.format(i, coordinate[0], coordinate[1], 0, 0, width4=4, width6=6))
-    
+                #outfile.write(' {0:4.0f} {1:4.4f} {2:4.4f} {3:4.4f} {4:4.4f} \n'.format(i, coordinate[0], coordinate[1], 0, 0, width4=4, width6=6))
+                outfile.write('{0:4.0f} {1:4.4f} {2:4.4f} \n'.format(i, coordinate[0], coordinate[1]))
+
     def generate_pks_file(self, channel):
         
         image_mean = self.make_average_tif(number_of_frames=20)

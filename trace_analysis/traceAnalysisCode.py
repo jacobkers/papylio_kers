@@ -31,11 +31,11 @@ from trace_analysis.image_adapt.pma_file import PmaFile
 
 
 class Experiment:
-    def __init__(self, mainPath):
+    def __init__(self, mainPath, Ncolours = 2):
         self.name = os.path.basename(mainPath)
         self.mainPath = Path(mainPath).absolute()
         self.files = list()
-        self.Ncolours = 2
+        self.Ncolours = Ncolours
 
         os.chdir(mainPath)
 
@@ -234,6 +234,7 @@ class File:
         
    #     pks = np.genfromtxt(self.name + '.pks', delimiter='      ')  #MD190104 you get an error when using 6 spaces for tab
         pks = np.genfromtxt(str(self.relativeFilePath) + '.pks')  #MD190104 By default, any consecutive whitespaces act as delimiter.
+        pks = np.atleast_2d(pks)
 
         Ntraces = np.shape(pks)[0]
 
