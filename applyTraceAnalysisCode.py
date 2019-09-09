@@ -26,8 +26,16 @@ mainPath = r'D:\ivoseverins\SURFdrive\Promotie\Code\Python\traceAnalysis\twoColo
 mainPath = r'D:\ivoseverins\Desktop\20190820 drift test microfluidic for multiple imaging rounds of same FOV\1. First test run for drift'
 
 # Initialize an experiment
-exp = Experiment(mainPath)
-#mov = exp.files[0].movie
+exp = Experiment(mainPath, colours=('r'))
+mov = exp.files[0].movie
+
+image = mov.get_channel(channel='a')
+c = mov.find_peaks(image=image, method = 'local-maximum', threshold=8)
+
+mov.write_coordinates_to_pks_file(c)
+traces = mov.get_all_traces(c, channel='a')
+mov.write_traces_to_traces_file(traces)
+#exp.files[0].select()
 
 
 

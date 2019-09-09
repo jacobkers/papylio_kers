@@ -31,11 +31,13 @@ from trace_analysis.image_adapt.pma_file import PmaFile
 
 
 class Experiment:
-    def __init__(self, mainPath, Ncolours = 2):
+    def __init__(self, mainPath, colours = ('g','r')):
         self.name = os.path.basename(mainPath)
         self.mainPath = Path(mainPath).absolute()
         self.files = list()
-        self.Ncolours = Ncolours
+        self.colours = np.atleast_1d(np.array(colours))
+        self.Ncolours = len(colours)
+        self.pairs = [(c1, c2) for i1, c1 in enumerate(colours) for i2, c2 in enumerate(colours) if i2 > i1]
 
         os.chdir(mainPath)
 
@@ -304,10 +306,14 @@ class File:
 #            k = [int(i) for i in mol.steps.kon[0]]
 #            mol.kon_boolean = np.array(k).astype(bool).reshape((3,3))
 
-    def select(self, axis=None):
+    def select(self, figure=None):
+        plt.ion()
         for molecule in self.molecules:
-            molecule.plot(axis=axis)
+            molecule.plot(figure=figure)
+            plt.show()
+            plt.pause(0.001)
             input("Press enter to continue")
+
 
     def use_for_mapping(self):
         self.is_mapping_file = True
@@ -337,10 +343,28 @@ class Molecule:
         np.putmask(red, red<Imin, 0)  # the mask makes all elements of acceptor that are below the Imin zero, for E caclulation
         return (red - alpha*green) / (green + red - alpha*green)
 
-    def plot(self, axis=None):
-        if not axis: axis = plt.gca()
-        axis.plot(self.intensity[0,:], 'g')
-        axis.plot(self.intensity[1,:], 'r')
+    def plot(self, figure = None):
+        if not figure: figure = plt.gcf()
+        figure.clf()
+        if len(self.file.experiment.pairs) > 0:
+            axis_I = figure.add_subplot(211)
+        else:
+            axis_I = figure.gca()
+
+        axis_I.set_xlabel('Time (s)')
+        axis_I.set_ylabel('Intensity (a.u.)')
+        axis_I.set_ylim(0,1000)
+        for i, colour in enumerate(self.file.experiment.colours):
+            axis_I.plot(self.intensity[i,:], colour)
+
+        if len(self.file.experiment.pairs) > 0:
+            axis_E = figure.add_subplot(212, sharex = axis_I)
+            axis_E.set_xlabel('Time (s)')
+            axis_E.set_ylabel('FRET (-)')
+            axis_E.set_ylim(0,1)
+            for i, pair in enumerate(self.file.experiment.pairs):
+                axis_E.plot(self.E())
+
         #plt.show()
 #MD190104: why not add a subplot with FRET here as well, to match with display Matlab?
 

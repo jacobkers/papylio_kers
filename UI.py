@@ -234,7 +234,7 @@ class TracePanel(wx.Frame):
         self.currentMolecule = molecule
         if self.IsShown():
             self.panel.axis.clear()
-            molecule.plot(axis = self.panel.axis)
+            molecule.plot(figure = self.panel.figure)
             self.panel.canvas.draw()
             self.panel.canvas.Refresh()
             print(str(molecule.index))

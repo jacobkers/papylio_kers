@@ -38,6 +38,7 @@ class Movie:
         self._average_image = None
         self.is_mapping_movie = False
         self.number_of_colours = 2
+        self.gauss_width = 11
        
         if not self.filepath.suffix == '.sifx':
 #            self.writepath = self.filepath.parent.parent
@@ -97,6 +98,8 @@ class Movie:
             return image[:,:sh[0]//2]
         elif channel in ['a','acceptor']:
             return image[:,sh[0]//2:]
+        elif channel in ['all', '']:
+            return image
         
     def saveas_tif(self):
         tif_filepath = self.writepath.joinpath(self.name+'.tif')
@@ -168,15 +171,19 @@ class Movie:
         # note 2: do we need a different threshold for donor and acceptor?
 
 
-    def find_peaks(self, image = None, method = 'AKAZE', threshold = 100):
+    def find_peaks(self, image = None, method = 'AKAZE', threshold = 100, bounds = None):
         if image is None: image = self.average_image
         
         if method == 'AKAZE':
             coordinates = analyze(image)[2]
         elif method == 'threshold':
             #image = ((image-450)/850*255).astype('uint8')
-            lower_bound = np.min(image)
-            upper_bound = np.percentile(image.flatten(),99.999)
+            if bounds is None:
+                lower_bound = np.min(image)
+                upper_bound = np.percentile(image.flatten(),99.999)
+            else:
+                lower_bound = bounds[0]
+                upper_bound = bounds[1]
 
             # Change threshold and image to 8-bit, as cv2 can only analyse 8-bit images
             # threshold = ((threshold - lower_bound) / (upper_bound - lower_bound) * 255)
@@ -238,6 +245,7 @@ class Movie:
                 coordinates = np.array([])
                 print('No peaks found')
 
+        coordinates = coordinates[self.is_within_margin(coordinates, edge=None, margin=self.gauss_width // 2 + 1)]
         return coordinates
     
     def show_coordinates(self, image, coordinates, **kwargs):
@@ -266,6 +274,8 @@ class Movie:
 
         return criteria.all(axis=0)
 
+    # def coordinates_within_margin(self, coordinates, edge = None, margin = 10):
+    #     coordinates = coordinates[self.is_within_margin(coordinates, edge = edge, margin = margin)]
     
     def get_channel_coordinates(self, within_margin = True, show = False, channel = 'donor', threshold = 100):
         image = self.get_channel(self.average_image, channel)
@@ -288,10 +298,10 @@ class Movie:
     
     def write_coordinates_to_pks_file(self, coordinates):
         pks_filepath = self.writepath.joinpath(self.name+'.pks')
-        with pks_filepath.open('w') as outfile:
+        with pks_filepath.open('w') as pks_file:
             for i, coordinate in enumerate(coordinates):
                 #outfile.write(' {0:4.0f} {1:4.4f} {2:4.4f} {3:4.4f} {4:4.4f} \n'.format(i, coordinate[0], coordinate[1], 0, 0, width4=4, width6=6))
-                outfile.write('{0:4.0f} {1:4.4f} {2:4.4f} \n'.format(i, coordinate[0], coordinate[1]))
+                pks_file.write('{0:4.0f} {1:4.4f} {2:4.4f} \n'.format(i, coordinate[0], coordinate[1]))
 
     def generate_pks_file(self, channel):
         
@@ -486,7 +496,7 @@ class Movie:
 #          
 #        return bg, pts_number, dstG, ptsG, im_mean20_correct, ALL_GAUSS, ptsG2
 
-    def show_selected_spots(self):
+    def show_selected_spots(self): # Not yet checked IS 09-09-2019
     #make a plot with selected spots
         #make image with found spots
         PL=plt.figure(14,figsize=(40,40))    
@@ -517,12 +527,12 @@ class Movie:
 #        im_correct[im_correct < 0] = 0
 #        return remove_background(im_correct, self.threshold)
 
-    def get_image(self, idx):
+    def get_image(self, idx):  # Not yet checked IS 09-09-2019
         img= read_one_page(self.filepath, idx, self.movie_file_object, self.ii)
         #img = self.subtract_background(img)
         return Image(img, self.height_pixels, self.mapping._tf2_matrix, self.ptsG, self.dstG, self.pts_number, self.Gauss)
     
-    def get_image_show(self, idx, hs,ws,siz): # example hs=650,ws=950,siz=20
+    def get_image_show(self, idx, hs,ws,siz): # example hs=650,ws=950,siz=20  # Not yet checked IS 09-09-2019
         img= read_one_page(self.filepath, idx,self.movie_file_object,self.ii)
         plt.figure(idx)
         ax1=plt.subplot(1,2,1)
@@ -537,60 +547,87 @@ class Movie:
         ax2.set_ylim(ws, ws+siz)
         return Image(img, self.height_pixels, self.mapping._tf2_matrix, self.ptsG, self.dstG, self.pts_number, self.Gauss)
 
-    def write_traces_to_traces_file(self, coordinates):
-        traces_filepath = self.writepath.joinpath(self.name + '.traces')
-        with traces_filepath.open('w') as outfile:
-            for i, coordinate in enumerate(coordinates):
-                outfile.write(
-                    ' {0:4.0f} {1:4.4f} {2:4.4f} {3:4.4f} {4:4.4f} \n'.format(i, coordinate[0], coordinate[1], 0, 0,
-                                                                              width4=4, width6=6))
 
-    def get_all_traces(self):
+
+    def get_trace_values_from_image(self, image, coordinates):  # extract traces
+        coordinates = np.atleast_2d(coordinates)
+
+        # Probably indeed better to get this outside of the function, so that it is not redefined every time.
+        twoD_gaussian = makeGaussian(self.gauss_width, fwhm = 3, center=(self.gauss_width // 2, self.gauss_width // 2))
+        half_size_Gaussian = len(twoD_gaussian) // 2
+
+
+        coordinates = coordinates[self.is_within_margin(coordinates, edge = None, margin = half_size_Gaussian + 1)]
+        coordinates = np.round(coordinates).astype(int)
+
+
+        trace_values = np.zeros(len(coordinates))
+
+        for i, coordinate in enumerate(coordinates):
+            # First crop around spot, then do multiplication
+            intensities = image[(coordinate[1] - half_size_Gaussian): (coordinate[1] + half_size_Gaussian + 1),
+                                (coordinate[0] - half_size_Gaussian): (coordinate[0] + half_size_Gaussian + 1)
+                                ]
+
+            weighed_intensities = intensities * twoD_gaussian
+            trace_values[i] = np.sum(weighed_intensities)
+
+        return trace_values
+
+    def get_all_traces(self, coordinates, channel = 'all'):
     # reutnr donor and acceptor for the full data set
     #     root, name = os.path.split(self.filepath)
     #     traces_fn=os.path.join(root,name[:-4]+'-P.traces')
 
-        if os.path.isfile(traces_fn):
-        # load if traces file already exist
-             with open(traces_fn, 'r') as infile:
-                 Nframes = np.fromfile(infile, dtype = np.int32, count = 1).item()
-                 Ntraces = np.fromfile(infile, dtype = np.int16, count = 1).item()
-                 rawData = np.fromfile(infile, dtype = np.int16, count = self.number_of_colours*Nframes * Ntraces)
-             orderedData = np.reshape(rawData.ravel(), (self.number_of_colours, Ntraces//self.number_of_colours, Nframes), order = 'F')
-             donor=orderedData[0,:,:]
-             acceptor=orderedData[1,:,:]
-             donor=np.transpose(donor)
-             acceptor=np.transpose(acceptor)
-        else:
+        # if os.path.isfile(traces_fn):
+        # # load if traces file already exist
+        #      with open(traces_fn, 'r') as infile:
+        #          Nframes = np.fromfile(infile, dtype = np.int32, count = 1).item()
+        #          Ntraces = np.fromfile(infile, dtype = np.int16, count = 1).item()
+        #          rawData = np.fromfile(infile, dtype = np.int16, count = self.number_of_colours*Nframes * Ntraces)
+        #      orderedData = np.reshape(rawData.ravel(), (self.number_of_colours, Ntraces//self.number_of_colours, Nframes), order = 'F')
+        #      donor=orderedData[0,:,:]
+        #      acceptor=orderedData[1,:,:]
+        #      donor=np.transpose(donor)
+        #      acceptor=np.transpose(acceptor)
+        # else:
+
         # go through all images, extract donor and acceptor signal
-            donor=np.zeros(( self.number_of_frames,self.pts_number))
-            acceptor=np.zeros((self.number_of_frames,self.pts_number))
-           
-            t0 = time.time()  
-            for ii in range(self.number_of_frames): #self.number_of_frames also works for pm, len(self.movie_file_object.filelist) not
-                print(ii)
-                img=self.get_image(ii)
-                donor[ii,:]=img.donor # will multiply with gaussian, spot location is not drift compensated
-                acceptor[ii,:]=img.acceptor # will multiply with gaussian, spot location is not drift compensated
-            t1=time.time()
-            elapsed_time=t1-t0; print(elapsed_time)    
-            
-            #root, name = os.path.split(self.filepath)
-            
-            #if os.path.isfile(trace_fn):
-               
-            with open(traces_fn, 'w') as outfile:
-                 off = np.array([self.number_of_frames], dtype=np.int32)
-                 off.tofile(outfile)
-                 off = np.array([2*self.pts_number], dtype=np.int16)
-                 off.tofile(outfile)
-                 time_tr=np.zeros((self.number_of_frames,2*self.pts_number))
-                 Ncolours=2
-                 for jj in range(2*self.pts_number//Ncolours):
-                     time_tr[:,jj*2] = donor[:,jj]
-                     time_tr[:,jj*2+1]=  acceptor[:,jj]
-                 off = np.array((time_tr), dtype=np.int16)
-                 off.tofile(outfile)
-        
-        return donor, acceptor
-    
+
+        coordinates = coordinates[self.is_within_margin(coordinates, edge = None, margin = self.gauss_width // 2 + 1)]
+
+            #donor=np.zeros(( self.number_of_frames,self.pts_number))
+            #acceptor=np.zeros((self.number_of_frames,self.pts_number))
+
+        traces = np.zeros((len(coordinates), self.number_of_frames))
+
+        # t0 = time.time()
+        for frame_number in range(self.number_of_frames): #self.number_of_frames also works for pm, len(self.movie_file_object.filelist) not
+            print(frame_number)
+            image = self.read_frame(frame_number)
+            image = self.get_channel(image, channel)
+            trace_values_in_frame = self.get_trace_values_from_image(image, coordinates)
+
+            traces[:,frame_number] = trace_values_in_frame # will multiply with gaussian, spot location is not drift compensated
+        #t1=time.time()
+        #elapsed_time=t1-t0; print(elapsed_time)
+
+        #root, name = os.path.split(self.filepath)
+
+        #if os.path.isfile(trace_fn):
+
+        return traces
+
+    def write_traces_to_traces_file(self, traces):
+        traces_filepath = self.writepath.joinpath(self.name + '.traces')
+        with traces_filepath.open('w') as traces_file:
+            np.array([traces.shape[1]], dtype=np.int32).tofile(traces_file)
+            np.array([traces.shape[0]], dtype=np.int16).tofile(traces_file)
+            # time_tr = np.zeros((self.number_of_frames, 2 * self.pts_number))
+            # Ncolours=2
+            # for jj in range(2*self.pts_number//Ncolours):
+            #     time_tr[:,jj*2] = donor[:,jj]
+            #     time_tr[:,jj*2+1]=  acceptor[:,jj]
+            np.array(traces, dtype=np.int16).tofile(traces_file)
+
+
