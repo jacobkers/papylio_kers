@@ -301,7 +301,7 @@ class Movie:
         with pks_filepath.open('w') as pks_file:
             for i, coordinate in enumerate(coordinates):
                 #outfile.write(' {0:4.0f} {1:4.4f} {2:4.4f} {3:4.4f} {4:4.4f} \n'.format(i, coordinate[0], coordinate[1], 0, 0, width4=4, width6=6))
-                pks_file.write('{0:4.0f} {1:4.4f} {2:4.4f} \n'.format(i, coordinate[0], coordinate[1]))
+                pks_file.write('{0:4.0f} {1:4.4f} {2:4.4f} \n'.format(i+1, coordinate[0], coordinate[1]))
 
     def generate_pks_file(self, channel):
         
@@ -556,8 +556,9 @@ class Movie:
         twoD_gaussian = makeGaussian(self.gauss_width, fwhm = 3, center=(self.gauss_width // 2, self.gauss_width // 2))
         half_size_Gaussian = len(twoD_gaussian) // 2
 
+        # This should likely be put on a central place in selection of locations
+        #coordinates = coordinates[self.is_within_margin(coordinates, edge = None, margin = half_size_Gaussian + 1)]
 
-        coordinates = coordinates[self.is_within_margin(coordinates, edge = None, margin = half_size_Gaussian + 1)]
         coordinates = np.round(coordinates).astype(int)
 
 
@@ -594,7 +595,8 @@ class Movie:
 
         # go through all images, extract donor and acceptor signal
 
-        coordinates = coordinates[self.is_within_margin(coordinates, edge = None, margin = self.gauss_width // 2 + 1)]
+        # This should likely be put on a central place in selection of locations
+        #coordinates = coordinates[self.is_within_margin(coordinates, edge = None, margin = self.gauss_width // 2 + 1)]
 
             #donor=np.zeros(( self.number_of_frames,self.pts_number))
             #acceptor=np.zeros((self.number_of_frames,self.pts_number))
@@ -616,18 +618,21 @@ class Movie:
 
         #if os.path.isfile(trace_fn):
 
+        number_of_molecules = len(traces) // self.number_of_colours
+        traces = traces.reshape((number_of_molecules,self.number_of_colours,self.number_of_frames)).swapaxes(0,1)
+
         return traces
 
     def write_traces_to_traces_file(self, traces):
         traces_filepath = self.writepath.joinpath(self.name + '.traces')
         with traces_filepath.open('w') as traces_file:
-            np.array([traces.shape[1]], dtype=np.int32).tofile(traces_file)
-            np.array([traces.shape[0]], dtype=np.int16).tofile(traces_file)
+            np.array([traces.shape[2]], dtype=np.int32).tofile(traces_file)
+            np.array([traces.shape[0]*traces.shape[1]], dtype=np.int16).tofile(traces_file)
             # time_tr = np.zeros((self.number_of_frames, 2 * self.pts_number))
             # Ncolours=2
             # for jj in range(2*self.pts_number//Ncolours):
             #     time_tr[:,jj*2] = donor[:,jj]
             #     time_tr[:,jj*2+1]=  acceptor[:,jj]
-            np.array(traces, dtype=np.int16).tofile(traces_file)
+            np.array(traces.T, dtype=np.int16).tofile(traces_file)
 
 

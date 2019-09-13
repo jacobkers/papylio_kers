@@ -31,17 +31,36 @@ from trace_analysis.image_adapt.pma_file import PmaFile
 
 
 class Experiment:
-    def __init__(self, mainPath, colours = ('g','r')):
+    def __init__(self, mainPath, colours = ['g','r'], import_all = True):
         self.name = os.path.basename(mainPath)
         self.mainPath = Path(mainPath).absolute()
         self.files = list()
-        self.colours = np.atleast_1d(np.array(colours))
-        self.Ncolours = len(colours)
-        self.pairs = [(c1, c2) for i1, c1 in enumerate(colours) for i2, c2 in enumerate(colours) if i2 > i1]
+        self._colours = np.atleast_1d(np.array(colours))
+        self._Ncolours = len(colours)
+        self._pairs = [[c1, c2] for i1, c1 in enumerate(colours) for i2, c2 in enumerate(colours) if i2 > i1]
+        self.import_all = import_all
 
         os.chdir(mainPath)
 
         self.addAllFilesInMainPath()
+
+    @property
+    def colours(self):
+        return self._colours
+
+    @colours.setter
+    def colours(self, colours):
+        self._colours = np.atleast_1d(np.array(colours))
+        self._Ncolours = len(colours)
+        self._pairs = [[c1, c2] for i1, c1 in enumerate(colours) for i2, c2 in enumerate(colours) if i2 > i1]
+
+    @property
+    def Ncolours(self):
+        return self._Ncolours
+
+    @property
+    def pairs(self):
+        return self._pairs
 
     @property
     def molecules(self):
@@ -166,10 +185,13 @@ class File:
         self.molecules = list()
         self.exposure_time = None #Here the exposure time is given but it should be found from the log file if possible
 
+        self.background = np.array([0,0])
+
         self.isSelected = False
         self.is_mapping_file = False
-        
-        self.findAndAddExtensions()
+
+        if self.experiment.import_all is True:
+            self.findAndAddExtensions()
 
     
     def __repr__(self):
@@ -335,7 +357,7 @@ class Molecule:
         #self.kon_boolean = None  # 3x3 matrix that is indicates whether the kon will be calculated from the beginning, in-between molecules or for the end only
 
     def I(self, emission, Ioff=0):
-        return self.intensity[emission, :] - Ioff
+        return self.intensity[emission, :] - Ioff - self.file.background[emission]
 
     def E(self, Imin=0, alpha=0):  # alpha correction is not implemented yet, this is just a reminder
         red = np.copy(self.I(1))
@@ -355,7 +377,7 @@ class Molecule:
         axis_I.set_ylabel('Intensity (a.u.)')
         axis_I.set_ylim(0,1000)
         for i, colour in enumerate(self.file.experiment.colours):
-            axis_I.plot(self.intensity[i,:], colour)
+            axis_I.plot(self.I(i), colour)
 
         if len(self.file.experiment.pairs) > 0:
             axis_E = figure.add_subplot(212, sharex = axis_I)
