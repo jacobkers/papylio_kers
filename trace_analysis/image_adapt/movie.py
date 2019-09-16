@@ -305,19 +305,25 @@ class Movie:
 
     def generate_pks_file(self, channel):
         
-        image_mean = self.make_average_tif(number_of_frames=20)
+        image_mean = self.make_average_tif(number_of_frames=20, write=True)
         
-        image_mean_corrected = self.subtract_background(image_mean, method = 'per_channel')
+        # image_mean_corrected = self.subtract_background(image_mean, method = 'per_channel')
         
         
         if channel == 'd':
-            donor_coordinates = self.find_peaks(self.get_channel(image_mean_corrected, 'donor'))
+            #donor_coordinates = self.find_peaks(self.get_channel(image_mean_corrected, 'donor'))
+            donor_coordinates = self.find_peaks(self.get_channel(image_mean, 'donor'),
+                                                method = 'local-maximum', threshold = self.threshold['point-selection'][0])
             acceptor_coordinates = self.calculate_acceptor_coordinates(donor_coordinates)
-        
+            acceptor_coordinates[:, 0] = acceptor_coordinates[:, 0] + self.width // 2
+
         elif channel == 'a':
-            acceptor_coordinates = self.find_peaks(self.get_channel(image_mean_corrected, 'acceptor'))
+            # acceptor_coordinates = self.find_peaks(self.get_channel(image_mean_corrected, 'acceptor'))
+            acceptor_coordinates = self.find_peaks(self.get_channel(image_mean_corrected, 'acceptor'),
+                                                   method = 'local-maximum', threshold = self.threshold['point-selection'][0])
             donor_coordinates = self.calculate_donor_coordinates(acceptor_coordinates)
-          
+            acceptor_coordinates[:,0] = acceptor_coordinates[:,0] + self.width // 2
+
         elif channel == 'da':
             print('I have no clue yet how to do this')
             # most likely they do not overlap before finding transformation, so what is the point of doing D+A?
