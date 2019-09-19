@@ -4,38 +4,32 @@ Created on Fri Sep 14 15:24:46 2018
 
 @author: ivoseverins
 """
-# Use the following lines on Mac
-from sys import platform
-if platform == "darwin":
-    from matplotlib import use
-    use('WXAgg')
 
-
-import matplotlib.pyplot as plt #Provides a MATLAB-like plotting framework
-
-import os # Miscellaneous operating system interfaces - to be able to switch from Mac to Windows
+import os
 import re # Regular expressions
 import warnings
-import numpy as np #scientific computing with Python
-#import matplotlib.pyplot as plt #Provides a MATLAB-like plotting framework
-#import itertools #Functions creating iterators for efficient looping
+import numpy as np
 np.seterr(divide='ignore', invalid='ignore')
-#import pandas as pd
-#from threshold_analysis_v2 import stepfinder
-from pathlib import Path # For efficient path manipulation
-
-#import pickle
-
+import pandas as pd
+import matplotlib.pyplot as plt
+from threshold_analysis import stepfinder
+# Use the following instead of: import matplotlib as mpl
+#from matplotlib import use
+#use('WXAgg')
+import pickle
+import time
+import sys
 
 class Experiment:
-    def __init__(self, mainPath):
+    def __init__(self, mainPath, exposure_time=None):
         self.name = os.path.basename(mainPath)
-        self.mainPath = Path(mainPath).absolute()
+        self.mainPath = mainPath
         self.files = list()
         self.Ncolours = 2
+        self.exposure_time = exposure_time
 
-        os.chdir(mainPath)
-
+        os.chdir(mainPath)  # this should be avoided. We can just add the path so the working directory is not changed
+#        sys.path.append(self.mainPath)
         self.addAllFilesInMainPath()
 
     @property
@@ -53,77 +47,48 @@ class Experiment:
         return [molecule for file in self.files for molecule in file.selectedMolecules]
 
     def addAllFilesInMainPath(self):
+        # Only works/tested for files in the main folder for now
 
+        for root, dirs, fileNames in os.walk('.', topdown=False):
 
-        ## Find all unique files in all subfolders
-        
-        # Get all the files in all subfolders of the mainpath and remove their suffix (extensions)
-        # Also make sure only relevant files are included (exclude folders, averaged tif files, data folders and .dat files)
-        files = [p.relative_to(self.mainPath).with_suffix('') for p in self.mainPath.glob('**/*')
-                    if  (p.is_file() & 
-                        ('_' not in p.name) & 
-                        #('\\.' not in str(p.with_suffix(''))) & # Can be removed, line below is better  - Ivo
-                        ('.' not in [s[0] for s in p.parts]) &
-                        (p.suffix not in ['.dat','.db']) 
-                        )
-                    ]
-        
-        uniqueFiles = np.unique(files)
+            for fileName in fileNames:
+                    print(root)
+                    print(fileName)
 
-        for file in uniqueFiles:
-            self.addFile(file)
+                    self.addFile(root, fileName)
 
+            for name in dirs:
+                warnings.warn('Import of files in subfolders does not work properly yet')
+                print(os.path.join(root, name))
 
-#        # Only works/tested for files in the main folder for now
-#        for root, dirs, fileNames in os.walk('.', topdown=False):
-#
-#            for fileName in fileNames:
-#                    print(root)
-#                    print(fileName)
-#
-#                    self.addFile(root, fileName)
-#
-#            for name in dirs:
-#                warnings.warn('Import of files in subfolders does not work properly yet')
-#                print(os.path.join(root, name))
+    def addFile(self, relativePath, fileName):
+        fileNameSearch = re.search('(hel[0-9]*)(.*\..*)', fileName)
 
-    def addFile(self, relativeFilePath):
-        relativeFilePath = Path(relativeFilePath)
+        if fileNameSearch:
+            name, extension = fileNameSearch.groups()
 
-        
-        # if there is no extension, add all files with the same name with all extensions
-        # if there is an extension just add that file if the filename is the same
-        
-        
-        
-        
-        #fileNameSearch = re.search('(hel[0-9]*)(.*\..*)', fileName)
-
-        #if fileNameSearch:
-        #    name, extension = fileNameSearch.groups()
-
-        #    fullPath = os.path.join(relativePath, name)
+            fullPath = os.path.join(relativePath, name)
 
             # Test whether file is already in experiment
-        for file in self.files:
-            if file.relativeFilePath == relativeFilePath:
-                file.update()
-                break
-        else:
-            self.files.append(File(relativeFilePath, self))
-            
+            for file in self.files:
+                if file.fullPath == fullPath:
+                    foundFile = file
+                    break
+            else:
+                foundFile = None
+
             # If not found: add file and extension, or if the file is already there then add the extention to it.
             # If the file and extension are already imported, display a warning message.
-#            if not foundFile:
-#                self.files.append(File(relativePath, name, self, self.exposure_time))
-#                self.files[-1].addExtension(extension)
-#            else:
-#                if extension not in foundFile.extensions:
-#                    foundFile.addExtension(extension)
-#                else:
-#                    warnings.warn(fullPath + extension + ' already imported')
-#        else:
-#            warnings.warn('FileName ' + fileName + ' not added, filename should contain hel...')
+            if not foundFile:
+                self.files.append(File(relativePath, name, self, self.exposure_time))
+                self.files[-1].addExtension(extension)
+            else:
+                if extension not in foundFile.extensions:
+                    foundFile.addExtension(extension)
+                else:
+                    warnings.warn(fullPath + extension + ' already imported')
+        else:
+            warnings.warn('FileName ' + fileName + ' not added, filename should contain hel...')
 
 
     def histogram(self, axis = None, fileSelection = False, moleculeSelection = False, makeFit = False):
@@ -146,64 +111,49 @@ class Experiment:
             input("Press enter to continue")
 
 class File:
-    def __init__(self, relativeFilePath, experiment):
-        relativeFilePath = Path(relativeFilePath)
-        
-        self.relativePath = relativeFilePath.parent
-        self.name = relativeFilePath.name
+    def __init__(self, relativePath, name, experiment, exposure_time):
+        self.relativePath = relativePath
+        self.name = name
         self.extensions = list()
         self.experiment = experiment
         self.molecules = list()
-        self.exposure_time = None #Here the exposure time is given but it should be found from the log file if possible
+        self.exposure_time = exposure_time  #Here the exposure time is given but it should be found from the log file if possible
 
         self.isSelected = False
-        
-        self.findAndAddExtensions()
 
     @property
-    def relativeFilePath(self):
+    def time(self):  # the time axis of the experiment
+        return np.arange(0, self.Nframes*self.exposure_time, self.exposure_time)
+    @property
+    def fullPath(self):
         return os.path.join(self.relativePath, self.name)
 
     @property
     def coordinates(self):
         return np.concatenate([[molecule.coordinates[0, :]
                                 for molecule in self.molecules]])
+
     @property
     def selectedMolecules(self):
         return [molecule for molecule in self.molecules if molecule.isSelected]
 
-    def findAndAddExtensions(self):
-        foundFiles = [file.name for file in self.experiment.mainPath.joinpath(self.relativePath).glob(self.name+'*.*')]
-        foundExtensions = [file[len(self.name):] for file in foundFiles]
-        newExtensions = [extension for extension in foundExtensions if extension not in self.extensions]
-        self.extensions = newExtensions
-        for extension in newExtensions: self.importExtension(extension)
-
-    def importExtension(self, extension):
-         
-        #print(f.relative_to(self.experiment.mainPath))
-        
-        #self.extensions.append(extension)
-        #print(extension)
+    def addExtension(self, extension):
+        self.extensions.append(extension)
+        print(extension)
         importFunctions = {'.pks'        : self.importPksFile,
-                           '.traces'     : self.importTracesFile
-#                           '.sim'        : self.importSimFile
+                           '.traces'     : self.importTracesFile,
+                           '.sim'       : self.importSimFile
                            }
 
-        importFunctions.get(extension, self.noneFunction)()
+        importFunctions.get(extension, print)()
 #        if extension == '.pks':
             #self.importPksFile()
 
-    def noneFunction(self):
-        return
-
     def importPksFile(self):
+        print()
         # Background value stored in pks file is not imported yet
         Ncolours = self.experiment.Ncolours
-        
-   #     pks = np.genfromtxt(self.name + '.pks', delimiter='      ')  #MD190104 you get an error when using 6 spaces for tab
-        pks = np.genfromtxt(str(self.relativeFilePath) + '.pks')  #MD190104 By default, any consecutive whitespaces act as delimiter.
-
+        pks = np.genfromtxt(self.name + '.pks', delimiter='      ')
         Ntraces = np.shape(pks)[0]
 
         if not self.molecules:
@@ -219,7 +169,7 @@ class File:
 
     def importTracesFile(self):
         Ncolours = self.experiment.Ncolours
-        file = open(str(self.relativeFilePath) + '.traces', 'r')
+        file = open(self.name + '.traces', 'r')
         self.Nframes = np.fromfile(file, dtype=np.int32, count=1).item()
         Ntraces = np.fromfile(file, dtype=np.int16, count=1).item()
         if not self.molecules:
@@ -233,20 +183,20 @@ class File:
             molecule.intensity = orderedData[:,i,:]
         file.close()
 
-#    def importSimFile(self):
-#        file = open(str(self.relativeFilePath) + '.sim', 'rb')
-#        self.data = pickle.load(file)
-#        red, green  = self.data['red'], self.data['green']
-#        Ntraces = red.shape[0]
-#        self.Nframes = red.shape[1]
-#
-#        if not self.molecules:
-#            for molecule in range(0, Ntraces):
-#                self.addMolecule()
-#
-#        for i, molecule in enumerate(self.molecules):
-#            molecule.intensity = np.vstack((green[i], red[i]))
-#        file.close()
+    def importSimFile(self):
+        file = open(self.name + '.sim', 'rb')
+        self.data = pickle.load(file)
+        red, green  = self.data['red'], self.data['green']
+        Ntraces = red.shape[0]
+        self.Nframes = red.shape[1]
+
+        if not self.molecules:
+            for molecule in range(0, Ntraces):
+                self.addMolecule()
+
+        for i, molecule in enumerate(self.molecules):
+            molecule.intensity = np.vstack((green[i], red[i]))
+        file.close()
 
     def addMolecule(self):
         self.molecules.append(Molecule(self))
@@ -255,27 +205,66 @@ class File:
     def histogram(self):
         histogram(self.molecules)
 
-#    def importExcel(self, filename=None):
-#        if filename is None:
-#            filename = self.name+'_steps_data.xlsx'
-#        try:
-#            steps_data = pd.read_excel(filename, index_col=[0,1],
-#                                            dtype={'kon':np.str})       # reads from the 1st excel sheet of the file
-#        except FileNotFoundError:
-#            return
-#        molecules = steps_data.index.unique(0)
-#        indices = [int(m.split()[-1]) for m in molecules]
-#        for mol in self.molecules:
-#            if mol.index not in indices:
-#                continue
-#            mol.steps = steps_data.loc[f'mol {mol.index}']
-#            k = [int(i) for i in mol.steps.kon[0]]
-#            mol.kon_boolean = np.array(k).astype(bool).reshape((3,3))
+    def importExcel(self, filename=None):
+        if filename is None:
+            filename = self.name+'_steps_data.xlsx'
+        try:
+            steps_data = pd.read_excel(filename, index_col=[0,1],
+                                            dtype={'kon':np.str})       # reads from the 1st excel sheet of the file
+        except FileNotFoundError:
+            return
+        molecules = steps_data.index.unique(0)
+        indices = [int(m.split()[-1]) for m in molecules]
+        for mol in self.molecules:
+            if mol.index not in indices:
+                continue
+            mol.steps = steps_data.loc[f'mol {mol.index}']
+            if 'kon' in mol.steps.columns:
+                k = [int(i) for i in mol.steps.kon[0]]
+                mol.kon_boolean = np.array(k).astype(bool).reshape((3,3))
+        return steps_data
 
-    def select(self, axis=None):
-        for molecule in self.molecules:
-            molecule.plot(axis=axis)
-            input("Press enter to continue")
+    def savetoExcel(self, filename=None, save=True):
+        if filename is None:
+            filename = self.name+'_steps_data.xlsx'
+        # Concatenate all steps dataframes that are not None
+        mol_data = [mol.steps for mol in self.molecules if mol.steps is not None]
+        if not mol_data:
+            print(f'no data to save')
+            return
+        keys = [f'mol {mol.index}' for mol in self.molecules if mol.steps is not None]
+        steps_data = pd.concat(mol_data, keys=keys)
+        if save:
+            print("data saved in: " + filename)
+            writer = pd.ExcelWriter(filename)
+            steps_data.to_excel(writer, self.name)
+            writer.save()
+        return steps_data
+
+    def autoThreshold(self, trace_name, threshold=100, max_steps=20,
+                      only_selected=False, kon_str='000000000'):
+        nam = trace_name
+        start = time.time()
+        for mol in self.molecules:
+
+            trace = mol.I(0)*int((nam == 'green')) + \
+                    mol.I(1)*int((nam == 'red')) +\
+                     mol.E()*int((nam == 'E'))  # Here no offset corrections are applied yet
+
+            d = mol.find_steps(trace)
+            frames = d['frames']
+            times = frames*self.exposure_time
+            times = np.sort(times)
+            mol.steps = pd.DataFrame({'time': times, 'trace': nam,
+                                  'state': 1, 'method': 'thres',
+                                'thres': threshold, 'kon': kon_str})
+        filename = self.name+'_steps_data.xlsx'
+        print(f'Analysis time: {time.time() - start} sec')
+        data = self.savetoExcel(filename)
+        return data
+
+
+
 
 class Molecule:
 
@@ -287,8 +276,8 @@ class Molecule:
 
         self.isSelected = False
 
-        #self.steps = None  #Defined in other classes as: pd.DataFrame(columns=['frame', 'trace', 'state', 'method','thres'])
-        #self.kon_boolean = None  # 3x3 matrix that is indicates whether the kon will be calculated from the beginning, in-between molecules or for the end only
+        self.steps = None  #Defined in other classes as: pd.DataFrame(columns=['frame', 'trace', 'state', 'method','thres'])
+        self.kon_boolean = None  # 3x3 matrix that is indicates whether the kon will be calculated from the beginning, in-between molecules or for the end only
 
     def I(self, emission, Ioff=0):
         return self.intensity[emission, :] - Ioff
@@ -297,18 +286,18 @@ class Molecule:
         red = np.copy(self.I(1))
         green = self.I(0)
         np.putmask(red, red<Imin, 0)  # the mask makes all elements of acceptor that are below the Imin zero, for E caclulation
-        return (red - alpha*green) / (green + red - alpha*green)
+        E =  (red - alpha*green) / (green + red - alpha*green)
+        E = np.nan_to_num(E)  # correct for divide with zero = None values
+        return E
 
-    def plot(self, axis=None):
-        if not axis: axis = plt.gca()
-        axis.plot(self.intensity[0,:], 'g')
-        axis.plot(self.intensity[1,:], 'r')
-        #plt.show()
-#MD190104: why not add a subplot with FRET here as well, to match with display Matlab?
+    def plot(self):
+        plt.plot(self.intensity[0,:], 'g')
+        plt.plot(self.intensity[1,:], 'r')
+        plt.show()
 
-#    @property
-#    def find_steps(self):
-#        return stepfinder
+    @property
+    def find_steps(self):
+        return stepfinder
 
 
 def histogram(input, axis, makeFit = False):
@@ -324,9 +313,6 @@ def histogram(input, axis, makeFit = False):
 #        else:
 #            molecules.append(i.molecules)
     molecules = input
-    
-    #data = np.concatenate([molecule.intensity[0,:] for molecule in molecules])
-    #axis.hist(data,100)
     data = np.concatenate([molecule.E() for molecule in molecules])
     axis.hist(data,100, range = (0,1))
 
@@ -351,7 +337,6 @@ def fit_hist(data, axis):
     peaks, properties = find_peaks(output_signal, prominence=5, width=7) #prominence=1
     plt.plot(bin_centers[peaks], hist[peaks], "x")
 
-
     def func(x, a, b, c, d, e, f):
         return a * np.exp(-(x-b)**2/(2*c**2)) + d * np.exp(-(x-e)**2/(2*f**2))
 
@@ -361,6 +346,19 @@ def fit_hist(data, axis):
 
     axis.plot(bin_centers,func(bin_centers, *popt))
     #plt.plot(bin_centers,func(bin_centers, 10000,0.18,0.1,5000,0.5,0.2))
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 #uniqueFileNames = list(set([re.search('hel[0-9]*',fileName).group() for fileName in fileNames]))
 
@@ -381,3 +379,4 @@ for root, dirs, files in os.walk('..', topdown=False):
 	print(files)
 
 """
+
