@@ -8,7 +8,6 @@ Created on Sat Apr 27 23:12:58 2019
 import numpy as np
 import sys
 
-sys.path.append('../traceAnalysis - Ivo')
 import traceAnalysisCode as analysis
 import pandas as pd
 import os
@@ -22,40 +21,13 @@ from cursor_matplotlib import SnaptoCursor
 #mainPath = r'D:\ivoseverins\SURFdrive\Promotie\Code\Python\traceAnalysis\twoColourExampleData\HJ A'
 
 
-class Draw_lines(object):
-    def __init__(self, fig, iplot_radio):
-        self.lines = []
-        self.fig = fig
-        self.radio = iplot_radio  # The InteractivePlot instance
-
-    def onclick(self, event):
-        if self.fig.canvas.manager.toolbar.mode != '':  # self.fig.canvas.manager.toolmanager.active_toggle["default"] is not None:
-            return
-        if event.inaxes is None:
-            return
-        ax = event.inaxes
-        if event.button == 1:
-            if ax == self.fig.get_axes()[0] or ax == self.fig.get_axes()[1]:
-                sel = self.radio.value_selected*(ax == self.fig.get_axes()[0])
-                sel = sel + "E"*(ax == self.fig.get_axes()[1])
-                l = ax.axvline(x=event.xdata, zorder=0, lw=0.65, label="man "+sel)
-                self.lines.append(l)
-
-        if event.button == 3 and self.lines != []:
-            self.lines.pop().remove()
-        self.fig.canvas.draw()
-
-    def clear_all(self, event):
-        while self.lines:
-            self.lines.pop().remove()
-        self.fig.canvas.draw()
-
 class InteractivePlot(object):
-    def __init__(self, file):
+    def __init__(self, file, import_excel=True):
         self.file = file
         self.mol_indx = 0  #From which molecule to start the analysis
         #  See if there are saved analyzed molecules
-        self.file.load_from_excel(filename=self.file.name+'_steps_data.xlsx')
+        if import_excel:
+            self.file.importExcel(filename=self.file.name+'_steps_data.xlsx')
 
     def plot_initialize(self):
         sns.set(style="dark")
@@ -131,10 +103,14 @@ class InteractivePlot(object):
 
         #  Sliders for assigning the threshold
         self.thrsliders = []
-        self.thrsliders.append(matplotlib.widgets.Slider(self.axthrsliders[0], label=r"$I_R$", valmin=0,
-                                                   valmax=500, valinit=100, valfmt="%i", color="r"))
-        self.thrsliders.append(matplotlib.widgets.Slider(self.axthrsliders[1], label=r"$E$", valmin=0,
-                                                    valfmt="%.2f", valinit=0.5, color="b", valmax=1.0))
+        self.thrsliders.append(matplotlib.widgets.Slider(self.axthrsliders[0],
+                                                         label=r"$I_R$", valmin=0,
+                                                         valmax=500, valinit=100,
+                                                         valfmt="%i", color="r"))
+        self.thrsliders.append(matplotlib.widgets.Slider(self.axthrsliders[1],
+                                                         label=r"$E$", valmin=0,
+                                                         valfmt="%.2f", valinit=0.5,
+                                                         color="b", valmax=1.0))
         [slider.vline.remove() for slider in self.thrsliders]
 
         self.fig.show()
@@ -188,7 +164,6 @@ class InteractivePlot(object):
         self.cursors.append(SnaptoCursor(self.axes[0], self.time, self.green))
         self.cursors.append(SnaptoCursor(self.axes[1], self.time, self.fret))
         self.connect_events_to_canvas()
-
         self.fig.canvas.draw()
 
     def connect_events_to_canvas(self):
@@ -263,24 +238,17 @@ class InteractivePlot(object):
                 self.mol.steps = pd.DataFrame(columns=['time', 'trace', 'state',
                                                        'method','thres'])
             self.mol.isSelected = True
-
+            kon = [f'{int(i)}' for i in self.mol.kon_boolean.flatten()]
+            kon = ''.join(kon)
             for l in lines:
                 method = l.get_label().split()[0]
                 thres = "N/A"*(method=='man') + str(self.thrsliders[0].val)*(method =='thres')
 
                 d = {'time': l.get_xdata()[0], 'trace': l.get_label().split()[1],
-                     'state': 1, 'method': method, 'thres': thres}
+                     'state': 1, 'method': method, 'thres': thres, 'kon': kon}
 
                 self.mol.steps= self.mol.steps.append(d, ignore_index=True)
             self.mol.steps.drop_duplicates(inplace=True)
-            kon = [f'{int(i)}' for i in self.mol.kon_boolean.flatten()]
-            kon = ''.join(kon)
-            if 'kon' not in self.mol.steps.columns:
-                kon = pd.DataFrame.from_records([{"kon": kon}])
-                self.mol.steps = pd.concat([self.mol.steps, kon], axis=1)
-                self.mol.steps.fillna(value='')
-            else:
-                self.mol.steps.loc[0, 'kon'] = kon
 
         if move:
             if event.inaxes == self.axnextb or event.key in ['right']:
@@ -288,42 +256,36 @@ class InteractivePlot(object):
                     self.mol_indx = 1
                 else:
                     self.mol_indx += 1
+
             elif event.inaxes == self.axprevb or event.key in ['left']:
                 self.mol_indx -= 1
 
             self.plot_molecule(draw_plot=draw)
 
-    def conclude_analysis(self, event=None, save=True):
+    def conclude_analysis(self, event=None, save=True, filename=None):
         # Save current molecule if it was analyzed
         self.save_molecule(move=False)
-        # Concatenate all steps dataframes that are not None
-        mol_data = [mol.steps for mol in self.file.molecules if mol.steps is not None]
-        if not mol_data:
-            print('no data to save')
-            return
-        keys = [f'mol {mol.index}' for mol in self.file.molecules if mol.steps is not None]
-        steps_data = pd.concat(mol_data, keys=keys)
+
+        if filename is None:
+            filename = self.file.name+'_steps_data.xlsx'
+
         if save:
-            print("steps saved")
-            writer = pd.ExcelWriter(f'{self.file.name}_steps_data.xlsx')
-            steps_data.to_excel(writer, self.file.name)
-            writer.save()
+
+            self.file.savetoExcel(filename=filename)
 
 
     def autoThreshold_plot(self, event=None, find_all=False):
         self.auto_reject()
         #  Find the steps for the checked buttons
         sel = self.radio.value_selected
-        color = self.red*bool(sel == "red") + self.green*bool(sel == "green")  # Select red  or green
+        color = self.red*bool(sel == "red") + self.green*bool(sel == "green")  # Select trace data for red  or green
         steps = self.mol.find_steps(color, threshold=self.thrsliders[0].val)
         l_props = {"lw": 0.75, "zorder": 5, "label": "thres "+sel}
-        [self.axes[0].axvline(s*self.exp_time, **l_props) for s in steps["start_frames"]]
-        [self.axes[0].axvline(s*self.exp_time, ls="--", **l_props) for s in steps["stop_frames"]]
+        [self.axes[0].axvline(s*self.exp_time, **l_props) for s in steps["frames"]]
         if self.checkbfret.get_status()[0]:
             steps = self.mol.find_steps(self.fret, threshold=self.thrsliders[1].val)
             l_props = {"lw": 0.75, "zorder": 5, "label": "thres E"}
-            [self.axes[1].axvline(s*self.exp_time, **l_props) for s in steps["start_frames"]]
-            [self.axes[1].axvline(s*self.exp_time, ls="--", **l_props) for s in steps["stop_frames"]]
+            [self.axes[1].axvline(s*self.exp_time, **l_props) for s in steps["frames"]]
         self.fig.canvas.draw()
         if find_all:
             for mol in self.file.molecules:
@@ -442,14 +404,45 @@ class InteractivePlot(object):
             self.checkbfret.rectangles[0].set_color("black")
         self.fig.canvas.draw()
 
-os.chdir(os.path.dirname(os.path.abspath(__file__)))
-#mainPath = './traces'
-mainPath = 'N:/tnw/BN/CMJ/Shared/Iasonas/20190517_cas9_sigma/#7.20_streptavidin_200pM_biot-DNA00_10nM-cas9-WT_G'
-exp = analysis.Experiment(mainPath, 0.1)
-i = InteractivePlot(exp.files[0])
-i.plot_initialize()
-i.plot_molecule()
-#plt.show()
+class Draw_lines(object):
+    def __init__(self, fig, iplot_radio):
+        self.lines = []
+        self.fig = fig
+        self.radio = iplot_radio  # The InteractivePlot instance
+
+    def onclick(self, event):
+        if self.fig.canvas.manager.toolbar.mode != '':  # self.fig.canvas.manager.toolmanager.active_toggle["default"] is not None:
+            return
+        if event.inaxes is None:
+            return
+        ax = event.inaxes
+        if event.button == 1:
+            if ax == self.fig.get_axes()[0] or ax == self.fig.get_axes()[1]:
+                sel = self.radio.value_selected*(ax == self.fig.get_axes()[0])
+                sel = sel + "E"*(ax == self.fig.get_axes()[1])
+                l = ax.axvline(x=event.xdata, zorder=0, lw=0.65, label="man "+sel)
+                self.lines.append(l)
+
+        if event.button == 3 and self.lines != []:
+            self.lines.pop().remove()
+        self.fig.canvas.draw()
+
+    def clear_all(self, event):
+        while self.lines:
+            self.lines.pop().remove()
+        self.fig.canvas.draw()
+
+
+
+if __name__ == '__main__':
+    os.chdir(os.path.dirname(os.path.abspath(__file__)))
+#    mainPath = './traces'
+    mainPath = './traces'
+    exp = analysis.Experiment(mainPath, exposure_time=0.1)
+    i = InteractivePlot(exp.files[1])
+    i.plot_initialize()
+    i.plot_molecule()
+    plt.show()
 
 
 #self.fig.canvas.manager.toolmanager.add_tool('Next', NextTool)
