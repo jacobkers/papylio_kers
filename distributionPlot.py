@@ -3,7 +3,13 @@
 Created on Mon Jun  3 23:19:30 2019
 
 @author: iason
+
+modified by Pim Sun Sept 22 2019
 """
+#####################################################################
+#Code to plot histograms of dwelltimes from all files in directory: 
+#count vs dwelltime and log(Prob.) vs dwelltime
+#####################################################################
 import os
 import numpy as np
 import sys
@@ -17,9 +23,8 @@ sns.set_color_codes()
 import traceAnalysisCode as analysis
 
 
-
-def plot_dwells(dwells_dataframe, dwelltype='dwelltime', save=True):
-    data = dwells_dataframe
+def plot_dwells(dwells_array, dwelltype='offtime',nbins=20, save=True):
+    data = dwells_array
     dwells = data[dwelltype].values
     dwells = dwells[~np.isnan(dwells)]
 
@@ -36,39 +41,58 @@ def plot_dwells(dwells_dataframe, dwelltype='dwelltime', save=True):
 
 
     t = file.time
+        
+    plt.figure(1)
+    plt.hist(dwells,bins=nbins)
+    plt.title(f'Histogram {dwelltype} bins:{nbins}')
+    plt.xlabel(f'{dwelltype} (sec)')
+    plt.ylabel('count')
 
-    plt.figure(figsize=(10,5))
+    plt.figure(num=2,figsize=(10,5))
     colors = ['b', 'y', 'g', 'r']
-    print('{:.1f}, {:.1f}, {:.1f}, {:.1f})'.format(tau_all, tau_l, tau_m, tau_r))
+    print('tau_all={:.1f}, tau_l={:.1f}, tau_m={:.1f}, tau_r={:.1f}'.format(tau_all, tau_l, tau_m, tau_r))
     for tau, d, lab, c in zip([tau_all, tau_l, tau_m, tau_r],
                            [dwells, dwells_l, dwells_m, dwells_r],
                            ['all', 'l', 'm', 'r'], colors):
 
-        values, bins = np.histogram(d, bins=50, density=True)
+        values, bins = np.histogram(d, bins=nbins, density=True)
         centers = (bins[1:] + bins[:-1]) / 2.0
         plt.semilogy(centers, values, '.', c=c, label=fr'$\tau_{lab} = ${tau:.1f}' )
         tau = np.average(d)
         exp = 1/tau*np.exp(-t/tau)
         plt.plot(t, exp, c=c)
-        plt.xlim((0, 150))
+        #plt.xlim((0, 150))
 
     plt.legend( prop={'size': 16})
-    plt.xlabel('time (s)')
-    plt.ylabel('Prob.')
-    plt.title(f'{dwelltype} histogram')
-
-
+    plt.xlabel(f'{dwelltype} (sec)')
+    plt.ylabel('log(Prob.)')
+    plt.title(f'log(Prob.) vs {dwelltype} (s) bins:{nbins}')
 
 
 
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
-#mainPath = './traces'
-mainPath = './traces'
-exp = analysis.Experiment(mainPath, 0.1)
-file = exp.files[0]
-filename = './hel2_dwells_data.xlsx'
-data = pd.read_excel(filename, index_col=[0,1], dtype={'kon':np.str})
 
-dwelltype = 'dwelltime'
-plot_dwells(data, dwelltype=dwelltype)
-plt.savefig(f'{file.name}_{dwelltype}_hist.png', facecolor=None, dpi=300)
+mainPath = './traces'
+dwelltype = 'offtime'
+nbins=15
+
+exp = analysis.Experiment(mainPath)
+
+file = exp.files[0]
+filename = './'+file.name+'_dwells_data.xlsx'
+print(filename)
+data=pd.read_excel(filename, index_col=[0,1], dtype={'kon':np.str})
+
+if len(exp.files)>1:
+    for file in exp.files[1:]:
+        filename = './'+file.name+'_dwells_data.xlsx'
+        print(filename)
+        data2=(pd.read_excel(filename, index_col=[0,1], dtype={'kon':np.str}))
+        data=data.append(data2,ignore_index=True)
+
+
+plot_dwells(data,dwelltype,nbins)
+if len(exp.files)>1:
+    plt.savefig(f'{len(exp.files)}files_{dwelltype}_hist.png', facecolor=None, dpi=300)
+else:
+    plt.savefig(f'{file.name}_{dwelltype}_hist.png', facecolor=None, dpi=300)

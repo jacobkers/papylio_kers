@@ -40,7 +40,7 @@ def analyze_dwelltimes(exp_file, save=True, filename=None):
                 lab = 'r'
 
             labels.append(lab)
-        dwells = pd.DataFrame({'dwelltime': dwells, 'side': labels} )
+        dwells = pd.DataFrame({'offtime': dwells, 'side': labels} )
 
 
         # Calculate the on times
@@ -51,8 +51,9 @@ def analyze_dwelltimes(exp_file, save=True, filename=None):
             labels.append('l')
 
 
-        for i, t in zip(range(1,times.size, 2), times[2:-1:2]):
-            ontimes.append(t - times[i-1])
+        #for i, t in zip(range(1,times.size, 2), times[2:-1:2]):
+        for i in range(2,times.size, 2):
+            ontimes.append(times[i] - times[i-1])
             labels.append('m')
 
         if max_time - times[-1] > 0.1:  # append the right kon if it exists
@@ -75,9 +76,9 @@ if __name__ == '__main__':
 
     start = timetime.time()
 #    os.chdir(os.path.dirname(os.path.abspath(__file__)))
-    #mainPath = './traces'
-    mainPath = './iasonas/cas9_simulations/DNA11-20_30exposure'
-    exp = analysis.Experiment(mainPath, 30)
+    mainPath = './traces'
+    #mainPath = './iasonas/cas9_simulations/DNA11-20_30exposure'
+    exp = analysis.Experiment(mainPath)
     for file in exp.files:
 #    file = exp.files[1]
 

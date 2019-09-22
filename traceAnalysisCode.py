@@ -18,16 +18,17 @@ import numpy as np
 np.seterr(divide='ignore', invalid='ignore')
 import pandas as pd
 import matplotlib.pyplot as plt
-from thresholdAnalysis import stepfinder
+from autothresholdAnalysis import stepfinder
 from pathlib import Path # For efficient path manipulation
 import pickle
 import time
 import sys
 
+
 class Experiment:
     def __init__(self, mainPath):  # Exposure_time is needed until the automatic reading from a .log file is implemented
         self.name = os.path.basename(mainPath)
-        self.mainPath = mainPath
+        self.mainPath = Path(mainPath).absolute()
         self.files = list()
         self.Ncolours = 2
 
@@ -145,15 +146,20 @@ class Experiment:
             input("Press enter to continue")
 
 class File:
-    def __init__(self, relativePath, name, experiment):
-        self.relativePath = relativePath
-        self.name = name
-        self.extensions = list()
+    def __init__(self, relativeFilePath, experiment):
+        relativeFilePath = Path(relativeFilePath)
         self.experiment = experiment
+        
+        
+        self.relativePath = relativeFilePath.parent
+        self.name = relativeFilePath.name
+        self.extensions = list()
+        
         self.molecules = list()
-        self.exposure_time = None  #Here the exposure time is given but it should be found from the log file if possible
+        self.exposure_time = 0.1 #Here the exposure time is given but it should be found from the log file if possible
 
         self.isSelected = False
+        
         self.findAndAddExtensions()
 
     @property

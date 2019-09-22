@@ -438,8 +438,9 @@ if __name__ == '__main__':
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
 #    mainPath = './traces'
     mainPath = './traces'
-    exp = analysis.Experiment(mainPath, exposure_time=0.1)
-    i = InteractivePlot(exp.files[1])
+    #, exposure_time=0.1
+    exp = analysis.Experiment(mainPath)
+    i = InteractivePlot(exp.files[2])
     i.plot_initialize()
     i.plot_molecule()
     plt.show()
