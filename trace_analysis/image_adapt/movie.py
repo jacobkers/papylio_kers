@@ -171,7 +171,7 @@ class Movie:
         # note 2: do we need a different threshold for donor and acceptor?
 
 
-    def find_peaks(self, image = None, method = 'AKAZE', threshold = 100, bounds = None):
+    def find_peaks(self, image = None, method = 'AKAZE', threshold = 100, bounds = None, minimum_area = 100):
         if image is None: image = self.average_image
         
         if method == 'AKAZE':
@@ -245,7 +245,55 @@ class Movie:
                 coordinates = np.array([])
                 print('No peaks found')
 
-        coordinates = coordinates[self.is_within_margin(coordinates, edge=None, margin=self.gauss_width // 2 + 1)]
+        elif method == 'local-maximum-extended':
+            neighborhood_size = 10
+
+            image_max = filters.maximum_filter(image, neighborhood_size)
+            maxima = (image == image_max)
+            image_min = filters.minimum_filter(image, neighborhood_size)
+
+            image_thresholded = ((image_max - image_min) > threshold)
+            maxima[image_thresholded == 0] = 0
+
+            contours, hierarchy = cv2.findContours(image_thresholded.astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+            x = []
+            y = []
+
+            # colorImg = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
+
+            coordinates = []
+
+            for c in contours:
+                # calculate moments for each contour
+                M = cv2.moments(c)
+
+                # calculate x,y coordinate of center
+
+                if M["m00"] != 0:
+                    cX = int(M["m10"] / M["m00"])
+                    cY = int(M["m01"] / M["m00"])
+
+                    if cv2.contourArea(c) > minimum_area:
+                        x = np.append(x, cX)
+                        y = np.append(y, cY)
+                        coordinates.append(np.array([cX, cY]))
+                else:
+                    cX, cY = 0, 0
+
+                # cv2.circle(colorImg, (cX, cY), 8, (0, 0, 255), thickness=1)
+
+
+
+            coordinates = np.array(coordinates)
+
+            # labeled, num_objects = ndimage.label(maxima)
+            # if num_objects > 0:
+            #     coordinates = np.fliplr(np.array(ndimage.center_of_mass(image, labeled, range(1, num_objects + 1))))
+            # else:
+            #     coordinates = np.array([])
+            #     print('No peaks found')
+        if coordinates.size > 0:
+            coordinates = coordinates[self.is_within_margin(coordinates, edge=None, margin=self.gauss_width // 2 + 1)]
         return coordinates
     
     def show_coordinates(self, image, coordinates, **kwargs):
