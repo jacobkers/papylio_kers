@@ -166,6 +166,16 @@ class Experiment:
         else:
             histogram([molecule for file in self.files for molecule in file.molecules], axis, makeFit)
 
+    def boxplot_number_of_molecules(self):
+        fig, ax = plt.subplots(figsize = (8,1.5))
+        pointCount = [len(file.molecules) for file in self.files]
+        plt.boxplot(pointCount, vert=False, labels = [''], widths = (0.8))
+        plt.xlabel('Count')
+        plt.title('Molecules per file')
+        plt.tight_layout()
+
+        fig.savefig(self.mainPath.joinpath('number_of_molecules.pdf'), bbox_inches='tight')
+        fig.savefig(self.mainPath.joinpath('number_of_molecules.png'), bbox_inches='tight')
 
     def select(self):
         for molecule in self.molecules:
