@@ -16,6 +16,7 @@ import matplotlib.pyplot as plt
 import matplotlib.widgets
 import seaborn as sns
 from cursor_matplotlib import SnaptoCursor
+from pathlib import Path, PureWindowsPath
 #plt.rcParams['toolbar'] = 'toolmanager'
 #from matplotlib.backend_tools import ToolBase
 #mainPath = r'D:\ivoseverins\SURFdrive\Promotie\Code\Python\traceAnalysis\twoColourExampleData\HJ A'
@@ -144,17 +145,19 @@ class InteractivePlot(object):
         self.green = self.mol.I(0, Ioff=self.Igoff)
         self.fret = self.mol.E(Imin=self.Imin)
         self.exp_time = self.file.exposure_time
-        self.time = np.arange(0,len(self.red)*self.exp_time, self.exp_time)
+        self.time = np.arange(0, len(self.red))*self.exp_time
+
 
         if not draw_plot:
             return
 
         self.axes[0].plot(self.time, self.green, "g", lw=.75)
         self.axes[0].plot(self.time, self.red, "r", lw=.75)
+        self.axes[0].set_ylim((-50,500))
 
         self.axes[1].plot(self.time, self.fret, "b", lw=.75)
         self.axes[1].set_ylim((0,1.1))
-        self.axes[1].set_xlim((-10, self.time[-1]))
+        self.axes[1].set_xlim((-2, self.time[-1]))
         self.axes[1].set_xlabel("time (s)")
         # vertical lines to indicate the threshold in the two axes
         self.slidel = [ax.axhline(0, lw=1, ls=":", zorder=3, visible=False) for ax in self.axes]
@@ -322,7 +325,9 @@ class InteractivePlot(object):
                 self.cursors[i].txt.set_text(labels[i])
             except TypeError:
                 pass
-            self.fig.canvas.draw()
+#            self.fig.canvas.draw()
+            self.fig.canvas.update()
+            self.fig.canvas.flush_events()
 
         elif ax == self.axes[1]:
             self.fret_edge_lock = False
@@ -339,7 +344,6 @@ class InteractivePlot(object):
             self.slidel[indx].set_ydata(self.thrsliders[indx].val)
             self.slidel[indx].set_visible(True)
             self.fig.canvas.draw()
-
 
     def radio_manage(self, label):
         def update_slider(color, label):
@@ -437,10 +441,12 @@ class Draw_lines(object):
 if __name__ == '__main__':
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
 #    mainPath = './traces'
-    mainPath = './traces'
-    #, exposure_time=0.1
+    mainPath = PureWindowsPath('O:\\SM-data\\20191002_dcas9_DNA07-08-cy3\\#1.10_streptavidin_1nM_cas9-crRNA-Cy5_8nM_DNA08-Cy3_G_0.3exp_movies')
+    mainPath = Path(mainPath)
     exp = analysis.Experiment(mainPath)
-    i = InteractivePlot(exp.files[2])
+    file = exp.files[0]
+    file.exposure_time = 0.3
+    i = InteractivePlot(file)
     i.plot_initialize()
     i.plot_molecule()
     plt.show()

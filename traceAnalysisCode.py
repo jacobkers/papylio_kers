@@ -149,17 +149,17 @@ class File:
     def __init__(self, relativeFilePath, experiment):
         relativeFilePath = Path(relativeFilePath)
         self.experiment = experiment
-        
-        
+
+
         self.relativePath = relativeFilePath.parent
         self.name = relativeFilePath.name
         self.extensions = list()
-        
+
         self.molecules = list()
-        self.exposure_time = 0.1 #Here the exposure time is given but it should be found from the log file if possible
+        self.exposure_time = None #Here the exposure time is given but it should be found from the log file if possible
 
         self.isSelected = False
-        
+
         self.findAndAddExtensions()
 
     @property

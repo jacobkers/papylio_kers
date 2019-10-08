@@ -76,18 +76,21 @@ if __name__ == '__main__':
 
     start = timetime.time()
 #    os.chdir(os.path.dirname(os.path.abspath(__file__)))
-    mainPath = './traces'
+    mainPath = 'G:/SM-data/20190923_dcas9_DNA10-11-20/#4.11_streptavidin_1nM_dcas9-crRNA-Cy5_8nM_DNA10-Cy3_G_movies_photobleach_0.3exp.time_coloc'
     #mainPath = './iasonas/cas9_simulations/DNA11-20_30exposure'
     exp = analysis.Experiment(mainPath)
-    for file in exp.files:
-#    file = exp.files[1]
-
-        df = file.importExcel()
-        #
-        #
-        #
-        data = analyze_dwelltimes(file, save=True)
-        #
+    file = exp.files[1]
+    file.exposure_time = 0.3
+    data = analyze_dwelltimes(file, save=True)
+#    for file in exp.files:
+##    file = exp.files[1]
+#
+#        df = file.importExcel()
+#        #
+#        #
+#        #
+#        data = analyze_dwelltimes(file, save=True)
+#        #
 #
 #
     print(f'Analysis time: {timetime.time() - start} sec')
