@@ -19,8 +19,8 @@ from cursor_matplotlib import SnaptoCursor
 from pathlib import Path, PureWindowsPath
 #plt.rcParams['toolbar'] = 'toolmanager'
 #from matplotlib.backend_tools import ToolBase
-#mainPath = r'D:\ivoseverins\SURFdrive\Promotie\Code\Python\traceAnalysis\twoColourExampleData\HJ A'
-
+#from matplotlib import use
+#matplotlib.use('WXAgg')
 
 class InteractivePlot(object):
     def __init__(self, file, import_excel=True):
@@ -147,7 +147,6 @@ class InteractivePlot(object):
         self.exp_time = self.file.exposure_time
         self.time = np.arange(0, len(self.red))*self.exp_time
 
-
         if not draw_plot:
             return
 
@@ -167,7 +166,7 @@ class InteractivePlot(object):
         self.cursors.append(SnaptoCursor(self.axes[0], self.time, self.green))
         self.cursors.append(SnaptoCursor(self.axes[1], self.time, self.fret))
         self.connect_events_to_canvas()
-        self.fig.canvas.draw()
+#        self.fig.canvas.draw()
 
     def connect_events_to_canvas(self):
         self.fig.canvas.mpl_connect('key_press_event', self.key_bind)
@@ -255,8 +254,8 @@ class InteractivePlot(object):
 
         if move:
             if event.inaxes == self.axnextb or event.key in ['right']:
-                if self.mol_indx > len(self.file.molecules):
-                    self.mol_indx = 1
+                if self.mol_indx >= len(self.file.molecules)-1:
+                    self.mol_indx = 0
                 else:
                     self.mol_indx += 1
 
@@ -325,9 +324,7 @@ class InteractivePlot(object):
                 self.cursors[i].txt.set_text(labels[i])
             except TypeError:
                 pass
-#            self.fig.canvas.draw()
-            self.fig.canvas.update()
-            self.fig.canvas.flush_events()
+            self.fig.canvas.draw()
 
         elif ax == self.axes[1]:
             self.fret_edge_lock = False
@@ -440,7 +437,7 @@ class Draw_lines(object):
 
 if __name__ == '__main__':
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
-#    mainPath = './traces'
+    mainPath = './traces'
     mainPath = PureWindowsPath('O:\\SM-data\\20191002_dcas9_DNA07-08-cy3\\#1.10_streptavidin_1nM_cas9-crRNA-Cy5_8nM_DNA08-Cy3_G_0.3exp_movies')
     mainPath = Path(mainPath)
     exp = analysis.Experiment(mainPath)

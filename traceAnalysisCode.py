@@ -18,6 +18,8 @@ import numpy as np
 np.seterr(divide='ignore', invalid='ignore')
 import pandas as pd
 import matplotlib.pyplot as plt
+#from matplotlib import use
+#use('TkAgg')
 from autothresholdAnalysis import stepfinder
 from pathlib import Path # For efficient path manipulation
 import pickle
