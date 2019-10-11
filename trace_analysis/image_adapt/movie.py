@@ -228,7 +228,7 @@ class Movie:
 
         
         elif method == 'local-maximum':
-            neighborhood_size = 10
+            neighborhood_size = 5
                 
             image_max = filters.maximum_filter(image, neighborhood_size)
             maxima = (image == image_max)
