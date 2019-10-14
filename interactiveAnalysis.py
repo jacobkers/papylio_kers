@@ -311,43 +311,38 @@ class InteractivePlot(object):
         if not event.inaxes :
             self.fret_edge_lock = True
             return
-#        ax = event.inaxes
-#        if ax == self.axes[0]:
-#            self.fret_edge_lock = True
-#            self.fig.canvas.mpl_connect('motion_notify_event', self.cursors[0].mouse_move)
-#            self.fig.canvas.mpl_connect('motion_notify_event', self.cursors[1].mouse_move)
-#
-#            rad = self.radio.value_selected
-#            i = ['red', 'green'].index(rad)
-#            t, I = self.cursors[i].ly.get_xdata(), self.cursors[i].lx.get_ydata()
-#            try:
-#                labels = [rf"t = {t:.1f}, $I_R$ = {I:.0f}", rf"t = {t:.1f}, $I_G$ = {I:.0f}"]
-#                self.cursors[i].txt.set_text(labels[i])
-#            except TypeError:
-#                pass
-<<<<<<< HEAD
-#            self.fig.canvas.draw()
-=======
-##            self.fig.canvas.draw()
-#            self.fig.canvas.update()
-#            self.fig.canvas.flush_events()
->>>>>>> 74074df8caa1868f6b9468624df12fdd3f454107
-#
-#        elif ax == self.axes[1]:
-#            self.fret_edge_lock = False
-#            self.fig.canvas.mpl_connect('motion_notify_event', self.cursors[-1].mouse_move)
-#            t, E = self.cursors[-1].ly.get_xdata(), self.cursors[-1].lx.get_ydata()
-#            try:
-#                self.cursors[-1].txt.set_text(f"t = {t:.1f}, E = {E:.2f}")
-#            except TypeError:
-#                pass
-#            self.fig.canvas.draw()
-#
-#        elif ax in self.axthrsliders:
-#            indx = int(ax == self.axthrsliders[1])  # gives 0 if ax is upper (I) plot, 1 if ax is lower (E) plot
-#            self.slidel[indx].set_ydata(self.thrsliders[indx].val)
-#            self.slidel[indx].set_visible(True)
-#            self.fig.canvas.draw()
+        ax = event.inaxes
+        if ax == self.axes[0]:
+            self.fret_edge_lock = True
+            self.fig.canvas.mpl_connect('motion_notify_event', self.cursors[0].mouse_move)
+            self.fig.canvas.mpl_connect('motion_notify_event', self.cursors[1].mouse_move)
+
+            rad = self.radio.value_selected
+            i = ['red', 'green'].index(rad)
+            t, I = self.cursors[i].ly.get_xdata(), self.cursors[i].lx.get_ydata()
+            try:
+                labels = [rf"t = {t:.1f}, $I_R$ = {I:.0f}", rf"t = {t:.1f}, $I_G$ = {I:.0f}"]
+                self.cursors[i].txt.set_text(labels[i])
+            except TypeError:
+                pass
+            self.fig.canvas.draw()
+
+
+        elif ax == self.axes[1]:
+            self.fret_edge_lock = False
+            self.fig.canvas.mpl_connect('motion_notify_event', self.cursors[-1].mouse_move)
+            t, E = self.cursors[-1].ly.get_xdata(), self.cursors[-1].lx.get_ydata()
+            try:
+                self.cursors[-1].txt.set_text(f"t = {t:.1f}, E = {E:.2f}")
+            except TypeError:
+                pass
+            self.fig.canvas.draw()
+
+        elif ax in self.axthrsliders:
+            indx = int(ax == self.axthrsliders[1])  # gives 0 if ax is upper (I) plot, 1 if ax is lower (E) plot
+            self.slidel[indx].set_ydata(self.thrsliders[indx].val)
+            self.slidel[indx].set_visible(True)
+            self.fig.canvas.draw()
 
     def radio_manage(self, label):
         def update_slider(color, label):
@@ -445,11 +440,7 @@ class Draw_lines(object):
 if __name__ == '__main__':
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
     mainPath = './traces'
-<<<<<<< HEAD
     mainPath = PureWindowsPath('O:\\SM-data\\20191002_dcas9_DNA07-08-cy3\\#3.10_streptavidin_1nM_cas9-crRNA-Cy5_8nM_DNA07-Cy3_G_0.3exp_movies')
-=======
-    #mainPath = PureWindowsPath('F:\\20191009_dcas9\\#5_strept_1nMcas9-cy5_8nMC20-cy3_movies')
->>>>>>> 74074df8caa1868f6b9468624df12fdd3f454107
     mainPath = Path(mainPath)
     exp = analysis.Experiment(mainPath)
     file = exp.files[0]
