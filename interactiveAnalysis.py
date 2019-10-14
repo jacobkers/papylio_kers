@@ -325,7 +325,13 @@ class InteractivePlot(object):
 #                self.cursors[i].txt.set_text(labels[i])
 #            except TypeError:
 #                pass
+<<<<<<< HEAD
 #            self.fig.canvas.draw()
+=======
+##            self.fig.canvas.draw()
+#            self.fig.canvas.update()
+#            self.fig.canvas.flush_events()
+>>>>>>> 74074df8caa1868f6b9468624df12fdd3f454107
 #
 #        elif ax == self.axes[1]:
 #            self.fret_edge_lock = False
@@ -439,11 +445,14 @@ class Draw_lines(object):
 if __name__ == '__main__':
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
     mainPath = './traces'
+<<<<<<< HEAD
     mainPath = PureWindowsPath('O:\\SM-data\\20191002_dcas9_DNA07-08-cy3\\#3.10_streptavidin_1nM_cas9-crRNA-Cy5_8nM_DNA07-Cy3_G_0.3exp_movies')
+=======
+    #mainPath = PureWindowsPath('F:\\20191009_dcas9\\#5_strept_1nMcas9-cy5_8nMC20-cy3_movies')
+>>>>>>> 74074df8caa1868f6b9468624df12fdd3f454107
     mainPath = Path(mainPath)
     exp = analysis.Experiment(mainPath)
     file = exp.files[0]
-    file.exposure_time = 0.3
     i = InteractivePlot(file)
     i.plot_initialize()
     i.plot_molecule()

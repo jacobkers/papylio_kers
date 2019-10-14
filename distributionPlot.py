@@ -77,7 +77,6 @@ dwelltype = 'offtime'
 nbins=15
 
 exp = analysis.Experiment(mainPath)
-
 file = exp.files[0]
 filename = './'+file.name+'_dwells_data.xlsx'
 print(filename)
