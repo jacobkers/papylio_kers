@@ -200,7 +200,8 @@ class File:
         #print(extension)
         importFunctions = {'.pks'        : self.importPksFile,
                            '.traces'     : self.importTracesFile,
-                           '.sifx'       : self.importSifxFile
+                           '.sifx'       : self.importSifxFile,
+                           '.log'        : self.importExposuretime
 #                           '.sim'        : self.importSimFile
                            }
 
@@ -213,26 +214,34 @@ class File:
 
     def importSifxFile(self):
         print('sifx')
+        
+    def importExposuretime(self):
+        self.exposure_time = np.genfromtxt(str(self.relativeFilePath) + '.log',max_rows=1)[2]  
 
     def importPksFile(self):
         # Background value stored in pks file is not imported yet
         Ncolours = self.experiment.Ncolours
 
    #     pks = np.genfromtxt(self.name + '.pks', delimiter='      ')  #MD190104 you get an error when using 6 spaces for tab
-        pks = np.genfromtxt(str(self.relativeFilePath) + '.pks')  #MD190104 By default, any consecutive whitespaces act as delimiter.
-
-        Ntraces = np.shape(pks)[0]
-
-        if not self.molecules:
-            for molecule in range(0, Ntraces, Ncolours):
-                self.addMolecule()
+        try:
+            pks = np.genfromtxt(str(self.relativeFilePath) + '.pks')  #MD190104 By default, any consecutive whitespaces act as delimiter.
+            Ntraces = np.shape(pks)[0]
+            if not self.molecules:
+                for molecule in range(0, Ntraces, Ncolours):
+                    self.addMolecule()
+            
+            for i, molecule in enumerate(self.molecules):
+                molecule.coordinates = pks[(i*Ncolours):((i+1)*Ncolours), 1:3]
+            
+        except ValueError: #assuming the .pks file is from the Han lab programm
+            Ntraces = int(np.genfromtxt(str(self.relativeFilePath) + '.pks', skip_header=5, max_rows=1))
+            for molecule in enumerate(self.molecules):
+                molecule.coordinates = [pks[0][0], pks[0][2], pks[0][5], pks[0][7]]
 
 #        for trace in range(0, Ntraces, Ncolours):
 #            coordinates = pks[trace:(trace+Ncolours),1:3]
 #            self.addMolecule(coordinates)
-
-        for i, molecule in enumerate(self.molecules):
-            molecule.coordinates = pks[(i*Ncolours):((i+1)*Ncolours), 1:3]
+        
 
     def importTracesFile(self):
         Ncolours = self.experiment.Ncolours
