@@ -14,7 +14,6 @@ import os
 import numpy as np
 import sys
 import pandas as pd
-import os
 import matplotlib.pyplot as plt
 import seaborn as sns
 sns.set(style="dark")
@@ -63,18 +62,17 @@ def plot_dwells(dwells_array, dwelltype='offtime',nbins=20, save=True):
         plt.plot(t, exp, c=c)
         #plt.xlim((0, 150))
 
-    plt.legend( prop={'size': 16})
+    plt.legend(prop={'size': 16})
     plt.xlabel(f'{dwelltype} (sec)')
     plt.ylabel('log(Prob.)')
     plt.title(f'log(Prob.) vs {dwelltype} (s) bins:{nbins}')
-
 
 
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 mainPath = './traces'
 dwelltype = 'offtime'
-nbins=15
+nbins=100
 
 exp = analysis.Experiment(mainPath)
 file = exp.files[0]
@@ -83,15 +81,14 @@ print(filename)
 data=pd.read_excel(filename, index_col=[0,1], dtype={'kon':np.str})
 
 if len(exp.files)>1:
-    for file in exp.files[1:]:
+    for file in exp.files[0:]:
         filename = './'+file.name+'_dwells_data.xlsx'
         print(filename)
         data2=(pd.read_excel(filename, index_col=[0,1], dtype={'kon':np.str}))
         data=data.append(data2,ignore_index=True)
 
-
-plot_dwells(data,dwelltype,nbins)
+plot_dwells(data, dwelltype, nbins)
 if len(exp.files)>1:
-    plt.savefig(f'{len(exp.files)}files_{dwelltype}_hist.png', facecolor=None, dpi=300)
+    plt.savefig(f'{len(exp.files)}files_{dwelltype}_hist.png', facecolor='white', dpi=300)
 else:
-    plt.savefig(f'{file.name}_{dwelltype}_hist.png', facecolor=None, dpi=300)
+    plt.savefig(f'{file.name}_{dwelltype}_hist.png', facecolor='white', dpi=300)

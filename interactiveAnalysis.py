@@ -19,14 +19,13 @@ from cursor_matplotlib import SnaptoCursor
 from pathlib import Path, PureWindowsPath
 #plt.rcParams['toolbar'] = 'toolmanager'
 #from matplotlib.backend_tools import ToolBase
-#from matplotlib import use
-#matplotlib.use('WXAgg')
+#mainPath = r'D:\ivoseverins\SURFdrive\Promotie\Code\Python\traceAnalysis\twoColourExampleData\HJ A'
 
 
 class InteractivePlot(object):
     def __init__(self, file, import_excel=True):
         self.file = file
-        self.mol_indx = 0  # From which molecule to start the analysis
+        self.mol_indx = 0  #From which molecule to start the analysis
         #  See if there are saved analyzed molecules
         if import_excel:
             self.file.importExcel(filename=self.file.name+'_steps_data.xlsx')
@@ -35,7 +34,7 @@ class InteractivePlot(object):
         sns.set(style="dark")
         sns.set_color_codes()
         plt.style.use('dark_background')
-        self.fig, self.axes = plt.subplots(2, 1, sharex=True, figsize=(10, 5))
+        self.fig, self.axes = plt.subplots(2, 1, sharex=True, figsize=(10,5))
         self.fig.canvas.set_window_title(f'Dataset: {self.file.name}')
 
         plt.subplots_adjust(bottom=0.23)
@@ -148,6 +147,7 @@ class InteractivePlot(object):
         self.exp_time = self.file.exposure_time
         self.time = np.arange(0, len(self.red))*self.exp_time
 
+
         if not draw_plot:
             return
 
@@ -190,7 +190,20 @@ class InteractivePlot(object):
         elif k == 'g': self.radio_manage('green')
         elif k == 'e': self.check_fret('E')
         elif k == 't': self.throw_away(event)
+        elif k == 'l': self.conclude_analysis()
+        elif k == '1': self.select_starttrace(event)
+        elif k == '2': self.select_endtrace(event)
 
+        self.fig.canvas.draw()
+        
+    def select_starttrace(self, event):
+        sel = self.radio.value_selected
+        self.axes[0].axvline(x=0, zorder=0, lw=0.65, label="man "+sel)
+        self.fig.canvas.draw()
+
+    def select_endtrace(self, event):
+        sel = self.radio.value_selected
+        self.axes[0].axvline(x=self.time[-1], zorder=0, lw=0.65, label="man "+sel)
         self.fig.canvas.draw()
 
     def load_from_Molecule(self):
@@ -255,8 +268,8 @@ class InteractivePlot(object):
 
         if move:
             if event.inaxes == self.axnextb or event.key in ['right']:
-                if self.mol_indx >= len(self.file.molecules)-1:
-                    self.mol_indx = 0
+                if self.mol_indx > len(self.file.molecules):
+                    self.mol_indx = 1
                 else:
                     self.mol_indx += 1
 
@@ -283,6 +296,13 @@ class InteractivePlot(object):
         sel = self.radio.value_selected
         color = self.red*bool(sel == "red") + self.green*bool(sel == "green")  # Select trace data for red  or green
         steps = self.mol.find_steps(color, threshold=self.thrsliders[0].val)
+        a=[]
+        for i in range(0,len(steps["frames"])):
+            a.append(steps["frames"][i])    
+        a=list(steps["frames"])
+        a.sort()
+        steps["frames"]=a
+        print(a)
         l_props = {"lw": 0.75, "zorder": 5, "label": "thres "+sel}
         [self.axes[0].axvline(s*self.exp_time, **l_props) for s in steps["frames"]]
         if self.checkbfret.get_status()[0]:
@@ -311,38 +331,39 @@ class InteractivePlot(object):
         if not event.inaxes :
             self.fret_edge_lock = True
             return
-        ax = event.inaxes
-        if ax == self.axes[0]:
-            self.fret_edge_lock = True
-            self.fig.canvas.mpl_connect('motion_notify_event', self.cursors[0].mouse_move)
-            self.fig.canvas.mpl_connect('motion_notify_event', self.cursors[1].mouse_move)
-
-            rad = self.radio.value_selected
-            i = ['red', 'green'].index(rad)
-            t, I = self.cursors[i].ly.get_xdata(), self.cursors[i].lx.get_ydata()
-            try:
-                labels = [rf"t = {t:.1f}, $I_R$ = {I:.0f}", rf"t = {t:.1f}, $I_G$ = {I:.0f}"]
-                self.cursors[i].txt.set_text(labels[i])
-            except TypeError:
-                pass
-            self.fig.canvas.draw()
-
-
-        elif ax == self.axes[1]:
-            self.fret_edge_lock = False
-            self.fig.canvas.mpl_connect('motion_notify_event', self.cursors[-1].mouse_move)
-            t, E = self.cursors[-1].ly.get_xdata(), self.cursors[-1].lx.get_ydata()
-            try:
-                self.cursors[-1].txt.set_text(f"t = {t:.1f}, E = {E:.2f}")
-            except TypeError:
-                pass
-            self.fig.canvas.draw()
-
-        elif ax in self.axthrsliders:
-            indx = int(ax == self.axthrsliders[1])  # gives 0 if ax is upper (I) plot, 1 if ax is lower (E) plot
-            self.slidel[indx].set_ydata(self.thrsliders[indx].val)
-            self.slidel[indx].set_visible(True)
-            self.fig.canvas.draw()
+#        ax = event.inaxes
+#        if ax == self.axes[0]:
+#            self.fret_edge_lock = True
+#            self.fig.canvas.mpl_connect('motion_notify_event', self.cursors[0].mouse_move)
+#            self.fig.canvas.mpl_connect('motion_notify_event', self.cursors[1].mouse_move)
+#
+#            rad = self.radio.value_selected
+#            i = ['red', 'green'].index(rad)
+#            t, I = self.cursors[i].ly.get_xdata(), self.cursors[i].lx.get_ydata()
+#            try:
+#                labels = [rf"t = {t:.1f}, $I_R$ = {I:.0f}", rf"t = {t:.1f}, $I_G$ = {I:.0f}"]
+#                self.cursors[i].txt.set_text(labels[i])
+#            except TypeError:
+#                pass
+##            self.fig.canvas.draw()
+#            self.fig.canvas.update()
+#            self.fig.canvas.flush_events()
+#
+#        elif ax == self.axes[1]:
+#            self.fret_edge_lock = False
+#            self.fig.canvas.mpl_connect('motion_notify_event', self.cursors[-1].mouse_move)
+#            t, E = self.cursors[-1].ly.get_xdata(), self.cursors[-1].lx.get_ydata()
+#            try:
+#                self.cursors[-1].txt.set_text(f"t = {t:.1f}, E = {E:.2f}")
+#            except TypeError:
+#                pass
+#            self.fig.canvas.draw()
+#
+#        elif ax in self.axthrsliders:
+#            indx = int(ax == self.axthrsliders[1])  # gives 0 if ax is upper (I) plot, 1 if ax is lower (E) plot
+#            self.slidel[indx].set_ydata(self.thrsliders[indx].val)
+#            self.slidel[indx].set_visible(True)
+#            self.fig.canvas.draw()
 
     def radio_manage(self, label):
         def update_slider(color, label):
@@ -440,7 +461,7 @@ class Draw_lines(object):
 if __name__ == '__main__':
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
     mainPath = './traces'
-    mainPath = PureWindowsPath('O:\\SM-data\\20191002_dcas9_DNA07-08-cy3\\#3.10_streptavidin_1nM_cas9-crRNA-Cy5_8nM_DNA07-Cy3_G_0.3exp_movies')
+    #mainPath = PureWindowsPath('F:\\20191009_dcas9\\#5_strept_1nMcas9-cy5_8nMC20-cy3_movies')
     mainPath = Path(mainPath)
     exp = analysis.Experiment(mainPath)
     file = exp.files[0]

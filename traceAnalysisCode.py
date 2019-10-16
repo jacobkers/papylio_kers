@@ -18,8 +18,6 @@ import numpy as np
 np.seterr(divide='ignore', invalid='ignore')
 import pandas as pd
 import matplotlib.pyplot as plt
-#from matplotlib import use
-#use('TkAgg')
 from autothresholdAnalysis import stepfinder
 from pathlib import Path # For efficient path manipulation
 import pickle
@@ -381,7 +379,7 @@ class Molecule:
         return stepfinder
 
 
-def histogram(input, axis, makeFit = False):
+def histogram(input, nbins, axis, makeFit = False):
     if not input: return None
     if not axis: axis = plt.gca()
     #    if not isinstance(input,list): input = [input]
@@ -395,15 +393,15 @@ def histogram(input, axis, makeFit = False):
 #            molecules.append(i.molecules)
     molecules = input
     data = np.concatenate([molecule.E() for molecule in molecules])
-    axis.hist(data,100, range = (0,1))
+    axis.hist(data, nbins, range = (0,1))
 
     if makeFit:
         fit_hist(data, axis)
 
 
-def fit_hist(data, axis):
+def fit_hist(data, nbins, axis):
 
-    hist, bin_edges = np.histogram(data,100, range = (0,1))
+    hist, bin_edges = np.histogram(data, nbins, range = (0,1))
     bin_centers = (bin_edges[0:-1]+bin_edges[1:])/2
 
     #plt.plot(bin_centers,hist)
