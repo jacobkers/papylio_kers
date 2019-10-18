@@ -15,7 +15,6 @@ import itertools
 import matplotlib.pyplot as plt
 import matplotlib.widgets
 import seaborn as sns
-from cursor_matplotlib import SnaptoCursor
 from pathlib import Path, PureWindowsPath
 #plt.rcParams['toolbar'] = 'toolmanager'
 #from matplotlib.backend_tools import ToolBase
@@ -24,6 +23,7 @@ from pathlib import Path, PureWindowsPath
 
 class InteractivePlot(object):
     def __init__(self, file, import_excel=True):
+        plt.ioff()
         self.file = file
         self.mol_indx = 0  #From which molecule to start the analysis
         #  See if there are saved analyzed molecules
@@ -164,17 +164,16 @@ class InteractivePlot(object):
         self.slidel = [ax.axhline(0, lw=1, ls=":", zorder=3, visible=False) for ax in self.axes]
         #  Creat cursor particular to the molelcule and connect it to mouse movement event
         self.cursors = []
-        self.cursors.append(SnaptoCursor(self.axes[0], self.time, self.red))
-        self.cursors.append(SnaptoCursor(self.axes[0], self.time, self.green))
-        self.cursors.append(SnaptoCursor(self.axes[1], self.time, self.fret))
+        self.cursors.append(matplotlib.widgets.Cursor(self.axes[0], useblit=True, color='white', ls="--", lw=1, alpha=0.5))
+        self.cursors.append(matplotlib.widgets.Cursor(self.axes[1], useblit=True, color='white', ls="--", lw=1, alpha=0.5))
         self.connect_events_to_canvas()
         self.fig.canvas.draw()
 
     def connect_events_to_canvas(self):
         self.fig.canvas.mpl_connect('key_press_event', self.key_bind)
         self.fig.canvas.mpl_connect('motion_notify_event', self.mouse_cursor)
-        for cursor in self.cursors:
-            self.fig.canvas.mpl_connect('axes_leave_event', cursor.leave_axis)
+#        for cursor in self.cursors:
+#            self.fig.canvas.mpl_connect('axes_leave_event', cursor.leave_axis)
         self.fig.canvas.mpl_connect('axes_leave_event',
              lambda _: [[self.slidel[i].set_visible(False), self.fig.canvas.draw()] for i in [0,1]])
 
@@ -223,7 +222,7 @@ class InteractivePlot(object):
         if toggle:
             self.mol.isSelected = not self.mol.isSelected
         elif deselect:
-             self.mol.isSelected = False
+            self.mol.isSelected = False
         else:
             self.mol.isSelected = True
         title = f'Molecule: {self.mol.index} /{len(self.file.molecules)}'
@@ -287,7 +286,6 @@ class InteractivePlot(object):
             filename = self.file.name+'_steps_data.xlsx'
 
         if save:
-
             self.file.savetoExcel(filename=filename)
 
 
@@ -303,7 +301,6 @@ class InteractivePlot(object):
         a=list(steps["frames"])
         a.sort()
         steps["frames"]=a
-        print(a)
         l_props = {"lw": 0.75, "zorder": 5, "label": "thres "+sel}
         [self.axes[0].axvline(s*self.exp_time, **l_props) for s in steps["frames"]]
         if self.checkbfret.get_status()[0]:
@@ -335,30 +332,10 @@ class InteractivePlot(object):
         ax = event.inaxes
         if ax == self.axes[0]:
             self.fret_edge_lock = True
-            self.fig.canvas.mpl_connect('motion_notify_event', self.cursors[0].mouse_move)
-            self.fig.canvas.mpl_connect('motion_notify_event', self.cursors[1].mouse_move)
-
-            rad = self.radio.value_selected
-            i = ['red', 'green'].index(rad)
-            t, I = self.cursors[i].ly.get_xdata(), self.cursors[i].lx.get_ydata()
-            try:
-                labels = [rf"t = {t:.1f}, $I_R$ = {I:.0f}", rf"t = {t:.1f}, $I_G$ = {I:.0f}"]
-                self.cursors[i].txt.set_text(labels[i])
-            except TypeError:
-                pass
-            self.fig.canvas.draw()
-#            self.fig.canvas.update()
-#            self.fig.canvas.flush_events()
 
         elif ax == self.axes[1]:
             self.fret_edge_lock = False
-            self.fig.canvas.mpl_connect('motion_notify_event', self.cursors[-1].mouse_move)
-            t, E = self.cursors[-1].ly.get_xdata(), self.cursors[-1].lx.get_ydata()
-            try:
-                self.cursors[-1].txt.set_text(f"t = {t:.1f}, E = {E:.2f}")
-            except TypeError:
-                pass
-            self.fig.canvas.draw()
+
 
         elif ax in self.axthrsliders:
             indx = int(ax == self.axthrsliders[1])  # gives 0 if ax is upper (I) plot, 1 if ax is lower (E) plot
