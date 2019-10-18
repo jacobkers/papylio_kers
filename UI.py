@@ -340,11 +340,20 @@ class HyperTreeListPlus(HTL.HyperTreeList):
     def OnItemChecked(self, event):
         item = event.GetItem()
         #newItemCheckedState = bool(self.tree.GetCheckedState(item))
-        newItemCheckedState = bool(item.IsChecked())
-        #file = self.tree.GetItemData(item)
-        file = self.GetItemPyData(item)
-        file.isSelected = newItemCheckedState
+        newCheckedState = bool(item.IsChecked())
+        self.CheckItem3(item, checked = newCheckedState)
 
+        # itemData = item.GetData()
+        # if type(itemData) == File:
+        #     # file = self.GetItemPyData(item)
+        #     file = itemData
+        #     file.isSelected = newCheckedState
+
+        #for child in item.GetChildren():
+
+
+
+        #file = self.tree.GetItemData(item)
 
         # self.histogram.axis.clear()
         # self.experiment.histogram(self.histogram.axis, fileSelection = True)
@@ -359,6 +368,16 @@ class HyperTreeListPlus(HTL.HyperTreeList):
 #            self.histogram.panel.canvas.Refresh()
         self.Parent.histogram.PlotHistogram()
 
+    def CheckItem3(self, item, checked = True):
+        self.CheckItem2(item, checked=checked, torefresh=True)
+        itemData = item.GetData()
+        if type(itemData) == File:
+            #file = self.GetItemPyData(item)
+            file = itemData
+            file.isSelected = checked
+        else:
+            for child in item.GetChildren():
+                self.CheckItem3(child, checked = checked)
     
 #class Plot(wx.Panel):
 #    def __init__(self, parent, id=-1, dpi=None, **kwargs):

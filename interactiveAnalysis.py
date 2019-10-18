@@ -30,6 +30,7 @@ class InteractivePlot(object):
         if import_excel:
             self.file.importExcel(filename=self.file.name+'_steps_data.xlsx')
 
+
     def plot_initialize(self):
         sns.set(style="dark")
         sns.set_color_codes()
@@ -195,7 +196,7 @@ class InteractivePlot(object):
         elif k == '2': self.select_endtrace(event)
 
         self.fig.canvas.draw()
-        
+
     def select_starttrace(self, event):
         sel = self.radio.value_selected
         self.axes[0].axvline(x=0, zorder=0, lw=0.65, label="man "+sel)
@@ -298,7 +299,7 @@ class InteractivePlot(object):
         steps = self.mol.find_steps(color, threshold=self.thrsliders[0].val)
         a=[]
         for i in range(0,len(steps["frames"])):
-            a.append(steps["frames"][i])    
+            a.append(steps["frames"][i])
         a=list(steps["frames"])
         a.sort()
         steps["frames"]=a
@@ -331,39 +332,39 @@ class InteractivePlot(object):
         if not event.inaxes :
             self.fret_edge_lock = True
             return
-#        ax = event.inaxes
-#        if ax == self.axes[0]:
-#            self.fret_edge_lock = True
-#            self.fig.canvas.mpl_connect('motion_notify_event', self.cursors[0].mouse_move)
-#            self.fig.canvas.mpl_connect('motion_notify_event', self.cursors[1].mouse_move)
-#
-#            rad = self.radio.value_selected
-#            i = ['red', 'green'].index(rad)
-#            t, I = self.cursors[i].ly.get_xdata(), self.cursors[i].lx.get_ydata()
-#            try:
-#                labels = [rf"t = {t:.1f}, $I_R$ = {I:.0f}", rf"t = {t:.1f}, $I_G$ = {I:.0f}"]
-#                self.cursors[i].txt.set_text(labels[i])
-#            except TypeError:
-#                pass
-##            self.fig.canvas.draw()
+        ax = event.inaxes
+        if ax == self.axes[0]:
+            self.fret_edge_lock = True
+            self.fig.canvas.mpl_connect('motion_notify_event', self.cursors[0].mouse_move)
+            self.fig.canvas.mpl_connect('motion_notify_event', self.cursors[1].mouse_move)
+
+            rad = self.radio.value_selected
+            i = ['red', 'green'].index(rad)
+            t, I = self.cursors[i].ly.get_xdata(), self.cursors[i].lx.get_ydata()
+            try:
+                labels = [rf"t = {t:.1f}, $I_R$ = {I:.0f}", rf"t = {t:.1f}, $I_G$ = {I:.0f}"]
+                self.cursors[i].txt.set_text(labels[i])
+            except TypeError:
+                pass
+            self.fig.canvas.draw()
 #            self.fig.canvas.update()
 #            self.fig.canvas.flush_events()
-#
-#        elif ax == self.axes[1]:
-#            self.fret_edge_lock = False
-#            self.fig.canvas.mpl_connect('motion_notify_event', self.cursors[-1].mouse_move)
-#            t, E = self.cursors[-1].ly.get_xdata(), self.cursors[-1].lx.get_ydata()
-#            try:
-#                self.cursors[-1].txt.set_text(f"t = {t:.1f}, E = {E:.2f}")
-#            except TypeError:
-#                pass
-#            self.fig.canvas.draw()
-#
-#        elif ax in self.axthrsliders:
-#            indx = int(ax == self.axthrsliders[1])  # gives 0 if ax is upper (I) plot, 1 if ax is lower (E) plot
-#            self.slidel[indx].set_ydata(self.thrsliders[indx].val)
-#            self.slidel[indx].set_visible(True)
-#            self.fig.canvas.draw()
+
+        elif ax == self.axes[1]:
+            self.fret_edge_lock = False
+            self.fig.canvas.mpl_connect('motion_notify_event', self.cursors[-1].mouse_move)
+            t, E = self.cursors[-1].ly.get_xdata(), self.cursors[-1].lx.get_ydata()
+            try:
+                self.cursors[-1].txt.set_text(f"t = {t:.1f}, E = {E:.2f}")
+            except TypeError:
+                pass
+            self.fig.canvas.draw()
+
+        elif ax in self.axthrsliders:
+            indx = int(ax == self.axthrsliders[1])  # gives 0 if ax is upper (I) plot, 1 if ax is lower (E) plot
+            self.slidel[indx].set_ydata(self.thrsliders[indx].val)
+            self.slidel[indx].set_visible(True)
+            self.fig.canvas.draw()
 
     def radio_manage(self, label):
         def update_slider(color, label):
@@ -465,6 +466,7 @@ if __name__ == '__main__':
     mainPath = Path(mainPath)
     exp = analysis.Experiment(mainPath)
     file = exp.files[0]
+    file.exposure_time = 0.3
     i = InteractivePlot(file)
     i.plot_initialize()
     i.plot_molecule()

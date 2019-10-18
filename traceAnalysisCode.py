@@ -201,22 +201,20 @@ class File:
         importFunctions = {'.pks'        : self.importPksFile,
                            '.traces'     : self.importTracesFile,
                            '.sifx'       : self.importSifxFile,
-                           '.log'        : self.importExposuretime
-#                           '.sim'        : self.importSimFile
+                           '.log'        : self.importExposuretime,
+                           '.sim'        : self.importSimFile
                            }
 
         importFunctions.get(extension, self.noneFunction)()
-#        if extension == '.pks':
-            #self.importPksFile()
 
     def noneFunction(self):
         return
 
     def importSifxFile(self):
         print('sifx')
-        
+
     def importExposuretime(self):
-        self.exposure_time = np.genfromtxt(str(self.relativeFilePath) + '.log',max_rows=1)[2]  
+        self.exposure_time = np.genfromtxt(str(self.relativeFilePath) + '.log',max_rows=1)[2]
 
     def importPksFile(self):
         # Background value stored in pks file is not imported yet
@@ -229,10 +227,10 @@ class File:
             if not self.molecules:
                 for molecule in range(0, Ntraces, Ncolours):
                     self.addMolecule()
-            
+
             for i, molecule in enumerate(self.molecules):
                 molecule.coordinates = pks[(i*Ncolours):((i+1)*Ncolours), 1:3]
-            
+
         except ValueError: #assuming the .pks file is from the Han lab programm
             Ntraces = int(np.genfromtxt(str(self.relativeFilePath) + '.pks', skip_header=5, max_rows=1))
             for molecule in enumerate(self.molecules):
@@ -241,7 +239,7 @@ class File:
 #        for trace in range(0, Ntraces, Ncolours):
 #            coordinates = pks[trace:(trace+Ncolours),1:3]
 #            self.addMolecule(coordinates)
-        
+
 
     def importTracesFile(self):
         Ncolours = self.experiment.Ncolours
