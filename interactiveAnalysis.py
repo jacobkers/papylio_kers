@@ -174,8 +174,8 @@ class InteractivePlot(object):
         self.fig.canvas.mpl_connect('motion_notify_event', self.mouse_cursor)
 #        for cursor in self.cursors:
 #            self.fig.canvas.mpl_connect('axes_leave_event', cursor.leave_axis)
-        self.fig.canvas.mpl_connect('axes_leave_event',
-             lambda _: [[self.slidel[i].set_visible(False), self.fig.canvas.draw()] for i in [0,1]])
+#        self.fig.canvas.mpl_connect('axes_leave_event',
+#             lambda _: [[self.slidel[i].set_visible(False), self.fig.canvas.draw()] for i in [0,1]])
 
     def key_bind(self, event):
         k = event.key
@@ -191,19 +191,19 @@ class InteractivePlot(object):
         elif k == 'e': self.check_fret('E')
         elif k == 't': self.throw_away(event)
         elif k == 'l': self.conclude_analysis()
-        elif k == '1': self.select_starttrace(event)
-        elif k == '2': self.select_endtrace(event)
+        elif k == 'q': self.select_starttrace(event)
+        elif k == 'w': self.select_endtrace(event)
 
         self.fig.canvas.draw()
 
     def select_starttrace(self, event):
         sel = self.radio.value_selected
-        self.axes[0].axvline(x=0, zorder=0, lw=0.65, label="man "+sel)
+        self.axes[0].axvline(0, zorder=0, lw=0.65, label="man "+sel)
         self.fig.canvas.draw()
 
     def select_endtrace(self, event):
         sel = self.radio.value_selected
-        self.axes[0].axvline(x=self.time[-1], zorder=0, lw=0.65, label="man "+sel)
+        self.axes[0].axvline(self.time[-1], zorder=0, lw=0.65, label="man "+sel)
         self.fig.canvas.draw()
 
     def load_from_Molecule(self):
