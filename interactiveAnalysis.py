@@ -16,6 +16,7 @@ import matplotlib.pyplot as plt
 import matplotlib.widgets
 import seaborn as sns
 from pathlib import Path, PureWindowsPath
+import functools
 #plt.rcParams['toolbar'] = 'toolmanager'
 #from matplotlib.backend_tools import ToolBase
 #mainPath = r'D:\ivoseverins\SURFdrive\Promotie\Code\Python\traceAnalysis\twoColourExampleData\HJ A'
@@ -101,7 +102,7 @@ class InteractivePlot(object):
         corraxes = [self.axcorred, self.axcorgreen, self.axcorrfretI]
         self.correntries = [matplotlib.widgets.TextBox(ax, label, **corrdict)
                             for ax, label in zip(corraxes, corrlabels)]
-        [entry.on_submit(lambda _: self.plot_molecule()) for entry in self.correntries]
+
 
         #  Sliders for assigning the threshold
         self.thrsliders = []
@@ -113,8 +114,8 @@ class InteractivePlot(object):
                                                          label=r"$E$", valmin=0,
                                                          valfmt="%.2f", valinit=0.5,
                                                          color="b", valmax=1.0))
-        [slider.vline.remove() for slider in self.thrsliders]
-
+        [slider.vline.remove() for slider in self.thrsliders]  # remove the default vertical lines showing the initial value
+        self.connect_events_to_canvas()
         self.fig.show()
 
     def plot_molecule(self, draw_plot=True):
@@ -164,18 +165,43 @@ class InteractivePlot(object):
         self.slidel = [ax.axhline(0, lw=1, ls=":", zorder=3, visible=False) for ax in self.axes]
         #  Creat cursor particular to the molelcule and connect it to mouse movement event
         self.cursors = []
-        self.cursors.append(matplotlib.widgets.Cursor(self.axes[0], useblit=True, color='white', ls="--", lw=1, alpha=0.5))
-        self.cursors.append(matplotlib.widgets.Cursor(self.axes[1], useblit=True, color='white', ls="--", lw=1, alpha=0.5))
-        self.connect_events_to_canvas()
+        cursor_kws = {'useblit': True, 'color': 'white', 'ls': "--", 'lw': 1, 'alpha': 0.5}
+        self.cursors.append(matplotlib.widgets.Cursor(self.axes[0], **cursor_kws))
+        self.cursors.append(matplotlib.widgets.Cursor(self.axes[1], **cursor_kws))
+
         self.fig.canvas.draw()
 
     def connect_events_to_canvas(self):
         self.fig.canvas.mpl_connect('key_press_event', self.key_bind)
-        self.fig.canvas.mpl_connect('motion_notify_event', self.mouse_cursor)
-#        for cursor in self.cursors:
-#            self.fig.canvas.mpl_connect('axes_leave_event', cursor.leave_axis)
-#        self.fig.canvas.mpl_connect('axes_leave_event',
-#             lambda _: [[self.slidel[i].set_visible(False), self.fig.canvas.draw()] for i in [0,1]])
+        self.fig.canvas.mpl_connect('axes_leave_event', functools.partial(self.change_axis, 'leave'))
+        self.fig.canvas.mpl_connect('axes_enter_event', functools.partial(self.change_axis, 'enter'))
+        [entry.on_submit(lambda _: self.plot_molecule()) for entry in self.correntries]
+        [slider.on_changed(functools.partial(self.change_slider, slider)) for slider in self.thrsliders]
+
+    def change_axis(self, event_type, event):
+        ax = event.inaxes
+        if event_type == 'enter':
+            if ax == self.axes[1]:
+                self.fret_edge_lock = False
+            elif ax in self.axthrsliders:
+                indx = int(ax == self.axthrsliders[1])  # gives 0 if ax is upper (I) plot, 1 if ax is lower (E) plot
+                self.slidel[indx].set_ydata(self.thrsliders[indx].val)
+                self.slidel[indx].set_visible(True)
+                self.fig.canvas.draw()
+        elif event_type in ['leave', 'slider_change']:
+            if ax == self.axes[1]:
+                self.fret_edge_lock = True
+            elif ax in self.axthrsliders:
+                indx = int(ax == self.axthrsliders[1])  # gives 0 if ax is upper (I) plot, 1 if ax is lower (E) plot
+                self.slidel[indx].set_visible(False)
+                self.fig.canvas.draw()
+
+    def change_slider(self, slider, cid):
+        indx = int(slider == self.thrsliders[1])  # # gives 0 if slider is I slider, 1 if slider E slider
+        self.slidel[indx].set_ydata(self.thrsliders[indx].val)
+        self.slidel[indx].set_visible(True)
+        self.fig.canvas.draw()
+
 
     def key_bind(self, event):
         k = event.key
@@ -191,8 +217,8 @@ class InteractivePlot(object):
         elif k == 'e': self.check_fret('E')
         elif k == 't': self.throw_away(event)
         elif k == 'l': self.conclude_analysis()
-        elif k == 'q': self.select_starttrace(event)
-        elif k == 'w': self.select_endtrace(event)
+        elif k == '[': self.select_starttrace(event)
+        elif k == ']': self.select_endtrace(event)
 
         self.fig.canvas.draw()
 
@@ -325,23 +351,10 @@ class InteractivePlot(object):
             [l.remove() for l in lines if l.get_label().split()[0] == 'thres']
             self.fig.canvas.draw()
 
-    def mouse_cursor(self, event):
-        if not event.inaxes :
-            self.fret_edge_lock = True
-            return
-        ax = event.inaxes
-        if ax == self.axes[0]:
-            self.fret_edge_lock = True
-
-        elif ax == self.axes[1]:
-            self.fret_edge_lock = False
 
 
-        elif ax in self.axthrsliders:
-            indx = int(ax == self.axthrsliders[1])  # gives 0 if ax is upper (I) plot, 1 if ax is lower (E) plot
-            self.slidel[indx].set_ydata(self.thrsliders[indx].val)
-            self.slidel[indx].set_visible(True)
-            self.fig.canvas.draw()
+
+
 
     def radio_manage(self, label):
         def update_slider(color, label):
