@@ -38,6 +38,9 @@ class InteractivePlot(object):
         plt.style.use('dark_background')
         self.fig, self.axes = plt.subplots(2, 1, sharex=True, figsize=(10,5))
         self.fig.canvas.set_window_title(f'Dataset: {self.file.name}')
+        self.axes[0].set_ylim((-50,500))  # Det default intensity limits
+        self.axes[1].set_ylim((-0.1,1.1))  # Det default fret limits
+        self.axes[1].set_xlabel("time (s)")
 
         plt.subplots_adjust(bottom=0.23)
 
@@ -60,6 +63,7 @@ class InteractivePlot(object):
         self.axnextb = plt.axes([0.17, 0.90, 0.065, 0.062])  # Buttons to cycle through molecules
         self.axprevb = plt.axes([0.083, 0.90, 0.08, 0.062])
         [ax.set_frame_on(False) for ax in self.fig.get_axes()[2:]]
+
         #  Radiobutton to select red or green
         self.radio = matplotlib.widgets.RadioButtons(self.rax, ("red", "green"))
         self.radio.circles[0].set_color("r")
@@ -69,9 +73,8 @@ class InteractivePlot(object):
 
         #  Connect clicking to draw lines class
         self.draw = Draw_lines(self.fig, self.radio)
-        self.fig.canvas.mpl_connect('button_press_event', self.draw.onclick)
-        # Create the buttons with
 
+        # Create the buttons with
         bp = {'color': 'black', 'hovercolor': 'gray'}
         self.bauto = matplotlib.widgets.Button(self.axthresb,'autoThreshold' , **bp)
         self.bauto.on_clicked(self.autoThreshold_plot)
@@ -103,7 +106,6 @@ class InteractivePlot(object):
         self.correntries = [matplotlib.widgets.TextBox(ax, label, **corrdict)
                             for ax, label in zip(corraxes, corrlabels)]
 
-
         #  Sliders for assigning the threshold
         self.thrsliders = []
         self.thrsliders.append(matplotlib.widgets.Slider(self.axthrsliders[0],
@@ -120,7 +122,7 @@ class InteractivePlot(object):
         self.fig.show()
 
     def plot_molecule(self, draw_plot=True):
-        #clear the appropriate axes first
+        # clear the appropriate axes first
         [ax.clear() for ax in self.fig.get_axes()[:2]]
         # find the current molecule instance
         self.mol = self.file.molecules[self.mol_indx]
@@ -129,38 +131,37 @@ class InteractivePlot(object):
         if self.mol.isSelected: self.select_molecule(toggle=False)
         #load saved steps
         self.load_from_Molecule()
+
         # load kon if existing or assign a False 3x3 boolean
         self.prev_mol = self.file.molecules[self.mol_indx - 1]
         if all(kon is None for kon in [self.mol.kon_boolean, self.prev_mol.kon_boolean]):
-
             self.kon = np.zeros((3,3), dtype=bool)
         elif self.mol.kon_boolean is  None:
             self.kon = np.copy(self.prev_mol.kon_boolean)  # if no kon is defined for current molecule
         else:
             self.kon = self.mol.kon_boolean
+
         # update the edge color from self.kon:
         self.load_edges(load_fret=True)
 
-        self.axes[0].set_title(f"Molecule: {self.mol.index} /{len(self.file.molecules)}")
         self.Iroff, self.Igoff, self.Imin = [float(c.text) for c in self.correntries]
 
         self.red = self.mol.I(1, Ioff=self.Iroff)
         self.green = self.mol.I(0, Ioff=self.Igoff)
         self.fret = self.mol.E(Imin=self.Imin, Iroff=self.Iroff, Igoff=self.Igoff)
         self.exp_time = self.file.exposure_time
-        self.time = np.arange(0, len(self.red))*self.exp_time
+        self.time = np.arange(0, len(self.red))*self.exp_time  # the array is multiplied with exposure time in the end to ensure equal dimensions
 
         if not draw_plot:
             return
 
+        #  if draw_plot is true
+        self.axes[0].set_title(f"Molecule: {self.mol.index} /{len(self.file.molecules)}")
         self.axes[0].plot(self.time, self.green, "g", lw=.75)
         self.axes[0].plot(self.time, self.red, "r", lw=.75)
-        self.axes[0].set_ylim((-50,500))
 
         self.axes[1].plot(self.time, self.fret, "b", lw=.75)
-        self.axes[1].set_ylim((0,1.1))
-        self.axes[1].set_xlim((-2, self.time[-1]))
-        self.axes[1].set_xlabel("time (s)")
+        self.axes[1].set_xlim((-2, self.time[-1]+2))  # Set x limits dependent on measurement time
         # vertical lines to indicate the threshold in the two axes
         self.slidel = [ax.axhline(0, lw=1, ls=":", zorder=3, visible=False) for ax in self.axes]
         #  Creat cursor particular to the molelcule and connect it to mouse movement event
@@ -172,6 +173,7 @@ class InteractivePlot(object):
         self.fig.canvas.draw()
 
     def connect_events_to_canvas(self):
+        self.fig.canvas.mpl_connect('button_press_event', self.draw.onclick)
         self.fig.canvas.mpl_connect('key_press_event', self.key_bind)
         self.fig.canvas.mpl_connect('axes_leave_event', functools.partial(self.change_axis, 'leave'))
         self.fig.canvas.mpl_connect('axes_enter_event', functools.partial(self.change_axis, 'enter'))
@@ -352,10 +354,6 @@ class InteractivePlot(object):
             self.fig.canvas.draw()
 
 
-
-
-
-
     def radio_manage(self, label):
         def update_slider(color, label):
             s = self.thrsliders[0]
@@ -412,7 +410,7 @@ class InteractivePlot(object):
         self.kon[i][j] = (ax.spines[side].get_edgecolor() == selcol)
 
 
-    def check_fret(self, label):
+    def check_fret(self, label):  # changes the color of the fret checkbutton. Purely for aesthetics
         if self.checkbfret.get_status()[0]:
             self.checkbfret.rectangles[0].set_color("b")
         elif not self.checkbfret.get_status()[0]:
@@ -450,17 +448,17 @@ class Draw_lines(object):
 
 
 if __name__ == '__main__':
-    os.chdir(os.path.dirname(os.path.abspath(__file__)))
-    mainPath = './traces'
-    #mainPath = PureWindowsPath('F:\\20191009_dcas9\\#5_strept_1nMcas9-cy5_8nMC20-cy3_movies')
-    mainPath = Path(mainPath)
-    exp = analysis.Experiment(mainPath)
-    file = exp.files[0]
-    file.exposure_time = 0.3
-    i = InteractivePlot(file)
-    i.plot_initialize()
-    i.plot_molecule()
-    plt.show()
+    # Just as a working example of how the interactive plot whould be called
+        os.chdir(os.path.dirname(os.path.abspath(__file__)))
+        mainPath = './traces'
+        mainPath = Path(mainPath)
+        exp = analysis.Experiment(mainPath)
+        file = exp.files[0]
+        file.exposure_time = 0.3  # Here given explicitly because there is no .log file
+        i = InteractivePlot(file)
+        i.plot_initialize()
+        i.plot_molecule()
+        plt.show()
 
 
 #self.fig.canvas.manager.toolmanager.add_tool('Next', NextTool)
