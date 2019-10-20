@@ -115,6 +115,7 @@ class InteractivePlot(object):
                                                          valfmt="%.2f", valinit=0.5,
                                                          color="b", valmax=1.0))
         [slider.vline.remove() for slider in self.thrsliders]  # remove the default vertical lines showing the initial value
+
         self.connect_events_to_canvas()
         self.fig.show()
 
@@ -145,10 +146,9 @@ class InteractivePlot(object):
 
         self.red = self.mol.I(1, Ioff=self.Iroff)
         self.green = self.mol.I(0, Ioff=self.Igoff)
-        self.fret = self.mol.E(Imin=self.Imin)
+        self.fret = self.mol.E(Imin=self.Imin, Iroff=self.Iroff, Igoff=self.Igoff)
         self.exp_time = self.file.exposure_time
         self.time = np.arange(0, len(self.red))*self.exp_time
-
 
         if not draw_plot:
             return
@@ -224,7 +224,7 @@ class InteractivePlot(object):
 
     def select_starttrace(self, event):
         sel = self.radio.value_selected
-        self.axes[0].axvline(0, zorder=0, lw=0.65, label="man "+sel)
+        self.axes[0].axvline(0, zorder=0,c='yellow', lw=0.65, label="man "+sel)
         self.fig.canvas.draw()
 
     def select_endtrace(self, event):

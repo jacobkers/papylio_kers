@@ -359,9 +359,9 @@ class Molecule:
     def I(self, emission, Ioff=0):
         return self.intensity[emission, :] - Ioff
 
-    def E(self, Imin=0, alpha=0):  # alpha correction is not implemented yet, this is just a reminder
-        red = np.copy(self.I(1))
-        green = self.I(0)
+    def E(self, Imin=0, alpha=0, Iroff=0, Igoff=0):
+        red = np.copy(self.I(1, Ioff=Iroff))
+        green = self.I(0, Ioff=Igoff)
         np.putmask(red, red<Imin, 0)  # the mask makes all elements of acceptor that are below the Imin zero, for E caclulation
         E =  (red - alpha*green) / (green + red - alpha*green)
         E = np.nan_to_num(E)  # correct for divide with zero = None values
