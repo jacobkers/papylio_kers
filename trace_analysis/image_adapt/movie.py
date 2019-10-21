@@ -343,7 +343,8 @@ class Movie:
         # donor_coordinates = polywarp_apply(self.mapping.P21,self.mapping.Q21,acceptor_coordinates)
         donor_coordinates = self.mapping.transform_coordinates(acceptor_coordinates)
         return donor_coordinates
-    
+
+    # Will be removed, as it is moved to file
     def write_coordinates_to_pks_file(self, coordinates):
         pks_filepath = self.writepath.joinpath(self.name+'.pks')
         with pks_filepath.open('w') as pks_file:
@@ -677,6 +678,7 @@ class Movie:
 
         return traces
 
+    # Will be removed, as it is moved to file
     def write_traces_to_traces_file(self, traces):
         traces_filepath = self.writepath.joinpath(self.name + '.traces')
         with traces_filepath.open('w') as traces_file:
