@@ -11,7 +11,7 @@ Created on Fri Sep 14 15:44:52 2018
 import wx #cross-platform GUI API
 import wx.dataview
 import wx.lib.agw.hypertreelist as HTL
-from traceAnalysisCode import Experiment, File
+from trace_analysis import Experiment, File
 
 #Use the following lines on Mac
 from sys import platform
@@ -130,6 +130,7 @@ class MainFrame(wx.Frame):
             
             self.experiment.histogram(self.histogram.panel.axis, fileSelection = True)
 
+            print(self.experiment.files[0].movie)
             
 #            self.experimentRoot = dlg.GetPath()
 #            print(self.experimentRoot)
@@ -234,7 +235,7 @@ class TracePanel(wx.Frame):
         self.currentMolecule = molecule
         if self.IsShown():
             self.panel.axis.clear()
-            molecule.plot(axis = self.panel.axis)
+            molecule.plot(figure = self.panel.figure)
             self.panel.canvas.draw()
             self.panel.canvas.Refresh()
             print(str(molecule.index))
