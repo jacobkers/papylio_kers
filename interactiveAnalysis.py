@@ -27,25 +27,33 @@ class InteractivePlot(object):
         plt.ioff()
         self.file = file
         self.mol_indx = 0  #From which molecule to start the analysis
+        self.exp_time = self.file.exposure_time
+        self.time = np.arange(0, len(self.file.molecules[0].I(0)))*self.exp_time  # the array is multiplied with exposure time in the end to ensure equal dimensions
         #  See if there are saved analyzed molecules
         if import_excel:
             self.file.importExcel(filename=self.file.name+'_steps_data.xlsx')
 
 
     def plot_initialize(self):
+
         sns.set(style="dark")
         sns.set_color_codes()
         plt.style.use('dark_background')
+
         self.fig, self.axes = plt.subplots(2, 1, sharex=True, figsize=(10,5))
         self.fig.canvas.set_window_title(f'Dataset: {self.file.name}')
         self.axes[0].set_ylim((-50,500))  # Det default intensity limits
+        self.axes[0].set_ylabel("intensity (a.u)\n")
         self.axes[1].set_ylim((-0.1,1.1))  # Det default fret limits
         self.axes[1].set_xlabel("time (s)")
+        self.axes[1].set_ylabel("FRET\n")
+        self.axes[1].set_xlim((-2, self.time[-1]+2))  # Set default x limits dependent on measurement time
 
         plt.subplots_adjust(bottom=0.23)
 
         # Create the axes for the widgets
-        self.rax = plt.axes([0.91, 0.65, 0.08, 0.15])
+        self.rax = plt.axes([0.91, 0.72, 0.08, 0.15])
+        self.axtotal = plt.axes([0.91, 0.66, 0.08, 0.08])
 
         self.axcheckfret = plt.axes([0.91, 0.35, 0.08, 0.08])
         self.axcorred = plt.axes([0.95, 0.6, 0.028, 0.06])
@@ -74,7 +82,7 @@ class InteractivePlot(object):
         #  Connect clicking to draw lines class
         self.draw = Draw_lines(self.fig, self.radio)
 
-        # Create the buttons with
+        # Create the control buttons
         bp = {'color': 'black', 'hovercolor': 'gray'}
         self.bauto = matplotlib.widgets.Button(self.axthresb,'autoThreshold' , **bp)
         self.bauto.on_clicked(self.autoThreshold_plot)
@@ -91,13 +99,20 @@ class InteractivePlot(object):
         self.bprev = matplotlib.widgets.Button(self.axprevb,'Previous' , **bp)
         self.bprev.on_clicked(self.save_molecule)
 
+
+        #  A checkbutton for whether to display the total intensity
+        self.checkbtotal = matplotlib.widgets.CheckButtons(self.axtotal, ["Total"],
+                                                          actives=[False])
+
         #  A checkbutton for fret autothreshold dwell-time calculation
         self.checkbfret = matplotlib.widgets.CheckButtons(self.axcheckfret, ["E fret"],
                                                           actives=[False])
-        self.checkbfret.rectangles[0].set_color("black")
-        self.checkbfret.rectangles[0].set_height( 0.2)
-        [line.remove() for line in self.checkbfret.lines[0]]
-        self.checkbfret.on_clicked(self.check_fret)
+
+
+        for chbutton in [self.checkbtotal, self.checkbfret]:
+            chbutton.rectangles[0].set_color("black")
+            chbutton.rectangles[0].set_height( 0.2)
+            [line.remove() for line in chbutton.lines[0]]
 
         #  Entryboxes for offset corrections
         corrdict = {'initial': str(0), 'color':'k', 'hovercolor': "k", 'label_pad':.2}
@@ -121,15 +136,30 @@ class InteractivePlot(object):
         self.connect_events_to_canvas()
         self.fig.show()
 
+    def connect_events_to_canvas(self):
+        self.fig.canvas.mpl_connect('button_press_event', self.draw.onclick)
+        self.fig.canvas.mpl_connect('key_press_event', self.key_bind)
+        self.fig.canvas.mpl_connect('axes_leave_event', functools.partial(self.change_axis, 'leave'))
+        self.fig.canvas.mpl_connect('axes_enter_event', functools.partial(self.change_axis, 'enter'))
+        [entry.on_submit(lambda _: self.plot_molecule()) for entry in self.correntries]
+        [slider.on_changed(functools.partial(self.change_slider, slider)) for slider in self.thrsliders]
+        self.checkbtotal.on_clicked(self.check_total)
+        self.checkbfret.on_clicked(self.checkbutton_color)
+
+
+
     def plot_molecule(self, draw_plot=True):
-        # clear the appropriate axes first
-        [ax.clear() for ax in self.fig.get_axes()[:2]]
+        # clear the appropriate lines from axes first
+        [ax.lines.clear() for ax in self.fig.get_axes()[:2]]
         # find the current molecule instance
         self.mol = self.file.molecules[self.mol_indx]
 
         # Check if molecule is selected
-        if self.mol.isSelected: self.select_molecule(toggle=False)
-        #load saved steps
+        if self.mol.isSelected:
+            self.select_molecule(toggle=False)
+        else:
+            self.select_molecule(toggle=False, deselect=True)
+        #load saved steps if available
         self.load_from_Molecule()
 
         # load kon if existing or assign a False 3x3 boolean
@@ -148,20 +178,22 @@ class InteractivePlot(object):
 
         self.red = self.mol.I(1, Ioff=self.Iroff)
         self.green = self.mol.I(0, Ioff=self.Igoff)
+
+
         self.fret = self.mol.E(Imin=self.Imin, Iroff=self.Iroff, Igoff=self.Igoff)
-        self.exp_time = self.file.exposure_time
-        self.time = np.arange(0, len(self.red))*self.exp_time  # the array is multiplied with exposure time in the end to ensure equal dimensions
 
         if not draw_plot:
             return
 
         #  if draw_plot is true
-        self.axes[0].set_title(f"Molecule: {self.mol.index} /{len(self.file.molecules)}")
         self.axes[0].plot(self.time, self.green, "g", lw=.75)
         self.axes[0].plot(self.time, self.red, "r", lw=.75)
+        self.total = self.red + self.green
+        self.ltotal = self.axes[0].plot(self.time, self.total, "bisque", lw=.65,
+                               zorder=0, visible=self.checkbtotal.get_status()[0])[0]
 
         self.axes[1].plot(self.time, self.fret, "b", lw=.75)
-        self.axes[1].set_xlim((-2, self.time[-1]+2))  # Set x limits dependent on measurement time
+
         # vertical lines to indicate the threshold in the two axes
         self.slidel = [ax.axhline(0, lw=1, ls=":", zorder=3, visible=False) for ax in self.axes]
         #  Creat cursor particular to the molelcule and connect it to mouse movement event
@@ -172,13 +204,7 @@ class InteractivePlot(object):
 
         self.fig.canvas.draw()
 
-    def connect_events_to_canvas(self):
-        self.fig.canvas.mpl_connect('button_press_event', self.draw.onclick)
-        self.fig.canvas.mpl_connect('key_press_event', self.key_bind)
-        self.fig.canvas.mpl_connect('axes_leave_event', functools.partial(self.change_axis, 'leave'))
-        self.fig.canvas.mpl_connect('axes_enter_event', functools.partial(self.change_axis, 'enter'))
-        [entry.on_submit(lambda _: self.plot_molecule()) for entry in self.correntries]
-        [slider.on_changed(functools.partial(self.change_slider, slider)) for slider in self.thrsliders]
+
 
     def change_axis(self, event_type, event):
         ax = event.inaxes
@@ -253,8 +279,9 @@ class InteractivePlot(object):
             self.mol.isSelected = False
         else:
             self.mol.isSelected = True
+
         title = f'Molecule: {self.mol.index} /{len(self.file.molecules)}'
-        title += '  selected'*(self.mol.isSelected)
+        title += '  (S)'*(self.mol.isSelected)
         rgba = matplotlib.colors.to_rgba
         c = rgba('g')*self.mol.isSelected + rgba('w')*(not self.mol.isSelected)
         self.axes[0].set_title(title, color=c)
@@ -281,7 +308,7 @@ class InteractivePlot(object):
             if self.mol.steps is None:
                 self.mol.steps = pd.DataFrame(columns=['time', 'trace', 'state',
                                                        'method','thres'])
-            self.mol.isSelected = True
+            self.mol.isSelected = True  # Molecule is not automatically selected if steps are indicated
             kon = [f'{int(i)}' for i in self.mol.kon_boolean.flatten()]
             kon = ''.join(kon)
             for l in lines:
@@ -409,12 +436,24 @@ class InteractivePlot(object):
         j = ['left', 'bottom', 'right'].index(side)
         self.kon[i][j] = (ax.spines[side].get_edgecolor() == selcol)
 
+    def check_total(self, label):
+        if self.checkbtotal.get_status()[0]:
+            self.ltotal.set_visible(True)
+        else:
+            self.ltotal.set_visible(False)
+        self.checkbutton_color(label)
 
-    def check_fret(self, label):  # changes the color of the fret checkbutton. Purely for aesthetics
-        if self.checkbfret.get_status()[0]:
-            self.checkbfret.rectangles[0].set_color("b")
-        elif not self.checkbfret.get_status()[0]:
-            self.checkbfret.rectangles[0].set_color("black")
+
+    def checkbutton_color(self, label):  # changes the color of the fret checkbutton. Purely for aesthetics
+        if label == 'E fret':
+            chbutton = self.checkbfret ; c = 'b'
+        elif label == 'Total':
+            chbutton = self.checkbtotal ; c = 'darkgoldenrod'
+
+        if chbutton.get_status()[0]:
+            chbutton.rectangles[0].set_color(c)
+        elif not chbutton.get_status()[0]:
+            chbutton.rectangles[0].set_color("black")
         self.fig.canvas.draw()
 
 class Draw_lines(object):
@@ -444,8 +483,6 @@ class Draw_lines(object):
         while self.lines:
             self.lines.pop().remove()
         self.fig.canvas.draw()
-
-
 
 if __name__ == '__main__':
     # Just as a working example of how the interactive plot whould be called
