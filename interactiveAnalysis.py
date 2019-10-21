@@ -242,7 +242,13 @@ class InteractivePlot(object):
         elif k == ' ': self.select_molecule(toggle=True)
         elif k == 'r': self.radio_manage('red')
         elif k == 'g': self.radio_manage('green')
-        elif k == 'e': self.check_fret('E')
+        elif k == 'e':
+            self.checkbfret.set_active(0)
+            self.checkbutton_color('E fret')
+        elif k == 'i':
+            self.checkbtotal.set_active(0)
+            self.check_total('Total')
+
         elif k == 't': self.throw_away(event)
         elif k == 'l': self.conclude_analysis()
         elif k == '[': self.select_starttrace(event)
@@ -485,7 +491,7 @@ class Draw_lines(object):
         self.fig.canvas.draw()
 
 if __name__ == '__main__':
-    # Just as a working example of how the interactive plot whould be called
+    # Just as a working example of how the interactive plot whould be called. Here an example dataset is included inside the traces folder
         os.chdir(os.path.dirname(os.path.abspath(__file__)))
         mainPath = './traces'
         mainPath = Path(mainPath)
