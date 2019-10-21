@@ -26,6 +26,7 @@ def plot_dwells(file, dwells_array, dwelltype='offtime',nbins=20, save=True):
     data = dwells_array
     dwells = data[dwelltype].values
     dwells = dwells[~np.isnan(dwells)]
+    ndwells=len(dwells)
 
     dwells_l = data[dwelltype][data.side == 'l'].values
     dwells_m = data[dwelltype][data.side == 'm'].values
@@ -43,9 +44,10 @@ def plot_dwells(file, dwells_array, dwelltype='offtime',nbins=20, save=True):
         
     plt.figure(1, facecolor='white')
     plt.hist(dwells,bins=nbins)
-    plt.title(f'Histogram {dwelltype} bins:{nbins}')
+    plt.title(f'Histogram {dwelltype} bins:{nbins} dwells:{ndwells}')
     plt.xlabel(f'{dwelltype} (sec)')
     plt.ylabel('count')
+    plt.savefig(f'{file.name}_histogram.png', facecolor='white', dpi=300)
 
     plt.figure(num=2,figsize=(10,5))
     colors = ['b', 'y', 'g', 'r']
@@ -65,7 +67,7 @@ def plot_dwells(file, dwells_array, dwelltype='offtime',nbins=20, save=True):
     plt.legend(prop={'size': 16})
     plt.xlabel(f'{dwelltype} (sec)')
     plt.ylabel('log(Prob.)')
-    plt.title(f'log(Prob.) vs {dwelltype} (s) bins:{nbins}')
+    plt.title(f'log(Prob.) vs {dwelltype} (s) bins:{nbins} dwells:{ndwells}')
 
 if __name__ == '__main__':
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
@@ -89,6 +91,6 @@ if __name__ == '__main__':
 
     plot_dwells(file, data, dwelltype, nbins)
     if len(exp.files)>1:
-        plt.savefig(f'{len(exp.files)}files_{dwelltype}_hist.png', facecolor='white', dpi=300)
+        plt.savefig(f'{len(exp.files)}files_{dwelltype}_loghist.png', facecolor='white', dpi=300)
     else:
-        plt.savefig(f'{file.name}_{dwelltype}_hist.png', facecolor='white', dpi=300)
+        plt.savefig(f'{file.name}_{dwelltype}_loghist.png', facecolor='white', dpi=300)
