@@ -22,7 +22,7 @@ sns.set_color_codes()
 import traceAnalysisCode as analysis
 
 
-def plot_dwells(dwells_array, dwelltype='offtime',nbins=20, save=True):
+def plot_dwells(file, dwells_array, dwelltype='offtime',nbins=20, save=True):
     data = dwells_array
     dwells = data[dwelltype].values
     dwells = dwells[~np.isnan(dwells)]
@@ -41,7 +41,7 @@ def plot_dwells(dwells_array, dwelltype='offtime',nbins=20, save=True):
 
     t = file.time
         
-    plt.figure(1)
+    plt.figure(1, facecolor='white')
     plt.hist(dwells,bins=nbins)
     plt.title(f'Histogram {dwelltype} bins:{nbins}')
     plt.xlabel(f'{dwelltype} (sec)')
@@ -67,28 +67,28 @@ def plot_dwells(dwells_array, dwelltype='offtime',nbins=20, save=True):
     plt.ylabel('log(Prob.)')
     plt.title(f'log(Prob.) vs {dwelltype} (s) bins:{nbins}')
 
+if __name__ == '__main__':
+    os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
-os.chdir(os.path.dirname(os.path.abspath(__file__)))
+    mainPath = './traces'
+    dwelltype = 'offtime'
+    nbins=100
 
-mainPath = './traces'
-dwelltype = 'offtime'
-nbins=100
+    exp = analysis.Experiment(mainPath)
+    file = exp.files[0]
+    filename = './'+file.name+'_dwells_data.xlsx'
+    print(filename)
+    data=pd.read_excel(filename, index_col=[0,1], dtype={'kon':np.str})
 
-exp = analysis.Experiment(mainPath)
-file = exp.files[0]
-filename = './'+file.name+'_dwells_data.xlsx'
-print(filename)
-data=pd.read_excel(filename, index_col=[0,1], dtype={'kon':np.str})
+    if len(exp.files)>1:
+        for file in exp.files[0:]:
+            filename = './'+file.name+'_dwells_data.xlsx'
+            print(filename)
+            data2=(pd.read_excel(filename, index_col=[0,1], dtype={'kon':np.str}))
+            data=data.append(data2,ignore_index=True)
 
-if len(exp.files)>1:
-    for file in exp.files[0:]:
-        filename = './'+file.name+'_dwells_data.xlsx'
-        print(filename)
-        data2=(pd.read_excel(filename, index_col=[0,1], dtype={'kon':np.str}))
-        data=data.append(data2,ignore_index=True)
-
-plot_dwells(data, dwelltype, nbins)
-if len(exp.files)>1:
-    plt.savefig(f'{len(exp.files)}files_{dwelltype}_hist.png', facecolor='white', dpi=300)
-else:
-    plt.savefig(f'{file.name}_{dwelltype}_hist.png', facecolor='white', dpi=300)
+    plot_dwells(file, data, dwelltype, nbins)
+    if len(exp.files)>1:
+        plt.savefig(f'{len(exp.files)}files_{dwelltype}_hist.png', facecolor='white', dpi=300)
+    else:
+        plt.savefig(f'{file.name}_{dwelltype}_hist.png', facecolor='white', dpi=300)
