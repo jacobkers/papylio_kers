@@ -11,14 +11,17 @@ from trace_analysis.mapping.icp_nonrigid import icp_nonrigid
 from trace_analysis.coordinate_transformations import transform
 
 class Mapping2:
-    def __init__(self, source, destination, method = 'icp-non-rigid',
+    def __init__(self, source = None, destination = None, method = None,
                  transformation_type = 'linear'):
         self.source = source
         self.destination = destination
         self.method = method
         self.transformation_type = transformation_type
+        self.transformation = None
 
-        self.perform_mapping()
+        if (source is not None) and (destination is not None):
+            if self.method is None: self.method = 'icp-non-rigid'
+            self.perform_mapping()
 
     def perform_mapping(self):
         if self.method == 'icp-non-rigid':

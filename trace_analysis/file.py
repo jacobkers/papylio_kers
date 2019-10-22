@@ -5,6 +5,7 @@ from trace_analysis.molecule import Molecule
 from trace_analysis.image_adapt.sifx_file import SifxFile
 from trace_analysis.image_adapt.pma_file import PmaFile
 from trace_analysis.plotting import histogram
+from trace_analysis.mapping.mapping import Mapping2
 
 class File:
     def __init__(self, relativeFilePath, experiment):
@@ -25,6 +26,7 @@ class File:
         self.is_mapping_file = False
 
         self.movie = None
+        self.mapping = None
 
         if self.experiment.import_all is True:
             self.findAndAddExtensions()
@@ -105,12 +107,14 @@ class File:
             self.extensions.append(extension)
 
         # print(extension)
-        importFunctions = {'.pks': self.import_pks_file,
-                           '.traces': self.import_traces_file,
-                           '.sifx': self.importSifxFile,
-                           '.pma': self.importPmaFile
-                           #                           '.sim'        : self.importSimFile
-                           }
+        importFunctions = { '.sifx': self.import_sifx_file,
+                            '.pma': self.import_pma_file,
+                            '.coeff': self.import_coeff_file,
+                            '.map': self.import_map_file,
+                            '.pks': self.import_pks_file,
+                            '.traces': self.import_traces_file
+                            #                           '.sim'        : self.importSimFile
+                            }
 
         importFunctions.get(extension, self.noneFunction)()
 
@@ -120,13 +124,30 @@ class File:
     def noneFunction(self):
         return
 
-    def importSifxFile(self):
+    def import_sifx_file(self):
         imageFilePath = self.absoluteFilePath.joinpath('Spooled files.sifx')
         self.movie = SifxFile(imageFilePath)
 
-    def importPmaFile(self):
+    def import_pma_file(self):
         imageFilePath = self.absoluteFilePath.with_suffix('.pma')
         self.movie = PmaFile(imageFilePath)
+
+    def import_coeff_file(self):
+        if self.mapping is None:
+            self.mapping = Mapping2(transformation_type='linear')
+            self.mapping.transformation = np.zeros((3,3))
+            self.mapping.transformation[2,2] = 1
+            self.mapping.transformation[[0,0,0,1,1,1],[2,0,1,2,0,1]] = \
+                np.genfromtxt(str(self.relativeFilePath) + '.coeff')
+
+    def import_map_file(self):
+        coefficients = np.genfromtxt(p.joinpath('rough').with_suffix('.map'))
+        degree = int(np.sqrt(len(coefficients) // 2) - 1)
+        P = coefficients[:len(coefficients) // 2].reshape((degree + 1, degree + 1))
+        Q = coefficients[len(coefficients) // 2 : len(coefficients)].reshape((degree + 1, degree + 1))
+
+        self.mapping = Mapping2(transformation_type='polynomial')
+        self.mapping.transformation = {'P': P, 'Q': Q}
 
     def import_pks_file(self):
         # Background value stored in pks file is not imported yet

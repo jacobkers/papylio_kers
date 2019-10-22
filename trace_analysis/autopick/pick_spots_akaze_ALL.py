@@ -541,6 +541,7 @@ def mapping_automatic(file_tetra, Pmanual,Qmanual,show=0, fL=None,fR=None,bg=Non
     
     return  P,Q, position1, position2, pts1, pts2, dst2, P21, Q21
 
+# Implemented in file now [IS=: 22-10-2019]
 def load_coeff(filename):
     tf1_matrix =np.zeros((3,3))
     tf1_matrix[2,2]=1
@@ -583,7 +584,8 @@ def save_coeffpoints(filename, points_left,points_right):
             for ii in range (len(points_left)):
                outfile.write('{0:4.10e} {1:4.10e}\n'.format(points_left[ii,0],points_left[ii,1]))
                outfile.write('{0:4.10e} {1:4.10e}\n'.format(points_right[ii,0],points_right[ii,1]))
-        
+
+# Implemented in file now [IS=: 22-10-2019]
 def load_map(filename):
 #    tf2_matrix=np.zeros((3,3))
     A=np.zeros((100,1))
