@@ -258,7 +258,7 @@ class InteractivePlot(object):
 
     def select_starttrace(self, event):
         sel = self.radio.value_selected
-        self.axes[0].axvline(0, zorder=0,c='yellow', lw=0.65, label="man "+sel)
+        self.axes[0].axvline(0, zorder=0, lw=0.65, label="man "+sel)
         self.fig.canvas.draw()
 
     def select_endtrace(self, event):
@@ -317,16 +317,36 @@ class InteractivePlot(object):
             self.mol.isSelected = True  # Molecule is not automatically selected if steps are indicated
             kon = [f'{int(i)}' for i in self.mol.kon_boolean.flatten()]
             kon = ''.join(kon)
-            for l in lines:
+            
+            for l in lines:                  
                 method = l.get_label().split()[0]
                 thres = "N/A"*(method=='man') + str(self.thrsliders[0].val)*(method =='thres')
 
                 d = {'time': l.get_xdata()[0], 'trace': l.get_label().split()[1],
                      'state': 1, 'method': method, 'thres': thres, 'kon': kon}
-
                 self.mol.steps= self.mol.steps.append(d, ignore_index=True)
             self.mol.steps.drop_duplicates(inplace=True)
-
+            
+            #sorting the timepoints
+            a=np.array(self.mol.steps['time'])
+            i_a=np.argsort(a)
+            for i in self.mol.steps.columns:
+                self.mol.steps[i]=list(self.mol.steps[i][i_a])
+                
+            #calculating average FRET for dwells
+            fret = self.mol.E(Imin=self.Imin, Iroff=self.Iroff, Igoff=self.Igoff)
+            avg_fret=[]
+            for i in range(len(self.mol.steps['time'])):
+                if i % 2 != 0:
+                    istart = int(round(self.mol.steps['time'][i-1]/self.exp_time))
+                    iend = int(round(self.mol.steps['time'][i]/self.exp_time))
+                    avg_fret.append(round(np.mean(fret[istart:iend]),2))
+                else:
+                    avg_fret.append('')
+            avg=pd.DataFrame({'avg_FRET': avg_fret})
+            self.mol.steps=pd.concat([self.mol.steps, avg], axis=1)
+   
+    
         if move:
             if event.inaxes == self.axnextb or event.key in ['right']:
                 if self.mol_indx > len(self.file.molecules):
@@ -356,12 +376,6 @@ class InteractivePlot(object):
         sel = self.radio.value_selected
         color = self.red*bool(sel == "red") + self.green*bool(sel == "green")  # Select trace data for red  or green
         steps = self.mol.find_steps(color, threshold=self.thrsliders[0].val)
-        a=[]
-        for i in range(0,len(steps["frames"])):
-            a.append(steps["frames"][i])
-        a=list(steps["frames"])
-        a.sort()
-        steps["frames"]=a
         l_props = {"lw": 0.75, "zorder": 5, "label": "thres "+sel}
         [self.axes[0].axvline(s*self.exp_time, **l_props) for s in steps["frames"]]
         if self.checkbfret.get_status()[0]:
