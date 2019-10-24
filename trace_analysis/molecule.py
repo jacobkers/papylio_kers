@@ -6,13 +6,21 @@ class Molecule:
     def __init__(self, file):
         self.file = file
         self.index = None
-        self.coordinates = None
+        self._coordinates = None
         self.intensity = None
 
         self.isSelected = False
 
         #self.steps = None  #Defined in other classes as: pd.DataFrame(columns=['frame', 'trace', 'state', 'method','thres'])
         #self.kon_boolean = None  # 3x3 matrix that is indicates whether the kon will be calculated from the beginning, in-between molecules or for the end only
+
+    @property
+    def coordinates(self):
+        return self._coordinates
+
+    @coordinates.setter
+    def coordinates(self, coordinates):
+        self._coordinates = np.atleast_2d(coordinates)
 
     def I(self, emission, Ioff=0):
         return self.intensity[emission, :] - Ioff - self.file.background[emission]

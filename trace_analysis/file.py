@@ -6,6 +6,7 @@ from trace_analysis.image_adapt.sifx_file import SifxFile
 from trace_analysis.image_adapt.pma_file import PmaFile
 from trace_analysis.plotting import histogram
 from trace_analysis.mapping.mapping import Mapping2
+from trace_analysis.trace_extraction import extract_traces
 
 class File:
     def __init__(self, relativeFilePath, experiment):
@@ -67,7 +68,9 @@ class File:
         # if not self._pks_file:
         #     _pks_file = PksFile(self.absoluteFilePath.with_suffix('.pks'))
 
-        return np.concatenate([[molecule.coordinates[0, :] for molecule in self.molecules]])
+        #return np.concatenate([[molecule.coordinates[0, :] for molecule in self.molecules]])
+
+        return np.concatenate([molecule.coordinates for molecule in self.molecules])
 
     @coordinates.setter
     def coordinates(self, coordinates, number_of_colours = None):
@@ -79,7 +82,7 @@ class File:
 
     @property
     def traces(self):
-        np.dstack([molecule.intensity for molecule in self.molecules]).swapaxes(1, 2) # 3d array of traces
+        return np.dstack([molecule.intensity for molecule in self.molecules]).swapaxes(1, 2) # 3d array of traces
         # np.concatenate([molecule.intensity for molecule in self.molecules]) # 2d array of traces
 
     @traces.setter
@@ -141,7 +144,7 @@ class File:
                 np.genfromtxt(str(self.relativeFilePath) + '.coeff')
 
     def import_map_file(self):
-        coefficients = np.genfromtxt(p.joinpath('rough').with_suffix('.map'))
+        coefficients = np.genfromtxt(self.relativeFilePath.with_suffix('.map'))
         degree = int(np.sqrt(len(coefficients) // 2) - 1)
         P = coefficients[:len(coefficients) // 2].reshape((degree + 1, degree + 1))
         Q = coefficients[len(coefficients) // 2 : len(coefficients)].reshape((degree + 1, degree + 1))
@@ -173,17 +176,23 @@ class File:
         self.traces = np.reshape(rawData.ravel(), (self.number_of_colours, self.number_of_molecules, self.number_of_frames), order='F')  # 3d array of traces
         #self.traces = np.reshape(rawData.ravel(), (self.number_of_colours * self.number_of_molecules, self.number_of_frames), order='F') # 2d array of traces
 
+    def extract_traces(self):
+        if self.movie is None: raise FileNotFoundError('No movie file was found')
+        self.traces = extract_traces(self.movie, self.coordinates, channel='all', gauss_width = 11)
+        self.export_traces_file()
+        if '.traces' not in self.extensions: self.extensions.append('.traces')
+
     def export_traces_file(self):
-        traces_filepath = self.writepath.joinpath(self.name + '.traces')
+        traces_filepath = self.absoluteFilePath.with_suffix('.traces')
         with traces_filepath.open('w') as traces_file:
-            np.array([traces.shape[2]], dtype=np.int32).tofile(traces_file)
-            np.array([traces.shape[0]*traces.shape[1]], dtype=np.int16).tofile(traces_file)
+            np.array([self.traces.shape[2]], dtype=np.int32).tofile(traces_file)
+            np.array([self.traces.shape[0]*self.traces.shape[1]], dtype=np.int16).tofile(traces_file)
             # time_tr = np.zeros((self.number_of_frames, 2 * self.pts_number))
             # Ncolours=2
             # for jj in range(2*self.pts_number//Ncolours):
             #     time_tr[:,jj*2] = donor[:,jj]
             #     time_tr[:,jj*2+1]=  acceptor[:,jj]
-            np.array(traces.T, dtype=np.int16).tofile(traces_file)
+            np.array(self.traces.T, dtype=np.int16).tofile(traces_file)
 
     #    def importSimFile(self):
     #        file = open(str(self.relativeFilePath) + '.sim', 'rb')
@@ -232,8 +241,9 @@ class File:
             plt.pause(0.001)
             input("Press enter to continue")
 
-    def use_for_mapping(self):
+    def use_mapping_for_all_files(self):
         self.is_mapping_file = True
-        mapping = self.movie.use_for_mapping()
+        #mapping = self.movie.use_for_mapping()
         for file in self.experiment.files:
-            file.movie.mapping = mapping
+            file.mapping = self.mapping
+

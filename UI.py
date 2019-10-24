@@ -54,6 +54,12 @@ class MainFrame(wx.Frame):
         self.Bind(wx.EVT_MENU, self.OnShowHistogram, self.viewMenuShowHistogram)
         self.Bind(wx.EVT_MENU, self.OnShowTrace, self.viewMenuShowTrace)
 
+        # Data menu in Menu bar
+        dataMenu = wx.Menu()
+        self.dataMenuExtractTraces = dataMenu.Append(wx.ID_ANY, "&Extract traces", "Extract traces")
+
+        self.Bind(wx.EVT_MENU, self.OnExtractTraces, self.dataMenuExtractTraces)
+
         # Select menu in Menu bar
         selectMenu = wx.Menu()
         self.selectMenuManualSelection = selectMenu.Append(wx.ID_ANY,"&Manual selection", "Manual selection")
@@ -64,6 +70,7 @@ class MainFrame(wx.Frame):
         menuBar = wx.MenuBar()
         menuBar.Append(fileMenu,"&File")
         menuBar.Append(viewMenu,"&View")
+        menuBar.Append(dataMenu,"&Data")
         menuBar.Append(selectMenu,"&Select")
         self.SetMenuBar(menuBar)
         
@@ -154,16 +161,23 @@ class MainFrame(wx.Frame):
     def OnExit(self,event):
         self.Close(True) # Close program
 
+    # View menu event handlers
     def OnShowHistogram(self,event):
         if event.IsChecked(): self.histogram.Show()
         elif ~event.IsChecked(): self.histogram.Hide()
-        
+
     def OnShowTrace(self,event):
         if event.IsChecked(): 
             self.trace.Show()
             self.trace.PlotTrace(self.experiment.files[0].molecules[0])
         elif ~event.IsChecked(): self.trace.Hide()
-        
+
+    # Data menu event handlers
+    def OnExtractTraces(self, event):
+        for file in self.experiment.selectedFiles:
+            file.extract_traces()
+
+    # Select menu event handlers
     def OnManualSelection(self, event):
         file = self.tree.GetSelection().GetData()
         print(file.name)

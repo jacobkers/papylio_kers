@@ -27,7 +27,6 @@ from trace_analysis.image_adapt.find_threshold import remove_background, get_thr
 #from trace_analysis.image_adapt.Mapping import Mapping
 from trace_analysis.image_adapt.Image import Image
 from trace_analysis.image_adapt.analyze_label import analyze # note analyze label is differently from the approach in pick spots
-from trace_analysis.find_xy_position.Gaussian import makeGaussian
 from trace_analysis.image_adapt.polywarp import polywarp, polywarp_apply
 #from cached_property import cached_property
 from trace_analysis.mapping.mapping import Mapping2
@@ -38,8 +37,7 @@ class Movie:
         self._average_image = None
         self.is_mapping_movie = False
         self.number_of_colours = 2
-        self.gauss_width = 11
-       
+
         if not self.filepath.suffix == '.sifx':
 #            self.writepath = self.filepath.parent.parent
 #            self.name = self.filepath.parent.name
@@ -602,81 +600,6 @@ class Movie:
         ax2.set_ylim(ws, ws+siz)
         return Image(img, self.height_pixels, self.mapping._tf2_matrix, self.ptsG, self.dstG, self.pts_number, self.Gauss)
 
-
-
-    def get_trace_values_from_image(self, image, coordinates):  # extract traces
-        coordinates = np.atleast_2d(coordinates)
-
-        # Probably indeed better to get this outside of the function, so that it is not redefined every time.
-        twoD_gaussian = makeGaussian(self.gauss_width, fwhm = 3, center=(self.gauss_width // 2, self.gauss_width // 2))
-        half_size_Gaussian = len(twoD_gaussian) // 2
-
-        # This should likely be put on a central place in selection of locations
-        #coordinates = coordinates[self.is_within_margin(coordinates, edge = None, margin = half_size_Gaussian + 1)]
-
-        coordinates = np.round(coordinates).astype(int)
-
-
-        trace_values = np.zeros(len(coordinates))
-
-        for i, coordinate in enumerate(coordinates):
-            # First crop around spot, then do multiplication
-            intensities = image[(coordinate[1] - half_size_Gaussian): (coordinate[1] + half_size_Gaussian + 1),
-                                (coordinate[0] - half_size_Gaussian): (coordinate[0] + half_size_Gaussian + 1)
-                                ]
-
-            weighed_intensities = intensities * twoD_gaussian
-            trace_values[i] = np.sum(weighed_intensities)
-
-        return trace_values
-
-    def get_all_traces(self, coordinates, channel = 'all'):
-    # reutnr donor and acceptor for the full data set
-    #     root, name = os.path.split(self.filepath)
-    #     traces_fn=os.path.join(root,name[:-4]+'-P.traces')
-
-        # if os.path.isfile(traces_fn):
-        # # load if traces file already exist
-        #      with open(traces_fn, 'r') as infile:
-        #          Nframes = np.fromfile(infile, dtype = np.int32, count = 1).item()
-        #          Ntraces = np.fromfile(infile, dtype = np.int16, count = 1).item()
-        #          rawData = np.fromfile(infile, dtype = np.int16, count = self.number_of_colours*Nframes * Ntraces)
-        #      orderedData = np.reshape(rawData.ravel(), (self.number_of_colours, Ntraces//self.number_of_colours, Nframes), order = 'F')
-        #      donor=orderedData[0,:,:]
-        #      acceptor=orderedData[1,:,:]
-        #      donor=np.transpose(donor)
-        #      acceptor=np.transpose(acceptor)
-        # else:
-
-        # go through all images, extract donor and acceptor signal
-
-        # This should likely be put on a central place in selection of locations
-        #coordinates = coordinates[self.is_within_margin(coordinates, edge = None, margin = self.gauss_width // 2 + 1)]
-
-            #donor=np.zeros(( self.number_of_frames,self.pts_number))
-            #acceptor=np.zeros((self.number_of_frames,self.pts_number))
-
-        traces = np.zeros((len(coordinates), self.number_of_frames))
-
-        # t0 = time.time()
-        for frame_number in range(self.number_of_frames): #self.number_of_frames also works for pm, len(self.movie_file_object.filelist) not
-            print(frame_number)
-            image = self.read_frame(frame_number)
-            image = self.get_channel(image, channel)
-            trace_values_in_frame = self.get_trace_values_from_image(image, coordinates)
-
-            traces[:,frame_number] = trace_values_in_frame # will multiply with gaussian, spot location is not drift compensated
-        #t1=time.time()
-        #elapsed_time=t1-t0; print(elapsed_time)
-
-        #root, name = os.path.split(self.filepath)
-
-        #if os.path.isfile(trace_fn):
-
-        number_of_molecules = len(traces) // self.number_of_colours
-        traces = traces.reshape((number_of_molecules,self.number_of_colours,self.number_of_frames)).swapaxes(0,1)
-
-        return traces
 
     # Will be removed, as it is moved to file
     def write_traces_to_traces_file(self, traces):
