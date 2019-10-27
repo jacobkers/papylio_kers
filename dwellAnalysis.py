@@ -40,7 +40,7 @@ def analyze_dwelltimes(exp_file, save=True, filename=None):
                 lab = 'r'
 
             labels.append(lab)
-        dwells = pd.DataFrame({'offtime': dwells, 'side': labels} )
+        dwells = pd.DataFrame({'offtime': dwells, 'side': labels})
 
 
         # Calculate the on times

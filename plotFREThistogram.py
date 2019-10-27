@@ -10,16 +10,16 @@ import numpy as np
 import sys
 import pandas as pd
 import matplotlib.pyplot as plt
+from pathlib import Path, PureWindowsPath
+import traceAnalysisCode as trace_ana
 
-import traceAnalysisCode as analysis
-
-mainPath = './traces'
+mainPath = PureWindowsPath('C:\\Users\\pimam\\Documents\\MEP\\tracesfiles')
 mainPath = Path(mainPath)
-exp = analysis.Experiment(mainPath)
+exp = trace_ana.Experiment(mainPath)
 file = exp.files[0]
 nbins=100
 plt.figure(1)
-histogram(file.molecules, nbins, None)
+trace_ana.histogram(file.molecules, nbins, None)
 plt.title(f'FRET histogram bins:{nbins}')
 plt.xlabel('FRET')
 plt.ylabel('count')
