@@ -147,7 +147,6 @@ class InteractivePlot(object):
         self.checkbfret.on_clicked(self.checkbutton_color)
 
 
-
     def plot_molecule(self, draw_plot=True):
         # clear the appropriate lines from axes first
         [ax.lines.clear() for ax in self.fig.get_axes()[:2]]
@@ -202,9 +201,7 @@ class InteractivePlot(object):
         self.cursors.append(matplotlib.widgets.Cursor(self.axes[0], **cursor_kws))
         self.cursors.append(matplotlib.widgets.Cursor(self.axes[1], **cursor_kws))
 
-        self.fig.canvas.draw()
-
-
+        self.fig.canvas.draw_idle()
 
     def change_axis(self, event_type, event):
         ax = event.inaxes
@@ -222,13 +219,13 @@ class InteractivePlot(object):
             elif ax in self.axthrsliders:
                 indx = int(ax == self.axthrsliders[1])  # gives 0 if ax is upper (I) plot, 1 if ax is lower (E) plot
                 self.slidel[indx].set_visible(False)
-                self.fig.canvas.draw()
+                self.fig.canvas.draw_idle()
 
     def change_slider(self, slider, cid):
         indx = int(slider == self.thrsliders[1])  # # gives 0 if slider is I slider, 1 if slider E slider
         self.slidel[indx].set_ydata(self.thrsliders[indx].val)
         self.slidel[indx].set_visible(True)
-        self.fig.canvas.draw()
+        self.fig.canvas.draw_idle()
 
 
     def key_bind(self, event):
@@ -254,7 +251,7 @@ class InteractivePlot(object):
         elif k == '[': self.select_starttrace(event)
         elif k == ']': self.select_endtrace(event)
 
-        self.fig.canvas.draw()
+        self.fig.canvas.draw_idle()
 
     def select_starttrace(self, event):
         sel = self.radio.value_selected
@@ -264,7 +261,7 @@ class InteractivePlot(object):
     def select_endtrace(self, event):
         sel = self.radio.value_selected
         self.axes[0].axvline(self.time[-1], zorder=0, lw=0.65, label="man "+sel)
-        self.fig.canvas.draw()
+        self.fig.canvas.draw_idle()
 
     def load_from_Molecule(self):
         if self.mol.steps is None:
@@ -291,7 +288,7 @@ class InteractivePlot(object):
         rgba = matplotlib.colors.to_rgba
         c = rgba('g')*self.mol.isSelected + rgba('w')*(not self.mol.isSelected)
         self.axes[0].set_title(title, color=c)
-        self.fig.canvas.draw()
+        self.fig.canvas.draw_idle()
 
     def throw_away(self, event):
         if self.mol.steps is not None:
@@ -299,7 +296,7 @@ class InteractivePlot(object):
             lines = self.axes[0].get_lines() + self.axes[1].get_lines()
             [l.remove() for l in lines if l.get_label().split()[0] in ['man', 'thres', 'saved']]
             self.select_molecule(toggle=False, deselect=True)
-            self.fig.canvas.draw()
+            self.fig.canvas.draw_idle()
 
 
     def save_molecule(self, event=None, move=True, draw=True):
@@ -384,7 +381,7 @@ class InteractivePlot(object):
         for ax in self.axes:
             lines = ax.get_lines()
             [l.remove() for l in lines if l.get_label().split()[0] == 'thres']
-            self.fig.canvas.draw()
+            self.fig.canvas.draw_idle()
 
 
     def radio_manage(self, label):
@@ -418,7 +415,7 @@ class InteractivePlot(object):
             [self.axes[i].spines[s].set_color(colors[i]) for s in selected_sides]
             [self.axes[i].spines[s].set_color('white') for s in unselected_sides]
 
-        self.fig.canvas.draw()
+        self.fig.canvas.draw_idle()
 
     def select_edge(self, key):
         if self.fret_edge_lock:
@@ -460,7 +457,7 @@ class InteractivePlot(object):
             chbutton.rectangles[0].set_color(c)
         elif not chbutton.get_status()[0]:
             chbutton.rectangles[0].set_color("black")
-        self.fig.canvas.draw()
+        self.fig.canvas.draw_idle()
 
 class Draw_lines(object):
     def __init__(self, fig, iplot_radio):
@@ -483,12 +480,12 @@ class Draw_lines(object):
 
         if event.button == 3 and self.lines != []:
             self.lines.pop().remove()
-        self.fig.canvas.draw()
+        self.fig.canvas.draw_idle()
 
     def clear_all(self, event):
         while self.lines:
             self.lines.pop().remove()
-        self.fig.canvas.draw()
+        self.fig.canvas.draw_idle()
 
 if __name__ == '__main__':
     # Just as a working example of how the interactive plot whould be called. Here an example dataset is included inside the traces folder

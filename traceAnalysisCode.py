@@ -214,7 +214,7 @@ class File:
         print('sifx')
 
     def importExposuretime(self):
-        self.exposure_time = np.genfromtxt(str(self.relativeFilePath) + '.log',max_rows=1)[2]
+        self.exposure_time = np.genfromtxt(f'{self.relativeFilePath}.log', max_rows=1)[2]
 
     def importPksFile(self):
         # Background value stored in pks file is not imported yet
