@@ -248,20 +248,11 @@ class InteractivePlot(object):
 
         elif k == 't': self.throw_away(event)
         elif k == 'l': self.conclude_analysis()
-        elif k == '[': self.select_starttrace(event)
-        elif k == ']': self.select_endtrace(event)
+        elif k == '[': self.draw.select_starttrace(event)
+        elif k == ']': self.draw.select_endtrace(event, self.time[-1])
 
         self.fig.canvas.draw_idle()
 
-    def select_starttrace(self, event):
-        sel = self.radio.value_selected
-        self.axes[0].axvline(0, zorder=0, lw=0.65, label="man "+sel)
-        self.fig.canvas.draw()
-
-    def select_endtrace(self, event):
-        sel = self.radio.value_selected
-        self.axes[0].axvline(self.time[-1], zorder=0, lw=0.65, label="man "+sel)
-        self.fig.canvas.draw_idle()
 
     def load_from_Molecule(self):
         if self.mol.steps is None:
@@ -495,6 +486,24 @@ class Draw_lines(object):
         if event.button == 3 and self.lines != []:
             self.lines.pop().remove()
         self.fig.canvas.draw_idle()
+
+    def select_starttrace(self, event):
+        if event.inaxes is None:
+            return
+        ax = event.inaxes
+        sel = self.radio.value_selected
+        l = ax.axvline(0, zorder=0, lw=0.65, c='yellow', label="man "+sel)
+        self.lines.append(l)
+        self.fig.canvas.draw()
+
+    def select_endtrace(self, event,endtime):
+        if event.inaxes is None:
+            return
+        ax = event.inaxes
+        sel = self.radio.value_selected
+        l = ax.axvline(endtime, zorder=0, lw=0.65, c='yellow', label="man "+sel)
+        self.lines.append(l)
+        self.fig.canvas.draw()
 
     def clear_all(self, event):
         while self.lines:
