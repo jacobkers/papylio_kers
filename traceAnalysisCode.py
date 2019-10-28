@@ -164,7 +164,7 @@ class File:
 
     @property
     def time(self):  # the time axis of the experiment
-        return np.arange(0, self.Nframes*self.exposure_time, self.exposure_time)
+        return np.arange(0, self.Nframes*self.exposure_time)*self.exposure_time
 
     def __repr__(self):
         return(f'{self.__class__.__name__}({self.name})')
@@ -304,10 +304,10 @@ class File:
         # Concatenate all steps dataframes that are not None
         mol_data = [mol.steps for mol in self.molecules if mol.steps is not None]
         if not mol_data:
-            print(f'no data to save')
+            print(f'no data to save for {self.name}')
             return
         keys = [f'mol {mol.index}' for mol in self.molecules if mol.steps is not None]
-        steps_data = pd.concat(mol_data, keys=keys)
+        steps_data = pd.concat(mol_data, keys=keys, sort=False)
         if save:
             print("data saved in: " + filename)
             writer = pd.ExcelWriter(filename)

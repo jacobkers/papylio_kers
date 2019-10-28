@@ -1,100 +1,80 @@
 # -*- coding: utf-8 -*-
 """
-Created on Tue May 28 12:05:13 2019
+Created on Mon Oct 28 11:32:58 2019
 
-@author: iason
+@author: ikatechis
 """
-import time as timetime
+
+import os
 import numpy as np
 import sys
-#import seaborn as sns
-#sns.set(style="dark")
-#sns.set_color_codes()
-
-sys.path.append('..')
 import pandas as pd
 import os
-#import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
+import seaborn as sns
+sns.set(style="ticks")
+sns.set_color_codes()
+
 import traceAnalysisCode as analysis
 
+def get_dwell_hist(dwells, dwelltype='offtime', save=True, plot=True, extra_label='', log=False):
 
-def analyze_dwelltimes(exp_file, save=True, filename=None):
-    exp_file.importExcel()  # this should not be needed normally
-    max_time = exp_file.time[-1]
-    for i, mol in enumerate(exp_file.molecules):
-        if mol.steps is None:
-            continue
-        times = mol.steps.time.sort_values().values
-        try:
-            times1 = times.reshape((int(times.size/2), 2))
-        except ValueError:
-            print(times)
-        dwells = np.diff(times1, axis=1).flatten()
-
-        labels = []
-        for i, d in enumerate(dwells):
-            lab = 'm'
-            if times[0] == 0 and i == 0:  # first loop
-                lab = 'l'
-            if max_time - times[-1] < 0.1  and i == len(dwells) - 1:  # last loop
-                lab = 'r'
-
-            labels.append(lab)
-        dwells = pd.DataFrame({'offtime': dwells, 'side': labels})
+    #  select only the ones that don't exceed the total measurement time minus 10 sec
+#    dwells_in = dwells[dwells < dwells.max() - 10]
+    avrg_dwell = get_average_dwell(dwells)
 
 
-        # Calculate the on times
-        ontimes = []
-        labels = []
-        if times[0] != 0:  # append the left kon if it exists
-            ontimes.append(times[0])
-            labels.append('l')
+
+    values, bins = np.histogram(dwells, bins=20, density=True)
+    centers = (bins[1:] + bins[:-1]) / 2.0
+    if not plot:
+        return values, centers
+
+    if plot:
+        line = plt.plot(centers, values, '.', label=extra_label+fr'$\tau = ${avrg_dwell:.1f} s' )[0]
+
+        plt.xlabel('time (s)')
+        plt.ylabel('Prob.')
+        plt.title(f'{dwelltype} histogram: N = {dwells.size}')
+        plt.legend(prop={'size': 16})
+        # plot a 1exp ML 'fit' for the average dwelltime
+        t = np.arange(0, dwells.max(), 0.1)
+        exp = 1/avrg_dwell*np.exp(-t/avrg_dwell)
+        if log:
+            plt.semilogy(t, exp, color=line.get_color())
+        else:
+            plt.plot(t, exp, color=line.get_color())
 
 
-        #for i, t in zip(range(1,times.size, 2), times[2:-1:2]):
-        for i in range(2,times.size, 2):
-            ontimes.append(times[i] - times[i-1])
-            labels.append('m')
+        return line
 
-        if max_time - times[-1] > 0.1:  # append the right kon if it exists
-            ontimes.append(max_time - times[-1])
-            labels.append('r')
-
-        ontimes = pd.DataFrame({'ontime': ontimes,
-                            'onside': labels,
-                            'order': np.arange(0, len(ontimes))} )
-
-        mol.steps = pd.concat([mol.steps, dwells, ontimes], axis=1)
-
-    if save:
-        data = exp_file.savetoExcel(filename=exp_file.name+'_dwells_data.xlsx')
-    else:
-        data = exp_file.savetoExcel(save=False)
-    return data
+def get_average_dwell(dwells):
+    #  correct for dwell exceeding the measurement time
+    Tmax = dwells.max() - 10
+    Ntot = dwells.size
+    Ncut = dwells[dwells > Tmax].size
+    avrg_dwell = np.average(dwells[dwells < dwells.max() - 10])
+    avrg_dwell = avrg_dwell + Ncut*Tmax/Ntot
+    return avrg_dwell
 
 if __name__ == '__main__':
+    filename = 'O:/SM-data/20191024_dcas9_DNA05-06-09-Cy3/'
+    chamber = '#4.20_streptadivin_0.5nM_dcas9-crRNA-Cy5_10nM_DNA05-Cy3_G_movies_lowsalt'
+    filename += chamber + '/'
+    dwells_all = []
+    for path in os.listdir(filename):
+        if 'dwells_data' in path:
 
-    start = timetime.time()
-#    os.chdir(os.path.dirname(os.path.abspath(__file__)))
-    #mainPath = 'G:/SM-data/20190923_dcas9_DNA10-11-20/#4.11_streptavidin_1nM_dcas9-crRNA-Cy5_8nM_DNA10-Cy3_G_movies_photobleach_0.3exp.time_coloc'
-    mainPath='./traces'
-    #mainPath = './iasonas/cas9_simulations/DNA11-20_30exposure'
-    exp = analysis.Experiment(mainPath)
-    file = exp.files[0]
-    data = analyze_dwelltimes(file, save=True)
-#    for file in exp.files:
-##    file = exp.files[1]
-#
-#        df = file.importExcel()
-#        #
-#        #
-#        #
-#        data = analyze_dwelltimes(file, save=True)
-#        #
-#
-#
-    print(f'Analysis time: {timetime.time() - start} sec')
+            data = pd.read_excel(filename+path, index_col=[0, 1], dtype={'kon' :np.str})
+            dwells = data['offtime'].values
+            dwells = dwells[~np.isnan(dwells)]
+            hist = get_dwell_hist(dwells)
+            dwells_all.append(dwells)
 
+    dwells_all = np.concatenate(dwells_all)
 
+#    hist = get_dwell_hist(dwells_all, extra_label='All: ')
+#    plt.savefig(filename+'dwelltime_dist.png', dpi=200)
 
-
+    hist = get_dwell_hist(dwells_all, extra_label='All: ', log=True)
+    plt.savefig(filename+'dwelltime_dist_log.png', dpi=200)

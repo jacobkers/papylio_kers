@@ -70,6 +70,6 @@ os.chdir(os.path.dirname(os.path.abspath(__file__)))
 filename = 'G:/SM-data/20190923_dcas9_DNA10-11-20/#4.11_streptavidin_1nM_dcas9-crRNA-Cy5_8nM_DNA10-Cy3_G_movies_photobleach_0.3exp.time_coloc/hel54_dwells_data.xlsx'
 data = pd.read_excel(filename, index_col=[0,1], dtype={'kon':np.str})
 
-dwelltype = 'offtime'
+dwelltype = 'offtime'  # could be 'ontime'
 plot_dwells(data, dwelltype=dwelltype)
 #plt.savefig(f'{file.name}_{dwelltype}_hist.png', facecolor=None, dpi=300)
