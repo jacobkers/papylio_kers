@@ -49,7 +49,7 @@ def plot_dwells(file, dwells_array, dwelltype='offtime',nbins=20, save=True):
     plt.ylabel('count')
     plt.savefig(f'{file.name}_histogram.png', facecolor='white', dpi=300)
 
-    plt.figure(num=2,figsize=(10,5))
+    plt.figure(num=2,figsize=(10,5), facecolor='white')
     colors = ['b', 'y', 'g', 'r']
     print('tau_all={:.1f}, tau_l={:.1f}, tau_m={:.1f}, tau_r={:.1f}'.format(tau_all, tau_l, tau_m, tau_r))
     for tau, d, lab, c in zip([tau_all, tau_l, tau_m, tau_r],
