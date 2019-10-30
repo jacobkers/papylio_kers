@@ -494,7 +494,7 @@ class Draw_lines(object):
         sel = self.radio.value_selected
         l = ax.axvline(0, zorder=0, lw=0.65, c='yellow', label="man "+sel)
         self.lines.append(l)
-        self.fig.canvas.draw()
+        self.fig.canvas.draw_idle()
 
     def select_endtrace(self, event,endtime):
         if event.inaxes is None:
@@ -503,7 +503,7 @@ class Draw_lines(object):
         sel = self.radio.value_selected
         l = ax.axvline(endtime, zorder=0, lw=0.65, c='yellow', label="man "+sel)
         self.lines.append(l)
-        self.fig.canvas.draw()
+        self.fig.canvas.draw_idle()
 
     def clear_all(self, event):
         while self.lines:
