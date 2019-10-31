@@ -80,6 +80,16 @@ class File:
         for i, molecule in enumerate(self.molecules):
             molecule.coordinates = coordinates[(i * number_of_colours):((i + 1) * number_of_colours), :]
 
+    def coordinates_from_channel(self, channel):
+        # if not self._pks_file:
+        #     _pks_file = PksFile(self.absoluteFilePath.with_suffix('.pks'))
+
+        #return np.concatenate([[molecule.coordinates[0, :] for molecule in self.molecules]])
+        if type(channel) is str:
+            channel = {'d': 0, 'a': 1, 'g':0, 'r':1}[channel]
+
+        return np.vstack([molecule.coordinates[channel] for molecule in self.molecules])
+
     @property
     def traces(self):
         return np.dstack([molecule.intensity for molecule in self.molecules]).swapaxes(1, 2) # 3d array of traces
@@ -142,6 +152,15 @@ class File:
             self.mapping.transformation[2,2] = 1
             self.mapping.transformation[[0,0,0,1,1,1],[2,0,1,2,0,1]] = \
                 np.genfromtxt(str(self.relativeFilePath) + '.coeff')
+            self.mapping.file = self
+
+    def export_coeff_file(self):
+        if self.mapping.transformation_type == 'linear':
+            coeff_filepath = self.absoluteFilePath.with_suffix('.coeff')
+            coefficients = self.mapping.transformation[[0, 0, 0, 1, 1, 1], [2, 0, 1, 2, 0, 1]]
+            np.savetxt(coeff_filepath, coefficients, fmt='%13.6g') # Same format used as in IDL code
+        else:
+            raise TypeError('Mapping is not of type linear')
 
     def import_map_file(self):
         coefficients = np.genfromtxt(self.relativeFilePath.with_suffix('.map'))
@@ -151,6 +170,7 @@ class File:
 
         self.mapping = Mapping2(transformation_type='polynomial')
         self.mapping.transformation = {'P': P, 'Q': Q}
+        self.mapping.file = self
 
     def import_pks_file(self):
         # Background value stored in pks file is not imported yet
@@ -240,6 +260,13 @@ class File:
             plt.show()
             plt.pause(0.001)
             input("Press enter to continue")
+
+    def perform_mapping(self):
+        self.mapping = Mapping2(source = self.coordinates_from_channel(0),
+                                destination = self.coordinates_from_channel(1),
+                                transformation_type = 'linear')
+        self.mapping.file = self
+        self.export_coeff_file()
 
     def use_mapping_for_all_files(self):
         self.is_mapping_file = True

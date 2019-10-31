@@ -231,6 +231,7 @@ class Movie:
             image_max = filters.maximum_filter(image, neighborhood_size)
             maxima = (image == image_max)
             image_min = filters.minimum_filter(image, neighborhood_size)
+            # Probably I need to make the neighbourhood_size of the minimum filter larger.
 
             diff = ((image_max - image_min) > threshold)
             maxima[diff == 0] = 0

@@ -7,6 +7,7 @@ Created on Fri Aug 23 13:55:53 2019
 
 import matplotlib.pyplot as plt
 
+from trace_analysis.mapping.icp import icp
 from trace_analysis.mapping.icp_nonrigid import icp_nonrigid
 from trace_analysis.coordinate_transformations import transform
 
@@ -20,11 +21,13 @@ class Mapping2:
         self.transformation = None
 
         if (source is not None) and (destination is not None):
-            if self.method is None: self.method = 'icp-non-rigid'
+            if self.method is None: self.method = 'icp'
             self.perform_mapping()
 
     def perform_mapping(self):
-        if self.method == 'icp-non-rigid':
+        if self.method == 'icp':
+            self.transformation, distances, iterations = icp(self.source, self.destination)
+        elif self.method == 'icp-non-rigid':
             self.transformation, distances, iterations = icp_nonrigid(self.source, self.destination)
         # elif method == 'manual'         : mapping_manual(source, destination)
         # elif method == 'automatic'      : mapping_automatic(source, destination)
