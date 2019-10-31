@@ -312,28 +312,31 @@ class InteractivePlot(object):
 
                 d = {'time': l.get_xdata()[0], 'trace': l.get_label().split()[1],
                      'state': 1, 'method': method, 'thres': thres, 'kon': kon}
-                self.mol.steps= self.mol.steps.append(d, ignore_index=True)
+                self.mol.steps = self.mol.steps.append(d, ignore_index=True)
             self.mol.steps.drop_duplicates(inplace=True)
 
-#            sorting the timepoints
+#           sorting the timepoints
             a = np.array(self.mol.steps['time'])
             i_a = np.argsort(a)
             for i in self.mol.steps.columns:
                 self.mol.steps[i] = list(self.mol.steps[i][i_a])
-
-            #calculating average FRET for dwells
-#            fret = self.mol.E(Imin=self.Imin, Iroff=self.Iroff, Igoff=self.Igoff)
-#            avg_fret=[]
-#            for i in range(len(self.mol.steps['time'])):
-#                if i % 2 != 0:
-#                    istart = int(round(self.mol.steps['time'][i-1]/self.exp_time))
-#                    iend = int(round(self.mol.steps['time'][i]/self.exp_time))
-#                    avg_fret.append(round(np.mean(fret[istart:iend]),2))
-#                else:
-#                    avg_fret.append('')
-#            avgfret = pd.DataFrame({'avg_FRET': avg_fret})
-#            self.mol.steps = pd.concat([self.mol.steps, avgfret], axis=1)
-
+            self.mol.steps.drop_duplicates(inplace=True)
+            
+#           calculating average FRET for dwells
+            
+            fret = self.mol.E(Imin=self.Imin, Iroff=self.Iroff, Igoff=self.Igoff)
+            avg_fret = []
+            for i in range(len(self.mol.steps['time'])):
+                if i % 2 != 0:
+                    istart = int(round(self.mol.steps['time'][i-1]/self.exp_time))
+                    iend = int(round(self.mol.steps['time'][i]/self.exp_time))
+                    avg_fret.append(round(np.mean(fret[istart:iend]),2))
+                else:
+                    avg_fret.append('')
+            avgfret = pd.DataFrame({'avg_FRET': avg_fret})
+            self.mol.steps = pd.concat([self.mol.steps, avgfret], axis=1)
+            self.mol.steps.drop_duplicates(inplace=True)
+            print(self.mol.steps)
 
         if move:
             if event.inaxes == self.axnextb or event.key in ['right']:
