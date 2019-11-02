@@ -30,8 +30,13 @@ def analyze_dwelltimes(exp_file, save=True, filename=None):
 
 #       Calculate the average FRET for each dwell
         avg_fret = []
-        if 'exp_file.Imin' and 'exp_file.Iroff' in locals():
-            fret = mol.E(Imin=exp_file.Imin, Iroff=exp_file.Iroff, Igoff=exp_file.Igoff)
+        if 'Imin' and 'Iroff' in mol.steps.columns:
+            Icheck = int((mol.steps.Imin.tail(1)== mol.steps.Imin[0])&(mol.steps.Iroff.tail(1) == mol.steps.Iroff[0])&(mol.steps.Igoff.tail(1) == mol.steps.Igoff[0]))
+            if Icheck == 1:  #  check if thresholds the same for each dwell of the molecule
+                fret = mol.E(Imin=mol.steps.Imin[0], Iroff=mol.steps.Iroff[0], Igoff=mol.steps.Igoff[0])
+            else:
+                print(f'Ioffsets are not equal for molecule:{i+1}')
+                fret = []
         else:
             fret = mol.E()
 
@@ -39,9 +44,14 @@ def analyze_dwelltimes(exp_file, save=True, filename=None):
             if ii % 2 != 0:
                 istart = int(round(times[ii-1]/exp_time))
                 iend = int(round(times[ii]/exp_time))
-                avg_fret.append(round(np.mean(fret[istart:iend]), 2))
+                a_fret = round(np.mean(fret[istart:iend]), 2)
+                if (a_fret <= 1 and a_fret >= 0):
+                    avg_fret.append(a_fret)
+                else:
+                    avg_fret.append(0)
+                    print(f'FRET corrupted for molecule:{i+1}')
             else:
-                avg_fret.append('')
+                avg_fret.append(None)
         avgFRET = pd.DataFrame({'avg_FRET': avg_fret})
 
         dwells = np.diff(times1, axis=1).flatten()
@@ -53,7 +63,6 @@ def analyze_dwelltimes(exp_file, save=True, filename=None):
                 lab = 'l'
             if max_time - times[-1] < 0.1 and i == len(dwells) - 1:  # last loop
                 lab = 'r'
-
             labels.append(lab)
         dwells = pd.DataFrame({'offtime': dwells, 'side': labels})
 

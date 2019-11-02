@@ -301,7 +301,8 @@ class InteractivePlot(object):
                 return
             if self.mol.steps is None:
                 self.mol.steps = pd.DataFrame(columns=['time', 'trace', 'state',
-                                                       'method','thres'])
+                                                       'method','thres','kon',
+                                                       'Iroff', 'Igoff', 'Imin'])
             self.mol.isSelected = True  # Molecule is not automatically selected if steps are indicated
             kon = [f'{int(i)}' for i in self.mol.kon_boolean.flatten()]
             kon = ''.join(kon)
@@ -311,7 +312,8 @@ class InteractivePlot(object):
                 thres = "N/A"*(method=='man') + str(self.thrsliders[0].val)*(method =='thres')
 
                 d = {'time': l.get_xdata()[0], 'trace': l.get_label().split()[1],
-                     'state': 1, 'method': method, 'thres': thres, 'kon': kon}
+                     'state': 1, 'method': method, 'thres': thres, 'kon': kon,
+                      'Iroff': self.Iroff, 'Igoff': self.Igoff, 'Imin': self.Imin}
                 self.mol.steps = self.mol.steps.append(d, ignore_index=True)
             self.mol.steps.drop_duplicates(inplace=True)
 
