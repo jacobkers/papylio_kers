@@ -15,9 +15,8 @@ from pathlib import Path
 import tifffile as TIFF
 import numpy as np
 import matplotlib.pyplot as plt
-import cv2
-import scipy.ndimage as ndimage
-import scipy.ndimage.filters as filters
+
+
 
 
 from trace_analysis.image_adapt.load_file import read_one_page#_pma, read_one_page_tif
@@ -26,7 +25,7 @@ from trace_analysis.image_adapt.rolling_ball import rollingball
 from trace_analysis.image_adapt.find_threshold import remove_background, get_threshold
 #from trace_analysis.image_adapt.Mapping import Mapping
 from trace_analysis.image_adapt.Image import Image
-from trace_analysis.image_adapt.analyze_label import analyze # note analyze label is differently from the approach in pick spots
+
 from trace_analysis.image_adapt.polywarp import polywarp, polywarp_apply
 #from cached_property import cached_property
 from trace_analysis.mapping.mapping import Mapping2
@@ -83,7 +82,7 @@ class Movie:
         
     @property
     def average_image(self):
-        if self._average_image is None: self.make_average_tif()
+        if self._average_image is None: self.make_average_image()
         return self._average_image
 
     def read_header(self):
@@ -98,7 +97,13 @@ class Movie:
             return image[:,sh[0]//2:]
         elif channel in ['all', '']:
             return image
-        
+
+    def channel_boundaries(self, channel):
+        if channel is 'd':
+            return np.array([[0, self.width // 2],[0,self.height]])
+        elif channel is 'a':
+            return np.array([[self.width // 2, self.width], [0, self.height]])
+
     def saveas_tif(self):
         tif_filepath = self.writepath.joinpath(self.name+'.tif')
         for i in range(self.number_of_frames):
@@ -111,7 +116,7 @@ class Movie:
             TIFF.imwrite(tif_filepath, np.uint16(frame))
     
 
-    def make_average_tif(self, number_of_frames = 20, write = False):
+    def make_average_image(self, number_of_frames = 20, write = False):
 #        frame_list = [(read_one_page(self.filepath, pageNb=i, A=self.movie_file_object)).astype(float) 
 #                        for i in range(np.min([self.number_of_frames, number_of_frames]))]
 #         frame_list = [(self.read_frame(frame_number=i)).astype(float)
@@ -134,7 +139,7 @@ class Movie:
         
         return frame_array_mean
     
-    def show_average_tif(self, mode='2d'):
+    def show_average_image(self, mode='2d'):
         plt.figure()
         if mode == '2d':
             plt.imshow(self.average_image)
@@ -169,131 +174,6 @@ class Movie:
         # note 2: do we need a different threshold for donor and acceptor?
 
 
-    def find_peaks(self, image = None, method = 'AKAZE', threshold = 100, bounds = None, minimum_area = 100):
-        if image is None: image = self.average_image
-        
-        if method == 'AKAZE':
-            coordinates = analyze(image)[2]
-        elif method == 'threshold':
-            #image = ((image-450)/850*255).astype('uint8')
-            if bounds is None:
-                lower_bound = np.min(image)
-                upper_bound = np.percentile(image.flatten(),99.999)
-            else:
-                lower_bound = bounds[0]
-                upper_bound = bounds[1]
-
-            # Change threshold and image to 8-bit, as cv2 can only analyse 8-bit images
-            # threshold = ((threshold - lower_bound) / (upper_bound - lower_bound) * 255)
-            # threshold = np.clip(threshold, 0, 255).astype('uint8')
-            image = ((image - lower_bound) / (upper_bound - lower_bound) * 255)
-            image = np.clip(image, 0, 255).astype('uint8')
-
-            if threshold is None: threshold = (np.max(image) + np.min(image)) / 2
-            ret,image_thresholded = cv2.threshold(image,threshold,255,cv2.THRESH_BINARY)
-            # image_thresholded = cv2.adaptiveThreshold(image, 255, cv2.ADAPTIVE_THRESH_MEAN_C, \
-            #                         cv2.THRESH_BINARY, 11, 2)
-
-            print('test')
-            contours, hierarchy = cv2.findContours(image_thresholded,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_NONE)
-            x=[]
-            y=[]
-        
-            colorImg = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
-            
-            coordinates = []
-        
-            for c in contours:
-                # calculate moments for each contour
-                M = cv2.moments(c)
-               
-                # calculate x,y coordinate of center
-            
-                if M["m00"] != 0:
-                    cX = int(M["m10"] / M["m00"])
-                    cY = int(M["m01"] / M["m00"])
-                    
-                    x = np.append(x,cX)
-                    y = np.append(y,cY)
-                else:
-                    cX, cY = 0, 0
-        
-                cv2.circle(colorImg, (cX, cY), 8, (0, 0, 255), thickness=1)
-        
-                coordinates.append(np.array([cX,cY]))
-            
-            coordinates = np.array(coordinates)
-
-        
-        elif method == 'local-maximum':
-            neighborhood_size = 10
-                
-            image_max = filters.maximum_filter(image, neighborhood_size)
-            maxima = (image == image_max)
-            image_min = filters.minimum_filter(image, neighborhood_size)
-            # Probably I need to make the neighbourhood_size of the minimum filter larger.
-
-            diff = ((image_max - image_min) > threshold)
-            maxima[diff == 0] = 0
-
-
-            labeled, num_objects = ndimage.label(maxima)
-            if num_objects > 0:
-                coordinates = np.fliplr(np.array(ndimage.center_of_mass(image, labeled, range(1, num_objects+1))))
-            else:
-                coordinates = np.array([])
-                print('No peaks found')
-
-        elif method == 'local-maximum-extended':
-            neighborhood_size = 10
-
-            image_max = filters.maximum_filter(image, neighborhood_size)
-            maxima = (image == image_max)
-            image_min = filters.minimum_filter(image, neighborhood_size)
-
-            image_thresholded = ((image_max - image_min) > threshold)
-            maxima[image_thresholded == 0] = 0
-
-            contours, hierarchy = cv2.findContours(image_thresholded.astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-            x = []
-            y = []
-
-            # colorImg = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
-
-            coordinates = []
-
-            for c in contours:
-                # calculate moments for each contour
-                M = cv2.moments(c)
-
-                # calculate x,y coordinate of center
-
-                if M["m00"] != 0:
-                    cX = int(M["m10"] / M["m00"])
-                    cY = int(M["m01"] / M["m00"])
-
-                    if cv2.contourArea(c) > minimum_area:
-                        x = np.append(x, cX)
-                        y = np.append(y, cY)
-                        coordinates.append(np.array([cX, cY]))
-                else:
-                    cX, cY = 0, 0
-
-                # cv2.circle(colorImg, (cX, cY), 8, (0, 0, 255), thickness=1)
-
-
-
-            coordinates = np.array(coordinates)
-
-            # labeled, num_objects = ndimage.label(maxima)
-            # if num_objects > 0:
-            #     coordinates = np.fliplr(np.array(ndimage.center_of_mass(image, labeled, range(1, num_objects + 1))))
-            # else:
-            #     coordinates = np.array([])
-            #     print('No peaks found')
-        if coordinates.size > 0:
-            coordinates = coordinates[self.is_within_margin(coordinates, edge=None, margin=self.gauss_width // 2 + 1)]
-        return coordinates
     
     def show_coordinates(self, image, coordinates, **kwargs):
         plt.figure()
@@ -306,6 +186,7 @@ class Movie:
         
         plt.savefig(self.writepath.joinpath(self.name+'_ave_circles.png'), dpi=600)
 
+    # Moved to coordinate_optimalization, so can probably be removed [IS 01-11-2019]
     def is_within_margin(self, coordinates, 
                       edge = None, 
                       margin = 10):
@@ -353,7 +234,7 @@ class Movie:
 
     def generate_pks_file(self, channel):
         
-        image_mean = self.make_average_tif(number_of_frames=20, write=True)
+        image_mean = self.make_average_image(number_of_frames=20, write=True)
         
         # image_mean_corrected = self.subtract_background(image_mean, method = 'per_channel')
         
@@ -401,7 +282,7 @@ class Movie:
         
         self.write_coordinates_to_pks_file(all_coordinates)
         
-
+    # Can likely be removed
     def use_for_mapping(self):
         self.is_mapping_movie = True
         donor = self.get_channel_coordinates(channel = 'donor',
@@ -422,7 +303,7 @@ class Movie:
 #        :return:
 #        """
 #        
-#        im_mean20 = self.make_average_tif(number_of_frames=20)
+#        im_mean20 = self.make_average_image(number_of_frames=20)
 #        
 #        im_mean20_correct = self.subtract_background(im_mean20, method = 'per_channel')
 #        

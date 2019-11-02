@@ -97,7 +97,7 @@ def show_point_connections(pointset1,pointset2):
     for coordinate1, coordinate2 in zip(pointset1, pointset2):
         plt.plot([coordinate1[0],coordinate2[0]],[coordinate1[1],coordinate2[1]], color='r')
 
-def icp(source, destination, max_iterations=20, tolerance=0.001):
+def icp(source, destination, max_iterations=20, tolerance=0.001, initial_translation = None):
     '''
     The Iterative Closest Point method: finds best-fit transform that maps points A on to points B
     Input:
@@ -121,10 +121,11 @@ def icp(source, destination, max_iterations=20, tolerance=0.001):
     source_dummy = source.copy()
     #transformation_final = np.identity(3)
 
-    # Initial translation to overlap both point-sets
-    initial_translation = np.identity(3)
-    initial_translation[0:2,2] = (np.mean(destination, axis=0) - np.mean(source, axis=0))[0:2]
-    # Possibly add initial rotation and reflection as well, see best_fit_transform?
+    if initial_translation is None:
+        # Initial translation to overlap both point-sets
+        initial_translation = np.identity(3)
+        initial_translation[0:2,2] = (np.mean(destination, axis=0) - np.mean(source, axis=0))[0:2]
+        # Possibly add initial rotation and reflection as well, see best_fit_transform?
 
     source_dummy = (initial_translation @ source_dummy.T).T
     #transformation_final = transformation_final @ initial_translation
@@ -158,8 +159,13 @@ def icp(source, destination, max_iterations=20, tolerance=0.001):
             break
         prev_error = mean_error
 
+    # Only use indices with distances smaller than cutoff
+    cutoff = 2.5 # pixels
+    source = source[source_indices[distances<cutoff]]
+    destination = destination[destination_indices[distances<cutoff]]
+
     # Calculate final transformation
-    T, res, rank, s = np.linalg.lstsq(source[source_indices], destination[destination_indices], rcond=None)
+    T, res, rank, s = np.linalg.lstsq(source, destination, rcond=None)
     transformation = T.T
 
     return transformation, distances, i

@@ -6,7 +6,10 @@ from trace_analysis.image_adapt.sifx_file import SifxFile
 from trace_analysis.image_adapt.pma_file import PmaFile
 from trace_analysis.plotting import histogram
 from trace_analysis.mapping.mapping import Mapping2
+from trace_analysis.peak_finding import find_peaks
+from trace_analysis.coordinate_optimalization import coordinates_within_margin, coordinates_after_gaussian_fit, coordinates_without_intensity_at_radius
 from trace_analysis.trace_extraction import extract_traces
+from trace_analysis.coordinate_transformations import translate
 
 class File:
     def __init__(self, relativeFilePath, experiment):
@@ -179,6 +182,38 @@ class File:
 
         self.coordinates = coordinates
 
+    def find_coordinates(self, channel = 'd'):
+        #image = self.movie.make_average_tif(write=False)
+
+        if channel in ['d','a']:
+            image = self.movie.get_channel(channel=channel)
+        elif channel is 'da':
+            raise ValueError('da not yet implemented')
+
+        coordinates = find_peaks(image=image, method='adaptive-threshold', minimum_area=5, maximum_area=15)
+
+        coordinates = coordinates_within_margin(coordinates, image, margin=20)
+        coordinates = coordinates_after_gaussian_fit(coordinates, image)
+        coordinates = coordinates_without_intensity_at_radius(coordinates, image,
+                                                              radius=4,
+                                                              cutoff=np.median(image),
+                                                              fraction_of_peak_max=0.35) # was 0.25 in IDL code
+
+        if channel in ['d','da']:
+            acceptor_coordinates = self.mapping.transform_coordinates(coordinates, inverse=False)
+            coordinates = np.hstack([coordinates,acceptor_coordinates]).reshape((-1,2))
+        if channel is 'a':
+            donor_coordinates = self.mapping.transform_coordinates(coordinates, inverse=True)
+            coordinates = np.hstack([donor_coordinates, coordinates]).reshape((-1, 2))
+
+        self.coordinates = coordinates
+        self.export_pks_file()
+
+        # Possibly make a separate function for this
+        plt.imshow(image)
+        plt.scatter(coordinates[:, 0], coordinates[:, 1], color='g')
+
+
     def export_pks_file(self):
         pks_filepath = self.absoluteFilePath.with_suffix('.pks')
         with pks_filepath.open('w') as pks_file:
@@ -262,9 +297,23 @@ class File:
             input("Press enter to continue")
 
     def perform_mapping(self):
-        self.mapping = Mapping2(source = self.coordinates_from_channel(0),
-                                destination = self.coordinates_from_channel(1),
-                                transformation_type = 'linear')
+        image = self.movie.average_image
+
+        coordinates = find_peaks(image=image, method='adaptive-threshold', minimum_area=5, maximum_area=15)
+
+        coordinates = coordinates_after_gaussian_fit(coordinates, image)
+        coordinates = coordinates_without_intensity_at_radius(coordinates, image,
+                                                              radius=4,
+                                                              cutoff=np.median(image),
+                                                              fraction_of_peak_max=0.35) # was 0.25 in IDL code
+
+        donor_coordinates = coordinates_within_margin(coordinates, bounds=self.movie.channel_boundaries('d'), margin=20)
+        acceptor_coordinates = coordinates_within_margin(coordinates, bounds=self.movie.channel_boundaries('a'), margin=20)
+
+        self.mapping = Mapping2(source = donor_coordinates,
+                                destination = acceptor_coordinates,
+                                transformation_type = 'linear',
+                                initial_translation=translate([image.shape[0]//2,0]))
         self.mapping.file = self
         self.export_coeff_file()
 
@@ -272,5 +321,7 @@ class File:
         self.is_mapping_file = True
         #mapping = self.movie.use_for_mapping()
         for file in self.experiment.files:
-            file.mapping = self.mapping
+            if file is not self:
+                file.mapping = self.mapping
+
 
