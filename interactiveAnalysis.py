@@ -291,7 +291,7 @@ class InteractivePlot(object):
 
 
     def save_molecule(self, event=None, move=True, draw=True):
-        #  Assume acceptance of auto matically found and manually selected dwell times
+#       Assume acceptance of automatically found and manually selected dwell times
         lines = self.axes[0].get_lines() + self.axes[1].get_lines()
         lines = [l for l in lines if l.get_label().split()[0] in ["man", "thres"]]
         self.mol.kon_boolean = self.kon
@@ -315,28 +315,8 @@ class InteractivePlot(object):
                 self.mol.steps = self.mol.steps.append(d, ignore_index=True)
             self.mol.steps.drop_duplicates(inplace=True)
 
-#           sorting the timepoints
-            a = np.array(self.mol.steps['time'])
-            i_a = np.argsort(a)
-            for i in self.mol.steps.columns:
-                self.mol.steps[i] = list(self.mol.steps[i][i_a])
-            self.mol.steps.drop_duplicates(inplace=True)
-            
-#           calculating average FRET for dwells
-            
-            fret = self.mol.E(Imin=self.Imin, Iroff=self.Iroff, Igoff=self.Igoff)
-            avg_fret = []
-            for i in range(len(self.mol.steps['time'])):
-                if i % 2 != 0:
-                    istart = int(round(self.mol.steps['time'][i-1]/self.exp_time))
-                    iend = int(round(self.mol.steps['time'][i]/self.exp_time))
-                    avg_fret.append(round(np.mean(fret[istart:iend]),2))
-                else:
-                    avg_fret.append('')
-            avgfret = pd.DataFrame({'avg_FRET': avg_fret})
-            self.mol.steps = pd.concat([self.mol.steps, avgfret], axis=1)
-            self.mol.steps.drop_duplicates(inplace=True)
-            print(self.mol.steps)
+#           Sort the timepoints
+            self.mol.steps = self.mol.steps.sort_values(by=['time'])
 
         if move:
             if event.inaxes == self.axnextb or event.key in ['right']:
