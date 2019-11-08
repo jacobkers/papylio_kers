@@ -42,7 +42,8 @@ class Mapping2:
 
         self.transformation_inverse = np.linalg.inv(self.transformation)
 
-    def show_mapping_transformation(self):
+    def show_mapping_transformation(self, figure=None):
+        if not figure: figure = plt.figure()
         destination_from_source = self.transform_coordinates(self.source)
 
         plt.scatter(self.source[:, 0], self.source[:, 1], c='b')

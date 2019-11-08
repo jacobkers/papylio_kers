@@ -48,16 +48,20 @@ class MainFrame(wx.Frame):
 
         # View menu in Menu bar
         viewMenu = wx.Menu()
+        self.viewMenuShowMovie = viewMenu.AppendCheckItem(wx.ID_ANY, "&Show movie", "Show movie")
         self.viewMenuShowHistogram = viewMenu.AppendCheckItem(wx.ID_ANY,"&Show histogram", "Show histogram")
         self.viewMenuShowTrace = viewMenu.AppendCheckItem(wx.ID_ANY,"&Show trace", "Show trace")
 
+        self.Bind(wx.EVT_MENU, self.OnShowMovie, self.viewMenuShowMovie)
         self.Bind(wx.EVT_MENU, self.OnShowHistogram, self.viewMenuShowHistogram)
         self.Bind(wx.EVT_MENU, self.OnShowTrace, self.viewMenuShowTrace)
 
         # Data menu in Menu bar
         dataMenu = wx.Menu()
+        self.dataMenuFindMolecules = dataMenu.Append(wx.ID_ANY, "&Find molecules", "Find molecules")
         self.dataMenuExtractTraces = dataMenu.Append(wx.ID_ANY, "&Extract traces", "Extract traces")
 
+        self.Bind(wx.EVT_MENU, self.OnFindMolecules, self.dataMenuFindMolecules)
         self.Bind(wx.EVT_MENU, self.OnExtractTraces, self.dataMenuExtractTraces)
 
         # Select menu in Menu bar
@@ -95,7 +99,7 @@ class MainFrame(wx.Frame):
         ##self.tree.Bind(wx.EVT_LEFT_DOWN, self.Test)
         #panel = TreePanel(self)
         
-        
+        self.movie = MoviePanel(parent=self)
         self.histogram = HistogramPanel(parent=self)
         self.trace = TracePanel(parent=self)
         #self.histogram = PlotPanel(self)
@@ -162,6 +166,10 @@ class MainFrame(wx.Frame):
         self.Close(True) # Close program
 
     # View menu event handlers
+    def OnShowMovie(self,event):
+        if event.IsChecked(): self.movie.Show()
+        elif ~event.IsChecked(): self.movie.Hide()
+
     def OnShowHistogram(self,event):
         if event.IsChecked(): self.histogram.Show()
         elif ~event.IsChecked(): self.histogram.Hide()
@@ -173,6 +181,10 @@ class MainFrame(wx.Frame):
         elif ~event.IsChecked(): self.trace.Hide()
 
     # Data menu event handlers
+    def OnFindMolecules(self, event):
+        for file in self.experiment.selectedFiles:
+            file.find_coordinates('d') # The channel should be an option somewhere
+
     def OnExtractTraces(self, event):
         for file in self.experiment.selectedFiles:
             file.extract_traces()
@@ -207,6 +219,35 @@ class MainFrame(wx.Frame):
 #            self.histogram.panel.canvas.Refresh()
         self.histogram.PlotHistogram()
 
+class MoviePanel(wx.Frame):
+    def __init__(self, title='Movie', parent=None):
+        wx.Frame.__init__(self, parent=parent, title=title)
+        self.panel = PlotPanel(self)
+        self.parent = parent
+        self.Bind(wx.EVT_CLOSE, self.OnClose)
+
+        self._file = None
+
+    @property
+    def file(self):
+        return self._file
+
+    @file.setter
+    def file(self, file):
+        self._file = file
+        self.ShowMovie()
+
+    def ShowMovie(self, show_coordinates = True):
+        if self.IsShown():
+            self.panel.axis.clear()
+            self._file.movie.show_average_image(figure = self.panel.figure)
+            if show_coordinates: self._file.show_coordinates(figure=self.panel.figure)
+            self.panel.canvas.draw()
+            self.panel.canvas.Refresh()
+
+    def OnClose(self,event):
+        self.parent.viewMenuShowMovie.Check(False)
+        self.Hide()
 
 class HistogramPanel(wx.Frame):
     def __init__(self, title='Histogram', parent=None):
@@ -288,15 +329,20 @@ class PlotPanel(wx.Panel):
 
 class HyperTreeListPlus(HTL.HyperTreeList):   
     def __init__(self, arg, *args, **kwargs):
-        super(HyperTreeListPlus, self).__init__(arg, *args, **kwargs)
+        super().__init__(arg, *args, **kwargs) # super(HyperTreeListPlus, self).__init__(arg, *args, **kwargs)
 
         self.AddColumn('Files', width=150)
         self.AddColumn('Molecules', width=75)
         self.AddColumn('Selected', width=75)
         
         self.root = self.AddRoot('root')
+        self.FileItems = []
 
+        #self.Bind(HTL.EVT_TREE_ITEM_ACTIVATED, self.OnItemActivated)
+        self.Bind(wx.EVT_TREE_SEL_CHANGED, self.OnItemActivated)
         self.Bind(HTL.EVT_TREE_ITEM_CHECKED, self.OnItemChecked)
+        self.Bind(wx.EVT_TREE_ITEM_RIGHT_CLICK, self.OnItemRightClick)
+
     
 #    def AppendItem(self, arg, *args, **kwargs):
 #        #print(arg)
@@ -308,7 +354,7 @@ class HyperTreeListPlus(HTL.HyperTreeList):
         experimentItemNames = [item.GetText() for item in self.root.GetChildren()]
         if experiment.name not in experimentItemNames:
             experimentItem = self.AppendItem(self.root, experiment.name, ct_type = 1, data = experiment)
-        
+
         print(experiment.name)
         
         for file in experiment.files:
@@ -339,6 +385,7 @@ class HyperTreeListPlus(HTL.HyperTreeList):
                 parentItem = nodeItems[nodeItemNames.index(folder)]
         
         item = self.AppendItem(parentItem, file.name, ct_type = 1, data = file)
+        self.FileItems.append(item)
 
         self.insertDataIntoColumns(item)
 
@@ -350,7 +397,11 @@ class HyperTreeListPlus(HTL.HyperTreeList):
             self.SetItemText(item, str(len(itemData.molecules)), 1) # Should be in a different method
             self.SetItemText(item, str(len(itemData.selectedMolecules)), 2)
     
-    
+    def OnItemActivated(self, event):
+        item = event.GetItem()
+        itemData = item.GetData()
+        if type(itemData) == File:
+            self.Parent.movie.file = itemData
     
     def OnItemChecked(self, event):
         item = event.GetItem()
@@ -382,6 +433,35 @@ class HyperTreeListPlus(HTL.HyperTreeList):
 #            self.histogram.panel.canvas.draw()
 #            self.histogram.panel.canvas.Refresh()
         self.Parent.histogram.PlotHistogram()
+
+    def OnItemRightClick(self, event):
+        print('Right click')
+        item = event.GetItem()
+        itemData = item.GetData()
+
+        if type(itemData) == File:
+            file = itemData
+            popupMenu = wx.Menu()
+            popupMenuPerformMapping = popupMenu.Append(wx.ID_ANY, "&Perform mapping", "Perform mapping")
+            self.Bind(wx.EVT_MENU, lambda selectEvent: self.OnPerformMapping(selectEvent, item, file),
+                      popupMenuPerformMapping)
+
+            if file.mapping is not None:
+                popupMenuApplyMappingToOtherFiles = popupMenu.Append(wx.ID_ANY, "&Apply mapping to other files", "Apply mapping to other files")
+                self.Bind(wx.EVT_MENU, lambda selectEvent: self.OnApplyMappingToOtherFiles(selectEvent, item, file),
+                          popupMenuApplyMappingToOtherFiles)
+
+            self.PopupMenu(popupMenu, event.GetPoint())
+
+    def OnPerformMapping(self, event, item, file):
+        file.perform_mapping()
+
+    def OnApplyMappingToOtherFiles(self, event, item, file):
+        file.use_mapping_for_all_files()
+        standardColour = self.GetItemBackgroundColour(self.GetRootItem().GetChildren()[0])
+        for item in self.FileItems: self.SetItemBackgroundColour(item, standardColour)
+        self.SetItemBackgroundColour(item, wx.YELLOW) #wx.Colour(160,160,160))
+
 
     def CheckItem3(self, item, checked = True):
         self.CheckItem2(item, checked=checked, torefresh=True)

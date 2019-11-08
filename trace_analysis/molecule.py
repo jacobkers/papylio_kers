@@ -32,7 +32,7 @@ class Molecule:
         return (red - alpha*green) / (green + red - alpha*green)
 
     def plot(self, figure = None):
-        if not figure: figure = plt.gcf()
+        if not figure: figure = plt.gcf() # Or possibly e.g. plt.figure('Trace plot')
         figure.clf()
         if len(self.file.experiment.pairs) > 0:
             axis_I = figure.add_subplot(211)
