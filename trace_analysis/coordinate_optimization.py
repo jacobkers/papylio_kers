@@ -24,6 +24,7 @@ def circle(r):
     return (np.abs(np.hypot(r - x, r - y)-r) < 0.5).astype(int)
 
 def coordinates_without_intensity_at_radius(coordinates, image, radius, cutoff, fraction_of_peak_max = 0.25):
+    if cutoff == 'image_median': cutoff = np.median(image)
     circle_matrix = circle(radius)
     new_coordinates = []
 
@@ -87,21 +88,22 @@ if __name__ == '__main__':
     exp = Experiment(r'D:\ivoseverins\SURFdrive\Promotie\Code\Python\traceAnalysis\twoColourExampleData\20141017 - Holliday junction - Copy\HJC-50pM')
     file = exp.files[2]
     movie = file.movie
-    image = movie.make_average_tif(write=False)
+    image = movie.make_average_image(write=False)
 
     coordinates = find_peaks(image=image, method='adaptive-threshold', minimum_area=5, maximum_area=15)
 
     plt.imshow(image)
-    plt.scatter(coordinates[:, 0], coordinates[:, 1], color='r')
-
-    coordinates = coordinates_within_margin(coordinates, [0,255], [0,511], 10)
     plt.scatter(coordinates[:, 0], coordinates[:, 1], color='b')
 
-    coordinates = coordinates_after_gaussian_fit(image, coordinates)
+    coordinates = coordinates_within_margin(coordinates, bounds = np.array([[0,255], [0,511]]), margin=10)
+    plt.scatter(coordinates[:, 0], coordinates[:, 1], color='g')
+
+    coordinates = coordinates_after_gaussian_fit(coordinates, image)
     plt.scatter(coordinates[:, 0], coordinates[:, 1], color='y')
 
     coordinates = coordinates_without_intensity_at_radius(coordinates,
+                                                          image,
                                                           radius=4,
                                                           cutoff=np.median(image),
                                                           fraction_of_peak_max=0.35) # was 0.25 in IDL code
-    plt.scatter(coordinates[:, 0], coordinates[:, 1], color='g')
+    plt.scatter(coordinates[:, 0], coordinates[:, 1], color='r')

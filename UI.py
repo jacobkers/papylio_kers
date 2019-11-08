@@ -183,7 +183,7 @@ class MainFrame(wx.Frame):
     # Data menu event handlers
     def OnFindMolecules(self, event):
         for file in self.experiment.selectedFiles:
-            file.find_coordinates('d') # The channel should be an option somewhere
+            file.find_coordinates() # The channel should be an option somewhere
 
     def OnExtractTraces(self, event):
         for file in self.experiment.selectedFiles:
