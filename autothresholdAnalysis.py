@@ -45,7 +45,6 @@ def stepfinder(trace, threshold=100, max_steps=20):
                     break
         i +=1
 
-
     if len(start_frames) != len(stop_frames):  # sometimes 2 consecutive frames both satisfy the threshold condition for very big jumps
         start_temp = np.copy(start_frames)
         stop_temp = np.copy(stop_frames)
