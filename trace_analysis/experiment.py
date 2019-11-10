@@ -12,7 +12,7 @@ if platform == "darwin":
 
 import os # Miscellaneous operating system interfaces - to be able to switch from Mac to Windows
 from pathlib import Path # For efficient path manipulation
-
+import yaml
 import numpy as np
 import matplotlib.pyplot as plt #Provides a MATLAB-like plotting framework
 
@@ -40,6 +40,15 @@ class Experiment:
         self._Ncolours = len(colours)
         self._pairs = [[c1, c2] for i1, c1 in enumerate(colours) for i2, c2 in enumerate(colours) if i2 > i1]
         self.import_all = import_all
+
+
+        # Load custom config file or otherwise load the default config file
+        if self.mainPath.joinpath('config.yml').is_file():
+            with self.mainPath.joinpath('config.yml').open('r') as yml_file:
+                self.configuration = yaml.load(yml_file, Loader=yaml.SafeLoader)
+        else:
+            with Path(__file__).with_name('default_configuration.yml').open('r') as yml_file:
+                self.configuration = yaml.load(yml_file, Loader=yaml.SafeLoader)
 
         os.chdir(mainPath)
 
@@ -79,6 +88,10 @@ class Experiment:
     def selectedMoleculesInAllFiles(self):
         return [molecule for file in self.files for molecule in file.selectedMolecules]
 
+    def export_config_file(self):
+        with self.mainPath.joinpath('config.yml').open('w') as yml_file:
+             yaml.dump(self.configuration, yml_file, sort_keys = False)
+
     def addAllFilesInMainPath(self):
         ## Find all unique files in all subfolders
         
@@ -86,10 +99,11 @@ class Experiment:
         # Also make sure only relevant files are included (exclude folders, averaged tif files, data folders and .dat files)
         files = [p.relative_to(self.mainPath).with_suffix('') for p in self.mainPath.glob('**/*')
                     if  (p.is_file() & 
-                        ('_' not in p.name) & 
+                        ('_' not in p.name) &
+                        ('Analysis ' not in str(p)) &
                         #('\\.' not in str(p.with_suffix(''))) & # Can be removed, line below is better  - Ivo
                         ('.' not in [s[0] for s in p.parts]) &
-                        (p.suffix not in ['.dat','.db', '.ini','.py']) 
+                        (p.suffix not in ['.dat','.db', '.ini','.py','.yml'])
                         )
                     ]
 

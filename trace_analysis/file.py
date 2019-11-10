@@ -7,9 +7,9 @@ from trace_analysis.image_adapt.pma_file import PmaFile
 from trace_analysis.plotting import histogram
 from trace_analysis.mapping.mapping import Mapping2
 from trace_analysis.peak_finding import find_peaks
-from trace_analysis.coordinate_optimalization import coordinates_within_margin, coordinates_after_gaussian_fit, coordinates_without_intensity_at_radius
+from trace_analysis.coordinate_optimization import coordinates_within_margin, coordinates_after_gaussian_fit, coordinates_without_intensity_at_radius
 from trace_analysis.trace_extraction import extract_traces
-from trace_analysis.coordinate_transformations import translate
+from trace_analysis.coordinate_transformations import translate, transform
 
 class File:
     def __init__(self, relativeFilePath, experiment):
@@ -182,36 +182,58 @@ class File:
 
         self.coordinates = coordinates
 
-    def find_coordinates(self, channel = 'd'):
+    def find_coordinates(self, configuration = None):
         #image = self.movie.make_average_tif(write=False)
+
+        if configuration is None: configuration = self.experiment.configuration['find_coordinates']
+        channel = configuration['channel']
 
         if channel in ['d','a']:
             image = self.movie.get_channel(channel=channel)
         elif channel is 'da':
             raise ValueError('da not yet implemented')
 
-        coordinates = find_peaks(image=image, method='adaptive-threshold', minimum_area=5, maximum_area=15)
+        # #coordinates = find_peaks(image=image, method='adaptive-threshold', minimum_area=5, maximum_area=15)
+        # coordinates = find_peaks(image=image, method='local-maximum', threshold=50)
+        #
+        # coordinates = coordinates_within_margin(coordinates, image, margin=20)
+        # coordinates = coordinates_after_gaussian_fit(coordinates, image)
+        # coordinates = coordinates_without_intensity_at_radius(coordinates, image,
+        #                                                       radius=4,
+        #                                                       cutoff=np.median(image),
+        #                                                       fraction_of_peak_max=0.35) # was 0.25 in IDL code
 
-        coordinates = coordinates_within_margin(coordinates, image, margin=20)
-        coordinates = coordinates_after_gaussian_fit(coordinates, image)
-        coordinates = coordinates_without_intensity_at_radius(coordinates, image,
-                                                              radius=4,
-                                                              cutoff=np.median(image),
-                                                              fraction_of_peak_max=0.35) # was 0.25 in IDL code
+        coordinates = find_peaks(image=image, **configuration['peak_finding'])
 
-        if channel in ['d','da']:
-            acceptor_coordinates = self.mapping.transform_coordinates(coordinates, inverse=False)
-            coordinates = np.hstack([coordinates,acceptor_coordinates]).reshape((-1,2))
+        coordinate_optimization_functions = \
+            {'coordinates_within_margin': coordinates_within_margin,
+             'coordinates_after_gaussian_fit': coordinates_after_gaussian_fit,
+             'coordinates_without_intensity_at_radius': coordinates_without_intensity_at_radius}
+
+        for f, kwargs in configuration['coordinate_optimization'].items():
+            coordinates = coordinate_optimization_functions[f](coordinates, image, **kwargs)
+
+
         if channel is 'a':
-            donor_coordinates = self.mapping.transform_coordinates(coordinates, inverse=True)
-            coordinates = np.hstack([donor_coordinates, coordinates]).reshape((-1, 2))
+            coordinates = transform(coordinates, translation=[self.movie.width//2,0])
 
+        if self.number_of_colours == 2:
+            if channel in ['d','da']:
+                acceptor_coordinates = self.mapping.transform_coordinates(coordinates, inverse=False)
+                coordinates = np.hstack([coordinates,acceptor_coordinates]).reshape((-1,2))
+            if channel is 'a':
+                donor_coordinates = self.mapping.transform_coordinates(coordinates, inverse=True)
+                coordinates = np.hstack([donor_coordinates, coordinates]).reshape((-1, 2))
+
+        self.molecules = [] # Should we put this here?
         self.coordinates = coordinates
         self.export_pks_file()
 
         # Possibly make a separate function for this
-        plt.imshow(image)
-        plt.scatter(coordinates[:, 0], coordinates[:, 1], color='g')
+        #plt.imshow(image)
+        #plt.scatter(coordinates[:, 0], coordinates[:, 1], color='g')
+
+        #self.show_coordinates()
 
 
     def export_pks_file(self):
@@ -324,4 +346,10 @@ class File:
             if file is not self:
                 file.mapping = self.mapping
 
+
+    def show_coordinates(self, figure = None):
+        if not figure: figure = plt.figure()
+
+        axis = figure.gca()
+        axis.scatter(self.coordinates[:,0],self.coordinates[:,1], facecolors='none', edgecolors='r')
 

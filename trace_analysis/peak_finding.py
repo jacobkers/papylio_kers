@@ -108,7 +108,7 @@ if __name__ == '__main__':
     exp = Experiment(r'D:\ivoseverins\SURFdrive\Promotie\Code\Python\traceAnalysis\twoColourExampleData\20141017 - Holliday junction - Copy\HJC-50pM')
     file = exp.files[2]
     movie = file.movie
-    image = movie.make_average_tif(write=False)
+    image = movie.make_average_image(write=False)
 
     coordinates = find_peaks(image=image, method='adaptive-threshold', minimum_area=5, maximum_area=15)
 

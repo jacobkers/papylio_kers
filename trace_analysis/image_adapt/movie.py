@@ -82,7 +82,7 @@ class Movie:
         
     @property
     def average_image(self):
-        if self._average_image is None: self.make_average_image()
+        if self._average_image is None: self.make_average_image(write=True)
         return self._average_image
 
     def read_header(self):
@@ -139,19 +139,20 @@ class Movie:
         
         return frame_array_mean
     
-    def show_average_image(self, mode='2d'):
-        plt.figure()
+    def show_average_image(self, mode='2d', figure=None):
+        if not figure: figure = plt.figure() # Or possibly e.g. plt.figure('Movie')
         if mode == '2d':
-            plt.imshow(self.average_image)
+            axis = figure.gca()
+            axis.imshow(self.average_image)
         if mode == '3d':
             from matplotlib import cm
-            ax = plt.gca(projection='3d')
+            axis = figure.gca(projection='3d')
             X = np.arange(self.average_image.shape[1])
             Y = np.arange(self.average_image.shape[0])
             X, Y = np.meshgrid(X, Y)
-            ax.plot_surface(X,Y,self.average_image, cmap=cm.coolwarm,
+            axis.plot_surface(X,Y,self.average_image, cmap=cm.coolwarm,
                                    linewidth=0, antialiased=False)
-        plt.show()
+        #plt.show()
     
     
     def subtract_background(self, image, method = 'per_channel'):
@@ -175,8 +176,8 @@ class Movie:
 
 
     
-    def show_coordinates(self, image, coordinates, **kwargs):
-        plt.figure()
+    def show_coordinates(self, image, coordinates, figure=None, **kwargs):
+        if not figure: figure = plt.gcf() # Or possibly e.g. plt.figure('Movie')
 #        sorted_intensities = np.sort(image)
 #        vmin = np.percentile(sorted_intensities, 5)
 #        vmax = np.percentile(sorted_intensities, 99)
