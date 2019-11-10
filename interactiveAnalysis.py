@@ -6,9 +6,8 @@ Created on Sat Apr 27 23:12:58 2019
 """
 
 import numpy as np
-import sys
 
-import traceAnalysisCode as analysis
+from trace_analysis import Experiment
 import pandas as pd
 import os
 import itertools
@@ -500,9 +499,8 @@ if __name__ == '__main__':
         os.chdir(os.path.dirname(os.path.abspath(__file__)))
         mainPath = './traces'
         mainPath = Path(mainPath)
-        exp = analysis.Experiment(mainPath)
+        exp = Experiment(mainPath)
         file = exp.files[0]
-        file.exposure_time = 0.3  # Here given explicitly because there is no .log file
         i = InteractivePlot(file)
         i.plot_initialize()
         i.plot_molecule()

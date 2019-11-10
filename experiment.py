@@ -23,12 +23,10 @@ from trace_analysis.plotting import histogram
 import re # Regular expressions
 import warnings
 
-#import matplotlib.pyplot as plt #Provides a MATLAB-like plotting framework
-#import itertools #Functions creating iterators for efficient looping
+
 #np.seterr(divide='ignore', invalid='ignore')
-#import pandas as pd
-#from threshold_analysis_v2 import stepfinder
-#import pickle
+import pandas as pd
+import pickle
 
 
 class Experiment:
@@ -81,15 +79,15 @@ class Experiment:
 
     def addAllFilesInMainPath(self):
         ## Find all unique files in all subfolders
-        
+
         # Get all the files in all subfolders of the mainpath and remove their suffix (extensions)
         # Also make sure only relevant files are included (exclude folders, averaged tif files, data folders and .dat files)
         files = [p.relative_to(self.mainPath).with_suffix('') for p in self.mainPath.glob('**/*')
-                    if  (p.is_file() & 
-                        ('_' not in p.name) & 
+                    if  (p.is_file() &
+                        ('_' not in p.name) &
                         #('\\.' not in str(p.with_suffix(''))) & # Can be removed, line below is better  - Ivo
                         ('.' not in [s[0] for s in p.parts]) &
-                        (p.suffix not in ['.dat','.db', '.ini','.py']) 
+                        (p.suffix not in ['.dat','.db', '.ini','.py'])
                         )
                     ]
 
@@ -108,7 +106,7 @@ class Experiment:
 
         # if there is no extension, add all files with the same name with all extensions
         # if there is an extension just add that file if the filename is the same
-        
+
         # Test whether file is already in experiment
         for file in self.files:
             if file.relativeFilePath == relativeFilePath:
@@ -116,7 +114,7 @@ class Experiment:
                 break
         else:
             self.files.append(File(relativeFilePath, self))
-            
+
             # If not found: add file and extension, or if the file is already there then add the extention to it.
             # If the file and extension are already imported, display a warning message.
 #            if not foundFile:

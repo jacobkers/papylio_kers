@@ -1,5 +1,6 @@
 from pathlib import Path # For efficient path manipulation
 import numpy as np #scientific computing with Python
+import pandas as pd
 import matplotlib.pyplot as plt #Provides a MATLAB-like plotting framework
 from trace_analysis.molecule import Molecule
 from trace_analysis.image_adapt.sifx_file import SifxFile
@@ -11,6 +12,7 @@ from trace_analysis.coordinate_optimization import coordinates_within_margin, co
 from trace_analysis.trace_extraction import extract_traces
 from trace_analysis.coordinate_transformations import translate, transform
 
+
 class File:
     def __init__(self, relativeFilePath, experiment):
         relativeFilePath = Path(relativeFilePath)
@@ -21,7 +23,9 @@ class File:
         self.extensions = list()
 
         self.molecules = list()
-        self.exposure_time = None  # Here the exposure time is given but it should be found from the log file if possible
+
+        self.exposure_time = None  # Found from log file or should be inputted
+        self.log_details = None  # a string with the contents of the log file
         self.number_of_frames = None
 
         self.background = np.array([0, 0])
@@ -77,7 +81,8 @@ class File:
 
     @coordinates.setter
     def coordinates(self, coordinates, number_of_colours = None):
-        if number_of_colours is None: number_of_colours = self.number_of_colours
+        if number_of_colours is None:
+            number_of_colours = self.number_of_colours
         self.number_of_molecules = np.shape(coordinates)[0]//number_of_colours
 
         for i, molecule in enumerate(self.molecules):
@@ -92,6 +97,12 @@ class File:
             channel = {'d': 0, 'a': 1, 'g':0, 'r':1}[channel]
 
         return np.vstack([molecule.coordinates[channel] for molecule in self.molecules])
+
+    @property
+    def time(self):  # the time axis of the experiment, if not found in log it will be asked as input
+        if self.exposure_time is None:
+            self.exposure_time = input(f'Exposure time for {self.name}: ')
+        return np.arange(0, self.Nframes)*self.exposure_time
 
     @property
     def traces(self):
@@ -128,17 +139,19 @@ class File:
                             '.coeff': self.import_coeff_file,
                             '.map': self.import_map_file,
                             '.pks': self.import_pks_file,
-                            '.traces': self.import_traces_file
-                            #                           '.sim'        : self.importSimFile
+                            '.traces': self.import_traces_file,
+                            '.log' : self.import_log_file
                             }
 
         importFunctions.get(extension, self.noneFunction)()
 
-    #        if extension == '.pks':
-    # self.importPksFile()
-
     def noneFunction(self):
         return
+
+    def import_log_file(self):
+        self.exposure_time = np.genfromtxt(f'{self.relativeFilePath}.log', max_rows=1)[2]
+        self.log_details = open(f'{self.relativeFilePath}.log').readlines()
+        self.log_details = ''.join(self.log_details)
 
     def import_sifx_file(self):
         imageFilePath = self.absoluteFilePath.joinpath('Spooled files.sifx')
@@ -190,7 +203,7 @@ class File:
 
         if channel in ['d','a']:
             image = self.movie.get_channel(channel=channel)
-        elif channel is 'da':
+        elif channel == 'da':
             raise ValueError('da not yet implemented')
 
         # #coordinates = find_peaks(image=image, method='adaptive-threshold', minimum_area=5, maximum_area=15)
@@ -214,14 +227,14 @@ class File:
             coordinates = coordinate_optimization_functions[f](coordinates, image, **kwargs)
 
 
-        if channel is 'a':
+        if channel == 'a':
             coordinates = transform(coordinates, translation=[self.movie.width//2,0])
 
         if self.number_of_colours == 2:
             if channel in ['d','da']:
                 acceptor_coordinates = self.mapping.transform_coordinates(coordinates, inverse=False)
                 coordinates = np.hstack([coordinates,acceptor_coordinates]).reshape((-1,2))
-            if channel is 'a':
+            if channel == 'a':
                 donor_coordinates = self.mapping.transform_coordinates(coordinates, inverse=True)
                 coordinates = np.hstack([donor_coordinates, coordinates]).reshape((-1, 2))
 
@@ -293,22 +306,61 @@ class File:
     def histogram(self):
         histogram(self.molecules)
 
-    #    def importExcel(self, filename=None):
-    #        if filename is None:
-    #            filename = self.name+'_steps_data.xlsx'
-    #        try:
-    #            steps_data = pd.read_excel(filename, index_col=[0,1],
-    #                                            dtype={'kon':np.str})       # reads from the 1st excel sheet of the file
-    #        except FileNotFoundError:
-    #            return
-    #        molecules = steps_data.index.unique(0)
-    #        indices = [int(m.split()[-1]) for m in molecules]
-    #        for mol in self.molecules:
-    #            if mol.index not in indices:
-    #                continue
-    #            mol.steps = steps_data.loc[f'mol {mol.index}']
-    #            k = [int(i) for i in mol.steps.kon[0]]
-    #            mol.kon_boolean = np.array(k).astype(bool).reshape((3,3))
+    def importExcel(self, filename=None):
+        if filename is None:
+            filename = self.name+'_steps_data.xlsx'
+        try:
+            steps_data = pd.read_excel(filename, index_col=[0,1],
+                                            dtype={'kon':np.str})       # reads from the 1st excel sheet of the file
+        except FileNotFoundError:
+            return
+        molecules = steps_data.index.unique(0)
+        indices = [int(m.split()[-1]) for m in molecules]
+        for mol in self.molecules:
+            if mol.index not in indices:
+                continue
+            mol.steps = steps_data.loc[f'mol {mol.index}']
+            if 'kon' in mol.steps.columns:
+                k = [int(i) for i in mol.steps.kon[0]]
+                mol.kon_boolean = np.array(k).astype(bool).reshape((3,3))
+        return steps_data
+
+    def savetoExcel(self, filename=None, save=True):
+        if filename is None:
+            filename = self.name+'_steps_data.xlsx'
+        # Concatenate all steps dataframes that are not None
+        mol_data = [mol.steps for mol in self.molecules if mol.steps is not None]
+        if not mol_data:
+            print(f'no data to save for {self.name}')
+            return
+        keys = [f'mol {mol.index}' for mol in self.molecules if mol.steps is not None]
+        steps_data = pd.concat(mol_data, keys=keys, sort=False)
+        if save:
+            print("data saved in: " + filename)
+            writer = pd.ExcelWriter(filename)
+            steps_data.to_excel(writer, self.name)
+            writer.save()
+        return steps_data
+
+    def autoThreshold(self, trace_name, threshold=100, max_steps=20,
+                      only_selected=False, kon_str='000000000'):
+        nam = trace_name
+        for mol in self.molecules:
+
+            trace = mol.I(0)*int((nam == 'green')) + \
+                    mol.I(1)*int((nam == 'red')) +\
+                     mol.E()*int((nam == 'E'))  # Here no offset corrections are applied yet
+
+            d = mol.find_steps(trace)
+            frames = d['frames']
+            times = frames*self.exposure_time
+            times = np.sort(times)
+            mol.steps = pd.DataFrame({'time': times, 'trace': nam,
+                                  'state': 1, 'method': 'thres',
+                                'thres': threshold, 'kon': kon_str})
+        filename = self.name+'_steps_data.xlsx'
+        data = self.savetoExcel(filename)
+        return data
 
     def select(self, figure=None):
         plt.ion()
