@@ -16,7 +16,8 @@ sns.set_color_codes()
 
 import traceAnalysisCode as analysis
 
-def get_dwell_hist(dwells, dwelltype='offtime', nbins=20, save=True, plot=True, extra_label='', log=False):
+def get_dwell_hist(dwells, dwelltype='offtime', nbins=20, save=True, plot=True,
+                   extra_label='', log=False):
 
     #  select only the ones that don't exceed the total measurement time minus 10 sec
 #    dwells_in = dwells[dwells < dwells.max() - 10]
@@ -30,7 +31,8 @@ def get_dwell_hist(dwells, dwelltype='offtime', nbins=20, save=True, plot=True, 
         return values, centers
 
     if plot:
-        line = plt.plot(centers, values, '.', label=extra_label+fr'$\tau = ${avrg_dwell:.1f} s' )[0]
+        line = plt.plot(centers, values, '.',
+                        label=extra_label+fr'$\tau = ${avrg_dwell:.1f} s' )[0]
 
         plt.xlabel('time (s)')
         plt.ylabel('Prob.')

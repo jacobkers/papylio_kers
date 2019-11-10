@@ -14,7 +14,7 @@ import traceAnalysisCode as analysis
 sys.path.append('..')
 
 
-def analyze_dwelltimes(exp_file, save=True, filename=None):
+def find_dwelltimes(exp_file, save=True, filename=None):
     exp_file.importExcel()  # this should not be needed normally
     max_time = exp_file.time[-1]
     exp_time = exp_file.exposure_time
@@ -107,7 +107,7 @@ if __name__ == '__main__':
             mainPath = expPath + f'/{chamberFolder}'
             exp = analysis.Experiment(mainPath)
             for file in exp.files:
-                data = analyze_dwelltimes(file, save=True)
+                data = find_dwelltimes(file, save=True)
 
 
 #    mainPath='./traces'
