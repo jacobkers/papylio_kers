@@ -1,6 +1,6 @@
 import numpy as np
 from sklearn.neighbors import NearestNeighbors
-
+from trace_analysis.coordinate_transformations import transform
 
 def best_fit_transform(A, B):
     '''
@@ -46,6 +46,18 @@ def best_fit_transform(A, B):
     return T, R, t
 
 
+
+def least_squares_fit(src, dst):
+    T, res, rank, s = np.linalg.lstsq(src, dst, rcond=None)
+    plt.figure()
+    plt.scatter(src[:,0],src[:,1], color = 'b')
+    plt.scatter(dst[:,0],dst[:,1], color = 'r')
+
+   # src_transformed = ((T) @ (src.T)).T
+    plt.scatter(src_transformed[:, 0], src_transformed[:, 1], color = 'g')
+
+
+
 def nearest_neighbor(src, dst):
     '''
     Find the nearest (Euclidean) neighbor in dst for each point in src
@@ -64,8 +76,28 @@ def nearest_neighbor(src, dst):
     distances, indices = neigh.kneighbors(src, return_distance=True)
     return distances.ravel(), indices.ravel()
 
+def nearest_neighbor_pair(pointset1, pointset2):
+    distances2, indices2 = nearest_neighbor(pointset1, pointset2)
+    distances1, indices1 = nearest_neighbor(pointset2, pointset1)
 
-def icp(A, B, init_pose=None, max_iterations=20, tolerance=0.001):
+    i1 = indices1[indices2[indices1] == np.arange(len(indices1))]
+    i2 = np.where(indices2[indices1] == np.arange(len(indices1)))[0]
+    # s2 = indices1[indices2] == np.arange(len(indices2))
+    #
+    # i2 = indices2[indices1[indices2] == np.arange(len(indices2))]
+
+    return distances1[i2], i1, i2
+
+import matplotlib.pyplot as plt
+def scatter_coordinates(pointsets):
+    for pointset in pointsets:
+        plt.scatter(pointset[:,0], pointset[:,1])
+
+def show_point_connections(pointset1,pointset2):
+    for coordinate1, coordinate2 in zip(pointset1, pointset2):
+        plt.plot([coordinate1[0],coordinate2[0]],[coordinate1[1],coordinate2[1]], color='r')
+
+def icp(source, destination, max_iterations=20, tolerance=0.001, initial_translation = None):
     '''
     The Iterative Closest Point method: finds best-fit transform that maps points A on to points B
     Input:
@@ -80,40 +112,76 @@ def icp(A, B, init_pose=None, max_iterations=20, tolerance=0.001):
         i: number of iterations to converge
     '''
 
-    #assert A.shape == B.shape
 
-    # get number of dimensions
-    m = A.shape[1]
+    source = np.hstack([source, np.ones((len(source), 1))])
+    destination = np.hstack([destination, np.ones((len(destination), 1))])
 
-    # make points homogeneous, copy them to maintain the originals
-    src = np.ones((m+1,A.shape[0]))
-    dst = np.ones((m+1,B.shape[0]))
-    src[:m,:] = np.copy(A.T)
-    dst[:m,:] = np.copy(B.T)
+    print(source)
 
-    # apply the initial pose estimation
-    if init_pose is not None:
-        src = np.dot(init_pose, src)
+    source_dummy = source.copy()
+    #transformation_final = np.identity(3)
+
+    if initial_translation is None:
+        # Initial translation to overlap both point-sets
+        initial_translation = np.identity(3)
+        initial_translation[0:2,2] = (np.mean(destination, axis=0) - np.mean(source, axis=0))[0:2]
+        # Possibly add initial rotation and reflection as well, see best_fit_transform?
+
+    source_dummy = (initial_translation @ source_dummy.T).T
+    #transformation_final = transformation_final @ initial_translation
 
     prev_error = 0
 
     for i in range(max_iterations):
-        # find the nearest neighbors between the current source and destination points
-        distances, indices = nearest_neighbor(src[:m,:].T, dst[:m,:].T)
+        # Find the nearest neighbors between the current source and destination points
+        #distances, indices = nearest_neighbor(source_dummy[:,:2], destination[:,:2])
+        distances, source_indices, destination_indices = \
+            nearest_neighbor_pair(source_dummy[:, :2], destination[:, :2])
+
+        plt.figure()
+        scatter_coordinates([source_dummy,destination])
+        show_point_connections(source_dummy[source_indices],destination[destination_indices])
 
         # compute the transformation between the current source and nearest destination points
-        T,_,_ = best_fit_transform(src[:m,:].T, dst[:m,indices].T)
+        # T,_,_ = best_fit_transform(src[:m,:].T, dst[:m,indices].T)
 
-        # update the current source
-        src = np.dot(T, src)
+        T, res, rank, s = np.linalg.lstsq(source_dummy[source_indices], destination[destination_indices], rcond=None)
 
-        # check error
+        transformation = T.T
+        # Update the source dummy
+        source_dummy = (transformation @ source_dummy.T).T
+        #transformation_final = transformation @ transformation_final
+
+        # Check error
         mean_error = np.mean(distances)
+        print(mean_error)
         if np.abs(prev_error - mean_error) < tolerance:
             break
         prev_error = mean_error
 
-    # calculate final transformation
-    T,_,_ = best_fit_transform(A, src[:m,:].T)
+    # Only use indices with distances smaller than cutoff
+    cutoff = 2.5 # pixels
+    source = source[source_indices[distances<cutoff]]
+    destination = destination[destination_indices[distances<cutoff]]
 
-    return T, distances, i
+    # Calculate final transformation
+    T, res, rank, s = np.linalg.lstsq(source, destination, rcond=None)
+    transformation = T.T
+
+    return transformation, distances, i
+
+
+if __name__ == '__main__':
+    Npoints = 40
+
+    plt.close('all')
+    np.random.seed(32)
+    source = np.random.rand(Npoints, 2) * 1000
+    destination = source.copy()
+    #destination = destination * 1.20 - 100 +
+    destination = transform(source, r=np.pi/180*10, m=1.2, t=[0, 0]) #+ np.random.uniform(-20, 20, (Npoints, 2))
+    np.random.shuffle(destination)
+    destination = destination[:30]
+
+    transformation, distances, i = icp(source,destination)
+
