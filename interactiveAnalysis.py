@@ -237,7 +237,7 @@ class InteractivePlot(object):
         elif k in [',', '.', '/']: self.select_edge(k)
         elif k == ' ': self.select_molecule(toggle=True)
         elif k == 'r': self.radio_manage('red')
-        elif k == 'g': self.radio_manage('green')
+        elif k == 't': self.radio_manage('green')
         elif k == 'e':
             self.checkbfret.set_active(0)
             self.checkbutton_color('E fret')
@@ -245,7 +245,7 @@ class InteractivePlot(object):
             self.checkbtotal.set_active(0)
             self.check_total('Total')
 
-        elif k == 't': self.throw_away(event)
+        elif k == 'x': self.throw_away(event)
         elif k == 'l': self.conclude_analysis()
         elif k == '[': self.draw.select_starttrace(event)
         elif k == ']': self.draw.select_endtrace(event, self.time[-1])
@@ -321,10 +321,10 @@ class InteractivePlot(object):
 
         if move:
             if event.inaxes == self.axnextb or event.key in ['right']:
+                self.mol_indx += 1
                 if self.mol_indx >= len(self.file.molecules):
                     self.mol_indx = 0
-                else:
-                    self.mol_indx += 1
+
 
             elif event.inaxes == self.axprevb or event.key in ['left']:
                 self.mol_indx -= 1
@@ -379,6 +379,7 @@ class InteractivePlot(object):
             s.poly.set_color(color); s.label.set(text=label)
 
         indx = int(label == 'green')  # 1 if green, 0 if red
+        self.radio.value_selected = label
         self.axes[0].get_lines()[not indx].set_zorder((not indx)+2)
         self.axes[0].get_lines()[indx].set_zorder(indx)
         self.radio.circles[indx].set_color(label[0])
@@ -463,6 +464,7 @@ class Draw_lines(object):
         if event.button == 1:
             if ax == self.fig.get_axes()[0] or ax == self.fig.get_axes()[1]:
                 sel = self.radio.value_selected*(ax == self.fig.get_axes()[0])
+#                print(sel)
                 sel = sel + "E"*(ax == self.fig.get_axes()[1])
                 l = ax.axvline(x=event.xdata, zorder=0, lw=0.65, label="man "+sel)
                 self.lines.append(l)
