@@ -28,7 +28,7 @@ from matplotlib.backends.backend_wxagg import NavigationToolbar2WxAgg as Navigat
 class MainFrame(wx.Frame):
     def __init__(self, parent, title):
 
-        wx.Frame.__init__(self, parent, title='Trace Analysis', size=(300,700))
+        wx.Frame.__init__(self, parent, title='Trace Analysis', size=(320,700))
 
         #self.panel1 = wx.Panel(self, wx.ID_ANY, size = (200,200))
         #self.panel2 = wx.Panel(self, wx.ID_ANY, size = (200,200))
@@ -315,7 +315,7 @@ class TracePanel(wx.Frame):
 
 class PlotPanel(wx.Panel):
     def __init__(self, parent, id=-1, dpi=None, **kwargs):
-        wx.Panel.__init__(self, parent, id=id, size = (500,500), **kwargs)
+        wx.Panel.__init__(self, parent, id=id, size=(500,500), **kwargs)
         self.figure = mpl.figure.Figure(dpi=dpi, figsize=(2, 2))
         self.axis = self.figure.gca()
         self.canvas = FigureCanvas(self, -1, self.figure)
