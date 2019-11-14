@@ -102,7 +102,7 @@ class File:
     def time(self):  # the time axis of the experiment, if not found in log it will be asked as input
         if self.exposure_time is None:
             self.exposure_time = input(f'Exposure time for {self.name}: ')
-        return np.arange(0, self.Nframes)*self.exposure_time
+        return np.arange(0, self.number_of_frames)*self.exposure_time
 
     @property
     def traces(self):

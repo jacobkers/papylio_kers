@@ -10,23 +10,24 @@ import sys
 import pandas as pd
 import os
 #import matplotlib.pyplot as plt
-import traceAnalysisCode as analysis
+from trace_analysis import Experiment
 sys.path.append('..')
 
 
-def find_dwelltimes(exp_file, save=True, filename=None):
+def find_dwelltimes(exp_file, trace='red', save=True, filename=None):
     exp_file.importExcel()  # this should not be needed normally
     max_time = exp_file.time[-1]
     exp_time = exp_file.exposure_time
 
     for i, mol in enumerate(exp_file.molecules):
-        if mol.steps is None:
+        if mol.steps is None or trace not in mol.steps.trace.values:
             continue
-        times = mol.steps.time.sort_values().values
+        times = mol.steps.time.sort_values().values[mol.steps.trace == trace]
         try:
             times1 = times.reshape((int(times.size/2), 2))
         except ValueError:
             print(times)
+            return
 
 #       Calculate the average FRET for each dwell
         avg_fret = []
@@ -65,8 +66,6 @@ def find_dwelltimes(exp_file, save=True, filename=None):
                 lab = 'r'
             labels.append(lab)
         dwells = pd.DataFrame({'offtime': dwells, 'side': labels})
-
-
 #       Calculate the on times
         ontimes = []
         labels = []
@@ -91,7 +90,7 @@ def find_dwelltimes(exp_file, save=True, filename=None):
         mol.steps = pd.concat([mol.steps, avgFRET, dwells, ontimes], axis=1)
 
     if save:
-        data = exp_file.savetoExcel(filename=exp_file.name+'_dwells_data.xlsx')
+        data = exp_file.savetoExcel(filename=exp_file.name+f'_dwells_{trace}_data.xlsx')
     else:
         data = exp_file.savetoExcel(save=False)
     return data
@@ -101,21 +100,21 @@ if __name__ == '__main__':
 
     start = timetime.time()
 #    os.chdir(os.path.dirname(os.path.abspath(__file__)))
-    expPath = 'O:/SM-data/20191024_dcas9_DNA05-06-09-Cy3'
-    for chamberFolder in os.listdir(expPath):
-        if 'movies' in chamberFolder:
-            mainPath = expPath + f'/{chamberFolder}'
-            exp = analysis.Experiment(mainPath)
-            for file in exp.files:
-                data = find_dwelltimes(file, save=True)
+#    expPath = 'O:/SM-data/20191024_dcas9_DNA05-06-09-Cy3'
+#    for chamberFolder in os.listdir(expPath):
+#        if 'movies' in chamberFolder:
+#            mainPath = expPath + f'/{chamberFolder}'
+#            exp = analysis.Experiment(mainPath)
+#            for file in exp.files:
+#                data = find_dwelltimes(file, save=True)
 
 
 #    mainPath='./traces'
-#    #mainPath = './iasonas/cas9_simulations/DNA11-20_30exposure'
-#    exp = analysis.Experiment(mainPath)
-#    for file.
-#    file = exp.files[0]
-#    data = analyze_dwelltimes(file, save=True)
+    mainPath = 'G:/SM-data/20191101_dcas9_flow_DNA04_DNA20/#4.20_streptavidin_0.5nM_dcas9-crRNA-Cy5_10nM_DNA04-Cy3_G_flow'
+    exp = Experiment(mainPath)
+    file = exp.files[1]
+
+#    data = find_dwelltimes(file, trace='red', save=True)
 
 #
     print(f'Analysis time: {timetime.time() - start} sec')

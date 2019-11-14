@@ -45,9 +45,9 @@ class Molecule:
 
         axis_I.set_xlabel('Time (s)')
         axis_I.set_ylabel('Intensity (a.u.)')
-        axis_I.set_ylim(0, 1000)
+        axis_I.set_ylim(0, 500)
         for i, colour in enumerate(self.file.experiment.colours):
-            axis_I.plot(self.I(i), colour)
+            axis_I.plot(self.file.time, self.I(i), colour)
 
         if len(self.file.experiment.pairs) > 0:
             axis_E = figure.add_subplot(212, sharex = axis_I)
@@ -55,7 +55,7 @@ class Molecule:
             axis_E.set_ylabel('FRET (-)')
             axis_E.set_ylim(0,1)
             for i, pair in enumerate(self.file.experiment.pairs):
-                axis_E.plot(self.E())
+                axis_E.plot(self.file.time, self.E())
     @property  # this is just for the stepfinder to be called through Molecule. Maybe not needed
     def find_steps(self):
         return stepfinder
