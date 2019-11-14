@@ -1,6 +1,6 @@
 import numpy as np #scientific computing with Python
 import matplotlib.pyplot as plt #Provides a MATLAB-like plotting framework
-from autoThreshold import stepfinder
+from trace_analysis.analysis.autoThreshold import stepfinder
 
 
 class Molecule:

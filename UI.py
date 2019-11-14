@@ -13,6 +13,7 @@ import wx.dataview
 import wx.lib.agw.hypertreelist as HTL
 from trace_analysis import Experiment, File
 
+
 #Use the following lines on Mac
 from sys import platform
 if platform == "darwin":
@@ -22,7 +23,7 @@ if platform == "darwin":
 import matplotlib as mpl
 from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg as FigureCanvas
 from matplotlib.backends.backend_wxagg import NavigationToolbar2WxAgg as NavigationToolbar
-
+from trace_analysis.analysis import interactiveAnalysis
 
 
 class MainFrame(wx.Frame):
@@ -50,11 +51,11 @@ class MainFrame(wx.Frame):
         viewMenu = wx.Menu()
         self.viewMenuShowMovie = viewMenu.AppendCheckItem(wx.ID_ANY, "&Show movie", "Show movie")
         self.viewMenuShowHistogram = viewMenu.AppendCheckItem(wx.ID_ANY,"&Show histogram", "Show histogram")
-        self.viewMenuShowTrace = viewMenu.AppendCheckItem(wx.ID_ANY,"&Show trace", "Show trace")
+#        self.viewMenuShowTrace = viewMenu.AppendCheckItem(wx.ID_ANY,"&Show trace", "Show trace")
 
         self.Bind(wx.EVT_MENU, self.OnShowMovie, self.viewMenuShowMovie)
         self.Bind(wx.EVT_MENU, self.OnShowHistogram, self.viewMenuShowHistogram)
-        self.Bind(wx.EVT_MENU, self.OnShowTrace, self.viewMenuShowTrace)
+#        self.Bind(wx.EVT_MENU, self.OnShowTrace, self.viewMenuShowTrace)
 
         # Data menu in Menu bar
         dataMenu = wx.Menu()
@@ -66,16 +67,16 @@ class MainFrame(wx.Frame):
 
         # Select menu in Menu bar
         selectMenu = wx.Menu()
-        self.selectMenuManualSelection = selectMenu.Append(wx.ID_ANY,"&Manual selection", "Manual selection")
+        self.selectMenuInteractiveAnalysis = selectMenu.Append(wx.ID_ANY,"&Interactive Analysis", "Interactive Analysis")
 
-        self.Bind(wx.EVT_MENU, self.OnManualSelection, self.selectMenuManualSelection)
+        self.Bind(wx.EVT_MENU, self.OnInteractiveSelection, self.selectMenuInteractiveAnalysis)
 
         # Menu bar        x
         menuBar = wx.MenuBar()
         menuBar.Append(fileMenu,"&File")
         menuBar.Append(viewMenu,"&View")
         menuBar.Append(dataMenu,"&Data")
-        menuBar.Append(selectMenu,"&Select")
+        menuBar.Append(selectMenu,"&Analysis")
         self.SetMenuBar(menuBar)
 
 
@@ -102,7 +103,7 @@ class MainFrame(wx.Frame):
         self.movie = MoviePanel(parent=self)
 
         self.histogram = HistogramPanel(parent=self)
-        self.trace = TracePanel(parent=self)
+        self.iteractive = InteractiveAnalysisPanel(parent=self)
         #self.histogram = PlotPanel(self)
         #self.histogram.figure.gca().plot([1, 2, 3, 4, 5], [2, 1, 4, 2, 3])
         #self.histogram.figure.gca().hist([1, 2, 3, 4, 5])
@@ -175,11 +176,11 @@ class MainFrame(wx.Frame):
         if event.IsChecked(): self.histogram.Show()
         elif ~event.IsChecked(): self.histogram.Hide()
 
-    def OnShowTrace(self,event):
-        if event.IsChecked():
-            self.trace.Show()
-            self.trace.PlotTrace(self.experiment.files[0].molecules[0])
-        elif ~event.IsChecked(): self.trace.Hide()
+#    def OnShowTrace(self,event):
+#        if event.IsChecked():
+#            self.trace.Show()
+#            self.trace.PlotTrace(self.experiment.files[0].molecules[0])
+#        elif ~event.IsChecked(): self.trace.Hide()
 
     # Data menu event handlers
     def OnFindMolecules(self, event):
@@ -191,10 +192,10 @@ class MainFrame(wx.Frame):
             file.extract_traces()
 
     # Select menu event handlers
-    def OnManualSelection(self, event):
+    def OnInteractiveSelection(self, event):
         file = self.tree.GetSelection().GetData()
-        print(file.name)
-        self.trace.LoopThroughMolecules(file.molecules)
+        print(f'{file.name} dataset selected')
+        self.interactive.start(file.molecules, import_excel=True)
 
 
     # TreeListCtrl event handlers
@@ -268,8 +269,8 @@ class HistogramPanel(wx.Frame):
         self.parent.viewMenuShowHistogram.Check(False)
         self.Hide()
 
-class TracePanel(wx.Frame):
-    def __init__(self, title='Trace', parent=None):
+class InteractiveAnalysisPanel(wx.Frame):
+    def __init__(self, title='Interactive Analysis', parent=None):
         wx.Frame.__init__(self, parent=parent, title=title)
         self.panel = PlotPanel(self)
         self.parent = parent
@@ -278,38 +279,18 @@ class TracePanel(wx.Frame):
         self.moleculesToLoopThrough = None
 
         self.currentMolecule = None
+        self.interactive_plot = None
 
-    def Show(self):
-        self.PlotTrace(self.currentMolecule)
-        super().Show()
+    def start(self, molecules, import_excel=True):
+        self.iPlot = interactiveAnalysis.InteractivePlot(molecules,
+                                                         self.panel.canvas,
+                                                         import_excel)
 
-    def OnClose(self,event):
-        self.parent.viewMenuShowTrace.Check(False)
-        self.Hide()
+        self.iPlot.plot_initialize()
+        self.iPlot.plot_molecule()
 
-    def PlotTrace(self, molecule):
-        self.currentMolecule = molecule
-        if self.IsShown():
-            self.panel.axis.clear()
-            molecule.plot(figure = self.panel.figure)
-            self.panel.canvas.draw()
-            self.panel.canvas.Refresh()
-            print(str(molecule.index))
 
-    def LoopThroughMolecules(self, molecules):
-        self.moleculesToLoopThrough = molecules
-        self.panel.canvas.Bind(wx.EVT_KEY_DOWN, self.GoToNextMolecule)
-        self.Show()
-        self.PlotTrace(molecules[0])
-        print('LoopThrough')
 
-    def GoToNextMolecule(self, event):
-        nextMoleculeIndex = self.moleculesToLoopThrough.index(self.currentMolecule)+1
-        if (nextMoleculeIndex < len(self.moleculesToLoopThrough)):
-            nextMolecule = self.moleculesToLoopThrough[nextMoleculeIndex]
-            self.PlotTrace(nextMolecule)
-        else:
-            self.panel.canvas.Unbind(wx.EVT_KEY_DOWN)
 
 
 
@@ -509,7 +490,40 @@ class HyperTreeListPlus(HTL.HyperTreeList):
 #        return page.figure
 
 
-
+#class TracePanel(wx.Frame):
+#    def __init__(self, title='Trace', parent=None):
+#        wx.Frame.__init__(self, parent=parent, title=title)
+#        self.panel = PlotPanel(self)
+#        self.parent = parent
+#        self.Bind(wx.EVT_CLOSE, self.OnClose)
+#
+#        self.moleculesToLoopThrough = None
+#
+#        self.currentMolecule = None
+#
+#    def Show(self):
+#        self.PlotTrace(self.currentMolecule)
+#        super().Show()
+#
+#    def OnClose(self,event):
+#        self.parent.viewMenuShowTrace.Check(False)
+#        self.Hide()
+#
+#    def PlotTrace(self, molecule):
+#        self.currentMolecule = molecule
+#        if self.IsShown():
+#            self.panel.axis.clear()
+#            molecule.plot(figure = self.panel.figure)
+#            self.panel.canvas.draw()
+#            self.panel.canvas.Refresh()
+#            print(str(molecule.index))
+#
+#    def LoopThroughMolecules(self, molecules):
+#        self.moleculesToLoopThrough = molecules
+#        self.panel.canvas.Bind(wx.EVT_KEY_DOWN, self.GoToNextMolecule)
+#        self.Show()
+#        self.PlotTrace(molecules[0])
+#        print('LoopThrough')
 
 
 app = wx.App(False)

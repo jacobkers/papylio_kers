@@ -39,6 +39,7 @@ class File:
         if self.experiment.import_all is True:
             self.findAndAddExtensions()
 
+
     def __repr__(self):
         return (f'{self.__class__.__name__}({self.relativePath.joinpath(self.name)})')
 
@@ -313,6 +314,7 @@ class File:
             steps_data = pd.read_excel(filename, index_col=[0,1],
                                             dtype={'kon':np.str})       # reads from the 1st excel sheet of the file
         except FileNotFoundError:
+            print(f'No saved analysis for {self.name}')
             return
         molecules = steps_data.index.unique(0)
         indices = [int(m.split()[-1]) for m in molecules]

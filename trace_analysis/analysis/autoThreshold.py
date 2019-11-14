@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 from os import listdir
 import os
 from scipy import signal
-from decorators import timer
+from trace_analysis.analysis.decorators import timer
 
 
 #@timer

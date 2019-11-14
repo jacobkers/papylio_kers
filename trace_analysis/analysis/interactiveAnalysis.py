@@ -22,25 +22,32 @@ import functools
 
 
 class InteractivePlot(object):
-    def __init__(self, file, import_excel=True):
-        plt.ioff()
-        self.file = file
-        self.mol_indx = 0  #From which molecule to start the analysis
-        self.exp_time = self.file.exposure_time
-        self.time = np.arange(0, len(self.file.molecules[0].I(0)))*self.exp_time  # the array is multiplied with exposure time in the end to ensure equal dimensions
-        #  See if there are saved analyzed molecules
-        if import_excel:
-            self.file.importExcel(filename=self.file.name+'_steps_data.xlsx')
+    def __init__(self, molecules, canvas=None, import_excel=True):
 
+        self.molecules = molecules
+        self.mol_indx = 0  #From which molecule to start the analysis
+        self.canvas = canvas
+#        self.exp_time = self.molecules[.file.exposure_time
+#        self.time = np.arange(0, len(self.file.molecules[0].I(0)))*self.exp_time  # the array is multiplied with exposure time in the end to ensure equal dimensions
+        #  See if there are saved analyzed molecules
+
+    @property
+    def file(self):
+        return self.molecules[self.mol_indx].file
+    @property
+    def time(self):
+        return self.molecules[self.mol_indx].file.time
 
     def plot_initialize(self):
 
         sns.set(style="dark")
         sns.set_color_codes()
         plt.style.use('dark_background')
-
-        self.fig, self.axes = plt.subplots(2, 1, sharex=True, figsize=(10,5))
-        self.fig.canvas.set_window_title(f'Dataset: {self.file.name}')
+        if self.canvas is None:
+            self.fig, self.axes = plt.subplots(2, 1, sharex=True, figsize=(10,5))
+        else:
+            self.fig = self.canvas.figure
+            self.axes = self.fig.subplots(2, 1, sharex=True)
         self.axes[0].set_ylim((-50,500))  # Det default intensity limits
         self.axes[0].set_ylabel("intensity (a.u)\n")
         self.axes[1].set_ylim((-0.1,1.1))  # Det default fret limits
@@ -150,7 +157,8 @@ class InteractivePlot(object):
         # clear the appropriate lines from axes first
         [ax.lines.clear() for ax in self.fig.get_axes()[:2]]
         # find the current molecule instance
-        self.mol = self.file.molecules[self.mol_indx]
+        self.mol = self.molecules[self.mol_indx]
+        self.fig.canvas.set_window_title(f'Dataset: {self.file.name}')
 
         # Check if molecule is selected
         if self.mol.isSelected:
@@ -161,7 +169,7 @@ class InteractivePlot(object):
         self.load_from_Molecule()
 
         # load kon if existing or assign a False 3x3 boolean
-        self.prev_mol = self.file.molecules[self.mol_indx - 1]
+        self.prev_mol = self.molecules[self.mol_indx - 1]
         if all(kon is None for kon in [self.mol.kon_boolean, self.prev_mol.kon_boolean]):
             self.kon = np.zeros((3,3), dtype=bool)
         elif self.mol.kon_boolean is  None:
@@ -273,7 +281,7 @@ class InteractivePlot(object):
         else:
             self.mol.isSelected = True
 
-        title = f'Molecule: {self.mol.index} /{len(self.file.molecules)}'
+        title = f'Molecule: {self.mol.index} /{len(self.molecules)}'
         title += '  (S)'*(self.mol.isSelected)
         rgba = matplotlib.colors.to_rgba
         c = rgba('g')*self.mol.isSelected + rgba('w')*(not self.mol.isSelected)
@@ -322,7 +330,7 @@ class InteractivePlot(object):
         if move:
             if event.inaxes == self.axnextb or event.key in ['right']:
                 self.mol_indx += 1
-                if self.mol_indx >= len(self.file.molecules):
+                if self.mol_indx >= len(self.molecules):
                     self.mol_indx = 0
 
 
@@ -349,20 +357,20 @@ class InteractivePlot(object):
         color = self.red*bool(sel == "red") + self.green*bool(sel == "green")  # Select trace data for red  or green
         steps = self.mol.find_steps(color, threshold=self.thrsliders[0].val)
         l_props = {"lw": 0.75, "zorder": 5, "label": "thres "+sel}
-        [self.axes[0].axvline(s*self.exp_time, **l_props) for s in steps["frames"]]
+        [self.axes[0].axvline(s*self.file.exposure_time, **l_props) for s in steps["frames"]]
         if self.checkbfret.get_status()[0]:
             steps = self.mol.find_steps(self.fret, threshold=self.thrsliders[1].val)
             l_props = {"lw": 0.75, "zorder": 5, "label": "thres E"}
             [self.axes[1].axvline(s*self.exp_time, **l_props) for s in steps["frames"]]
         self.fig.canvas.draw()
         if find_all:
-            for mol in self.file.molecules:
+            for mol in self.molecules:
                 self.autoThreshold_plot(find_all=False)
-                print(f'Analyzed mol {self.mol.index} /{len(self.file.molecules)}')
+                print(f'Analyzed mol {self.mol.index} /{len(self.molecules)}')
                 e = matplotlib.backend_bases.KeyEvent('key_press_event', self.fig.canvas, 'right')
-                if mol != self.file.molecules[-1]:
+                if mol != self.molecules[-1]:
                     self.save_molecule(event=e, move=True, draw=False)
-                elif mol == self.file.molecules[-1]:
+                elif mol == self.molecules[-1]:
                     self.conclude_analysis()
                     return
 
@@ -503,7 +511,8 @@ if __name__ == '__main__':
         mainPath = Path(mainPath)
         exp = Experiment(mainPath)
         file = exp.files[0]
-        i = InteractivePlot(file)
+        molecules = file.molecules
+        i = InteractivePlot(molecules)
         i.plot_initialize()
         i.plot_molecule()
         plt.show()
