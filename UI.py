@@ -167,7 +167,9 @@ class MainFrame(wx.Frame):
 
     # View menu event handlers
     def OnShowMovie(self,event):
-        if event.IsChecked(): self.movie.Show()
+        if event.IsChecked():
+            self.movie.Show()
+            self.movie.ShowMovie()
         elif ~event.IsChecked(): self.movie.Hide()
 
     def OnShowHistogram(self,event):
@@ -184,6 +186,7 @@ class MainFrame(wx.Frame):
     def OnFindMolecules(self, event):
         for file in self.experiment.selectedFiles:
             file.find_coordinates() # The channel should be an option somewhere
+        self.tree.insertDataIntoColumns()
 
     def OnExtractTraces(self, event):
         for file in self.experiment.selectedFiles:
@@ -240,8 +243,12 @@ class MoviePanel(wx.Frame):
     def ShowMovie(self, show_coordinates = True):
         if self.IsShown():
             self.panel.axis.clear()
-            self._file.movie.show_average_image(figure = self.panel.figure)
-            if show_coordinates: self._file.show_coordinates(figure=self.panel.figure)
+            if self._file is not None: self._file.show_average_image(figure = self.panel.figure)
+            if show_coordinates:
+                if self._file.is_mapping_file:
+                    self._file.mapping.show_mapping_transformation(figure=self.panel.figure)
+                else:
+                    self._file.show_coordinates(figure=self.panel.figure)
             self.panel.canvas.draw()
             self.panel.canvas.Refresh()
 
@@ -361,7 +368,8 @@ class HyperTreeListPlus(HTL.HyperTreeList):
             self.AddFile(file, experimentItem)
             
             #self.tree.SetItemText(item, 'test', 1)
-        
+
+        self.insertDataIntoColumns()
         self.Expand(experimentItem)
 
     def AddFile(self, file, experimentItem):
@@ -387,15 +395,16 @@ class HyperTreeListPlus(HTL.HyperTreeList):
         item = self.AppendItem(parentItem, file.name, ct_type = 1, data = file)
         self.FileItems.append(item)
 
-        self.insertDataIntoColumns(item)
+        # self.insertDataIntoColumns(item)
 
         return item
     
-    def insertDataIntoColumns(self, item):
-        itemData = item.GetData()
-        if type(itemData) is File:
-            self.SetItemText(item, str(len(itemData.molecules)), 1) # Should be in a different method
-            self.SetItemText(item, str(len(itemData.selectedMolecules)), 2)
+    def insertDataIntoColumns(self):
+        for item in self.FileItems:
+            itemData = item.GetData()
+            if type(itemData) is File:
+                self.SetItemText(item, str(len(itemData.molecules)), 1) # Should be in a different method
+                self.SetItemText(item, str(len(itemData.selectedMolecules)), 2)
     
     def OnItemActivated(self, event):
         item = event.GetItem()

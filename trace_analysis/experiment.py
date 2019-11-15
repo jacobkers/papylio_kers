@@ -129,7 +129,9 @@ class Experiment:
                 file.findAndAddExtensions()
                 break
         else:
-            self.files.append(File(relativeFilePath, self))
+            new_file = File(relativeFilePath, self)
+            if new_file.extensions:
+                self.files.append(new_file)
             
             # If not found: add file and extension, or if the file is already there then add the extention to it.
             # If the file and extension are already imported, display a warning message.

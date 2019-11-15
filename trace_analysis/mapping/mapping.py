@@ -46,9 +46,11 @@ class Mapping2:
         if not figure: figure = plt.figure()
         destination_from_source = self.transform_coordinates(self.source)
 
-        plt.scatter(self.source[:, 0], self.source[:, 1], c='b')
-        plt.scatter(self.destination[:, 0], self.destination[:, 1], c='r')
-        plt.scatter(destination_from_source[:, 0], destination_from_source[:, 1], c='g')
+        axis = figure.gca()
+
+        axis.scatter(self.source[:, 0], self.source[:, 1], c='g')
+        axis.scatter(self.destination[:, 0], self.destination[:, 1], c='r')
+        axis.scatter(destination_from_source[:, 0], destination_from_source[:, 1], c='g')
 
     def transform_coordinates(self, coordinates, inverse = False):
         if self.transformation_type == 'linear':
