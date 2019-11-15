@@ -20,6 +20,9 @@ if platform == "darwin":
     from matplotlib import use
     use('WXAgg')
 
+
+#from matplotlib import use
+#use('WXAgg')
 import matplotlib as mpl
 from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg as FigureCanvas
 from matplotlib.backends.backend_wxagg import NavigationToolbar2WxAgg as NavigationToolbar
@@ -103,7 +106,7 @@ class MainFrame(wx.Frame):
         self.movie = MoviePanel(parent=self)
 
         self.histogram = HistogramPanel(parent=self)
-        self.iteractive = InteractiveAnalysisPanel(parent=self)
+        self.interactive = InteractiveAnalysisPanel(parent=self)
         #self.histogram = PlotPanel(self)
         #self.histogram.figure.gca().plot([1, 2, 3, 4, 5], [2, 1, 4, 2, 3])
         #self.histogram.figure.gca().hist([1, 2, 3, 4, 5])
@@ -194,6 +197,7 @@ class MainFrame(wx.Frame):
     # Select menu event handlers
     def OnInteractiveSelection(self, event):
         file = self.tree.GetSelection().GetData()
+        print(self.tree.GetSelection().GetData())
         print(f'{file.name} dataset selected')
         self.interactive.start(file.molecules, import_excel=True)
 
@@ -277,17 +281,36 @@ class InteractiveAnalysisPanel(wx.Frame):
         self.Bind(wx.EVT_CLOSE, self.OnClose)
 
         self.moleculesToLoopThrough = None
+        self.iPlot = None
 
-        self.currentMolecule = None
-        self.interactive_plot = None
+    @property
+    def currentMolecule(self):
+        if self.iPlot is not None:
+            return self.iPlot.mol
+        else:
+            print('InteractiveAnalysis not initialized')
+
+    @property
+    def currentFile(self):
+        if self.iPlot is not None:
+            return self.iPlot.mol
+        else:
+            print('InteractiveAnalysis not initialized')
+
 
     def start(self, molecules, import_excel=True):
-        self.iPlot = interactiveAnalysis.InteractivePlot(molecules,
-                                                         self.panel.canvas,
-                                                         import_excel)
+        self.moleculesToLoopThrough = molecules
+        self.iPlot = interactiveAnalysis.InteractivePlot(molecules, self.panel.canvas,
+                                                import_excel=import_excel)
 
         self.iPlot.plot_initialize()
         self.iPlot.plot_molecule()
+
+
+
+    def OnClose(self,event):
+        self.parent.viewMenuShowTrace.Check(False)
+        self.Hide()
 
 
 
@@ -325,7 +348,6 @@ class HyperTreeListPlus(HTL.HyperTreeList):
         self.Bind(HTL.EVT_TREE_ITEM_CHECKED, self.OnItemChecked)
 
         self.Bind(wx.EVT_TREE_ITEM_RIGHT_CLICK, self.OnItemRightClick)
-
 
 
 #    def AppendItem(self, arg, *args, **kwargs):

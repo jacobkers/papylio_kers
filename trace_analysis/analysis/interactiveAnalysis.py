@@ -140,7 +140,7 @@ class InteractivePlot(object):
         [slider.vline.remove() for slider in self.thrsliders]  # remove the default vertical lines showing the initial value
 
         self.connect_events_to_canvas()
-        self.fig.show()
+#        self.fig.show()
 
     def connect_events_to_canvas(self):
         self.fig.canvas.mpl_connect('button_press_event', self.draw.onclick)
