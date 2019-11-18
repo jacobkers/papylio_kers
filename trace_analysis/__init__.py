@@ -8,4 +8,4 @@ from trace_analysis.file import File
 from trace_analysis.molecule import Molecule
 from trace_analysis.image_adapt.movie import Movie
 from trace_analysis.image_adapt.sifx_file import SifxFile
-from trace_analysis.analysis import interactiveAnalysis
+from trace_analysis.analysis.interactiveAnalysis import InteractivePlot
