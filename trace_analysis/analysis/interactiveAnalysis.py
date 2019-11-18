@@ -17,7 +17,7 @@ import seaborn as sns
 from pathlib import Path, PureWindowsPath
 import functools
 #plt.rcParams['toolbar'] = 'toolmanager'
-#from matplotlib.backend_tools import ToolBase
+# from matplotlib.backend_tools import ToolBase
 #mainPath = r'D:\ivoseverins\SURFdrive\Promotie\Code\Python\traceAnalysis\twoColourExampleData\HJ A'
 
 
@@ -39,6 +39,7 @@ class InteractivePlot(object):
         return self.molecules[self.mol_indx].file.time
 
     def plot_initialize(self):
+        plt.ion() # Possibly we should fix this in another way [IS: 18-11-2019]
 
         sns.set(style="dark")
         sns.set_color_codes()
