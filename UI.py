@@ -28,7 +28,6 @@ from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg as FigureCanvas
 from matplotlib.backends.backend_wxagg import NavigationToolbar2WxAgg as NavigationToolbar
 from trace_analysis.analysis import interactiveAnalysis
 
-
 class MainFrame(wx.Frame):
     def __init__(self, parent, title):
 
@@ -283,7 +282,7 @@ class HistogramPanel(wx.Frame):
 class InteractiveAnalysisPanel(wx.Frame):
     def __init__(self, title='Interactive Analysis', parent=None):
         wx.Frame.__init__(self, parent=parent, title=title)
-        self.panel = PlotPanel(self)
+        # self.panel = PlotPanel(self) # Probably necessary in the end - IS
         self.parent = parent
         self.Bind(wx.EVT_CLOSE, self.OnClose)
 
@@ -307,9 +306,9 @@ class InteractiveAnalysisPanel(wx.Frame):
 
     def start(self, molecules, import_excel=True):
         self.moleculesToLoopThrough = molecules
-        self.iPlot = interactiveAnalysis.InteractivePlot(molecules, self.panel.canvas,
-                                                import_excel=import_excel)
-
+        #self.iPlot = interactiveAnalysis.InteractivePlot(molecules, self.panel.canvas,
+        #                                        import_excel=import_excel)
+        self.iPlot = interactiveAnalysis.InteractivePlot(molecules, import_excel=import_excel)
         self.iPlot.plot_initialize()
         self.iPlot.plot_molecule()
 
