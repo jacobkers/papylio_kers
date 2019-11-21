@@ -53,3 +53,10 @@ def fit_hist(data, axis):
 
 # uniqueFileNames = list(set([re.search('hel[0-9]*',fileName).group() for fileName in fileNames]))
 
+def scatter_coordinates(pointsets):
+    for pointset in pointsets:
+        plt.scatter(pointset[:,0], pointset[:,1])
+
+def show_point_connections(pointset1,pointset2):
+    for coordinate1, coordinate2 in zip(pointset1, pointset2):
+        plt.plot([coordinate1[0],coordinate2[0]],[coordinate1[1],coordinate2[1]], color='r')

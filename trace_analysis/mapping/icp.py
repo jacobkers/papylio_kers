@@ -1,6 +1,7 @@
 import numpy as np
 from sklearn.neighbors import NearestNeighbors
 from trace_analysis.coordinate_transformations import transform
+from trace_analysis.plotting import scatter_coordinates, show_point_connections
 
 def best_fit_transform(A, B):
     '''
@@ -87,15 +88,6 @@ def nearest_neighbor_pair(pointset1, pointset2):
     # i2 = indices2[indices1[indices2] == np.arange(len(indices2))]
 
     return distances1[i2], i1, i2
-
-import matplotlib.pyplot as plt
-def scatter_coordinates(pointsets):
-    for pointset in pointsets:
-        plt.scatter(pointset[:,0], pointset[:,1])
-
-def show_point_connections(pointset1,pointset2):
-    for coordinate1, coordinate2 in zip(pointset1, pointset2):
-        plt.plot([coordinate1[0],coordinate2[0]],[coordinate1[1],coordinate2[1]], color='r')
 
 def icp(source, destination, max_iterations=20, tolerance=0.001, initial_translation = None):
     '''
