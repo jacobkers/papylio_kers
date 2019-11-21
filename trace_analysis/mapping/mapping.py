@@ -23,9 +23,22 @@ class Mapping2:
         self.transformation_inverse = None
         self.initial_translation = initial_translation
 
-        if (source is not None) and (destination is not None):
-            if self.method is None: self.method = 'icp'
-            self.perform_mapping()
+        # if (source is not None) and (destination is not None):
+        #     if self.method is None: self.method = 'icp'
+        #     self.perform_mapping()
+
+    @property
+    def translation(self):
+        return self.transformation[0:2,2]
+
+    @property
+    def magnification(self):
+        return np.linalg.norm(self.transformation[:,0:2],axis=0)
+
+    @property
+    def rotation(self):
+        rotation_matrix = self.transformation[0:2, 0:2]/self.magnification[0]
+        return np.arctan2(rotation_matrix[0,1]-rotation_matrix[1,0],rotation_matrix[0,0]+rotation_matrix[1,1])/(2*np.pi)*360
 
     @property
     def transform_source_to_destination(self):
