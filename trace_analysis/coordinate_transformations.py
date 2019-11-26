@@ -29,6 +29,7 @@ def reflect(axis=0):
 
 
 def transform(pointSet, transformationMatrix=None, **kwargs):
+    if len(pointSet) == 0: return pointSet
     pointSet = np.append(pointSet, np.ones((pointSet.shape[0], 1)), axis=1)
     transformations = {
         'translation': translate,

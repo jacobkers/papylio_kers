@@ -72,8 +72,10 @@ class File:
         #     _pks_file = PksFile(self.absoluteFilePath.with_suffix('.pks'))
 
         #return np.concatenate([[molecule.coordinates[0, :] for molecule in self.molecules]])
-
-        return np.concatenate([molecule.coordinates for molecule in self.molecules])
+        if len(self.molecules) > 0:
+            return np.concatenate([molecule.coordinates for molecule in self.molecules])
+        else:
+            return np.array([])
 
     @coordinates.setter
     def coordinates(self, coordinates, number_of_colours = None):
