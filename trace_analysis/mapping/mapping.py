@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 from trace_analysis.mapping.icp import icp
 from trace_analysis.mapping.icp_nonrigid import icp_nonrigid
 from trace_analysis.coordinate_transformations import transform
+from trace_analysis.plotting import plot_match
 
 class Mapping2:
     def __init__(self, source = None, destination = None, method = None,
@@ -191,8 +192,8 @@ class SequencingDataMapping:
         plt.tight_layout()
 
         if export:
-            fig.savefig('histogramNumberOfMatches.pdf', bbox_inches='tight')
-            fig.savefig('histogramNumberOfMatches.png', bbox_inches='tight')
+            fig.savefig(self.dataPath.joinpath('histogramNumberOfMatches.pdf'), bbox_inches='tight')
+            fig.savefig(self.dataPath.joinpath('histogramNumberOfMatches.png'), bbox_inches='tight')
 
     def show_match(self, match, figure = None, view='destination'):
         if not figure: figure = plt.gcf()
@@ -226,5 +227,15 @@ class SequencingDataMapping:
             # ax.set_xlim([0, 31000])
             # ax.set_ylim([0, 31000])
 
+        name = str(self.files[self.matches.index(match)].relativeFilePath)
+        print(name)
+        n = name.replace('\\', '_')
 
+        figure.savefig(self.dataPath.joinpath(n + '_raw.pdf'), bbox_inches='tight')
+        figure.savefig(self.dataPath.joinpath(n + '_raw.png'), bbox_inches='tight', dpi=1000)
+
+    def plot_match(self, match):
+        name = str(self.files[self.matches.index(match)].relativeFilePath)
+        print(name)
+        plot_match(match.destination, match.transform_source_to_destination, match.transformation, self.dataPath, name)
 
