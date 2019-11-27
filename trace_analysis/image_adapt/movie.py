@@ -138,7 +138,8 @@ class Movie:
         self._average_image = frame_array_mean
         
         return frame_array_mean
-    
+
+    # Moved to file, can probably be removed
     def show_average_image(self, mode='2d', figure=None):
         if not figure: figure = plt.figure() # Or possibly e.g. plt.figure('Movie')
         if mode == '2d':

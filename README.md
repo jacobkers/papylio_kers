@@ -4,18 +4,22 @@ Software for single-molecule trace analysis
 
 ## Prerequisites
 
-If not yet installed:
+### Miniconda python 3.7 64-bit
 
-### Install miniconda python 3.7 64-bit
 Install miniconda python version 3.7 64-bit from https://docs.conda.io/en/latest/miniconda.html  
     IMPORTANT: Under advanced options tick the box "Add Anaconda to my PATH enivronment variable"
 
-### Install git
-Install git from https://git-scm.com/download/win  
-	Use all standard settings  
-	IMPORTANT: On the page "Adjusting your PATH enivronment" make sure that you choose "Git from the command line and also from 3rd party software"
+### Git
 
-## Installing
+Install git from https://git-scm.com/download/win  
+    Use all standard settings  
+    IMPORTANT: On the page "Adjusting your PATH enivronment" make sure that you choose "Git from the command line and also from 3rd party software"
+
+## Installation
+
+*For windows only*
+
+*Advanced installation instructions can be found below*
 
 Get the Setup.cmd file
 Place this file in a directory where you want the code to be located
@@ -24,10 +28,53 @@ Give your netid and password to log into gitlab and download the code
 The code will be in a subfolder called "traceanalysis", you can move this folder anywhere you like.
 The original Setup.cmd file can be deleted.
 
-## Using the UI
-
-Double click on the file "Start UI.cmd"
+## Using the GUI
+*For windows only*
+Start the user interface by double clicking the file `Start GUI.cmd`
 
 ## Updating
+*For windows only*
+Double click on the file `Update.cmd` (windows only)
 
-Double click on the file "Update.cmd"
+---
+
+## Installation - advanced
+
+Clone the git repository:
+
+```batch
+clone https://gitlab.tudelft.nl/ivoseverins/traceanalysis.git
+```
+
+Create a conda environment named `trace_analysis` based on the `environment.yml` file. (Make sure you are in the main folder)
+
+```batch
+conda env create --file environment.yml
+```
+
+## Using the software - advanced
+
+Either start the GUI by (use `pythonw` instead of `python` on Mac)
+
+```batch
+python GUI.py
+```
+
+Or start python and import the `Experiment` and `InteractivePlot` classes from the `trace_analysis` library located in the `traceanalysis` folder:
+
+```python
+from trace_analysis import Experiment
+from trace_analysis import InteractivePlot
+```
+
+An example script using these classes can be found in the `example.py` file. 
+
+## Updating - advanced
+
+Pull the latest version from the git repository and update the `trace_analysis` environment if necessary:
+
+``` batch
+conda env update --file environment.yml --prune
+```
+
+
