@@ -147,7 +147,8 @@ class SequencingDataMapping:
         matches = []
         for file in self.files:
             print(file.name)
-            coordinates = transform(file.coordinates, **self.initial_image_transformation)
+            coordinates, initial_transformation = transform(file.coordinates, returnTransformationMatrix = True,
+                                                            **self.initial_image_transformation)
 
             [bestBasis, matchedBases, allBestBaseMatches] = findMatch(coordinates, self.hashTable,
                                                                       bases=self.bases_findMatch,
@@ -163,9 +164,12 @@ class SequencingDataMapping:
                             self.tile.coordinates[bestBasis['hashTableBasis']],
                             returnTransformationMatrix=True)
 
-            match = Mapping2(coordinates, self.tile.coordinates,
+            transformation_matrix = transformation_matrix @ initial_transformation
+
+            match = Mapping2(file.coordinates.copy(), self.tile.coordinates.copy(),
                                   method='geometric-hashing',
                                   transformation_type='linear')
+
             # match.name =
             match.transformation = transformation_matrix
             match.best_image_basis = bestBasis
@@ -237,5 +241,5 @@ class SequencingDataMapping:
     def plot_match(self, match):
         name = str(self.files[self.matches.index(match)].relativeFilePath)
         print(name)
-        plot_match(match.destination, match.transform_source_to_destination, match.transformation, self.dataPath, name)
+        plot_match(match, self.dataPath, name, unit='um')
 

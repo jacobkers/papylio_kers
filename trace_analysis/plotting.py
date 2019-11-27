@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 from trace_analysis.coordinate_transformations import transform
 import matplotlib.patches as patches
 from matplotlib.collections import PatchCollection
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 def histogram(input, axis, makeFit=False):
     if not input: return None
@@ -65,60 +66,75 @@ def show_point_connections(pointset1,pointset2):
         plt.plot([coordinate1[0],coordinate2[0]],[coordinate1[1],coordinate2[1]], color='r')
 
 
-def plot_match(ps1, ps3, transformationMatrix, write_path, name, ax1pos = None, ax2pos = None):
-    ps1 = 958 / 2800 * (ps1 - 1000) / 10
+def plot_match(match, write_path, name, unit = 'um', ax1pos = None, ax2pos = None):
+
+    def MiSeq_pixels_to_um(pixels):
+        return 958 / 2800 * (pixels - 1000) / 10
+
+    source = match.transform_source_to_destination
+    destination = match.destination
+    transformationMatrix = match.transformation
+
     # ps2 = 5.2 / 30 * ps2
-    ps3 = 958 / 2800 * (ps3 - 1000) / 10
 
-    #%%
-    imageSize2 = np.array([[1024,0],[2048,2048]])
-    imageSize2r = transform(imageSize2, reflection=0) # This reflects with repect to axis 0.
-    # transformationMatrix = np.array(
-    #         [[ 1.17434823e-02,  5.15661570e+00,  2.30346061e+04],
-    #          [-5.15661570e+00,  1.17434823e-02,  1.45601679e+04],
-    #          [ 0.00000000e+00,  0.00000000e+00,  1.00000000e+00]])
+    image_size_in_source = np.array([[1024,0],[2048,2048]])
+    image_size_in_destination = transform(image_size_in_source, transformationMatrix)
 
-    imageSize3 = transform(imageSize2r, transformationMatrix)
-    imageSize3 = 958/2800*(imageSize3-1000)/10
+    if unit == 'um':
+        source = MiSeq_pixels_to_um(source)
+        destination = MiSeq_pixels_to_um(destination)
+        image_size_in_destination = MiSeq_pixels_to_um(image_size_in_destination)
 
+    # fig = plt.figure(figsize = (8,4))
+    # ax1, ax2 = fig.subplots(1, 2)
 
-    fig = plt.figure(figsize = (10,4))
-    ax1, ax2 = fig.subplots(1, 2)
+    fig, ax1 = plt.subplots(figsize = (8,4))
+    fig.subplots_adjust(0.05,0.05,0.95,0.95)
 
+    divider = make_axes_locatable(ax1)
+    ax2 = divider.append_axes('right', size='60%', pad=0.5)
+    #
+    # from mpl_toolkits.axes_grid1 import ImageGrid
+    #
+    # fig = plt.figure(figsize = (8,4))
+    # grid = ImageGrid(fig, 111, nrows_ncols=(1,2), axes_pad=0.1, add_all=True, label_mode='L')
+    #
+    # ax1 = grid[0]
+    # ax2 = grid[1]
 
-
-    ax1.scatter(ps3[:,0],ps3[:,1],c='#40A535',marker = 'x')
-    ax1.scatter(ps1[:,0],ps1[:,1], marker = '.', facecolors = 'k', edgecolors='k')
-
+    ax1.scatter(source[:,0],source[:,1],c='#40A535',marker = 'x')
+    ax1.scatter(destination[:,0],destination[:,1], marker = '.', facecolors = 'k', edgecolors='k')
     ax1.set_facecolor('white')
-
     ax1.set_aspect('equal')
-    #ax.set_title('Mapped')
-    # ax.set_xlim([0, 30000])
-    # ax.set_ylim([0, 30000])
-    #
-    # ax.set_xlabel('x')
-    # ax.set_ylabel('y')
-    #
-    # ax.ticklabel_format(axis='both', style='sci', scilimits=(5,6), useOffset=None, useLocale=None, useMathText=True)
 
-    start = 0
-    end = 1001
-    stepsize = 250
 
-    ax1.set_xlim([0, 1000])
-    ax1.set_ylim([0, 1000])
-    ax1.set_xlabel('x (\u03BCm)')
-    ax1.set_ylabel('y (\u03BCm)')
-    ax1.xaxis.set_ticks(np.arange(start, end, stepsize))
-    ax1.yaxis.set_ticks(np.arange(start, end, stepsize))
+    ax1.set_xlim([0, 30000])
+    ax1.set_ylim([0, 30000])
+    ax1.set_xlabel('x')
+    ax1.set_ylabel('y')
 
-    ax1.ticklabel_format(axis='both', style='sci', scilimits=(0,4), useOffset=None, useLocale=None, useMathText=True)
+    ax1.ticklabel_format(axis='both', style='sci', scilimits=(5,6), useOffset=None, useLocale=None, useMathText=True)
+
+    if unit == 'um':
+        start = 0
+        end = 1001
+        stepsize = 250
+
+        ax1.set_xlim([0, 1000])
+        ax1.set_ylim([0, 1000])
+        ax1.set_xlabel('x (\u03BCm)')
+        ax1.set_ylabel('y (\u03BCm)')
+        ax1.xaxis.set_ticks(np.arange(start, end, stepsize))
+        ax1.yaxis.set_ticks(np.arange(start, end, stepsize))
+
+        ax1.ticklabel_format(axis='both', style='sci', scilimits=(0,4), useOffset=None, useLocale=None, useMathText=True)
 
 
     p = patches.Rectangle(
         #(left, bottom), width, height,
-        (imageSize3[0,0],imageSize3[0,1]),imageSize3[1,0]-imageSize3[0,0],imageSize3[1,1]-imageSize3[0,1],
+        (image_size_in_destination[0,0],image_size_in_destination[0,1]),
+        image_size_in_destination[1,0]-image_size_in_destination[0,0],
+        image_size_in_destination[1,1]-image_size_in_destination[0,1],
         linewidth=2,edgecolor='#40A535',facecolor='none', fill='false'
         )
 
@@ -131,27 +147,26 @@ def plot_match(ps1, ps3, transformationMatrix, write_path, name, ax1pos = None, 
     # fig.savefig(write_path.joinpath(name + '.png'), bbox_inches='tight', dpi=1000)
 
 
-    ax2.scatter(ps3[:,0],ps3[:,1],c='#40A535',marker = 'x')
-    ax2.scatter(ps1[:,0],ps1[:,1], marker = '.', facecolors = 'k', edgecolors='k')
-
+    ax2.scatter(source[:,0],source[:,1],c='#40A535',marker = 'x')
+    ax2.scatter(destination[:,0],destination[:,1], marker = '.', facecolors = 'k', edgecolors='k')
     ax2.set_facecolor('white')
-
     ax2.set_aspect('equal')
-    #ax.set_title('Mapped')
-    # ax.set_xlim([imageSize3[0,0], imageSize3[1,0]])
-    # ax.set_ylim([imageSize3[0,1], imageSize3[1,1]])
-    #
-    # ax.set_xlabel('x')
-    # ax.set_ylabel('y')
-    #
-    # ax.ticklabel_format(axis='both', style='sci', scilimits=(5,6), useOffset=None, useLocale=None, useMathText=True)
 
-    ax2.set_xlim([imageSize3[1,0],imageSize3[0,0]])
-    ax2.set_ylim([imageSize3[0,1],imageSize3[1,1]])
-    ax2.set_xlabel('x (\u03BCm)')
-    ax2.set_ylabel('y (\u03BCm)')
+    ax2.set_xlim([image_size_in_destination[1,0],image_size_in_destination[0,0]])
+    ax2.set_ylim([image_size_in_destination[0,1], image_size_in_destination[1,1]])
 
-    ax2.ticklabel_format(axis='both', style='sci', scilimits=(0,4), useOffset=None, useLocale=None, useMathText=True)
+    ax2.set_xlabel('x')
+    ax2.set_ylabel('y')
+
+    ax2.ticklabel_format(axis='both', style='sci', scilimits=(5,6), useOffset=None, useLocale=None, useMathText=True)
+
+    if unit == 'um':
+        ax2.set_xlim([image_size_in_destination[1,0],image_size_in_destination[0,0]])
+        ax2.set_ylim([image_size_in_destination[0,1],image_size_in_destination[1,1]])
+        ax2.set_xlabel('x (\u03BCm)')
+        ax2.set_ylabel('y (\u03BCm)')
+
+        ax2.ticklabel_format(axis='both', style='sci', scilimits=(0,4), useOffset=None, useLocale=None, useMathText=True)
 
     if ax1pos is not None:
         ax1.set_position(ax1pos)
@@ -168,22 +183,26 @@ def plot_match(ps1, ps3, transformationMatrix, write_path, name, ax1pos = None, 
 
 
     from matplotlib.patches import ConnectionPatch
-    con = ConnectionPatch(xyA=(imageSize3[0,0],imageSize3[0,1]), xyB=(imageSize3[0,0],imageSize3[0,1]),
+    con = ConnectionPatch(xyA=(image_size_in_destination[0,0],image_size_in_destination[0,1]),
+                          xyB=(image_size_in_destination[0,0],image_size_in_destination[0,1]),
                           coordsA="data", coordsB="data",
                           axesA=ax1, axesB=ax2, color="k")
     ax1.add_artist(con)
 
-    con = ConnectionPatch(xyA=(imageSize3[0,0],imageSize3[1,1]), xyB=(imageSize3[0,0],imageSize3[1,1]),
+    con = ConnectionPatch(xyA=(image_size_in_destination[0,0],image_size_in_destination[1,1]),
+                          xyB=(image_size_in_destination[0,0],image_size_in_destination[1,1]),
                           coordsA="data", coordsB="data",
                           axesA=ax1, axesB=ax2, color="k")
     ax1.add_artist(con)
 
-    con = ConnectionPatch(xyA=(imageSize3[1,0],imageSize3[0,1]), xyB=(imageSize3[1,0],imageSize3[0,1]),
+    con = ConnectionPatch(xyA=(image_size_in_destination[1,0],image_size_in_destination[0,1]),
+                          xyB=(image_size_in_destination[1,0],image_size_in_destination[0,1]),
                           coordsA="data", coordsB="data",
                           axesA=ax1, axesB=ax2, color="k")
     ax1.add_artist(con)
 
-    con = ConnectionPatch(xyA=(imageSize3[1,0],imageSize3[1,1]), xyB=(imageSize3[1,0],imageSize3[1,1]),
+    con = ConnectionPatch(xyA=(image_size_in_destination[1,0],image_size_in_destination[1,1]),
+                          xyB=(image_size_in_destination[1,0],image_size_in_destination[1,1]),
                           coordsA="data", coordsB="data",
                           axesA=ax1, axesB=ax2, color="k")
     ax1.add_artist(con)

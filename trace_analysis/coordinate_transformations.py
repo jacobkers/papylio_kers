@@ -28,7 +28,7 @@ def reflect(axis=0):
     return R
 
 
-def transform(pointSet, transformationMatrix=None, **kwargs):
+def transform(pointSet, transformationMatrix=None, returnTransformationMatrix = False, **kwargs):
     if len(pointSet) == 0: return pointSet
     pointSet = np.append(pointSet, np.ones((pointSet.shape[0], 1)), axis=1)
     transformations = {
@@ -49,4 +49,7 @@ def transform(pointSet, transformationMatrix=None, **kwargs):
         transformationMatrix = transformations.get(key)(value) @ transformationMatrix
         # print("%s == %s" %(key, value))
 
-    return (transformationMatrix @ pointSet.T)[0:2, :].T
+    if returnTransformationMatrix:
+        return (transformationMatrix @ pointSet.T)[0:2, :].T, transformationMatrix
+    else:
+        return (transformationMatrix @ pointSet.T)[0:2, :].T
