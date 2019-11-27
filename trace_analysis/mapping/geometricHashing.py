@@ -7,58 +7,14 @@ Created on Fri Feb 15 08:59:08 2019
 
 import numpy as np
 import matplotlib.pyplot as plt
+import pickle
+from pathlib2 import Path
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.pyplot import cm
 import scipy.stats
-
-
-
-def translate(displacement):
-    T = np.array([[1,0,displacement[0]],[0,1,displacement[1]],[0,0,1]])
-    return T
-
-def rotate(angle, origin = np.array([0,0,1])):
-    angle = np.array(angle)
-    #angle = np.radians(angle)
-    R = np.array([[np.cos(angle), np.sin(angle),0],[-np.sin(angle), np.cos(angle),0],[0,0,1]])
-    return translate(origin) @ R @ translate(-origin)
-
-def magnify(magnification, origin = np.array([0,0,1])):
-    magnification = np.array(magnification)
-    if magnification.size == 1: 
-        magnification = np.append(magnification,magnification)
-    M = np.diag(np.append(magnification,1))
-    return translate(origin) @ M @ translate(-origin)
-
-def reflect(axis = 0):
-    if axis == 0:
-        R = np.diag([1, -1, 1])
-    elif axis == 1:
-        R = np.diag([-1, 1, 1])
-    return R
-
-def transform(pointSet, transformationMatrix = None, **kwargs):
-    pointSet = np.append(pointSet,np.ones((pointSet.shape[0],1)),axis=1)        
-    transformations = {
-                'translation':      translate,
-                'rotation':         rotate,
-                'magnification':    magnify,
-                'reflection':       reflect,
-
-                't':                translate,
-                'r':                rotate,
-                'm':                magnify
-                }
-    
-    if transformationMatrix is None:
-        transformationMatrix = np.identity(3)
-    
-    for key, value in kwargs.items():
-        transformationMatrix = transformations.get(key)(value) @ transformationMatrix
-        #print("%s == %s" %(key, value))
-      
-    
-    return (transformationMatrix @ pointSet.T)[0:2,:].T
+from trace_analysis.mapping.mapping import Mapping2
+from trace_analysis.coordinate_transformations import translate, rotate, magnify, reflect, transform
+from trace_analysis.plotting import plot_match
 
 
 def mapToPoint(pointSet,startPoints,endPoints,returnTransformationMatrix = False, tr = None, di = None, ro = None):
@@ -483,6 +439,168 @@ def findMatchTranslation(testPointSet, hashTable, bases = 'all', returnMatchedBa
         return bestBasis, matchedBases, allBestBaseMatches
     else:
         return bestBasis
+
+
+class SequencingDataMapping:
+    def __init__(self, tile, files, mode, dataPath, nBins=100, rotationRange=None, magnificationRange=None):
+        self.tile = tile
+        self.files = files # List of coordinate sets
+        self.dataPath = Path(dataPath)
+
+        self.initial_image_transformation = {'reflection': 0, 'rotation': 0, 'magnification': 1} # This reflects with respect to axis 0.
+
+        self.mode = mode
+        if mode == 'translation': self.hashTableRange = [-10000, 10000]
+        else: self.hashTableRange = [-1,1]
+        self.nBins = nBins
+
+        self.bases_hashTable = 'all'
+        self.bases_findMatch = 20
+
+        self._hashTable = None
+        self._matches = None
+
+        self.rotationRange = rotationRange
+        self.magnificationRange = magnificationRange
+
+
+    @property
+    def hashTable(self):
+        if self._hashTable is None:
+            if self.dataPath.joinpath(self.tile.name+'.ht').is_file():
+                with self.dataPath.joinpath(self.tile.name+'.ht').open('rb') as f:
+                    self._hashTable = pickle.load(f)
+            else:
+                self._hashTable = pointHash(self.tile.coordinates, bases=self.bases_hashTable, mode=self.mode,
+                                            hashTableRange=self.hashTableRange, nBins=self.nBins,
+                                            rotationRange=self.rotationRange, magnificationRange=self.magnificationRange)
+                with self.dataPath.joinpath(self.tile.name+'.ht').open('wb') as f:
+                    pickle.dump(self._hashTable, f)
+        return self._hashTable
+
+    @property
+    def matches(self):
+        if self._matches is None:
+            if self.dataPath.joinpath(self.tile.name+'.matches').is_file():
+                with self.dataPath.joinpath(self.tile.name+'.matches').open('rb') as f:
+                    self._matches = pickle.load(f)
+            else:
+                self._matches = self.findMatches()
+                with self.dataPath.joinpath(self.tile.name+'.matches').open('wb') as f:
+                    pickle.dump(self._matches, f)
+        return self._matches
+
+    def save(self):
+        if self.dataPath.joinpath(self.tile.name+'.sm').is_file():
+            print('File already exists')
+        else:
+            with self.dataPath.joinpath(self.tile.name+'.sm').open('wb') as f:
+                pickle.dump(self, f)
+
+    @staticmethod
+    def load(path):
+        with path.open('rb') as f:
+            return pickle.load(f)
+
+    def findMatches(self):
+        matches = []
+        for file in self.files:
+            print(file.name)
+            coordinates, initial_transformation = transform(file.coordinates, returnTransformationMatrix = True,
+                                                            **self.initial_image_transformation)
+
+            [bestBasis, matchedBases, allBestBaseMatches] = findMatch(coordinates, self.hashTable,
+                                                                      bases=self.bases_findMatch,
+                                                                      returnMatchedBases=True,
+                                                                      mode=self.mode,
+                                                                      nBins=self.nBins,
+                                                                      hashTableRange=self.hashTableRange,
+                                                                      rotationRange=self.rotationRange,
+                                                                      magnificationRange=self.magnificationRange)
+
+            coordinates_transformed, transformation_matrix = \
+                mapToPoint(coordinates, coordinates[bestBasis['testBasis']],
+                            self.tile.coordinates[bestBasis['hashTableBasis']],
+                            returnTransformationMatrix=True)
+
+            transformation_matrix = transformation_matrix @ initial_transformation
+
+            match = Mapping2(file.coordinates.copy(), self.tile.coordinates.copy(),
+                                  method='geometric-hashing',
+                                  transformation_type='linear')
+
+            # match.name =
+            match.transformation = transformation_matrix
+            match.best_image_basis = bestBasis
+            match.count = bestBasis['counts']
+            #match.image_coordinates_transformed = coordinates_transformed
+            match.meanError = np.mean(
+                [np.min(np.linalg.norm(self.tile.coordinates - row, axis=1)) for row in coordinates_transformed])
+            match.setWidth = np.linalg.norm(np.max(coordinates_transformed, axis=0) - np.min(coordinates_transformed, axis=0))
+            match.percentMatch = bestBasis['counts'] / coordinates_transformed.shape[0]
+
+            matches.append(match)
+
+        return matches
+
+    def histogram_matches(self, export = False):
+        counts = [match.count for match in self.matches]
+        fig, ax = plt.subplots(figsize = (6,3))
+        ax.hist(counts, np.arange(0.5, np.max(counts) + 1.5, 1), facecolor = 'k', rwidth = 0.5)
+
+        ax.set_xlim([0,np.max(counts)+1])
+
+        ax.set_xlabel('Number of matches for best matching basis')
+        ax.set_ylabel('Count')
+        plt.tight_layout()
+
+        if export:
+            fig.savefig(self.dataPath.joinpath('histogramNumberOfMatches.pdf'), bbox_inches='tight')
+            fig.savefig(self.dataPath.joinpath('histogramNumberOfMatches.png'), bbox_inches='tight')
+
+    def show_match(self, match, figure = None, view='destination'):
+        if not figure: figure = plt.gcf()
+        figure.clf()
+        ax = figure.gca()
+
+        #ax.scatter(ps2[:,0],ps2[:,1],c='g',marker = '+')
+
+        ax.scatter(match.destination[:,0],match.destination[:,1], marker = '.', facecolors = 'k', edgecolors='k')
+        ax.scatter(match.transform_source_to_destination[:,0],match.transform_source_to_destination[:,1],c='r',marker = 'x')
+
+        destination_basis_index = match.best_image_basis['hashTableBasis']
+        source_basis_index = match.best_image_basis['testBasis']
+        ax.scatter(match.destination[destination_basis_index, 0], match.destination[destination_basis_index, 1], marker='.', facecolors='g', edgecolors='g')
+        ax.scatter(match.transform_source_to_destination[source_basis_index, 0], match.transform_source_to_destination[source_basis_index, 1], c='g',
+                   marker='x')
+
+        ax.set_aspect('equal')
+        ax.set_title('Tile:' + self.tile.name +', File: ' + str(self.files[self.matches.index(match)].relativeFilePath))
+
+        if view == 'source':
+            maxs = np.max(match.transform_source_to_destination, axis=0)
+            mins = np.min(match.transform_source_to_destination, axis=0)
+            ax.set_xlim([mins[0], maxs[0]])
+            ax.set_ylim([mins[1], maxs[1]])
+        elif view == 'destination':
+            maxs = np.max(match.destination, axis=0)
+            mins = np.min(match.destination, axis=0)
+            ax.set_xlim([mins[0], maxs[0]])
+            ax.set_ylim([mins[1], maxs[1]])
+            # ax.set_xlim([0, 31000])
+            # ax.set_ylim([0, 31000])
+
+        name = str(self.files[self.matches.index(match)].relativeFilePath)
+        print(name)
+        n = name.replace('\\', '_')
+
+        figure.savefig(self.dataPath.joinpath(n + '_raw.pdf'), bbox_inches='tight')
+        figure.savefig(self.dataPath.joinpath(n + '_raw.png'), bbox_inches='tight', dpi=1000)
+
+    def plot_match(self, match):
+        name = str(self.files[self.matches.index(match)].relativeFilePath)
+        print(name)
+        plot_match(match, self.dataPath, name, unit='um')
 
 
 
