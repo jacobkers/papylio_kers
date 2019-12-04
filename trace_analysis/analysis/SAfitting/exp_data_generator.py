@@ -18,30 +18,26 @@ def exp2(t, tau1, tau2, a, Tmax=0):
 
 def exp1_gen (tau, N):
     return np.random.exponential(tau, N)
-    
+
 def exp2_gen(tau1, tau2, a, N):
     class my_pdf(st.rv_continuous):
-        def _pdf(self, t, tau1, tau2, a): 
+        def _pdf(self, t, tau1, tau2, a):
             return exp2(t, tau1, tau2, a) # Normalized over its range
-    dist = my_pdf(a=0, b=np.inf, name='my_pdf')    
+    dist = my_pdf(a=0, b=np.inf, name='my_pdf')
     times = dist.rvs(tau1, tau2, a, size=N)
     return times
 
 tau_fix = 1
-tau1_fix = 10
-tau2_fix = 200
+tau1_fix = 1
+tau2_fix = 10
 a_fix = 0.5
-N = np.array([2000])
+N = np.array([100, 1000, 10000])
 train_rep = 1
 save = True
 #select to generate 1 or 2 exponential
 exp_type = "2"
 
-if exp_type == "1":
-    os.chdir("./1exp/data")
-if exp_type == "2":
-    os.chdir("./2exp/data")
-    
+
 for n in N:
 #generate the data
         data = np.empty(n)
@@ -54,12 +50,12 @@ for n in N:
         data = data[1:,:]   # discard the zeroth  line
         if save:
             if exp_type == "1":
-                np.save("master_N={}_rep={}_tau={}".format(n, train_rep, tau_fix), 
+                np.save("./data/1exp_N={}_rep={}_tau={}".format(n, train_rep, tau_fix),
                                                             data)
             if exp_type == "2":
-                np.save("master_N={}_rep={}_tau1={}"
+                np.save("./data/2exp_N={}_rep={}_tau1={}"
                         "_tau2={}_a={}".format(n, train_rep, tau1_fix,
                                                tau2_fix, a_fix), data)
-                
-        
-print("--- %s seconds ---" % (time.time() - start_time))    
+
+
+print("--- %s seconds ---" % (time.time() - start_time))
