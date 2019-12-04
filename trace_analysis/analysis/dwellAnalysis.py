@@ -54,7 +54,7 @@ def get_average_dwell(dwells):
     Tmax = dwells.max() - 10
     Ntot = dwells.size
     Ncut = dwells[dwells > Tmax].size
-    avrg_dwell = np.average(dwells[dwells < dwells.max() - 10])
+    avrg_dwell = np.average(dwells[dwells < Tmax])
     avrg_dwell = avrg_dwell + Ncut*Tmax/Ntot
     return avrg_dwell
 
