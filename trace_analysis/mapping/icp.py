@@ -1,4 +1,5 @@
 import numpy as np
+import matplotlib.pyplot as plt
 from sklearn.neighbors import NearestNeighbors
 from trace_analysis.coordinate_transformations import transform
 from trace_analysis.plotting import scatter_coordinates, show_point_connections
