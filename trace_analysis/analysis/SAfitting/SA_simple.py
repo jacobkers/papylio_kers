@@ -12,7 +12,9 @@ import numpy as np
 '''
 Main function
 '''
-def sim_anneal_fit(xdata, ydata, yerr, p_start, Tstart, Tfinal, delta0, alpha=0.85):
+
+
+def sim_anneal_fit(xdata, ydata, yerr, p_start, objective_function, model, Tstart=100, Tfinal=0.01, delta=1, alpha=0.85):
     '''
     :param xdata: datapoints (indep. variable)
     :param ydata: datapoints (values)
@@ -25,7 +27,7 @@ def sim_anneal_fit(xdata, ydata, yerr, p_start, Tstart, Tfinal, delta0, alpha=0.
     :return: Optimal parameter set (p)
     '''
     T = Tstart
-    delta = delta0  # only needed if you actively adjust stepsize
+#    delta = delta0  # only needed if you actively adjust stepsize
     p = p_start
     step = 0
 
@@ -35,8 +37,8 @@ def sim_anneal_fit(xdata, ydata, yerr, p_start, Tstart, Tfinal, delta0, alpha=0.
             #             print T
             T = update_temp(T, alpha)
         p_trial = p + np.random.uniform(-delta, delta, size=len(p))
-        Vnew = V(xdata, ydata, yerr, p_trial)
-        Vold = V(xdata, ydata, yerr, p)
+        Vnew = objective_function(xdata, ydata, yerr, p_trial, model)
+        Vold = objective_function(xdata, ydata, yerr, p, model)
 
         if (np.random.uniform() < np.exp(-(Vnew - Vold) / T)):
             p = p_trial
