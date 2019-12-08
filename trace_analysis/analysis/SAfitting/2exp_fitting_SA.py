@@ -4,11 +4,11 @@ Created on Fri Dec  6 18:59:11 2019
 
 @author: pimam
 """
+import os
+from pathlib import PureWindowsPath
 import numpy as np
 import matplotlib.pylab as plt
-import os
-import SA_simple as SA
-
+import experiment as trace_ana
 
 def P(dwells, params):
     P1, tau1, tau2 = params
@@ -32,7 +32,7 @@ def update_temp(T, alpha):
     return T
 
 
-def simmulated_annealing(data, objective_function, model, x_initial, lwrbnd, uprbnd, Tstart=200., Tfinal=0.001, delta=0.05, alpha=0.9):
+def simmulated_annealing(data, objective_function, model, x_initial, lwrbnd, uprbnd, Tstart=100., Tfinal=0.001, delta1=0.1, delta2=2.5, alpha=0.9):
 
     T = Tstart
     step = 0
@@ -42,14 +42,15 @@ def simmulated_annealing(data, objective_function, model, x_initial, lwrbnd, upr
         if (step % 100 == 0):
             T = update_temp(T, alpha)
         print(x)
-        x = np.log(x)
+        #x = np.log(x)
         x_trial = np.zeros(len(x))
-        # x_trial = x + np.random.uniform(-delta, delta, size=len(x))
-        for i in range(0, len(x)):
-            x_trial[i] = np.random.uniform(np.max([x[i] - delta, lwrbnd[i]]),
-                                           np.min([x[i] + delta, uprbnd[i]]))
-        x_trial = np.exp(x_trial)
-        x = np.exp(x)
+        x_trial[0] = np.random.uniform(np.max([x[0] - delta1, lwrbnd[0]]),
+                                           np.min([x[0] + delta1, uprbnd[0]]))
+        for i in range(1, len(x)):
+            x_trial[i] = np.random.uniform(np.max([x[i] - delta2, lwrbnd[i]]),
+                                           np.min([x[i] + delta2, uprbnd[i]]))
+#        x_trial = np.exp(x_trial)
+#        x = np.exp(x)
         x = Metropolis(objective_function, model, x, x_trial, T, data)
     return x
 
@@ -69,9 +70,35 @@ if __name__ == '__main__':
         os.remove('./monitor.txt')
     except IOError:
         print('monitor file not present')
+        
+    Path = 'C:\\Users\\pimam\\Documents\\MEP\\tracesfiles'
+    mainPath = PureWindowsPath(Path)
+    exp = trace_ana.Experiment(mainPath)
+    file = exp.files[0]
+    filename = './'+file.name+'_dwells_data.xlsx'
+    data = pd.read_excel(filename, index_col=[0, 1], dtype={'kon': np.str})
+    
+    if len(exp.files) > 1:  # time of traces should be of the same length
+        for file in exp.files[1:]:
+            filename = './'+file.name+'_dwells_data.xlsx'
+            print(filename)
+            data2 = pd.read_excel(filename, index_col=[0, 1], dtype={'kon': np.str})
+            data = data.append(data2, ignore_index=True)
+    
+    dwelltype = 'offtime'
+    dwells_all = []
+    dwells = data[dwelltype].values
+    dwells = dwells[~np.isnan(dwells)]
+    dwells_all.append(dwells)
+    dwells_all = np.concatenate(dwells_all)
+    max_alldwells = dwells_all.max()
+    dwells_rec = dwells[dwells < max_alldwells - 10]
+    dwells_cut = dwells[dwells >= max_alldwells - 10]
 
-    dwells_rec = np.load('./data/2exp_N=1000_rep=1_tau1=10_tau2=100_a=0.5.npy')
+    dwells_rec = np.load('./data/2exp_N=100_rep=1_tau1=10_tau2=100_a=0.5.npy')
     dwells_cut = []
+
+    # Set parameters for simmulated annealing
     Nfits = 5
     max_dwells = dwells_rec.max()
     avg_dwells = np.average(dwells_rec)
@@ -94,7 +121,7 @@ if __name__ == '__main__':
     plt.plot(centers, values, '.', label='All dwells')
 
     timearray = np.linspace(0, max_dwells, num=200)
-    for i in [ 1, 2, 3, 4]:#range(0, np.size(fitparams, 0)):
+    for i in range(0, np.size(fitparams, 0)):
         fit = P(timearray, fitparams[i])
         plt.plot(timearray, fit, label='fit'+str(i))
     plt.legend()
