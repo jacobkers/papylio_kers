@@ -97,38 +97,44 @@ if __name__ == '__main__':
 #    dwells_rec = dwells[dwells < max_alldwells - 10]
 #    dwells_cut = dwells[dwells >= max_alldwells - 10]
 
-    dwells_rec = np.load('./data/2exp_N=1000_rep=1_tau1=10_tau2=100_a=0.5.npy')
+    num = 10
+    dwells_rec = np.load(f'./data/2exp_N=1000_rep={num}_tau1=10_tau2=100_a=0.5.npy')
     dwells_cut = []
-
-    # Set parameters for simmulated annealing
-    N = 5
+    LLike = np.empty(num)
     max_dwells = dwells_rec.max()
     avg_dwells = np.average(dwells_rec)
-    x_initial = [0.5, avg_dwells, avg_dwells]
-    lwrbnd = [0, 0, 0]
-    uprbnd = [1, max_dwells, max_dwells]
-
-    # Perform N fits on data using simmulated annealing
-    fitdata = simmulated_annealing(data=dwells_rec, objective_function=LogLikeLihood, model=P, x_initial=x_initial, lwrbnd=lwrbnd, uprbnd=uprbnd)
-    print("fit found: ", str(fitdata))
-    fitparams = [fitdata]
-    for i in range(1, N):
-        fitdata = simmulated_annealing(data=dwells_rec, objective_function=LogLikeLihood, model=P, x_initial=x_initial, lwrbnd=lwrbnd, uprbnd=uprbnd)
-        print("fit found: ", str(fitdata))
-        fitparams = np.concatenate((fitparams, [fitdata]), axis=0)
-
-    # Plot the dwell time histogram and the corresponding fits
+    timearray = np.linspace(0, max_dwells, num=200)
+    
+    # Plot the dwell time histogram
     plt.figure()
-    values, bins = np.histogram(dwells_rec, bins=20, density=True)
+    values, bins = np.histogram(dwells_rec, bins=60, density=True)
     centers = (bins[1:] + bins[:-1]) / 2.0
     plt.plot(centers, values, '.', label='All dwells')
 
-    LLike = np.zeros(N)
-    timearray = np.linspace(0, max_dwells, num=200)
-    for i in range(0, np.size(fitparams, 0)):
-        fit = P(timearray, fitparams[i])
-        LLike[i] = LogLikeLihood(dwells_rec, fitparams[i], P)
-        plt.plot(timearray, fit, label='fit'+str(i))
+    for j in range(0, num):
+
+        # Set parameters for simmulated annealing
+        x_initial = [0.5, avg_dwells, avg_dwells]
+        lwrbnd = [0, 0, 0]
+        uprbnd = [1, max_dwells, max_dwells]
+
+        # Perform N fits on data using simmulated annealing
+        fitdata = simmulated_annealing(data=dwells_rec[j], objective_function=LogLikeLihood, model=P, x_initial=x_initial, lwrbnd=lwrbnd, uprbnd=uprbnd)
+#        print("fit found: ", str(fitdata))
+#        fitparams = [fitdata]
+#        for i in range(1, N):
+#            fitdata = simmulated_annealing(data=dwells_rec[j], objective_function=LogLikeLihood, model=P, x_initial=x_initial, lwrbnd=lwrbnd, uprbnd=uprbnd)
+#            print("fit found: ", str(fitdata))
+        if j == 0:
+            fitparams = fitdata
+            fit = P(timearray, fitparams)
+            LLike[0] = LogLikeLihood(dwells_rec[0], fitparams, P)
+        else:
+            fitparams = np.vstack((fitparams, fitdata))
+            fit = P(timearray, fitparams[j])
+            LLike[j] = LogLikeLihood(dwells_rec[j], fitparams[j], P)
+        # Plot the corresponding fits
+        plt.plot(timearray, fit, label='fit'+str(j))
 
     # Find best fit, plot with histogram and save
     plt.figure()

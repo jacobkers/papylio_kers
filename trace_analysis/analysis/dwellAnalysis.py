@@ -14,7 +14,7 @@ import seaborn as sns
 sns.set(style="ticks")
 sns.set_color_codes()
 
-from trace_analysis import Experiment
+#from trace_analysis import Experiment
 
 def get_dwell_hist(dwells, dwelltype='offtime', nbins=10, save=True, plot=True,
                    extra_label='', log=False):

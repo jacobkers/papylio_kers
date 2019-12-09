@@ -10,12 +10,13 @@ import sys
 import pandas as pd
 import os
 #import matplotlib.pyplot as plt
-from trace_analysis import Experiment
+import SAfitting.traceAnalysisCode as trace_ana
+#from trace_analysis import Experiment
 sys.path.append('..')
 
 
 def find_dwelltimes(exp_file, trace='red', save=True, filename=None):
-    exp_file.importExcel()  # this should not be needed normally
+    #exp_file.importExcel()  # this should not be needed normally
     max_time = exp_file.time[-1]
     exp_time = exp_file.exposure_time
 
