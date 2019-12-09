@@ -31,8 +31,8 @@ tau_fix = 1
 tau1_fix = 10
 tau2_fix = 100
 a_fix = 0.5
-N = np.array([100, 1000, 10000])
-train_rep = 1
+N = np.array([100, 1000]) #, 10000])
+train_rep = 10
 save = True
 # select to generate 1 or 2 exponential
 exp_type = "2"
@@ -41,7 +41,7 @@ exp_type = "2"
 for n in N:
 #generate the data
         data = np.empty(n)
-        for r in range(train_rep):
+        for r in range(0, train_rep):
             print("{}/{}".format(r+1, train_rep))
             if exp_type == "2":
                 data = np.vstack((data, exp2_gen(tau1_fix, tau2_fix, a_fix, n)))
@@ -53,9 +53,8 @@ for n in N:
                 np.save("./data/1exp_N={}_rep={}_tau={}".format(n, train_rep, tau_fix),
                         data)
             if exp_type == "2":
-                np.save("./data/2exp_N={}_rep={}_tau1={}"
-                        "_tau2={}_a={}".format(n, train_rep, tau1_fix,
-                                               tau2_fix, a_fix), data)
+                np.save("./data/2exp_N={}_rep={}_tau1={}_tau2={}_a={}".format(n, train_rep, tau1_fix,
+                        tau2_fix, a_fix), data)
 
 
 print("--- %s seconds ---" % (time.time() - start_time))
