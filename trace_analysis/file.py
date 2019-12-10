@@ -152,7 +152,8 @@ class File:
                             '.map': self.import_map_file,
                             '.pks': self.import_pks_file,
                             '.traces': self.import_traces_file,
-                            '.log' : self.import_log_file
+                            '.log' : self.import_log_file,
+                            '_steps_data.xlsx': self.import_excel_file
                             }
 
         importFunctions.get(extension, self.noneFunction)()
@@ -323,14 +324,14 @@ class File:
     def histogram(self):
         histogram(self.molecules)
 
-    def importExcel(self, filename=None):
+    def import_excel_file(self, filename=None):
         if filename is None:
             filename = self.name+'_steps_data.xlsx'
         try:
             steps_data = pd.read_excel(filename, index_col=[0,1],
                                             dtype={'kon':np.str})       # reads from the 1st excel sheet of the file
         except FileNotFoundError:
-            print(f'No saved analysis for {self.name}')
+            print(f'No saved analysis for {self.name} as {filename}')
             return
         molecules = steps_data.index.unique(0)
         indices = [int(m.split()[-1]) for m in molecules]
@@ -340,7 +341,7 @@ class File:
             mol.steps = steps_data.loc[f'mol {mol.index}']
             if 'kon' in mol.steps.columns:
                 k = [int(i) for i in mol.steps.kon[0]]
-                mol.kon_boolean = np.array(k).astype(bool).reshape((3,3))
+                mol.kon_boolean = np.array(k).astype(bool).reshape((4,3))
         return steps_data
 
     def savetoExcel(self, filename=None, save=True):

@@ -15,7 +15,7 @@ import SAfitting.traceAnalysisCode as trace_ana
 sys.path.append('..')
 
 
-def find_dwelltimes(exp_file, trace='red', save=True, filename=None):
+def find_dwelltimes(exp_file, save=True, filename=None):
     #exp_file.importExcel()  # this should not be needed normally
     max_time = exp_file.time[-1]
     exp_time = exp_file.exposure_time
@@ -33,7 +33,9 @@ def find_dwelltimes(exp_file, trace='red', save=True, filename=None):
 #       Calculate the average FRET for each dwell
         avg_fret = []
         if 'Imin' and 'Iroff' in mol.steps.columns:
-            Icheck = int((mol.steps.Imin.tail(1)== mol.steps.Imin[0])&(mol.steps.Iroff.tail(1) == mol.steps.Iroff[0])&(mol.steps.Igoff.tail(1) == mol.steps.Igoff[0]))
+            Icheck = int((mol.steps.Imin.tail(1)== mol.steps.Imin[0]) &
+                         (mol.steps.Iroff.tail(1) == mol.steps.Iroff[0]) &
+                         (mol.steps.Igoff.tail(1) == mol.steps.Igoff[0]))
             if Icheck == 1:  #  check if thresholds the same for each dwell of the molecule
                 fret = mol.E(Imin=mol.steps.Imin[0], Iroff=mol.steps.Iroff[0], Igoff=mol.steps.Igoff[0])
             else:
@@ -74,8 +76,6 @@ def find_dwelltimes(exp_file, trace='red', save=True, filename=None):
             ontimes.append(times[0])
             labels.append('l')
 
-
-#       for i, t in zip(range(1,times.size, 2), times[2:-1:2]):
         for i in range(2, times.size, 2):
             ontimes.append(times[i] - times[i-1])
             labels.append('m')
@@ -99,7 +99,6 @@ def find_dwelltimes(exp_file, trace='red', save=True, filename=None):
 
 if __name__ == '__main__':
 
-    start = timetime.time()
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
     expPath = 'H:/SM-data/20191206_dcas9_flow_DNA20-03-08-07-05'
     for chamberFolder in os.listdir(expPath):
