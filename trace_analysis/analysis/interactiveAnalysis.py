@@ -6,7 +6,9 @@ Created on Sat Apr 27 23:12:58 2019
 """
 if __name__ == '__main__':
     import sys
-    sys.path.insert(0, "F:/Google Drive/PhD/Programming - Data Analysis/traceanalysis")
+    from pathlib import Path
+    p = Path(__file__).parents[2]  # include two levels up directory where the trace_analysis package lies
+    sys.path.insert(0, str(p))
 
 import numpy as np
 
@@ -342,7 +344,7 @@ class InteractivePlot(object):
                 self.mol.steps = self.mol.steps.append(d, ignore_index=True)
             self.mol.steps.drop_duplicates(inplace=True)
 
-#           Sort the timepoints
+           #fSort the timepoints first by trace type and then in ascending order
             self.mol.steps = self.mol.steps.sort_values(by=['trace', 'time'])
 
         if move:
@@ -379,7 +381,7 @@ class InteractivePlot(object):
         if self.checkbfret.get_status()[0]:
             steps = self.mol.find_steps(self.fret, threshold=self.thrsliders[1].val)
             l_props = {"lw": 0.75, "zorder": 5, "label": "thres E"}
-            [self.axes[1].axvline(s*self.exp_time, **l_props) for s in steps["frames"]]
+            [self.axes[1].axvline(s*self.mol.file.exposure_time, **l_props) for s in steps["frames"]]
         self.fig.canvas.draw()
         if find_all:
             for mol in self.molecules:

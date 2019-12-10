@@ -12,7 +12,7 @@ from trace_analysis.peak_finding import find_peaks
 from trace_analysis.coordinate_optimization import coordinates_within_margin, coordinates_after_gaussian_fit, coordinates_without_intensity_at_radius
 from trace_analysis.trace_extraction import extract_traces
 from trace_analysis.coordinate_transformations import translate, transform
-
+from trace_analysis.analysis.dwellFinder_MT import analyze_steps
 
 class File:
     def __init__(self, relativeFilePath, experiment):
@@ -347,12 +347,19 @@ class File:
     def savetoExcel(self, filename=None, save=True):
         if filename is None:
             filename = self.name+'_steps_data.xlsx'
+
+        # Find the molecules for which steps were selected
+        molecules_with_data = [mol for mol in self.molecules if mol.steps is not None]
+
+
         # Concatenate all steps dataframes that are not None
-        mol_data = [mol.steps for mol in self.molecules if mol.steps is not None]
+        mol_data = [mol.steps for mol in molecules_with_data]
         if not mol_data:
             print(f'no data to save for {self.name}')
             return
-        keys = [f'mol {mol.index}' for mol in self.molecules if mol.steps is not None]
+        keys = [f'mol {mol.index}' for mol in molecules_with_data]
+
+
         steps_data = pd.concat(mol_data, keys=keys, sort=False)
         if save:
             print("data saved in: " + filename)
