@@ -214,6 +214,9 @@ class File:
         self.coordinates = coordinates
 
     def find_coordinates(self, configuration = None):
+        # Refresh configuration
+        self.experiment.import_config_file()
+
         #image = self.movie.make_average_tif(write=False)
 
         if configuration is None: configuration = self.experiment.configuration['find_coordinates']
@@ -285,6 +288,9 @@ class File:
         #self.traces = np.reshape(rawData.ravel(), (self.number_of_colours * self.number_of_molecules, self.number_of_frames), order='F') # 2d array of traces
 
     def extract_traces(self):
+        # Refresh configuration
+        self.experiment.import_config_file()
+
         if self.movie is None: raise FileNotFoundError('No movie file was found')
         self.traces = extract_traces(self.movie, self.coordinates, channel='all', gauss_width = 11)
         self.export_traces_file()
@@ -397,6 +403,9 @@ class File:
             input("Press enter to continue")
 
     def perform_mapping(self, configuration = None):
+        # Refresh configuration
+        self.experiment.import_config_file()
+
         image = self.average_image
         if configuration is None: configuration = self.experiment.configuration['mapping']
 
