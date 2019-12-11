@@ -152,7 +152,7 @@ class InteractivePlot(object):
         [slider.vline.remove() for slider in self.thrsliders]  # remove the default vertical lines showing the initial value
 
         self.connect_events_to_canvas()
-#        self.fig.show()
+
 
     def connect_events_to_canvas(self):
         self.fig.canvas.mpl_connect('button_press_event', self.draw.onclick)
@@ -210,8 +210,8 @@ class InteractivePlot(object):
         #  if draw_plot is true
         # The order in which the traces are plotted matters later for the order of the axes lines.
         # it should always follow the order of the radio button
-        self.lred = self.axes[0].plot(self.time, self.red, "r", lw=.75)
-        self.lgreen = self.axes[0].plot(self.time, self.green, "g", lw=.75)
+        self.lred = self.axes[0].plot(self.time, self.red, "r", lw=.75)[0]
+        self.lgreen = self.axes[0].plot(self.time, self.green, "g", lw=.75)[0]
         self.ltotal = self.axes[0].plot(self.time, self.total, "bisque", lw=.65,
                                zorder=-1, visible=self.checkbtotal.get_status()[0])[0]
 
@@ -409,9 +409,10 @@ class InteractivePlot(object):
         indx = [l.get_text() for l in self.radio.labels].index(label)
         color = 'r'*(label=='red') + 'g'*(label=='green') + 'bisque'*(label=='total')
 
-        lines =  self.axes[0].get_lines()[:3]
+        lines =  [self.lred, self.lgreen, self.ltotal]
         [l.set_zorder(-lines.index(l)) for l in lines if lines.index(l) != indx ]
-        self.axes[0].get_lines()[indx].set_zorder(indx+1)
+        print(indx, color)
+        lines[indx].set_zorder(10)
         self.radio.circles[indx].set_color(color)
         [c.set_color('black') for c in self.radio.circles if self.radio.circles.index(c) != indx]
         update_slider(color, r"$I_G$"*(label=='green') + \
@@ -547,8 +548,8 @@ if __name__ == '__main__':
 
     # Just as a working example of how the interactive plot whould be called. Here an example dataset is included inside the traces folder
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
-    mainPath = 'F:/Google Drive/PhD/Programming - Data Analysis/traceanalysis/traces'
-    mainPath = Path(mainPath)
+    p = Path(__file__).parents[2]
+    mainPath = str(p) + '/traces'
     exp = Experiment(mainPath)
     file = exp.files[0]
     molecules = file.molecules

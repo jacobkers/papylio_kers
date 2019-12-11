@@ -1,3 +1,9 @@
+if __name__ == '__main__':
+    import sys
+    from pathlib import Path
+    p = Path(__file__).parents[1]
+    sys.path.insert(0, str(p))
+
 from pathlib import Path # For efficient path manipulation
 import numpy as np #scientific computing with Python
 import pandas as pd
@@ -12,7 +18,7 @@ from trace_analysis.peak_finding import find_peaks
 from trace_analysis.coordinate_optimization import coordinates_within_margin, coordinates_after_gaussian_fit, coordinates_without_intensity_at_radius
 from trace_analysis.trace_extraction import extract_traces
 from trace_analysis.coordinate_transformations import translate, transform
-from trace_analysis.analysis.dwellFinder_MT import analyze_steps
+from trace_analysis.analysis.stepsDataAnalysis import analyze_steps
 
 class File:
     def __init__(self, relativeFilePath, experiment):
