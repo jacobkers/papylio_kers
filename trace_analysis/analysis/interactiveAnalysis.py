@@ -19,14 +19,14 @@ import itertools
 import matplotlib.pyplot as plt
 import matplotlib.widgets
 import seaborn as sns
-from pathlib import Path, PureWindowsPath
+from pathlib import Path
 import functools
 #plt.rcParams['toolbar'] = 'toolmanager'
 # from matplotlib.backend_tools import ToolBase
 
 
 class InteractivePlot(object):
-    def __init__(self, molecules, canvas=None, import_excel=True):
+    def __init__(self, molecules, canvas=None):
 
         self.molecules = molecules
         self.mol_indx = 0  #From which molecule to start the analysis
@@ -79,10 +79,10 @@ class InteractivePlot(object):
         self.axthrowb = plt.axes([0.64, 0.03, 0.11, 0.062]) # Button to throw away already calculated dwell times and de-select molecule
         self.axconclb = plt.axes([0.77, 0.03, 0.15, 0.062]) # Button to conlcude analysis by saving all the calculated steps and metadata
 
-        self.axnextb = plt.axes([0.17, 0.90, 0.065, 0.062])  # Buttons to cycle through molecules
-        self.axprevb = plt.axes([0.083, 0.90, 0.08, 0.062])
+        self.axnextb = plt.axes([0.162, 0.90, 0.065, 0.062])  # Buttons to cycle through molecules
+        self.axprevb = plt.axes([0.075, 0.90, 0.08, 0.062])
 
-        self.axsavetraceb = plt.axes([0.27, 0.90, 0.065, 0.062])
+        self.axsavetraceb = plt.axes([0.26, 0.90, 0.065, 0.062])
         self.axtotal = plt.axes([0.77, 0.90, 0.08,  0.062])
         [ax.set_frame_on(False) for ax in self.fig.get_axes()[2:]]
 
@@ -175,7 +175,7 @@ class InteractivePlot(object):
         self.mol = self.molecules[self.mol_indx]
         self.fig.canvas.set_window_title(f'Dataset: {self.file.name}')
 
-        # Check if molecule is selected
+        # Check if molecule is selected, This will also set the title of the axis
         if self.mol.isSelected:
             self.select_molecule(toggle=False)
         else:
@@ -300,18 +300,19 @@ class InteractivePlot(object):
         else:
             self.mol.isSelected = True
 
-        title = f'Molecule: {self.mol.index} /{len(self.molecules)}'
+        title = f'Molecule: {self.molecules.index(self.mol)+1} /{len(self.molecules)} '
+        title += f'({self.mol.index} /{len(self.mol.file.molecules)} in {self.mol.file.name})'
         title += '  (S)'*(self.mol.isSelected)
         rgba = matplotlib.colors.to_rgba
         c = rgba('g')*self.mol.isSelected + rgba('w')*(not self.mol.isSelected)
-        self.axes[0].set_title(title, color=c)
+        self.fig.suptitle(title, color=c, fontsize=10)
         self.fig.canvas.draw_idle()
 
     def throw_away(self, event):
         if self.mol.steps is not None:
             self.mol.steps = None
             lines = self.axes[0].get_lines() + self.axes[1].get_lines()
-            [l.remove() for l in lines if l.get_label().split()[0] in ['man', 'thres', 'saved']]
+            [l.remove() for l in lines if l.get_label().split()[0] in ['man','thres','saved']]
             self.select_molecule(toggle=False, deselect=True)
             self.fig.canvas.draw_idle()
 

@@ -9,7 +9,7 @@ import concurrent.futures
 import time
 import numpy as np
 import pandas as pd
-import os
+
 
 def find_mol_dwells(mol, trace='red'):
     max_time = mol.file.time[-1]
@@ -104,6 +104,7 @@ def analyze_steps(file, save=True):
 
     filename = file.name+'_dwells_data.xlsx'
     data = file.savetoExcel(filename=filename, save=save)
+    return data
 
 if __name__ == '__main__':
 

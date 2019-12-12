@@ -18,7 +18,6 @@ from trace_analysis.peak_finding import find_peaks
 from trace_analysis.coordinate_optimization import coordinates_within_margin, coordinates_after_gaussian_fit, coordinates_without_intensity_at_radius
 from trace_analysis.trace_extraction import extract_traces
 from trace_analysis.coordinate_transformations import translate, transform
-from trace_analysis.analysis.stepsDataAnalysis import analyze_steps
 
 class File:
     def __init__(self, relativeFilePath, experiment):
