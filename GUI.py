@@ -9,6 +9,7 @@ Created on Fri Sep 14 15:44:52 2018
 
 #!/usr/bin/env python
 import time
+import pandas as pd
 import wx #cross-platform GUI API
 import wx.dataview
 import wx.lib.agw.hypertreelist as HTL
@@ -23,8 +24,10 @@ if platform == "darwin":
 import matplotlib as mpl
 from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg as FigureCanvas
 from matplotlib.backends.backend_wxagg import NavigationToolbar2WxAgg as NavigationToolbar
-from trace_analysis.analysis import interactiveAnalysis
+from trace_analysis.analysis import interactiveAnalysis, distributionsPanel
+
 from trace_analysis.analysis.stepsDataAnalysis import analyze_steps
+from trace_analysis.analysis import dwelltimeAnalysis
 
 class MainFrame(wx.Frame):
     def __init__(self, parent, title):
@@ -91,8 +94,8 @@ class MainFrame(wx.Frame):
         self.movie = MoviePanel(parent=self)
 
         self.histogram = HistogramPanel(parent=self)
-        self.interactive = InteractiveAnalysisPanel(parent=self)
-        self.distributions = DistributionsControlsPanel(parent=self)
+        self.interactive = InteractiveAnalysisPanel(self)
+        self.distributions = DwelltimeAnalysisPanel(self)
 
         self.Show(True)
 
@@ -170,6 +173,7 @@ class MainFrame(wx.Frame):
         start = time.perf_counter()
         for file in self.experiment.selectedFiles:
             analyze_steps(file)
+            print(f'Analyzing Steps for {file.name}')
         finish = time.perf_counter()
         msg = f'Steps Data analyzed for selected files. Time elapsed: {finish - start:.2f} sec.'
         dlg = wx.MessageDialog(self, msg, 'Analyze Steps Data', wx.OK)
@@ -179,17 +183,6 @@ class MainFrame(wx.Frame):
     def OnPlotDistributionsSelection(self,event):
         if event.IsChecked(): self.distributions.Show()
         elif ~event.IsChecked(): self.distributions.Hide()
-
-
-class DistributionsControlsPanel(wx.Frame):
-    def __init__(self, parent=None, title='Plot and Fit dwelltime distributions'):
-        wx.Frame.__init__(self, parent=parent, title=title)
-        self.parent = parent
-        panel = wx.Panel(self)
-
-
-
-
 
 
 class MoviePanel(wx.Frame):
@@ -245,7 +238,7 @@ class HistogramPanel(wx.Frame):
         self.Hide()
 
 class InteractiveAnalysisPanel(wx.Frame):
-    def __init__(self, title='Interactive Analysis', parent=None):
+    def __init__(self, parent=None, title='Interactive Analysis'):
         wx.Frame.__init__(self, parent=parent, title=title)
         self.parent = parent
         self.Bind(wx.EVT_CLOSE, self.OnClose)
@@ -279,6 +272,44 @@ class InteractiveAnalysisPanel(wx.Frame):
         self.Hide()
 
 
+class DwelltimeAnalysisPanel(distributionsPanel.Panel):
+    def __init__(self, parent=None, title='Dwelltime Analysis'):
+        # initialize parent class and build the GUI
+        super().__init__(parent, title=title)
+        self.parent = parent
+
+    def get_dwells_data(self):
+        '''
+
+        Returns
+        -------
+        dwells_data : pd.DataFrame
+            The concatenated pd.DataFrame from all the [..]_dwells_data.xlsx
+            files for the selected files
+
+        '''
+        dwells_data = []
+        # print(self.parent.experiment.selectedFiles)
+        for file in self.parent.experiment.selectedFiles:
+            filename = str(file.relativePath)+'/' + file.name +'_dwells_data.xlsx'
+            d = pd.read_excel(filename, index_col=[0,1], dtype={'kon': str})
+            dwells_data.append(d)
+
+        dwells_data = pd.concat(dwells_data)#, ignore_index=True)
+
+        return dwells_data
+
+    # Override parent methods
+    def OnPlotPress(self, event, dist=None):
+        print('Plotting from GUI')
+        self.save_enable()  # enable the save controls, parent method
+        if dist is None:
+            dist = self.comboDist.GetValue()
+        else:
+            pass
+        dwells_data = self.get_dwells_data()
+        self.figures = dwelltimeAnalysis.analyze(dwells_data, dist,
+                                              self.configuration[dist])
 
 class PlotPanel(wx.Panel):
     def __init__(self, parent, id=-1, dpi=None, **kwargs):
@@ -473,8 +504,6 @@ class TreePanel(wx.Panel):
         self.tree.SetPyData(self.root, ('key', 'value'))
         self.tree.AppendItem(self.root, 'Operating Systems')
         self.tree.Expand(self.root)
-
-
 
 """
 

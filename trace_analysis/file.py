@@ -340,7 +340,7 @@ class File:
             filename = self.name+'_steps_data.xlsx'
         try:
             steps_data = pd.read_excel(filename, index_col=[0,1],
-                                            dtype={'kon':np.str})       # reads from the 1st excel sheet of the file
+                                       dtype={'kon':np.str})       # reads from the 1st excel sheet of the file
         except FileNotFoundError:
             print(f'No saved analysis for {self.name} as {filename}')
             return
@@ -372,6 +372,8 @@ class File:
 
 
         steps_data = pd.concat(mol_data, keys=keys, sort=False)
+        # drop duplicate columns
+        steps_data = steps_data.loc[:,~steps_data.columns.duplicated()]
         if save:
             print("data saved in: " + filename)
             writer = pd.ExcelWriter(filename)
