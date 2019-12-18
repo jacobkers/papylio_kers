@@ -388,10 +388,12 @@ class File:
 
     def select(self, figure=None):
         plt.ion()
-        for molecule in self.molecules:
+        for index, molecule in enumerate(self.molecules):
             molecule.plot(figure=figure)
+            plt.title('Molecule ' + str(index), y=-0.01)
             plt.show()
             plt.pause(0.001)
+            print('Molecule ' + str(index))
             input("Press enter to continue")
 
     def perform_mapping(self, configuration = None):
