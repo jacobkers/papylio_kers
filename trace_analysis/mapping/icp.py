@@ -1,5 +1,7 @@
 import numpy as np
 from sklearn.neighbors import NearestNeighbors
+from trace_analysis.image_adapt.polywarp import polywarp, polywarp_apply #required for nonlinear
+import cv2 #required for nonlinear 
 from trace_analysis.coordinate_transformations import transform
 
 def best_fit_transform(A, B):
@@ -97,7 +99,7 @@ def show_point_connections(pointset1,pointset2):
     for coordinate1, coordinate2 in zip(pointset1, pointset2):
         plt.plot([coordinate1[0],coordinate2[0]],[coordinate1[1],coordinate2[1]], color='r')
 
-def icp(source, destination, max_iterations=20, tolerance=0.001, initial_translation = None):
+def icp(source, destination, max_iterations=20, tolerance=0.001, initial_translation = None, transformation_type = 'linear'):
     '''
     The Iterative Closest Point method: finds best-fit transform that maps points A on to points B
     Input:
@@ -116,7 +118,8 @@ def icp(source, destination, max_iterations=20, tolerance=0.001, initial_transla
     source = np.hstack([source, np.ones((len(source), 1))])
     destination = np.hstack([destination, np.ones((len(destination), 1))])
 
-    print(source)
+    #print(source)
+    print(transformation_type)
 
     source_dummy = source.copy()
     #transformation_final = np.identity(3)
@@ -131,42 +134,66 @@ def icp(source, destination, max_iterations=20, tolerance=0.001, initial_transla
     #transformation_final = transformation_final @ initial_translation
 
     prev_error = 0
-
+    
     for i in range(max_iterations):
         # Find the nearest neighbors between the current source and destination points
         #distances, indices = nearest_neighbor(source_dummy[:,:2], destination[:,:2])
         distances, source_indices, destination_indices = \
             nearest_neighbor_pair(source_dummy[:, :2], destination[:, :2])
 
-        plt.figure()
+        plt.figure() # don't plot for every iteration --> move to after the lop
         scatter_coordinates([source_dummy,destination])
         show_point_connections(source_dummy[source_indices],destination[destination_indices])
-
-        # compute the transformation between the current source and nearest destination points
-        # T,_,_ = best_fit_transform(src[:m,:].T, dst[:m,indices].T)
-
-        T, res, rank, s = np.linalg.lstsq(source_dummy[source_indices], destination[destination_indices], rcond=None)
-
-        transformation = T.T
-        # Update the source dummy
-        source_dummy = (transformation @ source_dummy.T).T
-        #transformation_final = transformation @ transformation_final
-
+        if transformation_type=='nonlinear':
+		#might be useful as well for linear. with cutoff you remove the entries with outlier distances
+            if 0:#i==0:    
+                cutoff = np.median(distances)+np.std(distances) #changed
+                source_indices=source_indices[distances<cutoff]
+                destination_indices=destination_indices[distances<cutoff]
+            plt.figure() # don't plot for every iteration --> move to after the lop
+            scatter_coordinates([source_dummy,destination])
+            show_point_connections(source_dummy[source_indices],destination[destination_indices])	
+            #here find the transformation
+            print(source_dummy[source_indices].shape)
+            print(destination[destination_indices].shape)
+       
+            kx, ky = polywarp(source_dummy[source_indices,0],source_dummy[source_indices,1],\
+                              destination[destination_indices,0],destination[destination_indices,1]) #changed src in source_dummy
+            print(kx,ky)
+            source_dummy = polywarp_apply(kx, ky, source)
+            
+        elif transformation_type=='linear':
+			# compute the transformation between the current source and nearest destination points
+			#T,_,_ = best_fit_transform(src[:m,:].T, dst[:m,indices].T)
+            T, res, rank, s = np.linalg.lstsq(source_dummy[source_indices], destination[destination_indices], rcond=None)
+            transformation = T.T
+			# Update the source dummy
+            source_dummy = (transformation @ source_dummy.T).T
+        
         # Check error
         mean_error = np.mean(distances)
-        print(mean_error)
+        print(mean_error, len(distances))
         if np.abs(prev_error - mean_error) < tolerance:
             break
         prev_error = mean_error
 
-    # Only use indices with distances smaller than cutoff
-    cutoff = 2.5 # pixels
-    source = source[source_indices[distances<cutoff]]
-    destination = destination[destination_indices[distances<cutoff]]
+    # Only use indices with distances smaller than cutoff #MD: not sure you want to do this, just keep all
+#    cutoff = 2.5 # pixels
+#    source = source[source_indices[distances<cutoff]]
+#    destination = destination[destination_indices[distances<cutoff]]
 
+    plt.figure() # don't plot for every iteration --> move to after the lop
+    scatter_coordinates([source_dummy,destination])
+    show_point_connections(source_dummy[source_indices],destination[destination_indices])
+ 
     # Calculate final transformation
-    T, res, rank, s = np.linalg.lstsq(source, destination, rcond=None)
-    transformation = T.T
+    if transformation_type == 'nonlinear':
+        kx, ky = polywarp(source[0,source_indices].T,source[1,source_indices].T,\
+                          destination[0,destination_indices].T,destination[1,destination_indices].T)
+        transformation = (kx,ky)
+    elif transformation_type=='linear':
+        T, res, rank, s = np.linalg.lstsq(source[source_indices], destination[destination_indices], rcond=None)
+        transformation = T.T
 
     return transformation, distances, i
 

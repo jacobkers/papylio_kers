@@ -388,7 +388,8 @@ class File:
             plt.pause(0.001)
             input("Press enter to continue")
 
-    def perform_mapping(self, configuration = None):
+    def perform_mapping(self, configuration = None, transformation_type='linear'):
+        print(transformation_type)
         image = self.average_image
         if configuration is None: configuration = self.experiment.configuration['mapping']
 
@@ -403,12 +404,16 @@ class File:
                                                               # fraction_of_peak_max=0.35) # was 0.25 in IDL code
 
         margin = configuration['coordinate_optimization']['coordinates_within_margin']['margin']
-        donor_coordinates = coordinates_within_margin(coordinates, bounds=self.movie.channel_boundaries('d'), margin=margin)
-        acceptor_coordinates = coordinates_within_margin(coordinates, bounds=self.movie.channel_boundaries('a'), margin=margin)
-
+        if hasattr(self.movie, 'channel_boundaries'): #had to be added in case you do mapping on a single tif image
+            donor_coordinates = coordinates_within_margin(coordinates, bounds=self.movie.channel_boundaries('d'), margin=margin)
+            acceptor_coordinates = coordinates_within_margin(coordinates, bounds=self.movie.channel_boundaries('a'), margin=margin)
+        else:
+            donor_coordinates = coordinates_within_margin(coordinates, bounds=np.array([[0, image.shape[0] // 2],[0,image.shape[1]]]), margin=margin)
+            acceptor_coordinates = coordinates_within_margin(coordinates, bounds=np.array([[image.shape[0] // 2, image.shape[0]], [0, image.shape[1]]]), margin=margin)
+            
         self.mapping = Mapping2(source = donor_coordinates,
                                 destination = acceptor_coordinates,
-                                transformation_type = 'linear',
+                                transformation_type = transformation_type,
                                 initial_translation=translate([image.shape[0]//2,0]))
         self.mapping.file = self
         self.is_mapping_file = True

@@ -32,10 +32,13 @@ class Mapping2:
         return self.transform_coordinates(self.source)
 
     def perform_mapping(self):
+        print(self.transformation_type)
         if self.method == 'icp':
-            self.transformation, distances, iterations = icp(self.source, self.destination, initial_translation=self.initial_translation)
+            self.transformation, distances, iterations = icp(self.source, self.destination, \
+                initial_translation=self.initial_translation, transformation_type = self.transformation_type)
         elif self.method == 'icp-non-rigid':
-            self.transformation, distances, iterations = icp_nonrigid(self.source, self.destination)
+            self.transformation, distances, iterations = icp_nonrigid(self.source, self.destination, \
+                initial_translation=self.initial_translation, transformation_type = self.transformation_type)
         # elif method == 'manual'         : mapping_manual(source, destination)
         # elif method == 'automatic'      : mapping_automatic(source, destination)
         else: print('Method not found')
