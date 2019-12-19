@@ -59,7 +59,10 @@ class Mapping2:
         if self.transformation_type == 'linear':
             if inverse is False: return transform(coordinates, self.transformation)
             elif inverse is True: return transform(coordinates, self.transformation_inverse)
+            
+        #still to make nonlinear?? or use polywarp_apply    
         else: print('Transformation not found')
+            if inverse is False: return 
 
 
 # from trace_analysis.icp_nonrigid import icp_nonrigid

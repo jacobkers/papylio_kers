@@ -179,7 +179,7 @@ class File:
         self._average_image = io.imread(averageTifFilePath, as_gray=True)
 
     def import_coeff_file(self):
-        if self.mapping is None:
+        if self.mapping is None: # the following only works for 'linear'transformation_type
             self.mapping = Mapping2(transformation_type='linear')
             self.mapping.transformation = np.zeros((3,3))
             self.mapping.transformation[2,2] = 1
@@ -204,7 +204,14 @@ class File:
         self.mapping = Mapping2(transformation_type='polynomial')
         self.mapping.transformation = {'P': P, 'Q': Q}
         self.mapping.file = self
-
+    
+    def export_map_file(self):
+        #saving kx,ky, still need to see how to read it in again
+        map_filepath = self.absoluteFilePath.with_suffix('.map')
+        A=self.mapping.transformation
+        coefficients = np.concatenate((A[0].flatten(),A[1].flatten()),axis=None)
+        np.savetxt(map_filepath, coefficients, fmt='%13.6g') # Same format used as in IDL code
+            
     def import_pks_file(self):
         # Background value stored in pks file is not imported yet
         coordinates = np.genfromtxt(str(self.relativeFilePath) + '.pks')
@@ -417,7 +424,8 @@ class File:
                                 initial_translation=translate([image.shape[0]//2,0]))
         self.mapping.file = self
         self.is_mapping_file = True
-        self.export_coeff_file()
+        if self.mapping.transformation_type=='linear':        self.export_coeff_file()
+        elif self.mapping.transformation_type=='nonlinear':     self.export_map_file()
 
     def use_mapping_for_all_files(self):
         self.is_mapping_file = True
