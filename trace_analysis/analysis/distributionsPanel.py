@@ -108,7 +108,7 @@ class Panel(wx.Frame):
         # Add the plot binning entry box
         gridSizerPlotParams.Add(wx.StaticText(sboxConfig, label='Bin size:'),
                                 pos=(0, 2), flag=wx.LEFT, border=5)
-        self.entryBinSize = wx.TextCtrl(sboxConfig, value="Auto", size=(45,20))
+        self.entryBinSize = wx.TextCtrl(sboxConfig, value="auto", size=(45,20))
         gridSizerPlotParams.Add(self.entryBinSize, pos=(0,3), flag=wx.LEFT,
                                  border=5)
         boxSizerPlotParams.Add(gridSizerPlotParams, flagsLeft)

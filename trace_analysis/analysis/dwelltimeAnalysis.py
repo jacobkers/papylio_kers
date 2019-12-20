@@ -11,6 +11,7 @@ import sys
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+import fit_function
 sns.set(style="ticks")
 sns.set_color_codes()
 
@@ -19,18 +20,47 @@ def analyze(dwells_data, dist, configuration):
     conf = configuration
     d = apply_config_to_data(dwells_data, dist, conf)
     figures = []
+    fit_data = []
+    keys_with_data = []
     for key in d.keys():
         if d[key].empty:  # check if the dataframe is empty
             print(f'{dist} dataFrame for {key} is empty')
             continue
         dwells = d[key].loc[:,dist].values
+        if conf['FitBool']:
+            fit_res = fit(dwells, model=conf['model'], Nfits=config['Nfits'],
+                           include_over_Tmax=config['TmaxBool'],
+                           bootstrap=config['BootBool'],
+                           boot_repeats=config['BootRepeats'])
+            fit_data.append(fit_res)
         print(f'plotting {key} {dist}')
         figure = plot(dwells, dist, trace=key, binsize=conf['binsize'],
                       scale=conf['scale'], style=conf['PlotType'],
-                      fit_data=None)
+                      fit_data=fit_data)
         figures.append(figure)
+        keys_with_data.append(key)
 
-    return d, figures
+    if fit_data != []:
+        fit_data = pd.concat(fit_data, axis=1, keys=keys_with_data)
+    return d, figures, fit_data
+
+def fit(dwells, model='1Exp', Nfits=1,  include_over_Tmax=True,
+        bootstrap=True, boot_repeats=100):
+    if model == '1Exp+2Exp':
+        fit_result = []
+        for model in ['1Exp', '2Exp']:
+            result = fit_function(dwells, model, Nfits,  include_over_Tmax,
+                                  bootstrap, boot_repeats)
+            fit_result.append(result)
+        fit_result = pd.concat(fit_result, axis=1, ignore_index=True)
+        return fit_result
+
+    fit_result = fit_function(dwells, model, Nfits,  include_over_Tmax,
+                                  bootstrap, boot_repeats)
+
+    return fit_result
+
+
 
 def plot(dwells, dist='offtime', trace='red', binsize='auto', scale='log',
          style='dots', color='from_trace', fit_data=None):
@@ -135,32 +165,3 @@ if __name__ == '__main__':
          'BootRepeats': '100'}
 
     result = analyze(data, 'offtime', config)
-
-    #  select only the ones that don't exceed the total measurement time minus 10 sec
-#    dwells_in = dwells[dwells < dwells.max() - 10]
-    # avrg_dwell = get_average_dwell(dwells)
-
-    # values, bins = np.histogram(dwells, bins=nbins, density=True)
-    # centers = (bins[1:] + bins[:-1]) / 2.0
-    # if not plot:
-    #     return values, centers
-
-    # if plot:
-    #     plt.figure(dwelltype)
-    #     line = plt.plot(centers, values, '.',
-    #                     label=extra_label+fr'$\tau = ${avrg_dwell:.1f} s' )[0]
-
-    #     plt.xlabel('time (s)')
-    #     plt.ylabel('Prob.')
-    #     plt.title(f'{dwelltype} histogram: nbins={nbins} N={dwells.size}')
-    #     plt.legend(prop={'size': 16})
-    #     # plot a 1exp ML 'fit' for the average dwelltime
-    #     t = np.arange(0, dwells.max(), 0.1)
-    #     exp = 1/avrg_dwell*np.exp(-t/avrg_dwell)
-    #     if log:
-    #         plt.semilogy(t, exp, color=line.get_color())
-    #     else:
-    #         plt.plot(t, exp, color=line.get_color())
-
-
-    #     return line

@@ -70,9 +70,12 @@ class MainFrame(wx.Frame):
 
         # Analysis menu in Menu bar
         analysisMenu = wx.Menu()
-        self.analysisMenuInteractiveAnalysis = analysisMenu.Append(wx.ID_ANY,"&Interactive Analysis", "Interactive Analysis")
-        self.analysisMenuAnalyzeSteps = analysisMenu.Append(wx.ID_ANY, "&Analyze Steps Data", "Analyze Steps Data")
-        self.analysisMenuPlotDistributions = analysisMenu.Append(wx.ID_ANY, "&Plot Distributions", "Plot Distributions")
+        self.analysisMenuInteractiveAnalysis = analysisMenu.Append(wx.ID_ANY,
+                        "&Interactive Analysis", "Interactive Analysis")
+        self.analysisMenuAnalyzeSteps = analysisMenu.Append(wx.ID_ANY,
+                            "&Analyze Steps Data", "Analyze Steps Data")
+        self.analysisMenuPlotDistributions = analysisMenu.Append(wx.ID_ANY,
+                                "&Dwelltime Analysis", "Dwelltime Analysis")
 
         self.Bind(wx.EVT_MENU, self.OnInteractiveSelection, self.analysisMenuInteractiveAnalysis)
         self.Bind(wx.EVT_MENU, self.OnAnalyzeStepsSelection, self.analysisMenuAnalyzeSteps)
