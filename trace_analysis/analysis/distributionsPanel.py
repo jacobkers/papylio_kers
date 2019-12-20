@@ -99,8 +99,8 @@ class Panel(wx.Frame):
         # Add the plot type choose combobox
         gridSizerPlotParams.Add(wx.StaticText(sboxConfig, label='Plot type:'),
                                 pos=(1, 0), flag=wx.LEFT, border=5)
-        self.comboPlotType = wx.ComboBox(sboxConfig, value='Dots',
-                                        choices=['Dots', 'Bars', 'Line'],
+        self.comboPlotType = wx.ComboBox(sboxConfig, value='dots',
+                                        choices=['dots', 'bars', 'line'],
                                         style = wx.ALIGN_CENTRE)
         gridSizerPlotParams.Add(self.comboPlotType, pos=(1,1), flag=wx.LEFT,
                                  border=5)
@@ -273,7 +273,6 @@ class Panel(wx.Frame):
         self.configuration[dist]['Nfits'] = self.entryNfits.GetValue()
         self.configuration[dist]['BootRepeats'] = self.entryBoots.GetValue()
 
-        print(self.configuration[dist])
         return self.configuration[dist]
 
     def OnHelpPress(self, event):

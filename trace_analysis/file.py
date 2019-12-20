@@ -30,7 +30,7 @@ class File:
 
         self.molecules = list()
 
-        self.exposure_time = 0.1  # Found from log file or should be inputted
+        self.exposure_time = None  # Found from log file or should be inputted
         self.log_details = None  # a string with the contents of the log file
         self.number_of_frames = None
 

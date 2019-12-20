@@ -4,6 +4,8 @@ Created on Fri Sep 14 15:44:52 2018
 
 @author: ivoseverins
 """
+# from matplotlib import use
+# use('wx', warn=False)
 
 # If you get the error wxApp must be created first, restart kernel
 
@@ -164,7 +166,8 @@ class MainFrame(wx.Frame):
 
     # Select menu event handlers
     def OnInteractiveSelection(self, event):
-        molecules = [mol for file in self.experiment.selectedFiles for mol in file.molecules]
+        molecules = [mol for file in self.experiment.selectedFiles
+                     for mol in file.molecules]
 #        print(f'{file.name} dataset selected')
         self.interactive.start(molecules)
 
@@ -175,7 +178,8 @@ class MainFrame(wx.Frame):
             analyze_steps(file)
             print(f'Analyzing Steps for {file.name}')
         finish = time.perf_counter()
-        msg = f'Steps Data analyzed for selected files. Time elapsed: {finish - start:.2f} sec.'
+        msg = f'Steps Data analyzed for selected files. \
+                \Time elapsed: {finish - start:.2f} sec.'
         dlg = wx.MessageDialog(self, msg, 'Analyze Steps Data', wx.OK)
         dlg.ShowModal()
         dlg.Destroy()
@@ -301,6 +305,7 @@ class DwelltimeAnalysisPanel(distributionsPanel.Panel):
 
     # Override parent methods
     def OnPlotPress(self, event, dist=None):
+        self.DistConfigSave()
         print('Plotting from GUI')
         self.save_enable()  # enable the save controls, parent method
         if dist is None:

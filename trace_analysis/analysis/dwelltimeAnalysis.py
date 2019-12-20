@@ -14,30 +14,68 @@ import seaborn as sns
 sns.set(style="ticks")
 sns.set_color_codes()
 
-#from trace_analysis import Experiment
 
 def analyze(dwells_data, dist, configuration):
     conf = configuration
     d = apply_config_to_data(dwells_data, dist, conf)
-
     figures = []
     for key in d.keys():
-
-        if d[key].isempty:  # check if the dataframe is empty
+        if d[key].empty:  # check if the dataframe is empty
+            print(f'{dist} dataFrame for {key} is empty')
             continue
-
-        dwells = d[key].loc[dist].values
-        figure = plot(dwells, trace=key, binsize=conf['binsize'],
+        dwells = d[key].loc[:,dist].values
+        print(f'plotting {key} {dist}')
+        figure = plot(dwells, dist, trace=key, binsize=conf['binsize'],
                       scale=conf['scale'], style=conf['PlotType'],
                       fit_data=None)
         figures.append(figure)
 
     return d, figures
 
-def plot(dwells, trace='red', binsize='auto', scale='log',
-         style='dots', fit_data=None):
-    pass
+def plot(dwells, dist='offtime', trace='red', binsize='auto', scale='log',
+         style='dots', color='from_trace', fit_data=None):
 
+    try:
+        bsize = float(binsize)
+        bin_edges = np.arange(min(dwells), max(dwells) + bsize, bsize)
+    except ValueError:
+        if binsize == 'Auto':
+            binsize = 'auto'
+        bin_edges = binsize
+    values, bins = np.histogram(dwells, bins=bin_edges, density=True)
+    centers = (bins[1:] + bins[:-1]) / 2.0
+    fig = plt.figure(f'Histogram {trace} {dist}s', figsize=(4,3), dpi=200)
+
+    if color == 'from_trace':
+        if dist == 'offtime':
+            color = 'r'*(trace=='red') + 'g'*(trace=='green') + \
+                    'b'*(trace=='FRET') + 'sandybrown'*(trace=='total')
+        if dist == 'ontime':
+            color = 'firebrick'*(trace=='red') + 'olive'*(trace=='green') + \
+                    'darkviolet'*(trace=='FRET') + 'saddlebrown'*(trace=='total')
+    label = f'{dist} pdf, N={dwells.size}'
+    if style == 'dots':
+
+        plt.plot(centers, values, 'o', color=color, label=label)
+    if style == 'bars':
+        plt.bar(centers, values, color=color, label=label,
+                width=(bins[1] - bins[0]))
+    if style == 'line':
+        plt.plot(centers, values, '-', lw=2, color=color, label=label)
+
+    if scale in ['Log', 'Log-Log']:
+        plt.yscale('log')
+
+    if scale == 'Log-Log':
+        plt.xscale('log')
+
+    plt.legend()
+    plt.ylabel('Probability')
+    plt.xlabel(f'{dist} (s)')
+    plt.locator_params(axis='y', nbins=3)
+    plt.tight_layout()
+    plt.show()
+    return fig
 
 
 def apply_config_to_data(dwells_data, dist, config):
@@ -68,8 +106,6 @@ def apply_config_to_data(dwells_data, dist, config):
     return data
 
 
-
-
 def get_average_dwell(dwells):
     #  correct for dwell exceeding the measurement time minus 5 sec
     Tmax = dwells.max() - 5
@@ -84,13 +120,13 @@ if __name__ == '__main__':
     filename += 'hel0_dwells_data.xlsx'
 
     data = pd.read_excel(filename, index_col=[0, 1], dtype={'kon' :np.str})
-
-    config = {'trace': {'red': True, 'green': False, 'total': False, 'FRET': True},
+    print(data.shape)
+    config = {'trace': {'red': True, 'green': False, 'total': False, 'FRET': False},
          'side': {'left': True, 'middle': True, 'right': True},
          'min': '0', 'max': 'Max',
          'scale': 'Normal',
-         'PlotType': 'Dots',
-         'binsize': 'Auto',
+         'PlotType': 'dots',
+         'binsize': 'auto',
          'FitBool': False,
          'TmaxBool': False,
          'BootBool': False,
