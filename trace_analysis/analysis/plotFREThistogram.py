@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 from pathlib import Path, PureWindowsPath
 import traceAnalysisCode as trace_ana
 
-mainPath = PureWindowsPath('C:\\Users\\pimam\\Documents\\MEP\\tracesfiles')
+mainPath = PureWindowsPath('C:\\Users\\pimam\\Documents\\MEP\\exampledata')
 mainPath = Path(mainPath)
 exp = trace_ana.Experiment(mainPath)
 k=0

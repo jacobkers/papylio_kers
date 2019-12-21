@@ -3,6 +3,7 @@ import numpy as np #scientific computing with Python
 import pandas as pd
 import matplotlib.pyplot as plt #Provides a MATLAB-like plotting framework
 import skimage.io as io
+import skimage as ski
 from trace_analysis.molecule import Molecule
 from trace_analysis.image_adapt.sifx_file import SifxFile
 from trace_analysis.image_adapt.pma_file import PmaFile
@@ -223,8 +224,24 @@ class File:
 
         if channel in ['d','a']:
             image = self.movie.get_channel(channel=channel)
-        elif channel == 'da':
-            raise ValueError('da not yet implemented')
+        elif channel in ['da', 'ad']:
+            self.mapping.transformation_inverse = np.linalg.inv(self.mapping.transformation)
+            self.mapping.transformation_inverse[0][2] += self.movie.width/2
+            d_image = self.movie.get_channel(channel='d')
+            a_image = self.movie.get_channel(channel='a')
+            a_image = ski.util.img_as_ubyte(a_image)
+            a_image2 = ski.transform.warp(a_image, self.mapping.transformation_inverse)
+            a_image2 = ski.util.img_as_ubyte(a_image2)
+            image =  (d_image + a_image2) / 2
+            plt.figure()
+            plt.title(f'Donor signal {self.relativeFilePath}')
+            io.imshow(d_image)
+            plt.figure()
+            plt.title(f'Acceptor signal {self.relativeFilePath}')
+            io.imshow(a_image)
+            plt.figure()
+            plt.title(f'Overlay acceptor on donor signal {self.relativeFilePath}')
+            io.imshow(image)
 
         # #coordinates = find_peaks(image=image, method='adaptive-threshold', minimum_area=5, maximum_area=15)
         # coordinates = find_peaks(image=image, method='local-maximum', threshold=50)
@@ -251,7 +268,7 @@ class File:
             coordinates = transform(coordinates, translation=[self.movie.width//2,0])
 
         if self.number_of_colours == 2:
-            if channel in ['d','da']:
+            if channel in ['d','da', 'ad']:
                 acceptor_coordinates = self.mapping.transform_coordinates(coordinates, inverse=False)
                 coordinates = np.hstack([coordinates,acceptor_coordinates]).reshape((-1,2))
             if channel == 'a':
