@@ -228,10 +228,11 @@ class File:
             self.mapping.transformation_inverse = np.linalg.inv(self.mapping.transformation)
             self.mapping.transformation_inverse[0][2] += self.movie.width/2
             d_image = self.movie.get_channel(channel='d')
+            d_image = ski.util.img_as_uint(d_image)
             a_image = self.movie.get_channel(channel='a')
-            a_image = ski.util.img_as_ubyte(a_image)
+            a_image = ski.util.img_as_uint(a_image)
             a_image2 = ski.transform.warp(a_image, self.mapping.transformation_inverse)
-            a_image2 = ski.util.img_as_ubyte(a_image2)
+            a_image2 = ski.util.img_as_uint(a_image2)
             image =  (d_image + a_image2) / 2
             plt.figure()
             plt.title(f'Donor signal {self.relativeFilePath}')
