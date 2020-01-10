@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import cv2
 import scipy.ndimage as ndimage
 import scipy.ndimage.filters as filters
+import math
 
 from trace_analysis.image_adapt.analyze_label import analyze # note analyze label is differently from the approach in pick spots
 
@@ -48,13 +49,15 @@ def find_peaks_adaptive_threshold(image, minimum_area = 5, maximum_area = 15):
 
     return coordinates
 
-def find_peaks_local_maximum(image, threshold = 25, filter_neighbourhood_size = 10):
+def find_peaks_local_maximum(image, threshold = 25, threshold_max = math.inf, filter_neighbourhood_size = 10):
     image_max = filters.maximum_filter(image, filter_neighbourhood_size)
     maxima = (image == image_max)
     image_min = filters.minimum_filter(image, filter_neighbourhood_size)
     # Probably I need to make the neighbourhood_size of the minimum filter larger.
 
-    diff = ((image_max - image_min) > threshold)
+    diff_threshold = ((image_max - image_min) > threshold)
+    diff_threshold_max = ((image_max - image_min) < threshold_max)
+    diff=diff_threshold*diff_threshold_max
     maxima[diff == 0] = 0
 
     labeled, num_objects = ndimage.label(maxima)
