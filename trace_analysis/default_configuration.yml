@@ -3,6 +3,7 @@ find_coordinates:
     peak_finding:
         method: local-maximum
         threshold: 10
+        threshold_max: 40
     coordinate_optimization:
         coordinates_within_margin:
             margin: 20
@@ -13,9 +14,15 @@ find_coordinates:
             cutoff: image_median
             fraction_of_peak_max: 0.25
 mapping:
-    peak_finding:
+    peak_finding:                                   #peak_finding is redundant when peak_finding_donor and peak_finding_acceptor are present
         method: local-maximum
         threshold: 10
+    peak_finding_donor:                             #leave this out if choosing to use peak_finding
+        method: local-maximum
+        threshold: 200
+    peak_finding_acceptor:                          #leave this out if choosing to use peak_finding
+        method: local-maximum
+        threshold: 50
     coordinate_optimization:
         coordinates_after_gaussian_fit:
             gaussian_width: 9
