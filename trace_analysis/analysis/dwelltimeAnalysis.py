@@ -11,7 +11,7 @@ import sys
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-import fit_function
+# import fit_function
 sns.set(style="ticks")
 sns.set_color_codes()
 
@@ -48,17 +48,17 @@ def fit(dwells, model='1Exp', Nfits=1,  include_over_Tmax=True,
         bootstrap=True, boot_repeats=100):
     if model == '1Exp+2Exp':
         fit_result = []
-        for model in ['1Exp', '2Exp']:
-            result = fit_function(dwells, model, Nfits,  include_over_Tmax,
-                                  bootstrap, boot_repeats)
-            fit_result.append(result)
-        fit_result = pd.concat(fit_result, axis=1, ignore_index=True)
-        return fit_result
+    #     for model in ['1Exp', '2Exp']:
+    #         result = fit_function(dwells, model, Nfits,  include_over_Tmax,
+    #                               bootstrap, boot_repeats)
+    #         fit_result.append(result)
+    #     fit_result = pd.concat(fit_result, axis=1, ignore_index=True)
+    #     return fit_result
 
-    fit_result = fit_function(dwells, model, Nfits,  include_over_Tmax,
-                                  bootstrap, boot_repeats)
+    # fit_result = fit_function(dwells, model, Nfits,  include_over_Tmax,
+    #                               bootstrap, boot_repeats)
 
-    return fit_result
+    # return fit_result
 
 
 
