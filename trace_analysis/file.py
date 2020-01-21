@@ -445,10 +445,16 @@ class File:
             axis.plot_surface(X,Y,self.average_image, cmap=cm.coolwarm,
                                    linewidth=0, antialiased=False)
 
-    def show_coordinates(self, figure = None, **kwargs):
+    def show_coordinates(self, figure=None, annotate=False, **kwargs):
         if not figure: figure = plt.figure()
 
         if self.coordinates is not None:
             axis = figure.gca()
             axis.scatter(self.coordinates[:,0],self.coordinates[:,1], facecolors='none', edgecolors='r', **kwargs)
+            if annotate:
+                labels = list(range(int(len(self.coordinates)/2)))
+                labels.extend(labels)
+                labels.sort()
+                for i, txt in enumerate(labels):
+                    plt.annotate(txt, (self.coordinates[[i],0], self.coordinates[[i],1]), color='white')
 
