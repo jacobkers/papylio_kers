@@ -32,14 +32,50 @@ import warnings
 
 
 class Experiment:
+    """ Main experiment class
+
+    Class containing all the files in an experiment.
+    In fact it can contain any collection of files.
+
+    .. warning:: Only works with one or two colours.
+
+    Attributes
+    ----------
+    name : str
+        Experiment name based on the name of the main folder
+    mainPath : str
+        Absolute path to the main experiment folder
+    files : list of :obj:`File`
+        Files
+    import_all : bool
+        If true, then all files in the main folder are automatically imported. \n
+        If false, then files are detected, but not imported.
+    """
+
     def __init__(self, mainPath, colours = ['g','r'], import_all = True):
+        """Init method for the Experiment class
+
+        Loads config file if it locates one in the main directory, otherwise it exports the default config file to the main directory.
+        Scans all directory in the main directory recursively and imports all found files (if import_all is set to `True`).
+
+        Parameters
+        ----------
+        mainPath : str
+            Absolute path to the main experiment folder
+        colours : :obj:`list` of :obj:`str`
+            Colours used in the experiment
+        import_all : bool
+            If true, then all files in the main folder are automatically imported. \n
+            If false, then files are detected, but not imported.
+        """
         self.name = os.path.basename(mainPath)
         self.mainPath = Path(mainPath).absolute()
         self.files = list()
+        self.import_all = import_all
+
         self._colours = np.atleast_1d(np.array(colours))
         self._Ncolours = len(colours)
         self._pairs = [[c1, c2] for i1, c1 in enumerate(colours) for i2, c2 in enumerate(colours) if i2 > i1]
-        self.import_all = import_all
 
         # Load custom config file or otherwise load the default config file
         if self.mainPath.joinpath('config.yml').is_file():
@@ -55,6 +91,9 @@ class Experiment:
 
     @property
     def colours(self):
+        """Colours used in the experiment.
+        Setting the colours will automatically update the pairs.
+        """
         return self._colours
 
     @colours.setter
@@ -65,6 +104,7 @@ class Experiment:
 
     @property
     def Ncolours(self):
+        """Number of colours used in the experiment (read-only)"""
         return self._Ncolours
 
     @property
