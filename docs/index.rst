@@ -7,9 +7,15 @@ Welcome to traceAnalysis's documentation!
 =========================================
 
 .. toctree::
-   :maxdepth: 1
+   :maxdepth: 2
    :caption: Contents:
 
+   Introduction
+   Installation
+   Main classes
+
+
+:class:`trace_analysis.experiment.Experiment`
 
 
 Indices and tables
