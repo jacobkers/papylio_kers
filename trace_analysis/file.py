@@ -224,25 +224,17 @@ class File:
 
         if channel in ['d','a']:
             image = self.movie.get_channel(channel=channel)
-        elif channel in ['da', 'ad']:
-            self.mapping.transformation_inverse = np.linalg.inv(self.mapping.transformation)
-            self.mapping.transformation_inverse[0][2] += self.movie.width/2
-            d_image = self.movie.get_channel(channel='d')
-            d_image = ski.util.img_as_uint(d_image)
-            a_image = self.movie.get_channel(channel='a')
-            a_image = ski.util.img_as_uint(a_image)
-            a_image2 = ski.transform.warp(a_image, self.mapping.transformation_inverse)
-            a_image2 = ski.util.img_as_uint(a_image2)
-            image =  (d_image + a_image2) / 2
-            plt.figure()
-            plt.title(f'Donor signal {self.relativeFilePath}')
-            io.imshow(d_image)
-            plt.figure()
-            plt.title(f'Acceptor signal {self.relativeFilePath}')
-            io.imshow(a_image)
-            plt.figure()
-            plt.title(f'Overlay acceptor on donor signal {self.relativeFilePath}')
-            io.imshow(image)
+        elif channel in ['da']:
+            donor_image = self.movie.get_channel(channel='d')
+            acceptor_image = self.movie.get_channel(channel='a')
+
+            image_transformation = translate([-self.movie.width / 2, 0]) @ self.mapping.transformation
+            acceptor_image_transformed = ski.transform.warp(acceptor_image, image_transformation, preserve_range=True)
+            image = (donor_image + acceptor_image_transformed) / 2
+
+            plt.imshow(np.stack([donor_image.astype('uint8'),
+                                 acceptor_image_transformed.astype('uint8'),
+                                 np.zeros((self.movie.height, self.movie.width//2)).astype('uint8')], axis=-1))
 
         # #coordinates = find_peaks(image=image, method='adaptive-threshold', minimum_area=5, maximum_area=15)
         # coordinates = find_peaks(image=image, method='local-maximum', threshold=50)
@@ -269,7 +261,7 @@ class File:
             coordinates = transform(coordinates, translation=[self.movie.width//2,0])
 
         if self.number_of_colours == 2:
-            if channel in ['d','da', 'ad']:
+            if channel in ['d','da']:
                 acceptor_coordinates = self.mapping.transform_coordinates(coordinates, inverse=False)
                 coordinates = np.hstack([coordinates,acceptor_coordinates]).reshape((-1,2))
             if channel == 'a':
