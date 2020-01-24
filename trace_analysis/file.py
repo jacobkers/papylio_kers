@@ -336,8 +336,9 @@ class File:
         self.molecules.append(Molecule(self))
         self.molecules[-1].index = len(self.molecules)  # this is the molecule number
 
-    def histogram(self):
-        histogram(self.molecules)
+    def histogram(self, axis = None, bins = 100, parameter = 'E', molecule_averaging = False, makeFit=False, export=False, **kwargs):
+        histogram(self.molecules, axis=axis, bins=bins, parameter=parameter, molecule_averaging=molecule_averaging, makeFit=makeFit, collection_name=self, **kwargs)
+        if export: plt.savefig(self.absoluteFilePath.with_name(f'{self.name}_{parameter}_histogram').with_suffix('.png'))
 
     def importExcel(self, filename=None):
         if filename is None:
