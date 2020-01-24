@@ -478,6 +478,11 @@ class HyperTreeListPlus(HTL.HyperTreeList):
                 self.Bind(wx.EVT_MENU, lambda selectEvent: self.OnApplyMappingToOtherFiles(selectEvent, item, file),
                           popupMenuApplyMappingToOtherFiles)
 
+            if file.coordinates is not None:
+                popupMenuApplyPeakCoordsToOtherFiles = popupMenu.Append(wx.ID_ANY, "&Apply Peak coords to other files", "Apply Peak coords to other files")
+                self.Bind(wx.EVT_MENU, lambda selectEvent: self.OnApplyPeakCoordsToOtherFiles(selectEvent, item, file),
+                          popupMenuApplyPeakCoordsToOtherFiles)
+
             self.PopupMenu(popupMenu, event.GetPoint())
 
     def OnPerformMapping(self, event, item, file):
@@ -485,6 +490,12 @@ class HyperTreeListPlus(HTL.HyperTreeList):
 
     def OnApplyMappingToOtherFiles(self, event, item, file):
         file.use_mapping_for_all_files()
+        standardColour = self.GetItemBackgroundColour(self.GetRootItem().GetChildren()[0])
+        for item in self.FileItems: self.SetItemBackgroundColour(item, standardColour)
+        self.SetItemBackgroundColour(item, wx.YELLOW) #wx.Colour(160,160,160))
+        
+    def OnApplyPeakCoordsToOtherFiles(self, event, item, file):
+        file.use_peakscoords_for_selected_files()
         standardColour = self.GetItemBackgroundColour(self.GetRootItem().GetChildren()[0])
         for item in self.FileItems: self.SetItemBackgroundColour(item, standardColour)
         self.SetItemBackgroundColour(item, wx.YELLOW) #wx.Colour(160,160,160))
