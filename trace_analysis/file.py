@@ -3,6 +3,7 @@ import numpy as np #scientific computing with Python
 import pandas as pd
 import matplotlib.pyplot as plt #Provides a MATLAB-like plotting framework
 import skimage.io as io
+import skimage as ski
 from trace_analysis.molecule import Molecule
 from trace_analysis.image_adapt.sifx_file import SifxFile
 from trace_analysis.image_adapt.pma_file import PmaFile
@@ -223,8 +224,17 @@ class File:
 
         if channel in ['d','a']:
             image = self.movie.get_channel(channel=channel)
-        elif channel == 'da':
-            raise ValueError('da not yet implemented')
+        elif channel in ['da']:
+            donor_image = self.movie.get_channel(channel='d')
+            acceptor_image = self.movie.get_channel(channel='a')
+
+            image_transformation = translate([-self.movie.width / 2, 0]) @ self.mapping.transformation
+            acceptor_image_transformed = ski.transform.warp(acceptor_image, image_transformation, preserve_range=True)
+            image = (donor_image + acceptor_image_transformed) / 2
+
+            plt.imshow(np.stack([donor_image.astype('uint8'),
+                                 acceptor_image_transformed.astype('uint8'),
+                                 np.zeros((self.movie.height, self.movie.width//2)).astype('uint8')], axis=-1))
 
         # #coordinates = find_peaks(image=image, method='adaptive-threshold', minimum_area=5, maximum_area=15)
         # coordinates = find_peaks(image=image, method='local-maximum', threshold=50)
@@ -326,8 +336,9 @@ class File:
         self.molecules.append(Molecule(self))
         self.molecules[-1].index = len(self.molecules)  # this is the molecule number
 
-    def histogram(self):
-        histogram(self.molecules)
+    def histogram(self, axis = None, bins = 100, parameter = 'E', molecule_averaging = False, makeFit=False, export=False, **kwargs):
+        histogram(self.molecules, axis=axis, bins=bins, parameter=parameter, molecule_averaging=molecule_averaging, makeFit=makeFit, collection_name=self, **kwargs)
+        if export: plt.savefig(self.absoluteFilePath.with_name(f'{self.name}_{parameter}_histogram').with_suffix('.png'))
 
     def importExcel(self, filename=None):
         if filename is None:

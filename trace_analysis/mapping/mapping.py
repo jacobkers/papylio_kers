@@ -20,12 +20,15 @@ class Mapping2:
         self.method = method
         self.transformation_type = transformation_type
         self.transformation = None
-        self.transformation_inverse = None
         self.initial_translation = initial_translation
 
         if (source is not None) and (destination is not None):
             if self.method is None: self.method = 'icp'
             self.perform_mapping()
+
+    @property
+    def transformation_inverse(self):
+        return np.linalg.inv(self.transformation)
 
     @property
     def transform_source_to_destination(self):
@@ -39,8 +42,6 @@ class Mapping2:
         # elif method == 'manual'         : mapping_manual(source, destination)
         # elif method == 'automatic'      : mapping_automatic(source, destination)
         else: print('Method not found')
-
-        self.transformation_inverse = np.linalg.inv(self.transformation)
 
     def show_mapping_transformation(self, figure=None):
         if not figure: figure = plt.figure()
