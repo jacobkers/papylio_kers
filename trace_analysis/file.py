@@ -7,6 +7,7 @@ import skimage as ski
 from trace_analysis.molecule import Molecule
 from trace_analysis.image_adapt.sifx_file import SifxFile
 from trace_analysis.image_adapt.pma_file import PmaFile
+from trace_analysis.image_adapt.tif_file import TifFile
 from trace_analysis.plotting import histogram
 from trace_analysis.mapping.mapping import Mapping2
 from trace_analysis.peak_finding import find_peaks
@@ -27,6 +28,7 @@ class File:
         self.molecules = list()
 
         self.exposure_time = 0.1  # Found from log file or should be inputted
+        self.number_of_frames = 0
         self.log_details = None  # a string with the contents of the log file
         self.number_of_frames = None
 
@@ -126,6 +128,7 @@ class File:
         for i, molecule in enumerate(self.molecules):
             molecule.intensity = traces[:, i, :] # 3d array of traces
             # molecule.intensity = traces[(i * self.number_of_colours):((i + 1) * self.number_of_colours), :] # 2d array of traces
+        self.number_of_frames = traces.shape[2]
 
     def findAndAddExtensions(self):
         foundFiles = [file.name for file in self.experiment.mainPath.joinpath(self.relativePath).glob(self.name + '*')]
@@ -148,6 +151,7 @@ class File:
         # print(extension)
         importFunctions = { '.sifx': self.import_sifx_file,
                             '.pma': self.import_pma_file,
+                            '.tif': self.import_tif_file,
                             '_ave.tif': self.import_average_tif_file,
                             '.coeff': self.import_coeff_file,
                             '.map': self.import_map_file,
@@ -170,10 +174,17 @@ class File:
     def import_sifx_file(self):
         imageFilePath = self.absoluteFilePath.joinpath('Spooled files.sifx')
         self.movie = SifxFile(imageFilePath)
+        self.number_of_frames = self.movie.number_of_frames
 
     def import_pma_file(self):
         imageFilePath = self.absoluteFilePath.with_suffix('.pma')
         self.movie = PmaFile(imageFilePath)
+        self.number_of_frames = self.movie.number_of_frames
+
+    def import_tif_file(self):
+        imageFilePath = self.absoluteFilePath.with_suffix('.tif')
+        self.movie = TifFile(imageFilePath)
+        self.number_of_frames = self.movie.number_of_frames
 
     def import_average_tif_file(self):
         averageTifFilePath = self.absoluteFilePath.with_name(self.name+'_ave.tif')
