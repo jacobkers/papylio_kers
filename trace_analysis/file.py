@@ -392,19 +392,15 @@ class File:
         image = self.average_image
         if configuration is None: configuration = self.experiment.configuration['mapping']
 
-        if 'peak_finding_donor' in configuration and 'peak_finding_acceptor' in configuration: #If there is a variable called donor_threshold and acceptor_threshold
-            image_donor=self.movie.get_channel(image=image, channel='d')
-            image_acceptor=self.movie.get_channel(image=image, channel='a')
-            coordinates_donor= find_peaks(image=image_donor, **configuration['peak_finding_donor'])
-            coordinates_acceptor = find_peaks(image=image_acceptor, **configuration['peak_finding_acceptor'])
-            for coordinate in coordinates_acceptor:
-                coordinate[0] += 1024
-            coordinates= np.append(coordinates_acceptor,coordinates_donor,axis=0)
-                #        exp.files[-3].movie.get_channel(image=image, channel='d')
-        elif 'peak_finding' in configuration:
-            image = self.average_image
-            #coordinates = find_peaks(image=image, method='adaptive-threshold', minimum_area=5, maximum_area=15)
-            coordinates = find_peaks(image=image, **configuration['peak_finding'])
+        image_donor = self.movie.get_channel(image=image, channel='d')
+        image_acceptor = self.movie.get_channel(image=image, channel='a')
+        coordinates_donor = find_peaks(image=image_donor, **configuration['peak_finding']['donor'])
+        coordinates_acceptor = find_peaks(image=image_acceptor, **configuration['peak_finding']['acceptor'])
+        coordinates_acceptor = transform(coordinates_acceptor, translation=[image.shape[0]//2, 0])
+        coordinates = np.append(coordinates_donor, coordinates_acceptor, axis=0)
+
+        #coordinates = find_peaks(image=image, method='adaptive-threshold', minimum_area=5, maximum_area=15)
+        #coordinates = find_peaks(image=image, **configuration['peak_finding'])
 
         coordinates = coordinates_after_gaussian_fit(coordinates, image)
         coordinates = coordinates_without_intensity_at_radius(coordinates, image,

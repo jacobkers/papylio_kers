@@ -49,16 +49,20 @@ def find_peaks_adaptive_threshold(image, minimum_area = 5, maximum_area = 15):
 
     return coordinates
 
-def find_peaks_local_maximum(image, threshold = 25, threshold_max = math.inf, filter_neighbourhood_size = 10):
+def find_peaks_local_maximum(image,
+                             minimum_intensity_difference=25,
+                             maximum_intensity_difference=math.inf,
+                             filter_neighbourhood_size=10):
+
     image_max = filters.maximum_filter(image, filter_neighbourhood_size)
     maxima = (image == image_max)
     image_min = filters.minimum_filter(image, filter_neighbourhood_size)
     # Probably I need to make the neighbourhood_size of the minimum filter larger.
 
-    diff_threshold = ((image_max - image_min) > threshold)
-    diff_threshold_max = ((image_max - image_min) < threshold_max)
-    diff=diff_threshold*diff_threshold_max
-    maxima[diff == 0] = 0
+    difference_above_minimum = ((image_max - image_min) > minimum_intensity_difference)
+    difference_below_maximum = ((image_max - image_min) < maximum_intensity_difference)
+    difference_within_bounds = np.logical_and(difference_above_minimum, difference_below_maximum)
+    maxima[difference_within_bounds == 0] = 0
 
     labeled, num_objects = ndimage.label(maxima)
     if num_objects > 0:
