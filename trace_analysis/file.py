@@ -392,12 +392,12 @@ class File:
         image = self.average_image
         if configuration is None: configuration = self.experiment.configuration['mapping']
 
-        image_donor = self.movie.get_channel(image=image, channel='d')
-        image_acceptor = self.movie.get_channel(image=image, channel='a')
-        coordinates_donor = find_peaks(image=image_donor, **configuration['peak_finding']['donor'])
-        coordinates_acceptor = find_peaks(image=image_acceptor, **configuration['peak_finding']['acceptor'])
-        coordinates_acceptor = transform(coordinates_acceptor, translation=[image.shape[0]//2, 0])
-        coordinates = np.append(coordinates_donor, coordinates_acceptor, axis=0)
+        donor_image = self.movie.get_channel(image=image, channel='d')
+        acceptor_image = self.movie.get_channel(image=image, channel='a')
+        donor_coordinates = find_peaks(image=donor_image, **configuration['peak_finding']['donor'])
+        acceptor_coordinates = find_peaks(image=acceptor_image, **configuration['peak_finding']['acceptor'])
+        acceptor_coordinates = transform(acceptor_coordinates, translation=[image.shape[0]//2, 0])
+        coordinates = np.append(donor_coordinates, acceptor_coordinates, axis=0)
 
         #coordinates = find_peaks(image=image, method='adaptive-threshold', minimum_area=5, maximum_area=15)
         #coordinates = find_peaks(image=image, **configuration['peak_finding'])
