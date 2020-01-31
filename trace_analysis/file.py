@@ -426,8 +426,15 @@ class File:
         image = self.average_image
         if configuration is None: configuration = self.experiment.configuration['mapping']
 
+        donor_image = self.movie.get_channel(image=image, channel='d')
+        acceptor_image = self.movie.get_channel(image=image, channel='a')
+        donor_coordinates = find_peaks(image=donor_image, **configuration['peak_finding']['donor'])
+        acceptor_coordinates = find_peaks(image=acceptor_image, **configuration['peak_finding']['acceptor'])
+        acceptor_coordinates = transform(acceptor_coordinates, translation=[image.shape[0]//2, 0])
+        coordinates = np.append(donor_coordinates, acceptor_coordinates, axis=0)
+
         #coordinates = find_peaks(image=image, method='adaptive-threshold', minimum_area=5, maximum_area=15)
-        coordinates = find_peaks(image=image, **configuration['peak_finding'])
+        #coordinates = find_peaks(image=image, **configuration['peak_finding'])
 
         coordinates = coordinates_after_gaussian_fit(coordinates, image)
         coordinates = coordinates_without_intensity_at_radius(coordinates, image,
