@@ -453,9 +453,6 @@ class File:
             axis = figure.gca()
             axis.scatter(self.coordinates[:,0],self.coordinates[:,1], facecolors='none', edgecolors='r', **kwargs)
             if annotate:
-                labels = list(range(int(len(self.coordinates)/2)))
-                labels.extend(labels)
-                labels.sort()
-                for i, txt in enumerate(labels):
-                    plt.annotate(txt, (self.coordinates[[i],0], self.coordinates[[i],1]), color='white')
-
+                for molecule in self.molecules:
+                    for i in np.arange(self.number_of_colours):
+                        axis.annotate(molecule.index, molecule.coordinates[i], color='white')
