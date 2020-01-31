@@ -323,8 +323,9 @@ class File:
     #        file.close()
 
     def addMolecule(self):
+        index = len(self.molecules) # this is the molecule number
         self.molecules.append(Molecule(self))
-        self.molecules[-1].index = len(self.molecules)  # this is the molecule number
+        self.molecules[-1].index = index
 
     def histogram(self):
         histogram(self.molecules)
