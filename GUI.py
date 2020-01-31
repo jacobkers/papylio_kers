@@ -478,6 +478,11 @@ class HyperTreeListPlus(HTL.HyperTreeList):
                 self.Bind(wx.EVT_MENU, lambda selectEvent: self.OnApplyMappingToOtherFiles(selectEvent, item, file),
                           popupMenuApplyMappingToOtherFiles)
 
+            if file.coordinates is not None:
+                popupMenuCopyCoordinatesToSelectedFiles = popupMenu.Append(wx.ID_ANY, "&Copy coordinates to selected files", "Copy coordinates to selected files")
+                self.Bind(wx.EVT_MENU, lambda selectEvent: self.OnCopyCoordinatesToSelectedFiles(selectEvent, item, file),
+                          popupMenuCopyCoordinatesToSelectedFiles)
+
             self.PopupMenu(popupMenu, event.GetPoint())
 
     def OnPerformMapping(self, event, item, file):
@@ -488,6 +493,11 @@ class HyperTreeListPlus(HTL.HyperTreeList):
         standardColour = self.GetItemBackgroundColour(self.GetRootItem().GetChildren()[0])
         for item in self.FileItems: self.SetItemBackgroundColour(item, standardColour)
         self.SetItemBackgroundColour(item, wx.YELLOW) #wx.Colour(160,160,160))
+        
+    def OnCopyCoordinatesToSelectedFiles(self, event, item, file):
+        # Maybe we should somehow indicate which files have coordinates from other files. [IS 31-01-2020]
+        file.copy_coordinates_to_selected_files()
+        self.insertDataIntoColumns()
 
 
     def CheckItem3(self, item, checked = True):
