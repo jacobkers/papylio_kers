@@ -344,8 +344,9 @@ class File:
     #        file.close()
 
     def addMolecule(self):
+        index = len(self.molecules) # this is the molecule number
         self.molecules.append(Molecule(self))
-        self.molecules[-1].index = len(self.molecules)  # this is the molecule number
+        self.molecules[-1].index = index
 
     def histogram(self, axis = None, bins = 100, parameter = 'E', molecule_averaging = False, makeFit=False, export=False, **kwargs):
         histogram(self.molecules, axis=axis, bins=bins, parameter=parameter, molecule_averaging=molecule_averaging, makeFit=makeFit, collection_name=self, **kwargs)
@@ -475,10 +476,13 @@ class File:
             axis.plot_surface(X,Y,self.average_image, cmap=cm.coolwarm,
                                    linewidth=0, antialiased=False)
 
-    def show_coordinates(self, figure = None, **kwargs):
+    def show_coordinates(self, figure=None, annotate=False, **kwargs):
         if not figure: figure = plt.figure()
 
         if self.coordinates is not None:
             axis = figure.gca()
             axis.scatter(self.coordinates[:,0],self.coordinates[:,1], facecolors='none', edgecolors='r', **kwargs)
-
+            if annotate:
+                for molecule in self.molecules:
+                    for i in np.arange(self.number_of_colours):
+                        axis.annotate(molecule.index, molecule.coordinates[i], color='white')
