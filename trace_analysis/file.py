@@ -425,7 +425,7 @@ class File:
         self.is_mapping_file = True
         self.export_coeff_file()
     
-    def use_peakscoords_for_selected_files(self):
+    def copy_coordinates_to_selected_files(self):
         for file in self.experiment.selectedFiles:
             if file is not self:
                 file.coordinates = self.coordinates

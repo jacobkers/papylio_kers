@@ -479,9 +479,9 @@ class HyperTreeListPlus(HTL.HyperTreeList):
                           popupMenuApplyMappingToOtherFiles)
 
             if file.coordinates is not None:
-                popupMenuApplyPeakCoordsToOtherFiles = popupMenu.Append(wx.ID_ANY, "&Apply Peak coords to other files", "Apply Peak coords to other files")
-                self.Bind(wx.EVT_MENU, lambda selectEvent: self.OnApplyPeakCoordsToOtherFiles(selectEvent, item, file),
-                          popupMenuApplyPeakCoordsToOtherFiles)
+                popupMenuCopyCoordinatesToSelectedFiles = popupMenu.Append(wx.ID_ANY, "&Copy coordinates to selected files", "Copy coordinates to selected files")
+                self.Bind(wx.EVT_MENU, lambda selectEvent: self.OnCopyCoordinatesToSelectedFiles(selectEvent, item, file),
+                          popupMenuCopyCoordinatesToSelectedFiles)
 
             self.PopupMenu(popupMenu, event.GetPoint())
 
@@ -494,11 +494,10 @@ class HyperTreeListPlus(HTL.HyperTreeList):
         for item in self.FileItems: self.SetItemBackgroundColour(item, standardColour)
         self.SetItemBackgroundColour(item, wx.YELLOW) #wx.Colour(160,160,160))
         
-    def OnApplyPeakCoordsToOtherFiles(self, event, item, file):
-        file.use_peakscoords_for_selected_files()
-        standardColour = self.GetItemBackgroundColour(self.GetRootItem().GetChildren()[0])
-        for item in self.FileItems: self.SetItemBackgroundColour(item, standardColour)
-        self.SetItemBackgroundColour(item, wx.YELLOW) #wx.Colour(160,160,160))
+    def OnCopyCoordinatesToSelectedFiles(self, event, item, file):
+        # Maybe we should somehow indicate which files have coordinates from other files. [IS 31-01-2020]
+        file.copy_coordinates_to_selected_files()
+        self.insertDataIntoColumns()
 
 
     def CheckItem3(self, item, checked = True):
