@@ -12,7 +12,7 @@ Start_analysis.py
 *.xml
 *.iml
 *.*.pyc
-
+.DS_Store
 
 *.pyc
 Example_MD*
