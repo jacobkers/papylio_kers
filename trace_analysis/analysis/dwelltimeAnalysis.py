@@ -11,7 +11,7 @@ import sys
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-# import fit_function
+import SAfitting
 sns.set(style="ticks")
 sns.set_color_codes()
 
