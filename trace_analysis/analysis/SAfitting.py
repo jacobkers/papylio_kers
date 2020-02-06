@@ -164,15 +164,15 @@ def fitting(dwells_all, mdl, Nfits=1, include_over_Tmax=True,
                 fit, param = model(boot_dwells, Tcut, boot_Ncut)
                 Ncutarray[i] = boot_Ncut
                 if i == 0:
-                    params = [100, param, np.nan]
+                    params = [1, param, np.nan]
                     fitparam = [params]
                 else:
-                    params = [100, param, np.nan]
+                    params = [1, param, np.nan]
                     fitparam = np.concatenate((fitparam, [params]), axis=0)
 
             # Save data of interest to dataframe
             bestfit, bestparam = model(dwells, Tcut, Ncut)
-            bestparams = [100, bestparam, np.nan]
+            bestparams = [1, bestparam, np.nan]
             Allfitparam = np.concatenate((fitparam, [bestparams]), axis=0)
             data = pd.DataFrame(Allfitparam)
             print("All fitparam: ", data)
