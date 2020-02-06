@@ -13,6 +13,7 @@ class Panel(wx.Frame):
 
         self.InitUI()
         self.Centre()
+
     def InitUI(self):
 
         panel = wx.Panel(self)
