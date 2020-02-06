@@ -106,6 +106,13 @@ class Movie:
 
     def saveas_tif(self):
         tif_filepath = self.writepath.joinpath(self.name+'.tif')
+        try:
+            tif_filepath.unlink()
+            # When upgraded to python 3.8 the try-except struture can be replaced by
+            # tif_filepath.unlink(missing_ok=True)
+        except OSError:
+            pass
+
         for i in range(self.number_of_frames):
             
             #frame = self.get_image(ii).image
@@ -113,7 +120,7 @@ class Movie:
             frame = self.read_frame(frame_number = i)
             print(i)
             #naam=r'M:\tnw\bn\cmj\Shared\margreet\Cy3 G50\ModifiedData\Python'+'{:03d}'.format(ii)+'.tif'
-            TIFF.imwrite(tif_filepath, np.uint16(frame))
+            TIFF.imwrite(tif_filepath, np.uint16(frame), append=True)
     
 
     def make_average_image(self, number_of_frames = 20, write = False):
