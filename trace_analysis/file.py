@@ -181,10 +181,11 @@ class File:
     def import_coeff_file(self):
         if self.mapping is None:
             self.mapping = Mapping2(transformation_type='linear')
-            self.mapping.transformation = np.zeros((3,3))
-            self.mapping.transformation[2,2] = 1
-            self.mapping.transformation[[0,0,0,1,1,1],[2,0,1,2,0,1]] = \
+            transformation = np.zeros((3,3))
+            transformation[2,2] = 1
+            transformation[[0,0,0,1,1,1],[2,0,1,2,0,1]] = \
                 np.genfromtxt(str(self.relativeFilePath) + '.coeff')
+            self.mapping.transformation = transformation
             self.mapping.file = self
 
     def export_coeff_file(self):
