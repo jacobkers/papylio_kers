@@ -602,8 +602,18 @@ class SequencingDataMapping:
         print(name)
         plot_match(match, self.dataPath, name, unit='um')
 
+    def loop_through_matches(self, figure=plt.figure()):
+        plt.ion()
+        for match in self.matches:
+            self.show_match(match, figure=figure)
+            plt.show()
+            plt.pause(0.001)
+            input("Press enter to continue")
 
-
+    def give_matches_to_files(self):
+        for file, match in zip(self.files, self.matches):
+            file.sequence_match = match
+            file.sequence_match.tile = self.tile
 
 #fig, ax = plt.subplots()
 #

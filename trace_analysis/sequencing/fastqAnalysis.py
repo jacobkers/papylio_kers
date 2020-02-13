@@ -167,6 +167,12 @@ class FastqData:
         self.write_to_text_file('Matches per tile with sequence: ' + sequence + '\n\n')
         self.write_to_text_file(table)
 
+    def get_tile_object(self, tile):
+        x = self.x[self.selection(tile=tile)]
+        y = self.y[self.selection(tile=tile)]
+        return Tile(tile, np.array([x,y]))
+        # tile = Tile('2102', np.loadtxt(path.joinpath('2102.loc'))) If we later want to get it from the file
+
     def export_positions_per_tile(self):
         # Export clusterpositions
         for tile in self.tile_numbers:
@@ -195,6 +201,10 @@ class FastqData:
         fig.savefig(self.write_path.joinpath('clusterPositionsWithMatchingSequence.png'), bbox_inches='tight')
 
 
+class Tile:
+    def __init__(self, name, coordinates):
+        self.name = str(name)
+        self.coordinates = coordinates
 
 #https://stackoverflow.com/questions/9476797/how-do-i-create-character-arrays-in-numpy
 
