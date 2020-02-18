@@ -498,10 +498,13 @@ class File:
             self.show_maximum_projection_image(mode, figure)
 
     def show_average_image(self, mode='2d', figure=None):
-        if figure is None: figure = plt.figure('Average image of movie') # Or possibly e.g. plt.figure('Movie')
+        if figure is None: figure = plt.figure() # Or possibly e.g. plt.figure('Movie')
         if mode == '2d':
+            img = self.average_image
+            p98 = np.percentile(img, 98)
             axis = figure.gca()
-            axis.imshow(self.average_image)
+            axis.set_title('Average image of movie')
+            axis.imshow(img, vmax=p98)
         if mode == '3d':
             from matplotlib import cm
             axis = figure.gca(projection='3d')
@@ -512,10 +515,13 @@ class File:
                                    linewidth=0, antialiased=False)
 
     def show_maximum_projection_image(self, mode='2d', figure=None):
-        if figure is None: figure = plt.figure('Maximum projection of movie') # Or possibly e.g. plt.figure('Movie')
+        if figure is None: figure = plt.figure() # Or possibly e.g. plt.figure('Movie')
         if mode == '2d':
+            img = self.maximum_projection_image
+            p98 = np.percentile(img, 98)
             axis = figure.gca()
-            axis.imshow(self.maximum_projection_image)
+            axis.set_title('Maximum projection of movie')
+            axis.imshow(img, vmax=p98)
         if mode == '3d':
             from matplotlib import cm
             axis = figure.gca(projection='3d')

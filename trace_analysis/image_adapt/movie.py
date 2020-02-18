@@ -145,7 +145,6 @@ class Movie:
     
 
     def make_average_image(self, number_of_frames = 20, write = False):
-        print('make ave')
 #        frame_list = [(read_one_page(self.filepath, pageNb=i, A=self.movie_file_object)).astype(float) 
 #                        for i in range(np.min([self.number_of_frames, number_of_frames]))]
 #         frame_list = [(self.read_frame(frame_number=i)).astype(float)
