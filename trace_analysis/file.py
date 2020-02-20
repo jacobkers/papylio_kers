@@ -174,6 +174,7 @@ class File:
 
     def import_log_file(self):
         self.exposure_time = np.genfromtxt(f'{self.relativeFilePath}.log', max_rows=1)[2]
+        print(f'Exposure time set to {self.exposure_time} sec for {self.name}')
         self.log_details = open(f'{self.relativeFilePath}.log').readlines()
         self.log_details = ''.join(self.log_details)
 
@@ -446,6 +447,7 @@ class File:
         donor_coordinates = find_peaks(image=donor_image, **configuration['peak_finding']['donor'])
         acceptor_coordinates = find_peaks(image=acceptor_image, **configuration['peak_finding']['acceptor'])
         acceptor_coordinates = transform(acceptor_coordinates, translation=[image.shape[0]//2, 0])
+        print(acceptor_coordinates.shape, donor_coordinates.shape)
         coordinates = np.append(donor_coordinates, acceptor_coordinates, axis=0)
 
         #coordinates = find_peaks(image=image, method='adaptive-threshold', minimum_area=5, maximum_area=15)

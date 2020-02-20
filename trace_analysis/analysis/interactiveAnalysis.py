@@ -412,7 +412,7 @@ class InteractivePlot(object):
 
         lines =  [self.lred, self.lgreen, self.ltotal]
         [l.set_zorder(-lines.index(l)) for l in lines if lines.index(l) != indx ]
-        print(indx, color)
+#        print(indx, color)
         lines[indx].set_zorder(10)
         self.radio.circles[indx].set_color(color)
         [c.set_color('black') for c in self.radio.circles if self.radio.circles.index(c) != indx]
