@@ -45,6 +45,7 @@ class File:
         self.movie = None
         self.mapping = None
         self._average_image = None
+        self._maximum_projection_image = None
 
         if self.experiment.import_all is True:
             self.findAndAddExtensions()
@@ -86,6 +87,12 @@ class File:
         if self._average_image is None:
             self._average_image = self.movie.average_image
         return self._average_image
+    
+    @property
+    def maximum_projection_image(self):
+        if self._maximum_projection_image is None:
+            self._maximum_projection_image = self.movie.maximum_projection_image
+        return self._maximum_projection_image
 
     @property
     def coordinates(self):
@@ -158,6 +165,7 @@ class File:
                             '.pma': self.import_pma_file,
                             '.tif': self.import_tif_file,
                             '_ave.tif': self.import_average_tif_file,
+                            '_maxprojection.tif': self.import_maxprojection_tif_file,
                             '.coeff': self.import_coeff_file,
                             '.map': self.import_map_file,
                             '.pks': self.import_pks_file,
@@ -196,6 +204,10 @@ class File:
     def import_average_tif_file(self):
         averageTifFilePath = self.absoluteFilePath.with_name(self.name+'_ave.tif')
         self._average_image = io.imread(averageTifFilePath, as_gray=True)
+        
+    def import_maxprojection_tif_file(self):
+        maxTifFilePath = self.absoluteFilePath.with_name(self.name+'_maxprojection.tif')
+        self._maximum_projection_image = io.imread(maxTifFilePath, as_gray=True)
 
     def import_coeff_file(self):
         if self.mapping is None:
@@ -240,11 +252,17 @@ class File:
         if configuration is None: configuration = self.experiment.configuration['find_coordinates']
         channel = configuration['channel']
 
+        if configuration['image'] == 'average_image':
+            full_image = self.average_image
+        elif configuration['image'] == 'maximum_image':
+            full_image = self.maximum_projection_image
+
+
         if channel in ['d','a']:
-            image = self.movie.get_channel(channel=channel)
+            image = self.movie.get_channel(image=full_image, channel=channel)
         elif channel in ['da']:
-            donor_image = self.movie.get_channel(channel='d')
-            acceptor_image = self.movie.get_channel(channel='a')
+            donor_image = self.movie.get_channel(image=full_image, channel='d')
+            acceptor_image = self.movie.get_channel(image=full_image, channel='a')
 
             image_transformation = translate([-self.movie.width / 2, 0]) @ self.mapping.transformation
             acceptor_image_transformed = ski.transform.warp(acceptor_image, image_transformation, preserve_range=True)
@@ -485,12 +503,25 @@ class File:
             if file is not self:
                 file.mapping = self.mapping
                 file.is_mapping_file = False
+                
+    def show_image(self, mode='2d', figure=None):
+        # Refresh configuration
+        self.experiment.import_config_file()
+        
+        # Choose method to plot 
+        if self.experiment.configuration['find_coordinates']['image'] == 'average_image':
+            self.show_average_image(mode, figure)
+        if self.experiment.configuration['find_coordinates']['image'] == 'maximum_image':
+            self.show_maximum_projection_image(mode, figure)
 
     def show_average_image(self, mode='2d', figure=None):
         if figure is None: figure = plt.figure() # Or possibly e.g. plt.figure('Movie')
         if mode == '2d':
+            img = self.average_image
+            p98 = np.percentile(img, 98)
             axis = figure.gca()
-            axis.imshow(self.average_image)
+            axis.set_title('Average image of movie')
+            axis.imshow(img, vmax=p98)
         if mode == '3d':
             from matplotlib import cm
             axis = figure.gca(projection='3d')
@@ -498,6 +529,23 @@ class File:
             Y = np.arange(self.average_image.shape[0])
             X, Y = np.meshgrid(X, Y)
             axis.plot_surface(X,Y,self.average_image, cmap=cm.coolwarm,
+                                   linewidth=0, antialiased=False)
+
+    def show_maximum_projection_image(self, mode='2d', figure=None):
+        if figure is None: figure = plt.figure() # Or possibly e.g. plt.figure('Movie')
+        if mode == '2d':
+            img = self.maximum_projection_image
+            p98 = np.percentile(img, 98)
+            axis = figure.gca()
+            axis.set_title('Maximum projection of movie')
+            axis.imshow(img, vmax=p98)
+        if mode == '3d':
+            from matplotlib import cm
+            axis = figure.gca(projection='3d')
+            X = np.arange(self.maximum_projection_image.shape[1])
+            Y = np.arange(self.maximum_projection_image.shape[0])
+            X, Y = np.meshgrid(X, Y)
+            axis.plot_surface(X,Y,self.maximum_projection_image, cmap=cm.coolwarm,
                                    linewidth=0, antialiased=False)
 
     def show_coordinates(self, figure=None, annotate=False, **kwargs):
