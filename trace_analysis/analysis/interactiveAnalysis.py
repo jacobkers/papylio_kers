@@ -53,7 +53,9 @@ class InteractivePlot(object):
         else:
             self.fig = self.canvas.figure
             self.axes = self.fig.subplots(2, 1, sharex=True)
-        self.axes[0].set_ylim((-50))  # Det default intensity limits
+
+
+        self.axes[0].set_ylim((-50, 1000))  # Det default intensity limits
         self.axes[0].set_ylabel("intensity (a.u)\n")
         self.axes[1].set_ylim((-0.1,1.1))  # Det default fret limits
         self.axes[1].set_xlabel("time (s)")
