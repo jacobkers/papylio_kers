@@ -193,11 +193,14 @@ def icp(source, destination, max_iterations=20, tolerance=0.001, initial_transla
         kx, ky = polywarp(source[source_indices,0],source[source_indices,1].T,\
                           destination[destination_indices,0],destination[destination_indices,1].T)
         transformation = (kx,ky)
+        kx_inv, ky_inv = polywarp(destination[destination_indices,0],destination[destination_indices,1].T,\
+                                  source[source_indices,0],source[source_indices,1].T)
+        transformation_inverse = (kx_inv,ky_inv)
     elif transformation_type=='linear':
         T, res, rank, s = np.linalg.lstsq(source[source_indices], destination[destination_indices], rcond=None)
         transformation = T.T
-
-    return transformation, distances, i
+        transformation_inverse= np.linalg.inv(transformation)
+    return transformation, distances, i, transformation_inverse
 
 
 if __name__ == '__main__':

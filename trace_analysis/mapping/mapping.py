@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 from trace_analysis.mapping.icp import icp
 from trace_analysis.mapping.icp_nonrigid import icp_nonrigid
 from trace_analysis.coordinate_transformations import transform
+from trace_analysis.image_adapt.polywarp import polywarp, polywarp_apply #required for nonlinear
 
 class Mapping2:
     def __init__(self, source = None, destination = None, method = None,
@@ -33,9 +34,10 @@ class Mapping2:
 
     def perform_mapping(self):
         print(self.transformation_type)
-        if self.method == 'icp':
-            self.transformation, distances, iterations = icp(self.source, self.destination, \
-                initial_translation=self.initial_translation, transformation_type = self.transformation_type)
+        if self.method == 'icp': #icp should be default
+            self.transformation, distances, iterations,self.transformation_inverse = \
+            icp(self.source, self.destination, initial_translation=self.initial_translation, transformation_type = self.transformation_type)
+           
         elif self.method == 'icp-non-rigid':
             self.transformation, distances, iterations = icp_nonrigid(self.source, self.destination, \
                 initial_translation=self.initial_translation, transformation_type = self.transformation_type)
@@ -43,7 +45,7 @@ class Mapping2:
         # elif method == 'automatic'      : mapping_automatic(source, destination)
         else: print('Method not found')
 
-        self.transformation_inverse = np.linalg.inv(self.transformation)
+        
 
     def show_mapping_transformation(self, figure=None):
         if not figure: figure = plt.figure()
@@ -53,16 +55,18 @@ class Mapping2:
 
         axis.scatter(self.source[:, 0], self.source[:, 1], c='g')
         axis.scatter(self.destination[:, 0], self.destination[:, 1], c='r')
-        axis.scatter(destination_from_source[:, 0], destination_from_source[:, 1], c='g')
+        axis.scatter(destination_from_source[:, 0], destination_from_source[:, 1], c='y')
 
     def transform_coordinates(self, coordinates, inverse = False):
         if self.transformation_type == 'linear':
             if inverse is False: return transform(coordinates, self.transformation)
             elif inverse is True: return transform(coordinates, self.transformation_inverse)
-            
+        if self.transformation_type == 'nonlinear':
+            if inverse is False: return polywarp_apply(self.transformation[0],self.transformation[1],coordinates)
+            elif inverse is True: return polywarp_apply(self.transformation_inverse[0],self.transformation_inverse[1],coordinates)    
         #still to make nonlinear?? or use polywarp_apply    
-        else: print('Transformation not found')
-            if inverse is False: return 
+        #else: print('Transformation not found')
+        #    if inverse is False: return 
 
 
 # from trace_analysis.icp_nonrigid import icp_nonrigid
