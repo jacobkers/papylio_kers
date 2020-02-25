@@ -41,18 +41,20 @@ class Experiment:
         self._pairs = [[c1, c2] for i1, c1 in enumerate(colours) for i2, c2 in enumerate(colours) if i2 > i1]
         self.import_all = import_all
 
-
         # Load custom config file or otherwise load the default config file
         if self.mainPath.joinpath('config.yml').is_file():
-            with self.mainPath.joinpath('config.yml').open('r') as yml_file:
-                self.configuration = yaml.load(yml_file, Loader=yaml.SafeLoader)
+            self.import_config_file()
         else:
             with Path(__file__).with_name('default_configuration.yml').open('r') as yml_file:
                 self.configuration = yaml.load(yml_file, Loader=yaml.SafeLoader)
+            self.export_config_file()
 
         os.chdir(mainPath)
 
         self.addAllFilesInMainPath()
+
+    def __repr__(self):
+        return (f'{self.__class__.__name__}({self.name})')
 
     @property
     def colours(self):
@@ -87,6 +89,10 @@ class Experiment:
     @property
     def selectedMoleculesInAllFiles(self):
         return [molecule for file in self.files for molecule in file.selectedMolecules]
+
+    def import_config_file(self):
+        with self.mainPath.joinpath('config.yml').open('r') as yml_file:
+            self.configuration = yaml.load(yml_file, Loader=yaml.SafeLoader)
 
     def export_config_file(self):
         with self.mainPath.joinpath('config.yml').open('w') as yml_file:
@@ -144,18 +150,22 @@ class Experiment:
 #                else:
 #                    warnings.warn(fullPath + extension + ' already imported')
 
-    def histogram(self, axis = None, fileSelection = False, moleculeSelection = False, makeFit = False):
+    def histogram(self, axis = None, bins = 100, parameter = 'E', molecule_averaging = False,
+                  fileSelection = False, moleculeSelection = False, makeFit = False, export=False, **kwargs):
         #files = [file for file in exp.files if file.isSelected]
         #files = self.files
 
         if (fileSelection & moleculeSelection):
-            histogram([molecule for file in self.selectedFiles for molecule in file.selectedMolecules], axis, makeFit)
+            molecules = [molecule for file in self.selectedFiles for molecule in file.selectedMolecules]
         elif (fileSelection & (not moleculeSelection)):
-            histogram([molecule for file in self.selectedFiles for molecule in file.molecules], axis, makeFit)
+            molecules = [molecule for file in self.selectedFiles for molecule in file.molecules]
         elif ((not fileSelection) & moleculeSelection):
-            histogram([molecule for file in self.files for molecule in file.selectedMolecules], axis, makeFit)
+            molecules = [molecule for file in self.files for molecule in file.selectedMolecules]
         else:
-            histogram([molecule for file in self.files for molecule in file.molecules], axis, makeFit)
+            molecules = [molecule for file in self.files for molecule in file.molecules]
+
+        histogram(molecules, axis=axis, bins=bins, parameter=parameter, molecule_averaging=molecule_averaging, makeFit=makeFit, collection_name=self, **kwargs)
+        if export: plt.savefig(self.mainPath.joinpath(f'{self.name}_{parameter}_histogram').with_suffix('.png'))
 
     def boxplot_number_of_molecules(self):
         fig, ax = plt.subplots(figsize = (8,1.5))

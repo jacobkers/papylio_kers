@@ -161,7 +161,8 @@ def icp(source, destination, max_iterations=20, tolerance=0.001, initial_transla
        
             kx, ky = polywarp(destination[destination_indices,0],destination[destination_indices,1],\
                               source_dummy[source_indices,0],source_dummy[source_indices,1],) #changed src in source_dummy
-            #print(kx,ky)
+#            print('in the loop')
+#            print(kx,ky)
             source_dummy = polywarp_apply(kx, ky, source_dummy)
             
         elif transformation_type=='linear':
@@ -190,12 +191,37 @@ def icp(source, destination, max_iterations=20, tolerance=0.001, initial_transla
  
     # Calculate final transformation
     if transformation_type == 'nonlinear':
-        kx, ky = polywarp(source[source_indices,0],source[source_indices,1].T,\
+        if 1:
+            kx, ky = polywarp(source[source_indices,0],source[source_indices,1].T,\
                           destination[destination_indices,0],destination[destination_indices,1].T)
-        transformation = (kx,ky)
-        kx_inv, ky_inv = polywarp(destination[destination_indices,0],destination[destination_indices,1].T,\
-                                  source[source_indices,0],source[source_indices,1].T)
-        transformation_inverse = (kx_inv,ky_inv)
+
+            transformation = (kx,ky)
+            kx_inv, ky_inv = polywarp(destination[destination_indices,0],destination[destination_indices,1].T,\
+                                      source[source_indices,0],source[source_indices,1].T)
+            transformation_inverse = (kx_inv,ky_inv)
+
+            
+#        if 0: 
+#            transformation = (kx,ky)
+#            #1024 should be dependent on width image!!!!!
+#            print('after loop 1'), print(kx,ky)
+#            x=np.max([np.max(source),np.max(destination)])
+#            halfwidth=int(pow(2, np.ceil(np.log(x)/np.log(2)))/2)
+#            DD=destination.copy()
+#            DD[:,0]=DD[:,0]-halfwidth
+#            cutoff = np.median(distances)+np.std(distances) #changed
+#            source_indices=source_indices[distances<cutoff]
+#            destination_indices=destination_indices[distances<cutoff]
+#            plt.figure(22), scatter_coordinates([DD,source])
+#            
+#            show_point_connections(source[source_indices],DD[destination_indices])
+#            kx, ky = polywarp( DD[destination_indices,0],DD[destination_indices,1], source[source_indices,0],source[source_indices,1])
+#            print('after loop 2'), print(kx,ky)
+#            kx[0,0]=halfwidth+kx[0,0]
+#            print('after loop 3'), print(kx,ky)
+#            transformation = (kx,ky)
+        
+
     elif transformation_type=='linear':
         T, res, rank, s = np.linalg.lstsq(source[source_indices], destination[destination_indices], rcond=None)
         transformation = T.T
@@ -206,7 +232,7 @@ def icp(source, destination, max_iterations=20, tolerance=0.001, initial_transla
 if __name__ == '__main__':
     Npoints = 40
 
-    plt.close('all')
+    #plt.close('all')
     np.random.seed(32)
     source = np.random.rand(Npoints, 2) * 1000
     destination = source.copy()
