@@ -110,8 +110,9 @@ class Movie:
         elif channel is 'a':
             return np.array([[self.width // 2, self.width], [0, self.height]])
 
-    def make_maximum_projection(self, write = False):
+    def make_maximum_projection(self, number_of_frames = 20, write = False):
         maximum_projection_image = np.zeros((self.height, self.width))
+        
         for i in range(self.number_of_frames):
             frame = self.read_frame(frame_number=i)
             print(i)
