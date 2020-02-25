@@ -426,14 +426,15 @@ class File:
             print('Molecule ' + str(index))
             input("Press enter to continue")
 
-    def perform_mapping(self, configuration = None, transformation_type='linear'):
+    def perform_mapping(self, configuration = None):
         # Refresh configuration
         self.experiment.import_config_file()
 
-        print(transformation_type)
-
         image = self.average_image
         if configuration is None: configuration = self.experiment.configuration['mapping']
+        
+        transformation_type = self.experiment.configuration['mapping']['transformation_type']
+        print(transformation_type)
 
         donor_image = self.movie.get_channel(image=image, channel='d')
         acceptor_image = self.movie.get_channel(image=image, channel='a')
