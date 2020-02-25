@@ -491,45 +491,34 @@ class File:
         # Refresh configuration
         self.experiment.import_config_file()
         
+        if figure is None: figure = plt.figure() # Or possibly e.g. plt.figure('Movie')
+        axis = figure.gca()
+        
         # Choose method to plot 
         if self.experiment.configuration['find_coordinates']['image'] == 'average_image':
-            self.show_average_image(mode, figure)
-        if self.experiment.configuration['find_coordinates']['image'] == 'maximum_image':
-            self.show_maximum_projection_image(mode, figure)
-
-    def show_average_image(self, mode='2d', figure=None):
-        if figure is None: figure = plt.figure() # Or possibly e.g. plt.figure('Movie')
+            image = self.average_image
+            axis.set_title('Average image')
+        elif self.experiment.configuration['find_coordinates']['image'] == 'maximum_image':
+            image = self.maximum_projection_image
+            axis.set_title('Maximum projection')
+            
         if mode == '2d':
-            img = self.average_image
-            p98 = np.percentile(img, 98)
-            axis = figure.gca()
-            axis.set_title('Average image of movie')
-            axis.imshow(img, vmax=p98)
+            p98 = np.percentile(image, 98)            
+            axis.imshow(image, vmax=p98)
         if mode == '3d':
             from matplotlib import cm
             axis = figure.gca(projection='3d')
-            X = np.arange(self.average_image.shape[1])
-            Y = np.arange(self.average_image.shape[0])
+            X = np.arange(image.shape[1])
+            Y = np.arange(image.shape[0])
             X, Y = np.meshgrid(X, Y)
-            axis.plot_surface(X,Y,self.average_image, cmap=cm.coolwarm,
+            axis.plot_surface(X,Y,image, cmap=cm.coolwarm,
                                    linewidth=0, antialiased=False)
 
-    def show_maximum_projection_image(self, mode='2d', figure=None):
-        if figure is None: figure = plt.figure() # Or possibly e.g. plt.figure('Movie')
-        if mode == '2d':
-            img = self.maximum_projection_image
-            p98 = np.percentile(img, 98)
-            axis = figure.gca()
-            axis.set_title('Maximum projection of movie')
-            axis.imshow(img, vmax=p98)
-        if mode == '3d':
-            from matplotlib import cm
-            axis = figure.gca(projection='3d')
-            X = np.arange(self.maximum_projection_image.shape[1])
-            Y = np.arange(self.maximum_projection_image.shape[0])
-            X, Y = np.meshgrid(X, Y)
-            axis.plot_surface(X,Y,self.maximum_projection_image, cmap=cm.coolwarm,
-                                   linewidth=0, antialiased=False)
+
+    def show_average_image(self, mode='2d', figure=None): #  Can be removed?
+        self.show_image(mode=mode, figure=figure)
+
+
 
     def show_coordinates(self, figure=None, annotate=False, **kwargs):
         if not figure: figure = plt.figure()
