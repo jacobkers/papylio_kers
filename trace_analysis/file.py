@@ -16,7 +16,7 @@ from trace_analysis.plugin_manager import PluginManager
 
 plugin_manager = PluginManager()
 
-class File(*plugin_manager.get_class_plugins('Experiment')):
+class File(*plugin_manager.get_class_plugins('File')):
     # plugins = []
     # _plugin_mixin_class = None
     #

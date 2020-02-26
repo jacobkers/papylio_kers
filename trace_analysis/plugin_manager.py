@@ -1,7 +1,6 @@
 import importlib
 import pkgutil
 
-print('pluginmanager')
 class PluginManager:
     def __init__(self):
         self.plugins_module = importlib.import_module('trace_analysis.plugins')

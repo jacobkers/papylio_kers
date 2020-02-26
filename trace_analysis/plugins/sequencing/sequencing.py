@@ -4,34 +4,10 @@ from pathlib import Path
 # from trace_analysis.experiment import Experiment
 # from trace_analysis.file import File
 from trace_analysis.mapping.geometricHashing import SequencingDataMapping
-from trace_analysis.sequencing.fastqAnalysis import FastqData
+from .fastqAnalysis import FastqData
 from trace_analysis.mapping.icp import icp, nearest_neighbor_pair
 
 
-# def add_to_class(class_definition):
-#     def add_to_class_decorator(method):
-#         setattr(class_definition, method.__name__, method)
-#     return add_to_class_decorator
-
-# @add_to_class(Experiment)
-# def import_sequences(self, fastq_file):
-#     ...
-#
-# ta.Experiment = type(class_definition.__name__, (ta.Experiment, ExperimentPlugIn), {})
-
-# This one doesn't work, because inside a function you cannot reset variable outside the scope
-# def add_class_to_class(base_class):
-#     def add_class_to_class_decorator(added_class):
-#         global base_class
-#         base_class = type(base_class.__name__, (base_class, added_class), {})
-#     return add_class_to_class_decorator
-
-# def add_class_to_class(base_class):
-#     def add_class_to_class_decorator(added_class):
-#         base_class.__bases__ += (added_class,)
-#     return add_class_to_class_decorator
-
-# @Experiment.add_plugin
 class Experiment:
     def import_sequences(self, fastq_file):
         self.fastq_file = Path(fastq_file)
@@ -79,7 +55,6 @@ def within_bounds(coordinates, bounds, margin=0):
 
     return criteria.all(axis=0)
 
-# @File.add_plugin
 class File:
     def map_file_sequences_to_molecules(self, mapping_sequence, tile, match_threshold=5):
         sequencing_mapping_path = self.experiment.mainPath.joinpath('sequencing_mapping')
