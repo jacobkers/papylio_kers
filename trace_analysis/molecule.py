@@ -71,7 +71,7 @@ class Molecule:
 
         plt.tight_layout()
         if save:
-            plt.savefig(f'{self.file.name}_mol_{self.index}.eps', transparent=True)
-            plt.savefig(f'{self.file.name}_mol_{self.index}.png', facecolor='white', dpi=300, transparent=True)
+            plt.savefig(f'{self.file.relativeFilePath}_mol_{self.index}.eps', transparent=True)
+            plt.savefig(f'{self.file.relativeFilePath}_mol_{self.index}.png', facecolor='white', dpi=300, transparent=True)
 
 

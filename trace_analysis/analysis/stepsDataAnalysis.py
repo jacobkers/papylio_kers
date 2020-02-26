@@ -102,7 +102,7 @@ def analyze_steps(file, save=True):
     # for f in concurrent.futures.as_completed(results):
     #     print(f.result())
 
-    filename = file.name+'_dwells_data.xlsx'
+    filename = file.relativeFilePath+'_dwells_data.xlsx'
     data = file.savetoExcel(filename=filename, save=save)
     return data
 
