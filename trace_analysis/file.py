@@ -87,7 +87,7 @@ class File:
         if self._average_image is None:
             self._average_image = self.movie.average_image
         return self._average_image
-    
+
     @property
     def maximum_projection_image(self):
         if self._maximum_projection_image is None:
@@ -204,7 +204,7 @@ class File:
     def import_average_tif_file(self):
         averageTifFilePath = self.absoluteFilePath.with_name(self.name+'_ave.tif')
         self._average_image = io.imread(averageTifFilePath, as_gray=True)
-        
+
     def import_maxprojection_tif_file(self):
         maxTifFilePath = self.absoluteFilePath.with_name(self.name+'_maxprojection.tif')
         self._maximum_projection_image = io.imread(maxTifFilePath, as_gray=True)
@@ -379,7 +379,7 @@ class File:
 
     def import_excel_file(self, filename=None):
         if filename is None:
-            filename = self.name+'_steps_data.xlsx'
+            filename = f'{self.relativeFilePath}_steps_data.xlsx'
         try:
             steps_data = pd.read_excel(filename, index_col=[0,1],
                                        dtype={'kon':np.str})       # reads from the 1st excel sheet of the file
@@ -399,7 +399,7 @@ class File:
 
     def savetoExcel(self, filename=None, save=True):
         if filename is None:
-            filename = self.name+'_steps_data.xlsx'
+            filename = f'{self.relativeFilePath}_steps_data.xlsx'
 
         # Find the molecules for which steps were selected
         molecules_with_data = [mol for mol in self.molecules if mol.steps is not None]
@@ -410,7 +410,7 @@ class File:
         if not mol_data:
             print(f'no data to save for {self.name}')
             return
-        keys = [f'mol {mol.index}' for mol in molecules_with_data]
+        keys = [f'mol {mol.index + 1}' for mol in molecules_with_data]
 
 
         steps_data = pd.concat(mol_data, keys=keys, sort=False)
@@ -503,12 +503,12 @@ class File:
             if file is not self:
                 file.mapping = self.mapping
                 file.is_mapping_file = False
-                
+
     def show_image(self, mode='2d', figure=None):
         # Refresh configuration
         self.experiment.import_config_file()
-        
-        # Choose method to plot 
+
+        # Choose method to plot
         if self.experiment.configuration['find_coordinates']['image'] == 'average_image':
             self.show_average_image(mode, figure)
         if self.experiment.configuration['find_coordinates']['image'] == 'maximum_image':

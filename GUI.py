@@ -213,7 +213,7 @@ class MoviePanel(wx.Frame):
     def ShowMovie(self, show_coordinates = True):
         if self.IsShown():
             self.panel.axis.clear()
-            if self._file is not None: 
+            if self._file is not None:
                 self._file.show_image(figure = self.panel.figure)
 
             if show_coordinates:
@@ -481,7 +481,7 @@ class HyperTreeListPlus(HTL.HyperTreeList):
         standardColour = self.GetItemBackgroundColour(self.GetRootItem().GetChildren()[0])
         for item in self.FileItems: self.SetItemBackgroundColour(item, standardColour)
         self.SetItemBackgroundColour(item, wx.YELLOW) #wx.Colour(160,160,160))
-        
+
     def OnCopyCoordinatesToSelectedFiles(self, event, item, file):
         # Maybe we should somehow indicate which files have coordinates from other files. [IS 31-01-2020]
         file.copy_coordinates_to_selected_files()

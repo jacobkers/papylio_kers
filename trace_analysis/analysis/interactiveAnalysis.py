@@ -31,9 +31,7 @@ class InteractivePlot(object):
         self.molecules = molecules
         self.mol_indx = 0  #From which molecule to start the analysis
         self.canvas = canvas
-#        self.exp_time = self.molecules[.file.exposure_time
-#        self.time = np.arange(0, len(self.file.molecules[0].I(0)))*self.exp_time  # the array is multiplied with exposure time in the end to ensure equal dimensions
-        #  See if there are saved analyzed molecules
+
 
     @property
     def file(self):
@@ -303,7 +301,7 @@ class InteractivePlot(object):
             self.mol.isSelected = True
 
         title = f'Molecule: {self.molecules.index(self.mol)+1} /{len(self.molecules)} '
-        title += f'({self.mol.index} /{len(self.mol.file.molecules)} in {self.mol.file.name})'
+        title += f'({self.mol.index + 1} /{len(self.mol.file.molecules)} in {self.mol.file.name})'
         title += '  (S)'*(self.mol.isSelected)
         rgba = matplotlib.colors.to_rgba
         c = rgba('g')*self.mol.isSelected + rgba('w')*(not self.mol.isSelected)
@@ -366,7 +364,7 @@ class InteractivePlot(object):
         self.save_molecule(move=False)
 
         if filename is None:
-            filename = self.file.name+'_steps_data.xlsx'
+            filename = f'{self.file.relativeFilePath}_steps_data.xlsx'
 
         if save:
             self.file.savetoExcel(filename=filename)
