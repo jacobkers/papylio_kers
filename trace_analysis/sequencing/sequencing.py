@@ -1,13 +1,41 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from pathlib import Path
+# from trace_analysis.experiment import Experiment
+# from trace_analysis.file import File
 from trace_analysis.mapping.geometricHashing import SequencingDataMapping
 from trace_analysis.sequencing.fastqAnalysis import FastqData
 from trace_analysis.mapping.icp import icp, nearest_neighbor_pair
 
-def import_sequences(experiment, fastq_file):
-    experiment.fastq_file = Path(fastq_file)
-    experiment.sequencing_data = FastqData(experiment.fastq_file)
+
+# def add_to_class(class_definition):
+#     def add_to_class_decorator(method):
+#         setattr(class_definition, method.__name__, method)
+#     return add_to_class_decorator
+
+# @add_to_class(Experiment)
+# def import_sequences(self, fastq_file):
+#     ...
+#
+# ta.Experiment = type(class_definition.__name__, (ta.Experiment, ExperimentPlugIn), {})
+
+# This one doesn't work, because inside a function you cannot reset variable outside the scope
+# def add_class_to_class(base_class):
+#     def add_class_to_class_decorator(added_class):
+#         global base_class
+#         base_class = type(base_class.__name__, (base_class, added_class), {})
+#     return add_class_to_class_decorator
+
+# def add_class_to_class(base_class):
+#     def add_class_to_class_decorator(added_class):
+#         base_class.__bases__ += (added_class,)
+#     return add_class_to_class_decorator
+
+# @Experiment.add_plugin
+class Experiment:
+    def import_sequences(self, fastq_file):
+        self.fastq_file = Path(fastq_file)
+        self.sequencing_data = FastqData(self.fastq_file)
 
 def map_sequences_to_molecules(files, sequencing_data, mapping_sequence, tile, write_path, match_threshold = 5):
     sequencing_data.matches_per_tile(sequence=mapping_sequence)
@@ -51,8 +79,16 @@ def within_bounds(coordinates, bounds, margin=0):
 
     return criteria.all(axis=0)
 
-def give_molecules_closest_sequence(files):
-    for file in files:
+# @File.add_plugin
+class File:
+    def map_file_sequences_to_molecules(self, mapping_sequence, tile, match_threshold=5):
+        sequencing_mapping_path = self.experiment.mainPath.joinpath('sequencing_mapping')
+        sequencing_mapping_path.mkdir(exist_ok=True)
+        # Probably we will not have to export seqmap, at least not to file.
+        self.seqmap, self.matches = map_sequences_to_molecules([self], self.experiment.sequencing_data, mapping_sequence,
+                                                                tile, sequencing_mapping_path, match_threshold)
+
+    def give_molecules_closest_sequence(file):
         sequencing_data = file.experiment.sequencing_data
         indices_within_tile = sequencing_data.selection(tile=int(file.sequence_match.tile.name))
         sequencing_data = sequencing_data.select(indices_within_tile, copyData=True)

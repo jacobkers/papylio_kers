@@ -19,6 +19,7 @@ import matplotlib.pyplot as plt #Provides a MATLAB-like plotting framework
 from trace_analysis.file import File
 from trace_analysis.molecule import Molecule
 from trace_analysis.plotting import histogram
+from trace_analysis.plugin_manager import PluginManager
 
 import re # Regular expressions
 import warnings
@@ -30,8 +31,23 @@ import warnings
 #from threshold_analysis_v2 import stepfinder
 #import pickle
 
+plugin_manager = PluginManager()
 
-class Experiment:
+class Experiment(*plugin_manager.get_class_plugins('Experiment')):
+    # plugins = []
+    # _plugin_mixin_class = None
+    #
+    # @classmethod
+    # def add_plugin(cls, plugin_class):
+    #     cls.plugins.append(plugin_class)
+    #     cls._plugin_mixin_class = type(cls.__name__, (cls,) + tuple(cls.plugins), {})
+    #
+    # def __new__(cls, *args, **kwargs):
+    #     if not cls._plugin_mixin_class:
+    #         return super().__new__(cls)
+    #     else:
+    #         return super().__new__(cls._plugin_mixin_class)
+
     def __init__(self, mainPath, colours = ['g','r'], import_all = True):
         self.name = os.path.basename(mainPath)
         self.mainPath = Path(mainPath).absolute()
@@ -172,7 +188,3 @@ class Experiment:
         for molecule in self.molecules:
             molecule.plot()
             input("Press enter to continue")
-
-
-
-

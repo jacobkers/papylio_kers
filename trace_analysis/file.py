@@ -12,9 +12,25 @@ from trace_analysis.peak_finding import find_peaks
 from trace_analysis.coordinate_optimization import coordinates_within_margin, coordinates_after_gaussian_fit, coordinates_without_intensity_at_radius
 from trace_analysis.trace_extraction import extract_traces
 from trace_analysis.coordinate_transformations import translate, transform
+from trace_analysis.plugin_manager import PluginManager
 
+plugin_manager = PluginManager()
 
-class File:
+class File(*plugin_manager.get_class_plugins('Experiment')):
+    # plugins = []
+    # _plugin_mixin_class = None
+    #
+    # @classmethod
+    # def add_plugin(cls, plugin_class):
+    #     cls.plugins.append(plugin_class)
+    #     cls._plugin_mixin_class = type(cls.__name__, (cls,) + tuple(cls.plugins), {})
+    #
+    # def __new__(cls, *args, **kwargs):
+    #     if not cls._plugin_mixin_class:
+    #         return super().__new__(cls)
+    #     else:
+    #         return super().__new__(cls._plugin_mixin_class)
+
     def __init__(self, relativeFilePath, experiment):
         relativeFilePath = Path(relativeFilePath)
         self.experiment = experiment
