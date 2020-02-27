@@ -9,7 +9,7 @@ from trace_analysis.image_adapt.analyze_label import analyze # note analyze labe
 
 def find_peaks(image=None, method='AKAZE', **kwargs):
     if method == 'AKAZE':
-        coordinates = analyze(image)[2]
+        coordinates = analyze(image, **kwargs)[2]
     elif method == 'absolute-threshold':
         coordinates = find_peaks_absolute_threshold(image, **kwargs)
     elif method == 'adaptive-threshold':

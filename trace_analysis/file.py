@@ -428,18 +428,23 @@ class File:
 
     def perform_mapping(self, configuration = None):
         # Refresh configuration
-        self.experiment.import_config_file()
+        if not configuration:        self.experiment.import_config_file()
 
         image = self.average_image
         if configuration is None: configuration = self.experiment.configuration['mapping']
         
-        transformation_type = self.experiment.configuration['mapping']['transformation_type']
+        #transformation_type = self.experiment.configuration['mapping']['transformation_type']
+        transformation_type = configuration['transformation_type']
         print(transformation_type)
 
         donor_image = self.movie.get_channel(image=image, channel='d')
         acceptor_image = self.movie.get_channel(image=image, channel='a')
         donor_coordinates = find_peaks(image=donor_image, **configuration['peak_finding']['donor'])
+        if donor_coordinates.size==0: #should throw a error message to warm no acceptor molecules found
+            print('no donor molecules found')
         acceptor_coordinates = find_peaks(image=acceptor_image, **configuration['peak_finding']['acceptor'])
+        if acceptor_coordinates.size==0: #should throw a error message to warm no acceptor molecules found
+            print('no acceptor molecules found')
         acceptor_coordinates = transform(acceptor_coordinates, translation=[image.shape[0]//2, 0])
         coordinates = np.append(donor_coordinates, acceptor_coordinates, axis=0)
 
@@ -464,7 +469,7 @@ class File:
         self.mapping = Mapping2(source = donor_coordinates,
                                 destination = acceptor_coordinates,
                                 transformation_type = transformation_type,
-                                initial_translation=translate([image.shape[0]//2,0]))
+                                initial_translation=translate([image.shape[0]//2,0])  )
         self.mapping.file = self
         self.is_mapping_file = True
 

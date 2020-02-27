@@ -148,7 +148,7 @@ def icp(source, destination, max_iterations=20, tolerance=0.001, initial_transla
 #        show_point_connections(source_dummy[source_indices],destination[destination_indices])
         if transformation_type=='nonlinear':
 		#might be useful as well for linear. with cutoff you remove the entries with outlier distances
-            if 0:#i==0:    
+            if 1:#i==0:    
                 cutoff = np.median(distances)+np.std(distances) #changed
                 source_indices=source_indices[distances<cutoff]
                 destination_indices=destination_indices[distances<cutoff]
@@ -192,13 +192,13 @@ def icp(source, destination, max_iterations=20, tolerance=0.001, initial_transla
     # Calculate final transformation
     if transformation_type == 'nonlinear':
         if 1:
-            kx, ky = polywarp(source[source_indices,0],source[source_indices,1].T,\
+            kx_inv, ky_inv = polywarp(source[source_indices,0],source[source_indices,1].T,\
                           destination[destination_indices,0],destination[destination_indices,1].T)
-
-            transformation = (kx,ky)
-            kx_inv, ky_inv = polywarp(destination[destination_indices,0],destination[destination_indices,1].T,\
+            kx, ky = polywarp(destination[destination_indices,0],destination[destination_indices,1].T,\
                                       source[source_indices,0],source[source_indices,1].T)
             transformation_inverse = (kx_inv,ky_inv)
+           
+            transformation = (kx,ky)
 
             
 #        if 0: 

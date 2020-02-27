@@ -22,14 +22,15 @@ class Mapping2:
         self.transformation_type = transformation_type
         self.transformation = None
         self.initial_translation = initial_translation
+        self.transformation_inverse=None
 
         if (source is not None) and (destination is not None):
             if self.method is None: self.method = 'icp'
             self.perform_mapping()
 
-    @property
-    def transformation_inverse(self):
-        return np.linalg.inv(self.transformation)
+#    @property
+#    def transformation_inverse(self):
+#        return np.linalg.inv(self.transformation)
 
     @property
     def transform_source_to_destination(self):
@@ -38,7 +39,7 @@ class Mapping2:
     def perform_mapping(self):
         print(self.transformation_type)
         if self.method == 'icp': #icp should be default
-            self.transformation, distances, iterations,self.transformation_inverse = \
+            self.transformation, distances, iterations, self.transformation_inverse = \
             icp(self.source, self.destination, initial_translation=self.initial_translation, transformation_type = self.transformation_type)
            
         elif self.method == 'icp-non-rigid':
