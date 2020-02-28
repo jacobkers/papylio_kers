@@ -1,3 +1,9 @@
+if __name__ == '__main__':
+    import sys
+    from pathlib import Path
+    p = Path(__file__).parents[1]
+    sys.path.insert(0, str(p))
+
 from pathlib import Path # For efficient path manipulation
 import numpy as np #scientific computing with Python
 import pandas as pd
@@ -15,7 +21,6 @@ from trace_analysis.coordinate_optimization import coordinates_within_margin, co
 from trace_analysis.trace_extraction import extract_traces
 from trace_analysis.coordinate_transformations import translate, transform
 
-
 class File:
     def __init__(self, relativeFilePath, experiment):
         relativeFilePath = Path(relativeFilePath)
@@ -27,8 +32,8 @@ class File:
 
         self.molecules = list()
 
-        self.exposure_time = 0.1  # Found from log file or should be inputted
-        self.number_of_frames = 0
+        self.exposure_time = None  # Found from log file or should be inputted
+
         self.log_details = None  # a string with the contents of the log file
         self.number_of_frames = None
 
@@ -40,6 +45,7 @@ class File:
         self.movie = None
         self.mapping = None
         self._average_image = None
+        self._maximum_projection_image = None
 
         if self.experiment.import_all is True:
             self.findAndAddExtensions()
@@ -81,6 +87,12 @@ class File:
         if self._average_image is None:
             self._average_image = self.movie.average_image
         return self._average_image
+
+    @property
+    def maximum_projection_image(self):
+        if self._maximum_projection_image is None:
+            self._maximum_projection_image = self.movie.maximum_projection_image
+        return self._maximum_projection_image
 
     @property
     def coordinates(self):
@@ -153,11 +165,13 @@ class File:
                             '.pma': self.import_pma_file,
                             '.tif': self.import_tif_file,
                             '_ave.tif': self.import_average_tif_file,
+                            '_maxprojection.tif': self.import_maxprojection_tif_file,
                             '.coeff': self.import_coeff_file,
                             '.map': self.import_map_file,
                             '.pks': self.import_pks_file,
                             '.traces': self.import_traces_file,
-                            '.log' : self.import_log_file
+                            '.log' : self.import_log_file,
+                            '_steps_data.xlsx': self.import_excel_file
                             }
 
         importFunctions.get(extension, self.noneFunction)()
@@ -168,6 +182,7 @@ class File:
 
     def import_log_file(self):
         self.exposure_time = np.genfromtxt(f'{self.relativeFilePath}.log', max_rows=1)[2]
+        print(f'Exposure time set to {self.exposure_time} sec for {self.name}')
         self.log_details = open(f'{self.relativeFilePath}.log').readlines()
         self.log_details = ''.join(self.log_details)
 
@@ -189,6 +204,10 @@ class File:
     def import_average_tif_file(self):
         averageTifFilePath = self.absoluteFilePath.with_name(self.name+'_ave.tif')
         self._average_image = io.imread(averageTifFilePath, as_gray=True)
+
+    def import_maxprojection_tif_file(self):
+        maxTifFilePath = self.absoluteFilePath.with_name(self.name+'_maxprojection.tif')
+        self._maximum_projection_image = io.imread(maxTifFilePath, as_gray=True)
 
     def import_coeff_file(self):
         if self.mapping is None: # the following only works for 'linear'transformation_type
@@ -240,11 +259,17 @@ class File:
         if configuration is None: configuration = self.experiment.configuration['find_coordinates']
         channel = configuration['channel']
 
+        if configuration['image'] == 'average_image':
+            full_image = self.average_image
+        elif configuration['image'] == 'maximum_image':
+            full_image = self.maximum_projection_image
+
+
         if channel in ['d','a']:
-            image = self.movie.get_channel(channel=channel)
+            image = self.movie.get_channel(image=full_image, channel=channel)
         elif channel in ['da']:
-            donor_image = self.movie.get_channel(channel='d')
-            acceptor_image = self.movie.get_channel(channel='a')
+            donor_image = self.movie.get_channel(image=full_image, channel='d')
+            acceptor_image = self.movie.get_channel(image=full_image, channel='a')
 
             image_transformation = translate([-self.movie.width / 2, 0]) @ self.mapping.transformation
             acceptor_image_transformed = ski.transform.warp(acceptor_image, image_transformation, preserve_range=True)
@@ -359,14 +384,14 @@ class File:
         histogram(self.molecules, axis=axis, bins=bins, parameter=parameter, molecule_averaging=molecule_averaging, makeFit=makeFit, collection_name=self, **kwargs)
         if export: plt.savefig(self.absoluteFilePath.with_name(f'{self.name}_{parameter}_histogram').with_suffix('.png'))
 
-    def importExcel(self, filename=None):
+    def import_excel_file(self, filename=None):
         if filename is None:
-            filename = self.name+'_steps_data.xlsx'
+            filename = f'{self.relativeFilePath}_steps_data.xlsx'
         try:
             steps_data = pd.read_excel(filename, index_col=[0,1],
-                                            dtype={'kon':np.str})       # reads from the 1st excel sheet of the file
+                                       dtype={'kon':np.str})       # reads from the 1st excel sheet of the file
         except FileNotFoundError:
-            print(f'No saved analysis for {self.name}')
+            print(f'No saved analysis for {self.name} as {filename}')
             return
         molecules = steps_data.index.unique(0)
         indices = [int(m.split()[-1]) for m in molecules]
@@ -376,19 +401,28 @@ class File:
             mol.steps = steps_data.loc[f'mol {mol.index}']
             if 'kon' in mol.steps.columns:
                 k = [int(i) for i in mol.steps.kon[0]]
-                mol.kon_boolean = np.array(k).astype(bool).reshape((3,3))
+                mol.kon_boolean = np.array(k).astype(bool).reshape((4,3))
         return steps_data
 
     def savetoExcel(self, filename=None, save=True):
         if filename is None:
-            filename = self.name+'_steps_data.xlsx'
+            filename = f'{self.relativeFilePath}_steps_data.xlsx'
+
+        # Find the molecules for which steps were selected
+        molecules_with_data = [mol for mol in self.molecules if mol.steps is not None]
+
+
         # Concatenate all steps dataframes that are not None
-        mol_data = [mol.steps for mol in self.molecules if mol.steps is not None]
+        mol_data = [mol.steps for mol in molecules_with_data]
         if not mol_data:
             print(f'no data to save for {self.name}')
             return
-        keys = [f'mol {mol.index}' for mol in self.molecules if mol.steps is not None]
+        keys = [f'mol {mol.index + 1}' for mol in molecules_with_data]
+
+
         steps_data = pd.concat(mol_data, keys=keys, sort=False)
+        # drop duplicate columns
+        steps_data = steps_data.loc[:,~steps_data.columns.duplicated()]
         if save:
             print("data saved in: " + filename)
             writer = pd.ExcelWriter(filename)
@@ -446,6 +480,7 @@ class File:
         if acceptor_coordinates.size==0: #should throw a error message to warm no acceptor molecules found
             print('no acceptor molecules found')
         acceptor_coordinates = transform(acceptor_coordinates, translation=[image.shape[0]//2, 0])
+        print(acceptor_coordinates.shape, donor_coordinates.shape)
         coordinates = np.append(donor_coordinates, acceptor_coordinates, axis=0)
 
         #coordinates = find_peaks(image=image, method='adaptive-threshold', minimum_area=5, maximum_area=15)
@@ -490,11 +525,24 @@ class File:
                 file.mapping = self.mapping
                 file.is_mapping_file = False
 
+    def show_image(self, mode='2d', figure=None):
+        # Refresh configuration
+        self.experiment.import_config_file()
+
+        # Choose method to plot
+        if self.experiment.configuration['find_coordinates']['image'] == 'average_image':
+            self.show_average_image(mode, figure)
+        if self.experiment.configuration['find_coordinates']['image'] == 'maximum_image':
+            self.show_maximum_projection_image(mode, figure)
+
     def show_average_image(self, mode='2d', figure=None):
         if figure is None: figure = plt.figure() # Or possibly e.g. plt.figure('Movie')
         if mode == '2d':
+            img = self.average_image
+            p98 = np.percentile(img, 98)
             axis = figure.gca()
-            axis.imshow(self.average_image)
+            axis.set_title('Average image of movie')
+            axis.imshow(img, vmax=p98)
         if mode == '3d':
             from matplotlib import cm
             axis = figure.gca(projection='3d')
@@ -502,6 +550,23 @@ class File:
             Y = np.arange(self.average_image.shape[0])
             X, Y = np.meshgrid(X, Y)
             axis.plot_surface(X,Y,self.average_image, cmap=cm.coolwarm,
+                                   linewidth=0, antialiased=False)
+
+    def show_maximum_projection_image(self, mode='2d', figure=None):
+        if figure is None: figure = plt.figure() # Or possibly e.g. plt.figure('Movie')
+        if mode == '2d':
+            img = self.maximum_projection_image
+            p98 = np.percentile(img, 98)
+            axis = figure.gca()
+            axis.set_title('Maximum projection of movie')
+            axis.imshow(img, vmax=p98)
+        if mode == '3d':
+            from matplotlib import cm
+            axis = figure.gca(projection='3d')
+            X = np.arange(self.maximum_projection_image.shape[1])
+            Y = np.arange(self.maximum_projection_image.shape[0])
+            X, Y = np.meshgrid(X, Y)
+            axis.plot_surface(X,Y,self.maximum_projection_image, cmap=cm.coolwarm,
                                    linewidth=0, antialiased=False)
 
     def show_coordinates(self, figure=None, annotate=False, **kwargs):
