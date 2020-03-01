@@ -80,13 +80,35 @@ class File:
     @property
     def average_image(self):
         if self._average_image is None:
-            self._average_image = self.movie.average_image
+            # reload config file
+            self.experiment.import_config_file()
+            # compute and save image
+            if self.experiment.configuration['compute_image']['numFrames'] == 'All':
+                num_of_frames = self.number_of_frames
+            else:
+                num_of_frames = self.experiment.configuration['compute_image']['numFrames']
+                if self.number_of_frames < num_of_frames:
+                    print('Number of frames entered exceeds size movie')
+                    return []
+            print('#frames: ', num_of_frames)
+            self._average_image = self.movie.make_average_image(number_of_frames=num_of_frames, write = True)
         return self._average_image
     
     @property
     def maximum_projection_image(self):
         if self._maximum_projection_image is None:
-            self._maximum_projection_image = self.movie.maximum_projection_image
+            # reload config file
+            self.experiment.import_config_file()
+            # compute and save image
+            if self.experiment.configuration['compute_image']['numFrames'] == 'All':
+                num_of_frames = self.number_of_frames
+            else:
+                num_of_frames = self.experiment.configuration['compute_image']['numFrames']
+                if self.number_of_frames < num_of_frames:
+                    print('Number of frames entered exceeds size movie')
+                    return []
+            print('#frames: ', num_of_frames)
+            self._maximum_projection_image = self.movie.make_maximum_projection(number_of_frames=num_of_frames, write = True)
         return self._maximum_projection_image
 
     @property

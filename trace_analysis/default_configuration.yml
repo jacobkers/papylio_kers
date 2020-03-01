@@ -1,6 +1,5 @@
 compute_image:
-    minFrame: 0
-    maxFrame: 20
+    numFrames: All
 show_movie:
     image: average_image
     annotate: False

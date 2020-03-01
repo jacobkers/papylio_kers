@@ -112,8 +112,8 @@ class Movie:
 
     def make_maximum_projection(self, number_of_frames = 20, write = False):
         maximum_projection_image = np.zeros((self.height, self.width))
-        
-        for i in range(self.number_of_frames):
+
+        for i in range(number_of_frames):
             frame = self.read_frame(frame_number=i)
             print(i)
             maximum_projection_image = np.maximum(maximum_projection_image, frame)
