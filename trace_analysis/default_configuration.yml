@@ -1,3 +1,5 @@
+compute_image:
+    numFrames: All
 show_movie:
     image: average_image
     annotate: False
