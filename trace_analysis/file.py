@@ -574,7 +574,7 @@ class File:
 
         if self.coordinates is not None:
             axis = figure.gca()
-            axis.scatter(self.coordinates[:,0],self.coordinates[:,1], facecolors='none', edgecolors='r', **kwargs)
+            axis.scatter(self.coordinates[:,0],self.coordinates[:,1], facecolors='none', edgecolors='yellow', **kwargs)
             if annotate:
                 for molecule in self.molecules:
                     for i in np.arange(self.number_of_colours):
