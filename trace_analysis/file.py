@@ -533,10 +533,10 @@ class File:
         axis = figure.gca()
         
         # Choose method to plot 
-        if self.experiment.configuration['find_coordinates']['image'] == 'average_image':
+        if self.experiment.configuration['show_movie']['image'] == 'average_image':
             image = self.average_image
             axis.set_title('Average image')
-        elif self.experiment.configuration['find_coordinates']['image'] == 'maximum_image':
+        elif self.experiment.configuration['show_movie']['image'] == 'maximum_image':
             image = self.maximum_projection_image
             axis.set_title('Maximum projection')
             
@@ -553,7 +553,12 @@ class File:
                                    linewidth=0, antialiased=False)
 
     def show_coordinates(self, figure=None, annotate=False, **kwargs):
+        # Refresh configuration
+        self.experiment.import_config_file()
+        
         if not figure: figure = plt.figure()
+        
+        annotate = self.experiment.configuration['show_movie']['annotate']
 
         if self.coordinates is not None:
             axis = figure.gca()
