@@ -312,6 +312,7 @@ class File:
         #                                                       fraction_of_peak_max=0.35) # was 0.25 in IDL code
 
         coordinates = find_peaks(image=image, **configuration['peak_finding'])
+        margin = configuration['coordinate_optimization']['coordinates_within_margin']['margin']
 
         coordinate_optimization_functions = \
             {'coordinates_within_margin': coordinates_within_margin,
@@ -321,10 +322,10 @@ class File:
         for f, kwargs in configuration['coordinate_optimization'].items():
             coordinates = coordinate_optimization_functions[f](coordinates, image, **kwargs)
 
-
+        acceptor_bounds = np.array([[self.movie.width//2, self.movie.width], [0, self.movie.width]])
         if channel == 'a':
             coordinates = transform(coordinates, translation=[self.movie.width//2,0])
-
+            coordinates = coordinates_within_margin(coordinates, bounds=acceptor_bounds, margin=margin)
         if self.number_of_colours == 2:
             if channel in ['d','da']:
                 acceptor_coordinates = self.mapping.transform_coordinates(coordinates, inverse=False)
