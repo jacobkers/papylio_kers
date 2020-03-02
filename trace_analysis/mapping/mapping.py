@@ -61,11 +61,12 @@ class Mapping2:
         axis.scatter(destination_from_source[:, 0], destination_from_source[:, 1], c='y')
 
     def transform_coordinates(self, coordinates, inverse = False):
+        print(self.transformation)########################################
         if self.transformation_type == 'linear':
             if inverse is False: return transform(coordinates, self.transformation)
             elif inverse is True: return transform(coordinates, self.transformation_inverse)
 
-        if self.transformation_type == 'nonlinear':
+        elif self.transformation_type == 'nonlinear':
             if inverse is False: return polywarp_apply(self.transformation[0],self.transformation[1],coordinates)
             elif inverse is True: return polywarp_apply(self.transformation_inverse[0],self.transformation_inverse[1],coordinates)    
         #still to make nonlinear?? or use polywarp_apply    

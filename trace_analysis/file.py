@@ -190,39 +190,64 @@ class File:
         averageTifFilePath = self.absoluteFilePath.with_name(self.name+'_ave.tif')
         self._average_image = io.imread(averageTifFilePath, as_gray=True)
 
-    def import_coeff_file(self):
+    def import_coeff_file(self): #################################################
         if self.mapping is None: # the following only works for 'linear'transformation_type
+            tmp=np.genfromtxt(str(self.relativeFilePath) + '.coeff')
+            [coefficients,coefficients_inverse]=np.split(tmp,2)
+            
             self.mapping = Mapping2(transformation_type='linear')
             self.mapping.transformation = np.zeros((3,3))
             self.mapping.transformation[2,2] = 1
-            self.mapping.transformation[[0,0,0,1,1,1],[2,0,1,2,0,1]] = \
-                np.genfromtxt(str(self.relativeFilePath) + '.coeff')
+            self.mapping.transformation[[0,0,0,1,1,1],[2,0,1,2,0,1]] = coefficients
+            
+            self.mapping.transformation_inverse = np.zeros((3,3))
+            self.mapping.transformation_inverse[2,2] = 1
+            self.mapping.transformation_inverse[[0,0,0,1,1,1],[2,0,1,2,0,1]] = coefficients_inverse
+                
             self.mapping.file = self
 
     def export_coeff_file(self):
         if self.mapping.transformation_type == 'linear':
             coeff_filepath = self.absoluteFilePath.with_suffix('.coeff')
             coefficients = self.mapping.transformation[[0, 0, 0, 1, 1, 1], [2, 0, 1, 2, 0, 1]]
-            np.savetxt(coeff_filepath, coefficients, fmt='%13.6g') # Same format used as in IDL code
+           # np.savetxt(coeff_filepath, coefficients, fmt='%13.6g') # Same format used as in IDL code
+            coefficients_inverse = self.mapping.transformation_inverse[[0, 0, 0, 1, 1, 1], [2, 0, 1, 2, 0, 1]]
+            np.savetxt(coeff_filepath,  np.concatenate((coefficients,coefficients_inverse)), fmt='%13.6g') # Same format used as in IDL code
         else:
             raise TypeError('Mapping is not of type linear')
 
     def import_map_file(self):
-        coefficients = np.genfromtxt(self.relativeFilePath.with_suffix('.map'))
+        #coefficients = np.genfromtxt(self.relativeFilePath.with_suffix('.map'))
+        tmp=np.genfromtxt(self.relativeFilePath.with_suffix('.map'))
+        print(tmp)
+        [coefficients,coefficients_inverse]=np.split(tmp,2)
         degree = int(np.sqrt(len(coefficients) // 2) - 1)
         P = coefficients[:len(coefficients) // 2].reshape((degree + 1, degree + 1))
         Q = coefficients[len(coefficients) // 2 : len(coefficients)].reshape((degree + 1, degree + 1))
 
-        self.mapping = Mapping2(transformation_type='polynomial')
-        self.mapping.transformation = {'P': P, 'Q': Q}
-        self.mapping.file = self
+        self.mapping = Mapping2(transformation_type='nonlinear')
+        self.mapping.transformation = (P,Q) #{'P': P, 'Q': Q}
+        #self.mapping.file = self
+        
+        degree = int(np.sqrt(len(coefficients_inverse) // 2) - 1)
+        Pi = coefficients_inverse[:len(coefficients_inverse) // 2].reshape((degree + 1, degree + 1))
+        Qi = coefficients_inverse[len(coefficients_inverse) // 2 : len(coefficients_inverse)].reshape((degree + 1, degree + 1))
 
+       # self.mapping = Mapping2(transformation_type='nonlinear')
+        self.mapping.transformation_inverse = (Pi,Qi) # {'P': Pi, 'Q': Qi}
+        self.mapping.file = self
+        
+        
     def export_map_file(self):
         #saving kx,ky, still need to see how to read it in again
         map_filepath = self.absoluteFilePath.with_suffix('.map')
         A=self.mapping.transformation
         coefficients = np.concatenate((A[0].flatten(),A[1].flatten()),axis=None)
-        np.savetxt(map_filepath, coefficients, fmt='%13.6g') # Same format used as in IDL code
+        #np.savetxt(map_filepath, coefficients, fmt='%13.6g') # Same format used as in IDL code
+        AA=self.mapping.transformation_inverse
+        coefficients_inverse = np.concatenate((AA[0].flatten(),AA[1].flatten()),axis=None)
+        np.savetxt(map_filepath, np.concatenate((coefficients,coefficients_inverse)), fmt='%13.6g') # Same format used as in IDL code
+
 
     def import_pks_file(self):
         # Background value stored in pks file is not imported yet
