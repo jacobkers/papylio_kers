@@ -61,8 +61,7 @@ class Mapping2:
         axis.scatter(destination_from_source[:, 0], destination_from_source[:, 1], c='y')
 
     def transform_coordinates(self, coordinates, inverse = False):
-        if self.transformation is None:
-            print('Transformation matrix not found')
+        print(self.transformation)
         if self.transformation_type == 'linear':
             if inverse is False: return transform(coordinates, self.transformation)
             elif inverse is True: return transform(coordinates, self.transformation_inverse)
