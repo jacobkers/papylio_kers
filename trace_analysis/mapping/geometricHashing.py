@@ -442,7 +442,7 @@ def findMatchTranslation(testPointSet, hashTable, bases = 'all', returnMatchedBa
 
 
 class SequencingDataMapping:
-    def __init__(self, tile, files, mode, dataPath, nBins=100, rotationRange=None, magnificationRange=None):
+    def __init__(self, tile, files, dataPath, mode='similarity', nBins=100, rotationRange=None, magnificationRange=None):
         self.tile = tile
         self.files = files # List of coordinate sets
         self.dataPath = Path(dataPath)
@@ -610,10 +610,11 @@ class SequencingDataMapping:
             plt.pause(0.001)
             input("Press enter to continue")
 
-    def give_matches_to_files(self):
+    def give_matches_to_files(self, match_threshold = 0):
         for file, match in zip(self.files, self.matches):
-            file.sequence_match = match
-            file.sequence_match.tile = self.tile
+            if match.count >= match_threshold:
+                file.sequence_match = match
+                file.sequence_match.tile = self.tile
 
 #fig, ax = plt.subplots()
 #

@@ -10,6 +10,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import re
 import gc
+import copy
 from tabulate import tabulate
 from pathlib import Path
 
@@ -62,8 +63,7 @@ class FastqData:
         
         
         file.close()
-        
-                
+
         self.instrument = np.array(instrument)
         self.run = np.array(run)
         self.flowcell = np.array(flowcell)
@@ -74,6 +74,8 @@ class FastqData:
         self.sample = np.array(sample)
         self.sequence = np.array(sequence, dtype = bytes).view('S1').reshape((len(sequence),-1))
         self.quality = np.array(quality, dtype = bytes).view('S1').reshape((len(quality),-1))
+
+        self.selection
 
         self.write_to_text_file('Total number of sequences: ' + str(self.sequence.shape[0]) + '\n\n')
 
@@ -97,10 +99,46 @@ class FastqData:
         with self.text_file.open('a') as f:
             f.write(input_text + '\n')
 
+    def __len__(self):
+        return self.sequence.shape[0]
 
-    def select(self,indices,copyData = False):
+    def __getitem__(self, item):
+        new = copy.copy(self)
+        new.instrument = self.instrument[item]
+        new.run = self.run[item]
+        new.flowcell = self.flowcell[item]
+        new.lane = self.lane[item]
+        new.tile = self.tile[item]
+        new.x = self.x[item]
+        new.y = self.y[item]
+        new.sample = self.sample[item]
+        new.sequence = self.sequence[item, :]
+        new.quality = self.quality[item, :]
+
+        return new
+
+    def __add__(self, other):
+        new = copy.copy(self)
+        new.instrument = np.append(new.instrument, other.instrument)
+        new.run = np.append(new.run, other.run)
+        new.flowcell = np.append(new.flowcell, other.flowcell)
+        new.lane = np.append(new.lane, other.lane)
+        new.tile = np.append(new.tile, other.tile)
+        new.x = np.append(new.x, other.x)
+        new.y = np.append(new.y, other.y)
+        new.sample = np.append(new.sample, other.sample)
+        new.sequence = np.vstack([new.sequence, other.sequence])
+        new.quality = np.vstack([new.quality, other.quality])
+        return new
+
+    def __radd__(self, other):
+        if other == 0:
+            return self
+        else:
+            return self.__add__(other)
+
+    def select(self, indices, copyData=False):
         if copyData:
-            import copy
             selection = copy.deepcopy(self)
         else:
             selection = self
@@ -119,15 +157,21 @@ class FastqData:
         if copyData:
             return selection
 
-    def selection(self, **kwargs):
+    def selection(self, save=False, **kwargs):
         selection = np.zeros((self.sequence.shape[0], len(kwargs)), dtype=bool)
         for i, (key, value) in enumerate(kwargs.items()):
             if key == 'sequence':
                 selection[:,i] = np.all(self.sequence[:, 0:len(value)] == np.array(list(value), dtype = bytes), axis = 1)
+            if key in ['x','y']:
+                selection[:,i] = np.all(np.vstack([getattr(self, key) > value[0], getattr(self, key) < value[1]]), axis=0)
             else:
                 selection[:,i] = getattr(self, key) == value
 
         return np.all(selection, axis = 1)
+
+    def get_selection(self, **kwargs):
+        selection = self.selection(**kwargs)
+        return self[selection]
 
     def number_of_matches(self, sequence):
         # sequence must be a string
