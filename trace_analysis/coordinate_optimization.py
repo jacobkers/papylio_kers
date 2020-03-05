@@ -67,7 +67,6 @@ def coordinates_after_gaussian_fit(coordinates, image, gaussian_width = 9):
     coordinates = coordinates_within_margin(coordinates, image=image, margin=gaussian_width//2+1)
 
     for i, coordinate in enumerate(coordinates):
-        #print(i)
         # Could use the coordinates_within_margin for this [IS 01-11-2019]
         #if np.all(coordinate > gaussian_width//2+1) and \
         #        np.all(coordinate < np.array(image.shape)-gaussian_width//2-1):
@@ -78,7 +77,6 @@ def coordinates_after_gaussian_fit(coordinates, image, gaussian_width = 9):
             new_coordinates.append(coordinate + coefficients[2:4])
         except RuntimeError:
             print('No fit possible')
-    print(i) #MD: moved print here, otherwise too much output            
     return np.array(new_coordinates)
 
 if __name__ == '__main__':

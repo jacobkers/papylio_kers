@@ -190,10 +190,10 @@ class File:
         averageTifFilePath = self.absoluteFilePath.with_name(self.name+'_ave.tif')
         self._average_image = io.imread(averageTifFilePath, as_gray=True)
 
-    def import_coeff_file(self): #################################################
+    def import_coeff_file(self):
         if self.mapping is None: # the following only works for 'linear'transformation_type
             tmp=np.genfromtxt(str(self.relativeFilePath) + '.coeff')
-            [coefficients,coefficients_inverse]=np.split(tmp,2)
+            [coefficients, coefficients_inverse] = np.split(tmp,2)
             
             self.mapping = Mapping2(transformation_type='linear')
             self.mapping.transformation = np.zeros((3,3))
@@ -458,18 +458,17 @@ class File:
         image = self.average_image
         if configuration is None: configuration = self.experiment.configuration['mapping']
         
-        #transformation_type = self.experiment.configuration['mapping']['transformation_type']
         transformation_type = configuration['transformation_type']
         print(transformation_type)
 
         donor_image = self.movie.get_channel(image=image, channel='d')
         acceptor_image = self.movie.get_channel(image=image, channel='a')
         donor_coordinates = find_peaks(image=donor_image, **configuration['peak_finding']['donor'])
-        if donor_coordinates.size==0: #should throw a error message to warm no acceptor molecules found
-            print('no donor molecules found')
+        if donor_coordinates.size == 0: #should throw a error message to warm no acceptor molecules found
+            print('No donor molecules found')
         acceptor_coordinates = find_peaks(image=acceptor_image, **configuration['peak_finding']['acceptor'])
-        if acceptor_coordinates.size==0: #should throw a error message to warm no acceptor molecules found
-            print('no acceptor molecules found')
+        if acceptor_coordinates.size == 0: #should throw a error message to warm no acceptor molecules found
+            print('No acceptor molecules found')
         acceptor_coordinates = transform(acceptor_coordinates, translation=[image.shape[0]//2, 0])
         coordinates = np.append(donor_coordinates, acceptor_coordinates, axis=0)
 
@@ -484,22 +483,21 @@ class File:
                                                               # fraction_of_peak_max=0.35) # was 0.25 in IDL code
 
         margin = configuration['coordinate_optimization']['coordinates_within_margin']['margin']
-        if hasattr(self.movie, 'channel_boundaries'): #had to be added in case you do mapping on a single tif image
-            donor_coordinates = coordinates_within_margin(coordinates, bounds=self.movie.channel_boundaries('d'), margin=margin)
-            acceptor_coordinates = coordinates_within_margin(coordinates, bounds=self.movie.channel_boundaries('a'), margin=margin)
-        else:
-            donor_coordinates = coordinates_within_margin(coordinates, bounds=np.array([[0, image.shape[0] // 2],[0,image.shape[1]]]), margin=margin)
-            acceptor_coordinates = coordinates_within_margin(coordinates, bounds=np.array([[image.shape[0] // 2, image.shape[0]], [0, image.shape[1]]]), margin=margin)
+        donor_coordinates = coordinates_within_margin(coordinates, bounds=self.movie.channel_boundaries('d'), margin=margin)
+        acceptor_coordinates = coordinates_within_margin(coordinates, bounds=self.movie.channel_boundaries('a'), margin=margin)
 
-        self.mapping = Mapping2(source = donor_coordinates,
-                                destination = acceptor_coordinates,
-                                transformation_type = transformation_type,
-                                initial_translation=translate([image.shape[0]//2,0])  )
+        # donor_coordinates = coordinates_within_margin(coordinates, bounds=np.array([[0, image.shape[0] // 2],[0,image.shape[1]]]), margin=margin)
+        # acceptor_coordinates = coordinates_within_margin(coordinates, bounds=np.array([[image.shape[0] // 2, image.shape[0]], [0, image.shape[1]]]), margin=margin)
+
+        self.mapping = Mapping2(source=donor_coordinates,
+                                destination=acceptor_coordinates,
+                                transformation_type=transformation_type,
+                                initial_translation=translate([image.shape[0]//2,0]))
         self.mapping.file = self
         self.is_mapping_file = True
 
-        if self.mapping.transformation_type=='linear':        self.export_coeff_file()
-        elif self.mapping.transformation_type=='nonlinear':     self.export_map_file()
+        if self.mapping.transformation_type == 'linear':        self.export_coeff_file()
+        elif self.mapping.transformation_type == 'nonlinear':     self.export_map_file()
 
     def copy_coordinates_to_selected_files(self):
         for file in self.experiment.selectedFiles:

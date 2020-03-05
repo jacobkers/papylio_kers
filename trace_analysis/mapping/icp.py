@@ -118,9 +118,6 @@ def icp(source, destination, max_iterations=20, tolerance=0.001, initial_transla
     source = np.hstack([source, np.ones((len(source), 1))])
     destination = np.hstack([destination, np.ones((len(destination), 1))])
 
-    #print(source)
-    print(transformation_type)
-
     source_dummy = source.copy()
     #transformation_final = np.identity(3)
 
@@ -134,37 +131,26 @@ def icp(source, destination, max_iterations=20, tolerance=0.001, initial_transla
     #transformation_final = transformation_final @ initial_translation
 
     prev_error = 0
-   # print(len(source_dummy))
-    
+
     for i in range(max_iterations):
         # Find the nearest neighbors between the current source and destination points
-        #distances, indices = nearest_neighbor(source_dummy[:,:2], destination[:,:2])
+        # distances, indices = nearest_neighbor(source_dummy[:,:2], destination[:,:2])
         distances, source_indices, destination_indices = \
             nearest_neighbor_pair(source_dummy[:, :2], destination[:, :2])
-       # print(i,len(distances))
-        
+
 #        plt.figure() # don't plot for every iteration --> move to after the lop
 #        scatter_coordinates([source_dummy,destination])
 #        show_point_connections(source_dummy[source_indices],destination[destination_indices])
         if transformation_type=='nonlinear':
-		#might be useful as well for linear. with cutoff you remove the entries with outlier distances
-            if 1:#i==0:    
-                cutoff = np.median(distances)+np.std(distances) #changed
-                source_indices=source_indices[distances<cutoff]
-                destination_indices=destination_indices[distances<cutoff]
-#            plt.figure() # don't plot for every iteration --> move to after the lop
-#            scatter_coordinates([source_dummy,destination])
-#            show_point_connections(source_dummy[source_indices],destination[destination_indices])	
-            #here find the transformation
-           # print(source_dummy[source_indices].shape)
-            #print(destination[destination_indices].shape)
-       
+            # Might be useful as well for linear. with cutoff you remove the entries with outlier distances
+            cutoff = np.median(distances)+np.std(distances) #changed
+            source_indices = source_indices[distances<cutoff]
+            destination_indices = destination_indices[distances<cutoff]
+
             kx, ky = polywarp(destination[destination_indices,0],destination[destination_indices,1],\
                               source_dummy[source_indices,0],source_dummy[source_indices,1],) #changed src in source_dummy
-#            print('in the loop')
-#            print(kx,ky)
             source_dummy = polywarp_apply(kx, ky, source_dummy)
-            
+
         elif transformation_type=='linear':
 			# compute the transformation between the current source and nearest destination points
 			#T,_,_ = best_fit_transform(src[:m,:].T, dst[:m,indices].T)
@@ -172,7 +158,11 @@ def icp(source, destination, max_iterations=20, tolerance=0.001, initial_transla
             transformation = T.T
 			# Update the source dummy
             source_dummy = (transformation @ source_dummy.T).T
-        
+
+            # Other possiblility
+            # T, mask = cv2.findHomography(src[:m, :].T, dst[:m, indices].T, cv2.RANSAC, 5.0)
+            # src = cv2.perspectiveTransform([src[:m,:]].T, T).T
+
         # Check error
         mean_error = np.mean(distances)
         print(i, mean_error, prev_error, len(distances))
@@ -191,48 +181,21 @@ def icp(source, destination, max_iterations=20, tolerance=0.001, initial_transla
  
     # Calculate final transformation
     if transformation_type == 'nonlinear':
-        if 1:
-            kx_inv, ky_inv = polywarp(source[source_indices,0],source[source_indices,1].T,\
-                          destination[destination_indices,0],destination[destination_indices,1].T)
-            kx, ky = polywarp(destination[destination_indices,0],destination[destination_indices,1].T,\
-                                      source[source_indices,0],source[source_indices,1].T)
-            transformation_inverse = (kx_inv,ky_inv)
-           
-            transformation = (kx,ky)
-
-            
-#        if 0: 
-#            transformation = (kx,ky)
-#            #1024 should be dependent on width image!!!!!
-#            print('after loop 1'), print(kx,ky)
-#            x=np.max([np.max(source),np.max(destination)])
-#            halfwidth=int(pow(2, np.ceil(np.log(x)/np.log(2)))/2)
-#            DD=destination.copy()
-#            DD[:,0]=DD[:,0]-halfwidth
-#            cutoff = np.median(distances)+np.std(distances) #changed
-#            source_indices=source_indices[distances<cutoff]
-#            destination_indices=destination_indices[distances<cutoff]
-#            plt.figure(22), scatter_coordinates([DD,source])
-#            
-#            show_point_connections(source[source_indices],DD[destination_indices])
-#            kx, ky = polywarp( DD[destination_indices,0],DD[destination_indices,1], source[source_indices,0],source[source_indices,1])
-#            print('after loop 2'), print(kx,ky)
-#            kx[0,0]=halfwidth+kx[0,0]
-#            print('after loop 3'), print(kx,ky)
-#            transformation = (kx,ky)
-        
-
+        kx_inv, ky_inv = polywarp(source[source_indices,0],source[source_indices,1].T,\
+                      destination[destination_indices,0],destination[destination_indices,1].T)
+        kx, ky = polywarp(destination[destination_indices,0],destination[destination_indices,1].T,\
+                                  source[source_indices,0],source[source_indices,1].T)
+        transformation = (kx, ky)
+        transformation_inverse = (kx_inv,ky_inv)
     elif transformation_type=='linear':
         T, res, rank, s = np.linalg.lstsq(source[source_indices], destination[destination_indices], rcond=None)
         transformation = T.T
         transformation_inverse= np.linalg.inv(transformation)
     return transformation, distances, i, transformation_inverse
 
-
 if __name__ == '__main__':
     Npoints = 40
 
-    #plt.close('all')
     np.random.seed(32)
     source = np.random.rand(Npoints, 2) * 1000
     destination = source.copy()
