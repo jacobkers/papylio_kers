@@ -18,8 +18,8 @@ sys.path.insert(0, os.path.abspath('..'))
 # -- Project information -----------------------------------------------------
 
 project = 'traceAnalysis'
-copyright = '2020, Iason Katechis, Margreet Docter, Roy Simons, Ivo Severins'
-author = 'Iason Katechis, Margreet Docter, Roy Simons, Ivo Severins'
+copyright = '2020 - Chirlmin Joo lab'
+author = 'Iason Katechis, Margreet Docter, Roy Simons, Pim America, Ivo Severins'
 
 # The full version, including alpha/beta/rc tags
 release = '0.1.1'

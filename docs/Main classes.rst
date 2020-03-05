@@ -4,7 +4,7 @@ Main classes
 .. toctree::
    :maxdepth: 2
 
-   Experiment class
-   File class
-   Molecule class
+   class_reference/Experiment class
+   class_reference/File class
+   class_reference/Molecule class
 
