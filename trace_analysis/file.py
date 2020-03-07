@@ -110,7 +110,7 @@ class File:
             else:
                 num_of_frames = self.experiment.configuration['compute_image']['numFrames']
                 if self.number_of_frames < num_of_frames:
-                    print('Number of frames entered exceeds size movie')
+                    print('Number of frames entered exceeds size movie:', self.number_of_frames)
                     return []
             print('#frames: ', num_of_frames)
             self._maximum_projection_image = self.movie.make_maximum_projection(number_of_frames=num_of_frames, write = True)
@@ -444,9 +444,9 @@ class File:
         molecules = steps_data.index.unique(0)
         indices = [int(m.split()[-1]) for m in molecules]
         for mol in self.molecules:
-            if mol.index not in indices:
+            if mol.index+1 not in indices:
                 continue
-            mol.steps = steps_data.loc[f'mol {mol.index}']
+            mol.steps = steps_data.loc[f'mol {mol.index+1}']
             if 'kon' in mol.steps.columns:
                 k = [int(i) for i in mol.steps.kon[0]]
                 mol.kon_boolean = np.array(k).astype(bool).reshape((4,3))
