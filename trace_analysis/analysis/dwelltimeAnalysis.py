@@ -12,6 +12,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 from trace_analysis.analysis import SAfitting
+from trace_analysis.analysis import common_PDF
+# import SAfitting
 sns.set(style="ticks")
 sns.set_color_codes()
 
@@ -28,15 +30,17 @@ def analyze(dwells_data, dist, configuration):
             continue
         dwells = d[key].loc[:,dist].values
         if conf['FitBool']:
-            fit_res = fit(dwells, model=conf['model'], Nfits=config['Nfits'],
+            fit_res = fit(dwells, model=conf['model'], Nfits=int(config['Nfits']),
                            include_over_Tmax=config['TmaxBool'],
                            bootstrap=config['BootBool'],
-                           boot_repeats=config['BootRepeats'])
+                           boot_repeats=int(config['BootRepeats']))
             fit_data.append(fit_res)
+        else:
+            fit_res = None
         print(f'plotting {key} {dist}')
         figure = plot(dwells, dist, trace=key, binsize=conf['binsize'],
                       scale=conf['scale'], style=conf['PlotType'],
-                      fit_data=fit_data)
+                      fit_result=fit_res)
         figures.append(figure)
         keys_with_data.append(key)
 
@@ -48,22 +52,22 @@ def fit(dwells, model='1Exp', Nfits=1,  include_over_Tmax=True,
         bootstrap=True, boot_repeats=100):
     if model == '1Exp+2Exp':
         fit_result = []
-    #     for model in ['1Exp', '2Exp']:
-    #         result = fit_function(dwells, model, Nfits,  include_over_Tmax,
-    #                               bootstrap, boot_repeats)
-    #         fit_result.append(result)
-    #     fit_result = pd.concat(fit_result, axis=1, ignore_index=True)
-    #     return fit_result
+        for model in ['1Exp', '2Exp']:
+            result = SAfitting.fit(dwells, model, Nfits,  include_over_Tmax,
+                                  bootstrap, boot_repeats)
+            fit_result.append(result)
+        fit_result = pd.concat(fit_result, axis=1, ignore_index=True)
+        return fit_result
 
-    # fit_result = fit_function(dwells, model, Nfits,  include_over_Tmax,
-    #                               bootstrap, boot_repeats)
-
-    # return fit_result
+    fit_result = SAfitting.fit(dwells, model, Nfits,  include_over_Tmax,
+                                  bootstrap, boot_repeats)
+    print(fit_result)
+    return fit_result
 
 
 
 def plot(dwells, dist='offtime', trace='red', binsize='auto', scale='log',
-         style='dots', color='from_trace', fit_data=None):
+         style='dots', color='from_trace', fit_result=None):
 
     try:
         bsize = float(binsize)
@@ -92,6 +96,10 @@ def plot(dwells, dist='offtime', trace='red', binsize='auto', scale='log',
                 width=(bins[1] - bins[0]))
     if style == 'line':
         plt.plot(centers, values, '-', lw=2, color=color, label=label)
+
+    # if fit_result is not None:
+
+
 
     if scale in ['Log', 'Log-Log']:
         plt.yscale('log')
@@ -123,7 +131,8 @@ def apply_config_to_data(dwells_data, dist, config):
     if config['max'] in ['Max', 'max']:
         d = d[d[dist] > float(config['min'])]
     else:
-        d = d[d[dist] > float(config['min']) & d[dist] < float(config['max'])]
+        d = d[d[dist] > float(config['min'])]
+        d = d[d[dist] < float(config['max'])]
 
     data = {}
 
@@ -136,14 +145,6 @@ def apply_config_to_data(dwells_data, dist, config):
     return data
 
 
-def get_average_dwell(dwells):
-    #  correct for dwell exceeding the measurement time minus 5 sec
-    Tmax = dwells.max() - 5
-    Ntot = dwells.size
-    Ncut = dwells[dwells > Tmax].size
-    avrg_dwell = np.average(dwells[dwells < Tmax])
-    avrg_dwell = avrg_dwell + Ncut*Tmax/Ntot
-    return avrg_dwell
 
 if __name__ == '__main__':
     filename = 'F:/Google Drive/PhD/Programming - Data Analysis/traceanalysis/traces/'
@@ -153,15 +154,15 @@ if __name__ == '__main__':
     print(data.shape)
     config = {'trace': {'red': True, 'green': False, 'total': False, 'FRET': False},
          'side': {'left': True, 'middle': True, 'right': True},
-         'min': '0', 'max': 'Max',
+         'min': '0', 'max': 300,
          'scale': 'Normal',
          'PlotType': 'dots',
          'binsize': 'auto',
-         'FitBool': False,
+         'FitBool': True,
          'TmaxBool': False,
          'BootBool': False,
          'model': '1Exp',
-         'Nfits': '10',
-         'BootRepeats': '100'}
+         'Nfits': '1',
+         'BootRepeats': '5'}
 
     result = analyze(data, 'offtime', config)

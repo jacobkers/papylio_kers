@@ -33,16 +33,6 @@ def ML1expcut(dwells, Tcut, Ncut):
     P = 1/MLtau*np.exp(-timearray/MLtau)
     return P, MLtau
 
-def ML2expcut(dwells, params, Tcut, Ncut):  # not used
-    P1, tau1, tau2 = params
-    Pi = P1/tau1*np.exp(-dwells/tau1)+(1-P1)/tau2*np.exp(-dwells/tau2)
-    LLike = np.sum(-np.log(Pi))
-    if Ncut != 0:
-        Pcut = P1*np.exp(-Tcut/tau1)+(1-P1)*np.exp(-Tcut/tau2)
-        LLikecut = -Ncut * np.log(Pcut)
-        LLike += LLikecut
-    return Pi, LLike
-
 
 def P2expcut(dwells, params, Tcut, Ncut):
     P1, tau1, tau2 = params
@@ -51,7 +41,7 @@ def P2expcut(dwells, params, Tcut, Ncut):
     return Pi, Pcut
 
 
-def LogLikeLihood(xdata, params, model, Tcut, Ncut):
+def LogLikelihood(xdata, params, model, Tcut, Ncut):
     Pi, Pcut = model(xdata, params, Tcut, Ncut)
     LLikecut = 0
     if Ncut != 0:
@@ -138,11 +128,11 @@ def Bootstrap_data(dwells, Ncut, Ntrial):
 
 
 
-def fitting(dwells_all, mdl, Nfits=1, include_over_Tmax=True,
+def fit(dwells_all, mdl, Nfits=1, include_over_Tmax=True,
             bootstrap=False, boot_repeats=0):
     Tmax = dwells_all.max()
     if include_over_Tmax is True:
-        Tcut = Tmax - 10
+        Tcut = Tmax - 5
         dwells = dwells_all[dwells_all < Tcut]
         Ncut = dwells_all[dwells_all >= Tcut].size
     else:
@@ -175,7 +165,7 @@ def fitting(dwells_all, mdl, Nfits=1, include_over_Tmax=True,
             bestparams = [1, bestparam, np.nan]
             Allfitparam = np.concatenate((fitparam, [bestparams]), axis=0)
             data = pd.DataFrame(Allfitparam)
-            print("All fitparam: ", data)
+            # print("All fitparam: ", data)
             data.columns = ['P1', 'tau1', 'tau2']
             data['Nsteps'] = Nstepsarray
             data['Ncut'] = Ncutarray
@@ -222,7 +212,7 @@ def fitting(dwells_all, mdl, Nfits=1, include_over_Tmax=True,
                     fitparam = [param]
                 else:
                     fitparam = np.concatenate((fitparam, [param]), axis=0)
-                LLike[i] = LogLikeLihood(dwells, fitparam[i], model, Tcut, Ncut)
+                LLike[i] = LogLikelihood(dwells, fitparam[i], model, Tcut, Ncut)
             ibestparam = np.argmax(LLike)
 
             # Save data of interest to dataframe
@@ -273,7 +263,7 @@ if __name__ == '__main__':
     Nfits = 200
     bootstrap = True
     boot_repeats = 200
-    fitdata = fitting(dwells_all, mdl, Nfits, include_over_Tmax, bootstrap, boot_repeats)
+    fitdata = fit(dwells_all, mdl, Nfits, include_over_Tmax, bootstrap, boot_repeats)
     print(fitdata)
     if bootstrap is True:
         fitdata.to_csv(f'{mdl}_inclTmax_{include_over_Tmax}_bootstrap{boot_repeats}.csv', index=False)
@@ -334,3 +324,14 @@ if __name__ == '__main__':
 #    plt.ylabel('log prob. density')
 #    plt.legend(fontsize='x-large')
 #  #  plt.savefig(f'{len(exp.files)}files_1_2expfit__compared.png', dpi=200)
+
+
+# def ML2expcut(dwells, params, Tcut, Ncut):  # not used
+#     P1, tau1, tau2 = params
+#     Pi = P1/tau1*np.exp(-dwells/tau1)+(1-P1)/tau2*np.exp(-dwells/tau2)
+#     LLike = np.sum(-np.log(Pi))
+#     if Ncut != 0:
+#         Pcut = P1*np.exp(-Tcut/tau1)+(1-P1)*np.exp(-Tcut/tau2)
+#         LLikecut = -Ncut * np.log(Pcut)
+#         LLike += LLikecut
+#     return Pi, LLike
