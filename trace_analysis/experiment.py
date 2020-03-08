@@ -19,7 +19,9 @@ import matplotlib.pyplot as plt #Provides a MATLAB-like plotting framework
 from trace_analysis.file import File
 from trace_analysis.molecule import Molecule
 from trace_analysis.plotting import histogram
-from trace_analysis.plugin_manager import PluginManager
+# from trace_analysis.plugin_manager import PluginManager
+# from trace_analysis.plugin_manager import PluginMetaClass
+from trace_analysis.plugin_manager import plugins
 
 import re # Regular expressions
 import warnings
@@ -31,9 +33,15 @@ import warnings
 #from threshold_analysis_v2 import stepfinder
 #import pickle
 
-plugin_manager = PluginManager()
+# plugin_manager = PluginManager()
+#
+# class Experiment(*plugin_manager.get_class_plugins('Experiment')):
 
-class Experiment(*plugin_manager.get_class_plugins('Experiment')):
+# @plugins
+# class Experiment(metaclass=PluginMetaClass):
+
+@plugins
+class Experiment:
     # plugins = []
     # _plugin_mixin_class = None
     #
