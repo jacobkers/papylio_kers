@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from pathlib import Path
 # from trace_analysis.experiment import Experiment
-# from trace_analysis.file import File
+#from trace_analysis.file import File
 from trace_analysis.mapping.geometricHashing import SequencingDataMapping
 from .fastqAnalysis import FastqData
 from trace_analysis.mapping.icp import icp, nearest_neighbor_pair
@@ -137,7 +137,7 @@ class File:
     def get_all_sequences_from_sequencing_data(self):
         #raise Warning('Only works on acceptor channel for now')
         coordinate_bounds_file = self.movie.channel_boundaries('a')
-        coordinate_bounds_tile = self.sequence_match.transform_coordinates(coordinate_bounds_file)
+        coordinate_bounds_tile = self.sequence_match.transform_coordinates(coordinate_bounds_file.T).T
 
         self.sequencing_data = \
             self.experiment.sequencing_data.get_selection(tile=int(self.sequence_match.tile.name),

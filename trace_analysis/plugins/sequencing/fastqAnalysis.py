@@ -163,7 +163,7 @@ class FastqData:
             if key == 'sequence':
                 selection[:,i] = np.all(self.sequence[:, 0:len(value)] == np.array(list(value), dtype = bytes), axis = 1)
             if key in ['x','y']:
-                selection[:,i] = np.all(np.vstack([getattr(self, key) > value[0], getattr(self, key) < value[1]]), axis=0)
+                selection[:,i] = np.all(np.vstack([getattr(self, key) > np.min(value), getattr(self, key) < np.max(value)]), axis=0)
             else:
                 selection[:,i] = getattr(self, key) == value
 
