@@ -99,6 +99,18 @@ class FastqData:
         with self.text_file.open('a') as f:
             f.write(input_text + '\n')
 
+    def export_fastq(self, filepath = None):
+        if not filepath: filepath = self.write_path
+
+        with filepath.with_suffix('.fastq').open('w') as f:
+            for i in np.arange(len(self)):
+                f.write(f"@{self.instrument[i]}:{self.run[i]}:000000000-{self.flowcell[i]}:{self.lane[i]}:"
+                        f"{self.tile[i]}:{self.x[i]}:{self.y[i]} 1:N:0:{self.sample[i]}\n"
+                        f"{self.sequence[i].tostring().decode('utf-8')}\n"
+                        f"+\n"
+                        f"{self.quality[i].tostring().decode('utf-8')}\n"
+                        )
+
     def __len__(self):
         return self.sequence.shape[0]
 

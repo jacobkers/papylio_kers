@@ -146,6 +146,7 @@ class File:
         self.molecules = []
         self.coordinates = self.sequence_match.transform_coordinates(self.sequencing_data.coordinates,
                                                                      inverse=True)
+        self.sequencing_data.export_fastq(self.relativeFilePath)
 
 
 
