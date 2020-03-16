@@ -12,11 +12,22 @@ from trace_analysis.peak_finding import find_peaks
 from trace_analysis.coordinate_optimization import coordinates_within_margin, coordinates_after_gaussian_fit, coordinates_without_intensity_at_radius
 from trace_analysis.trace_extraction import extract_traces
 from trace_analysis.coordinate_transformations import translate, transform
-from trace_analysis.plugin_manager import PluginManager
+# from trace_analysis.plugin_manager import PluginManager
+# from trace_analysis.plugin_manager import PluginMetaClass
+from trace_analysis.plugin_manager import plugins
+#
+# plugin_manager = PluginManager()
+#
+# class File(*plugin_manager.get_class_plugins('File')):
+#
+class A:
+    def __init__(self):
+        print('Ainit')
 
-plugin_manager = PluginManager()
+#class File(A, metaclass=PluginMetaClass):
 
-class File(*plugin_manager.get_class_plugins('File')):
+@plugins
+class File(A):
     # plugins = []
     # _plugin_mixin_class = None
     #
@@ -53,6 +64,8 @@ class File(*plugin_manager.get_class_plugins('File')):
         self.movie = None
         self.mapping = None
         self._average_image = None
+
+        super().__init__()
 
         if self.experiment.import_all is True:
             self.findAndAddExtensions()

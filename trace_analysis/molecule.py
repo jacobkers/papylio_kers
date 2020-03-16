@@ -1,11 +1,17 @@
 import numpy as np #scientific computing with Python
 import matplotlib.pyplot as plt #Provides a MATLAB-like plotting framework
 from trace_analysis.analysis.autoThreshold import stepfinder
-from trace_analysis.plugin_manager import PluginManager
+# from trace_analysis.plugin_manager import PluginManager
+# from trace_analysis.plugin_manager import PluginMetaClass
+from trace_analysis.plugin_manager import plugins
 
-plugin_manager = PluginManager()
+# plugin_manager = PluginManager()
+#
+# class Molecule(*plugin_manager.get_class_plugins('Molecule')):
+# class Molecule(metaclass=PluginMetaClass):
 
-class Molecule(*plugin_manager.get_class_plugins('Molecule')):
+@plugins
+class Molecule:
     # plugins = []
     # _plugin_mixin_class = None
     # 
