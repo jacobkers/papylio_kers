@@ -226,7 +226,7 @@ class FastqData:
     def get_tile_object(self, tile):
         x = self.x[self.selection(tile=tile)]
         y = self.y[self.selection(tile=tile)]
-        return Tile(tile, np.array([x,y]))
+        return Tile(tile, np.transpose([x,y]))
         # tile = Tile('2102', np.loadtxt(path.joinpath('2102.loc'))) If we later want to get it from the file
 
     def export_positions_per_tile(self):

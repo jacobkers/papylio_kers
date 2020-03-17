@@ -49,7 +49,7 @@ class Experiment:
             configuration = presets[configuration]
 
         tile = self.sequencing_data_for_mapping.get_tile_object(tile=tile)
-        self.seqmap = SequencingDataMapping(tile, self.files, sequencing_mapping_path, *configuration['mapping_configuration'])
+        self.seqmap = SequencingDataMapping(tile, self.files, sequencing_mapping_path, **configuration['mapping_configuration'])
         self.seqmap.initial_image_transformation = configuration['initial_image_transformation']
         self.seqmap.bases_findMatch = configuration['bases_findMatch']
         self.seqmap.histogram_matches(export=True)
