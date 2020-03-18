@@ -38,8 +38,13 @@ class Mapping2:
 
     @property
     def rotation(self):
-        rotation_matrix = self.transformation[0:2, 0:2]/self.magnification[0]
-        return np.arctan2(rotation_matrix[0,1]-rotation_matrix[1,0],rotation_matrix[0,0]+rotation_matrix[1,1])/(2*np.pi)*360
+        # rotation_matrix = self.transformation[0:2, 0:2]/self.magnification[0]
+        # return np.arctan2(rotation_matrix[0,1]-rotation_matrix[1,0],rotation_matrix[0,0]+rotation_matrix[1,1])/(2*np.pi)*360
+        return np.arctan2(self.transformation[0, 1], self.transformation[0, 0]) / (2 * np.pi) * 360
+
+    @property
+    def reflection(self):
+        return ~(np.sign(self.transformation[0, 0]) == np.sign(self.transformation[1, 1]))
 
     @property
     def transform_source_to_destination(self):
