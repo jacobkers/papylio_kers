@@ -13,7 +13,7 @@ from trace_analysis.mapping.mapping import Mapping2
 from trace_analysis.peak_finding import find_peaks
 from trace_analysis.coordinate_optimization import coordinates_within_margin, coordinates_after_gaussian_fit, coordinates_without_intensity_at_radius
 from trace_analysis.trace_extraction import extract_traces
-from trace_analysis.coordinate_transformations import translate, transform
+from trace_analysis.coordinate_transformations import translate, transform # MD: we don't want to use this anymore I think, it is only linear
 
 
 class File:
@@ -193,17 +193,22 @@ class File:
     def import_coeff_file(self):
         if self.mapping is None: # the following only works for 'linear'transformation_type
             tmp=np.genfromtxt(str(self.relativeFilePath) + '.coeff')
-            [coefficients, coefficients_inverse] = np.split(tmp,2)
+            if len(tmp)==12:  [coefficients, coefficients_inverse] = np.split(tmp,2)
+            elif len(tmp)==6: coefficients = tmp
+            else: raise TypeError('Error in importing coeff file, wrong number of lines')
             
             self.mapping = Mapping2(transformation_type='linear')
             self.mapping.transformation = np.zeros((3,3))
             self.mapping.transformation[2,2] = 1
             self.mapping.transformation[[0,0,0,1,1,1],[2,0,1,2,0,1]] = coefficients
             
-            self.mapping.transformation_inverse = np.zeros((3,3))
-            self.mapping.transformation_inverse[2,2] = 1
-            self.mapping.transformation_inverse[[0,0,0,1,1,1],[2,0,1,2,0,1]] = coefficients_inverse
-                
+            if len(tmp)==6:
+                self.mapping.transformation_inverse=np.linalg.inv(self.mapping.transformation)
+            else:
+                self.mapping.transformation_inverse = np.zeros((3,3))
+                self.mapping.transformation_inverse[2,2] = 1
+                self.mapping.transformation_inverse[[0,0,0,1,1,1],[2,0,1,2,0,1]] = coefficients_inverse
+                    
             self.mapping.file = self
 
     def export_coeff_file(self):
@@ -219,8 +224,10 @@ class File:
     def import_map_file(self):
         #coefficients = np.genfromtxt(self.relativeFilePath.with_suffix('.map'))
         tmp=np.genfromtxt(self.relativeFilePath.with_suffix('.map'))
-        print(tmp)
-        [coefficients,coefficients_inverse]=np.split(tmp,2)
+        if len(tmp)==64:        [coefficients,coefficients_inverse]=np.split(tmp,2)
+        elif len(tmp)==32:      coefficients=tmp
+        else: raise TypeError ('Error in import map file, not correct number of lines')
+        
         degree = int(np.sqrt(len(coefficients) // 2) - 1)
         P = coefficients[:len(coefficients) // 2].reshape((degree + 1, degree + 1))
         Q = coefficients[len(coefficients) // 2 : len(coefficients)].reshape((degree + 1, degree + 1))
@@ -228,11 +235,17 @@ class File:
         self.mapping = Mapping2(transformation_type='nonlinear')
         self.mapping.transformation = (P,Q) #{'P': P, 'Q': Q}
         #self.mapping.file = self
-        
-        degree = int(np.sqrt(len(coefficients_inverse) // 2) - 1)
-        Pi = coefficients_inverse[:len(coefficients_inverse) // 2].reshape((degree + 1, degree + 1))
-        Qi = coefficients_inverse[len(coefficients_inverse) // 2 : len(coefficients_inverse)].reshape((degree + 1, degree + 1))
-
+        if len(tmp)==64:
+            degree = int(np.sqrt(len(coefficients_inverse) // 2) - 1)
+            Pi = coefficients_inverse[:len(coefficients_inverse) // 2].reshape((degree + 1, degree + 1))
+            Qi = coefficients_inverse[len(coefficients_inverse) // 2 : len(coefficients_inverse)].reshape((degree + 1, degree + 1))
+        else :
+            LEN=np.shape(self._average_image)[0]
+            pts=np.array([(a,b) for a in range(20, LEN/2-20, 10) for b in range(20,LEN-20, 10)]) ##still the question whether range a & B should be swapped
+            from trace_analysis.image_adapt.polywarp import polywarp,polywarp_apply
+            pts_new=polywarp_apply(P,Q,pts)
+            plt.scatter(pts_new[:,0],pts_new[:,1],'.')
+            Pi,Qi=polywarp(pts_new[:,0],pts_new[:,1],pts[:,0],pts[:,1])
        # self.mapping = Mapping2(transformation_type='nonlinear')
         self.mapping.transformation_inverse = (Pi,Qi) # {'P': Pi, 'Q': Qi}
         self.mapping.file = self
@@ -492,7 +505,7 @@ class File:
         self.mapping = Mapping2(source=donor_coordinates,
                                 destination=acceptor_coordinates,
                                 transformation_type=transformation_type,
-                                initial_translation=translate([image.shape[0]//2,0]))
+                                dest2source_translation=translate([-image.shape[0]//2,0]))
         self.mapping.file = self
         self.is_mapping_file = True
 
