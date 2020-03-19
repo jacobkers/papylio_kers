@@ -38,7 +38,7 @@ class Mapping2:
     def perform_mapping(self):
         print(self.transformation_type)
         if self.method == 'icp': #icp should be default
-            self.transformation, distances, iterations, self.transformation_inverse, self.initial_translation = \
+            self.transformation, distances, iterations, self.transformation_inverse, self.dest2source_translation = \
                 icp(self.source, self.destination, dest2source_translation=self.dest2source_translation,
                     transformation_type=self.transformation_type)
         # elif method == 'manual'         : mapping_manual(source, destination)
@@ -58,5 +58,6 @@ class Mapping2:
     def transform_coordinates(self, coordinates, inverse = False):
         print(self.transformation)
         if self.method == 'icp':
-            return icp_apply_transform(coordinates, inverse, self.transformation,self.transformation_inverse, self.transformation_type)
+            return icp_apply_transform(coordinates, inverse, self.transformation,self.transformation_inverse, self.transformation_type, self.dest2source_translation)
+                                     
         else: print('transform_coordinates only works for icp')
