@@ -345,7 +345,7 @@ class File:
              'coordinates_without_intensity_at_radius': coordinates_without_intensity_at_radius}
 
         for f, kwargs in configuration['coordinate_optimization'].items():
-            coordinates = coordinate_optimization_functions[f](coordinates, image, **kwargs)
+                coordinates = coordinate_optimization_functions[f](coordinates, image, **kwargs)
 
         acceptor_bounds = np.array([[self.movie.width//2, self.movie.width], [0, self.movie.width]])
         if channel == 'a':
@@ -449,7 +449,7 @@ class File:
             mol.steps = steps_data.loc[f'mol {mol.index+1}']
             if 'kon' in mol.steps.columns:
                 k = [int(i) for i in mol.steps.kon[0]]
-                mol.kon_boolean = np.array(k).astype(bool).reshape((4,3))
+#                mol.kon_boolean = np.array(k).astype(bool).reshape((4,3))
         return steps_data
 
     def savetoExcel(self, filename=None, save=True):

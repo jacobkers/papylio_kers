@@ -101,7 +101,7 @@ def Best_of_Nfits_sim_anneal(dwells, Nfits, model, x_initial,
     LLike = np.empty(Nfits)
     for i in range(0, Nfits):
         fitdata, xstep = simmulated_annealing(data=dwells,
-                                              objective_function=LogLikeLihood,
+                                              objective_function=LogLikelihood,
                                               model=model, x_initial=x_initial,
                                               lwrbnd=lwrbnd, uprbnd=uprbnd,
                                               Tcut=Tcut, Ncut=Ncut)
@@ -112,7 +112,7 @@ def Best_of_Nfits_sim_anneal(dwells, Nfits, model, x_initial,
         else:
             fitparam = np.concatenate((fitparam, [fitdata]), axis=0)
             Nsteps = np.concatenate((Nsteps, [xstep]), axis=0)
-        LLike[i] = LogLikeLihood(dwells, fitparam[i], model, Tcut, Ncut)
+        LLike[i] = LogLikelihood(dwells, fitparam[i], model, Tcut, Ncut)
     ibestparam = np.argmax(LLike)
     bestparam = fitparam[ibestparam]
     bestNsteps = Nsteps[ibestparam]

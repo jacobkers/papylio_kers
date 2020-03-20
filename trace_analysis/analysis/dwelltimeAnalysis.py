@@ -19,8 +19,8 @@ sns.set_color_codes()
 
 
 def analyze(dwells_data, dist, configuration):
-    conf = configuration
-    d = apply_config_to_data(dwells_data, dist, conf)
+    config = configuration
+    d = apply_config_to_data(dwells_data, dist, config)
     figures = []
     fit_data = []
     keys_with_data = []
@@ -29,8 +29,8 @@ def analyze(dwells_data, dist, configuration):
             print(f'{dist} dataFrame for {key} is empty')
             continue
         dwells = d[key].loc[:,dist].values
-        if conf['FitBool']:
-            fit_res = fit(dwells, model=conf['model'], Nfits=int(config['Nfits']),
+        if config['FitBool']:
+            fit_res = fit(dwells, model=config['model'], Nfits=int(config['Nfits']),
                            include_over_Tmax=config['TmaxBool'],
                            bootstrap=config['BootBool'],
                            boot_repeats=int(config['BootRepeats']))
@@ -38,8 +38,8 @@ def analyze(dwells_data, dist, configuration):
         else:
             fit_res = None
         print(f'plotting {key} {dist}')
-        figure = plot(dwells, dist, trace=key, binsize=conf['binsize'],
-                      scale=conf['scale'], style=conf['PlotType'],
+        figure = plot(dwells, dist, trace=key, binsize=config['binsize'],
+                      scale=config['scale'], style=config['PlotType'],
                       fit_result=fit_res)
         figures.append(figure)
         keys_with_data.append(key)
