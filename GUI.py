@@ -258,7 +258,9 @@ class MoviePanel(wx.Frame):
     def ShowMovie(self, show_coordinates = True):
         if self.IsShown():
             self.panel.axis.clear()
-            if self._file is not None: self._file.show_average_image(figure = self.panel.figure)
+            if self._file is not None: 
+                self._file.show_image(figure = self.panel.figure)
+
             if show_coordinates:
                 if self._file.is_mapping_file:
                     self._file.mapping.show_mapping_transformation(figure=self.panel.figure)
