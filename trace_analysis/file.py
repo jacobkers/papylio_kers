@@ -233,11 +233,17 @@ class File:
         if configuration is None: configuration = self.experiment.configuration['find_coordinates']
         channel = configuration['channel']
 
+        if configuration['image'] == 'average_image':
+            full_image = self.movie.average_image
+        elif configuration['image'] == 'maximum_image':
+            full_image = self.movie.maximum_projection_image
+
+
         if channel in ['d','a']:
-            image = self.movie.get_channel(channel=channel)
+            image = self.movie.get_channel(image=full_image, channel=channel)
         elif channel in ['da']:
-            donor_image = self.movie.get_channel(channel='d')
-            acceptor_image = self.movie.get_channel(channel='a')
+            donor_image = self.movie.get_channel(image=full_image, channel='d')
+            acceptor_image = self.movie.get_channel(image=full_image, channel='a')
 
             image_transformation = translate([-self.movie.width / 2, 0]) @ self.mapping.transformation
             acceptor_image_transformed = ski.transform.warp(acceptor_image, image_transformation, preserve_range=True)
