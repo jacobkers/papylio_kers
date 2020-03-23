@@ -88,7 +88,7 @@ class Movie:
 
     @property
     def maximum_projection_image(self):
-        if self._maximum_projection_image is None: self.make_maximum_projection()
+        if self._maximum_projection_image is None: self.make_maximum_projection(write=True)
         return self._maximum_projection_image
 
     def read_header(self):
@@ -110,13 +110,19 @@ class Movie:
         elif channel is 'a':
             return np.array([[self.width // 2, self.width], [0, self.height]])
 
-    def make_maximum_projection(self):
+    def make_maximum_projection(self, write = False):
         maximum_projection_image = np.zeros((self.height, self.width))
         for i in range(self.number_of_frames):
             frame = self.read_frame(frame_number=i)
             print(i)
             maximum_projection_image = np.maximum(maximum_projection_image, frame)
         self._maximum_projection_image = maximum_projection_image
+        
+        if write:
+            tif_filepath = self.writepath.joinpath(self.name+'_max.tif')
+            if self.bitdepth == 16: TIFF.imwrite(tif_filepath, np.uint16(maximum_projection_image))
+            elif self.bitdepth == 8: TIFF.imwrite(tif_filepath, np.uint8(maximum_projection_image))
+
         return maximum_projection_image
 
     def saveas_tif(self):
