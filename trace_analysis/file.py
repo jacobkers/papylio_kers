@@ -505,8 +505,8 @@ class File:
             axis.set_title('Maximum projection')
             
         if mode == '2d':
-            p98 = np.percentile(image, 98)            
-            axis.imshow(image, vmax=p98)
+            vmax = np.percentile(image, 99.99)
+            axis.imshow(image, vmax=vmax)
         if mode == '3d':
             from matplotlib import cm
             axis = figure.gca(projection='3d')
