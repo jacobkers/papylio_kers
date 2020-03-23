@@ -160,7 +160,7 @@ class File:
                             '.pma': self.import_pma_file,
                             '.tif': self.import_tif_file,
                             '_ave.tif': self.import_average_tif_file,
-                            '_maxprojection.tif': self.import_maxprojection_tif_file,
+                            '_max.tif': self.import_maximum_projection_tif_file,
                             '.coeff': self.import_coeff_file,
                             '.map': self.import_map_file,
                             '.pks': self.import_pks_file,
@@ -198,8 +198,8 @@ class File:
         averageTifFilePath = self.absoluteFilePath.with_name(self.name+'_ave.tif')
         self._average_image = io.imread(averageTifFilePath, as_gray=True)
         
-    def import_maxprojection_tif_file(self):
-        maxTifFilePath = self.absoluteFilePath.with_name(self.name+'_maxprojection.tif')
+    def import_maximum_projection_tif_file(self):
+        maxTifFilePath = self.absoluteFilePath.with_name(self.name+'_max.tif')
         self._maximum_projection_image = io.imread(maxTifFilePath, as_gray=True)
 
     def import_coeff_file(self):
@@ -487,18 +487,20 @@ class File:
                 file.mapping = self.mapping
                 file.is_mapping_file = False
                 
-    def show_image(self, mode='2d', figure=None):
+    def show_image(self, image_type='default', mode='2d', figure=None):
         # Refresh configuration
-        self.experiment.import_config_file()
+        if image_type is 'default':
+            self.experiment.import_config_file()
+            image_type = self.experiment.configuration['find_coordinates']['image']
         
         if figure is None: figure = plt.figure() # Or possibly e.g. plt.figure('Movie')
         axis = figure.gca()
         
         # Choose method to plot 
-        if self.experiment.configuration['find_coordinates']['image'] == 'average_image':
+        if image_type == 'average_image':
             image = self.average_image
             axis.set_title('Average image')
-        elif self.experiment.configuration['find_coordinates']['image'] == 'maximum_image':
+        elif image_type == 'maximum_image':
             image = self.maximum_projection_image
             axis.set_title('Maximum projection')
             
@@ -514,11 +516,8 @@ class File:
             axis.plot_surface(X,Y,image, cmap=cm.coolwarm,
                                    linewidth=0, antialiased=False)
 
-
-    def show_average_image(self, mode='2d', figure=None): #  Can be removed?
-        self.show_image(mode=mode, figure=figure)
-
-
+    def show_average_image(self, mode='2d', figure=None):
+        self.show_image(image_type='average_image', mode=mode, figure=figure)
 
     def show_coordinates(self, figure=None, annotate=False, **kwargs):
         if not figure: figure = plt.figure()
