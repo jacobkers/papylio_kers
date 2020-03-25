@@ -34,6 +34,7 @@ class Movie:
     def __init__(self, filepath):#, **kwargs):
         self.filepath = Path(filepath)
         self._average_image = None
+        self._maximum_projection_image = None
         self.is_mapping_movie = False
         self.number_of_colours = 2
 
@@ -85,6 +86,11 @@ class Movie:
         if self._average_image is None: self.make_average_image(write=True)
         return self._average_image
 
+    @property
+    def maximum_projection_image(self):
+        if self._maximum_projection_image is None: self.make_maximum_projection(write=True)
+        return self._maximum_projection_image
+
     def read_header(self):
         self.width_pixels, self.height_pixels, self.number_of_frames, self.movie_file_object = read_header(self.filepath)
 
@@ -103,6 +109,21 @@ class Movie:
             return np.array([[0, self.width // 2],[0,self.height]])
         elif channel is 'a':
             return np.array([[self.width // 2, self.width], [0, self.height]])
+
+    def make_maximum_projection(self, write = False):
+        maximum_projection_image = np.zeros((self.height, self.width))
+        for i in range(self.number_of_frames):
+            frame = self.read_frame(frame_number=i)
+            print(i)
+            maximum_projection_image = np.maximum(maximum_projection_image, frame)
+        self._maximum_projection_image = maximum_projection_image
+        
+        if write:
+            tif_filepath = self.writepath.joinpath(self.name+'_max.tif')
+            if self.bitdepth == 16: TIFF.imwrite(tif_filepath, np.uint16(maximum_projection_image))
+            elif self.bitdepth == 8: TIFF.imwrite(tif_filepath, np.uint8(maximum_projection_image))
+
+        return maximum_projection_image
 
     def saveas_tif(self):
         tif_filepath = self.writepath.joinpath(self.name+'.tif')
