@@ -46,6 +46,10 @@ class Mapping2:
     def reflection(self):
         return ~(np.sign(self.transformation[0, 0]) == np.sign(self.transformation[1, 1]))
 
+    # @property
+    # def transformation_inverse(self):
+    #     return np.linalg.inv(self.transformation)
+
     @property
     def transform_source_to_destination(self):
         return self.transform_coordinates(self.source)

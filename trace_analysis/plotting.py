@@ -5,9 +5,13 @@ import matplotlib.patches as patches
 from matplotlib.collections import PatchCollection
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-def histogram(input, axis, makeFit=False):
-    if not input: return None
-    if not axis: axis = plt.gca()
+from trace_analysis.molecule import Molecule
+
+def histogram(molecules, axis = None, bins=100, parameter = 'E', molecule_averaging=False, makeFit=False, collection_name='', **kwargs):
+    if not molecules: return None
+    if not axis:
+        axis = plt.gca()
+        axis.cla()
     #    if not isinstance(input,list): input = [input]
     #
     #    molecules = list()
@@ -17,16 +21,28 @@ def histogram(input, axis, makeFit=False):
     #            molecules.append(i)
     #        else:
     #            molecules.append(i.molecules)
-    molecules = input
 
     # data = np.concatenate([molecule.intensity[0,:] for molecule in molecules])
     # axis.hist(data,100)
-    data = np.concatenate([molecule.E() for molecule in molecules])
-    axis.hist(data, 100, range=(0, 1))
+    # data = np.concatenate([molecule.E() for molecule in molecules])
+
+    if parameter is 'E':
+        if molecule_averaging:
+            data = np.array([np.mean(molecule.E()) for molecule in molecules])
+        else:
+            data = np.concatenate([molecule.E() for molecule in molecules])
+        histogram_FRET(data, bins=bins, axis=axis, **kwargs)
+
+    axis.set_title(f'{parameter} histogram - {collection_name} \n Bins: {bins} - Number of molecules: {len(molecules)} - Molecule averaging: {molecule_averaging}')
 
     if makeFit:
         fit_hist(data, axis)
 
+def histogram_FRET(data, axis, **kwargs):
+    axis.hist(data, range=(0, 1), **kwargs)
+    axis.set_xlim((0, 1))
+    axis.set_xlabel('FRET')
+    axis.set_ylabel('Count')
 
 def fit_hist(data, axis):
     hist, bin_edges = np.histogram(data, 100, range=(0, 1))

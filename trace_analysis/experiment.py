@@ -56,30 +56,73 @@ class Experiment:
     #     else:
     #         return super().__new__(cls._plugin_mixin_class)
 
-    def __init__(self, mainPath, colours = ['g','r'], import_all = True):
+    """ Main experiment class
+
+    Class containing all the files in an experiment.
+    In fact it can contain any collection of files.
+
+    .. warning:: Only works with one or two colours.
+
+    Attributes
+    ----------
+    name : str
+        Experiment name based on the name of the main folder
+    mainPath : str
+        Absolute path to the main experiment folder
+    files : list of :obj:`File`
+        Files
+    import_all : bool
+        If true, then all files in the main folder are automatically imported. \n
+        If false, then files are detected, but not imported.
+    """
+
+    def __init__(self, mainPath, colours=['g','r'], import_all=True):
+        """Init method for the Experiment class
+
+        Loads config file if it locates one in the main directory, otherwise it exports the default config file to the main directory.
+        Scans all directory in the main directory recursively and imports all found files (if import_all is set to `True`).
+
+        Parameters
+        ----------
+        mainPath : str
+            Absolute path to the main experiment folder
+        colours : list of str
+            Colours used in the experiment
+        import_all : bool
+            If true, then all files in the main folder are automatically imported. \n
+            If false, then files are detected, but not imported.
+        """
+
         self.name = os.path.basename(mainPath)
         self.mainPath = Path(mainPath).absolute()
         self.files = list()
+        self.import_all = import_all
+
         self._colours = np.atleast_1d(np.array(colours))
         self._Ncolours = len(colours)
         self._pairs = [[c1, c2] for i1, c1 in enumerate(colours) for i2, c2 in enumerate(colours) if i2 > i1]
-        self.import_all = import_all
-
 
         # Load custom config file or otherwise load the default config file
         if self.mainPath.joinpath('config.yml').is_file():
-            with self.mainPath.joinpath('config.yml').open('r') as yml_file:
-                self.configuration = yaml.load(yml_file, Loader=yaml.SafeLoader)
+            self.import_config_file()
         else:
             with Path(__file__).with_name('default_configuration.yml').open('r') as yml_file:
                 self.configuration = yaml.load(yml_file, Loader=yaml.SafeLoader)
+            self.export_config_file()
 
         os.chdir(mainPath)
 
         self.addAllFilesInMainPath()
 
+    def __repr__(self):
+        return (f'{self.__class__.__name__}({self.name})')
+
     @property
     def colours(self):
+        """list of str : Colours used in the experiment.
+
+        Setting the colours will automatically update pairs.
+        """
         return self._colours
 
     @colours.setter
@@ -90,37 +133,60 @@ class Experiment:
 
     @property
     def Ncolours(self):
+        """int : Number of colours used in the experiment (read-only)"""
         return self._Ncolours
 
     @property
     def pairs(self):
+        """list of list of str : List of colour pairs"""
         return self._pairs
 
     @property
     def molecules(self):
+        """list of Molecule : List of all molecules in the experiment"""
         return [molecule for file in self.files for molecule in file.molecules]
 
     @property
     def selectedFiles(self):
+        """list of File : List of selected files"""
         return [file for file in self.files if file.isSelected]
 
     @property
     def selectedMoleculesInSelectedFiles(self):
+        """list of Molecule : List of selected molecules in selected files"""
         return [molecule for file in self.selectedFiles for molecule in file.selectedMolecules]
 
     @property
     def selectedMoleculesInAllFiles(self):
+        """list of Molecule : List of selected molecules in all files"""
         return [molecule for file in self.files for molecule in file.selectedMolecules]
 
+    def import_config_file(self):
+        """Import configuration file from main folder into the configuration property."""
+        with self.mainPath.joinpath('config.yml').open('r') as yml_file:
+            self.configuration = yaml.load(yml_file, Loader=yaml.SafeLoader)
+
     def export_config_file(self):
+        """Export from the configuration property into the configuration file in main folder"""
         with self.mainPath.joinpath('config.yml').open('w') as yml_file:
              yaml.dump(self.configuration, yml_file, sort_keys = False)
 
     def addAllFilesInMainPath(self):
-        ## Find all unique files in all subfolders
-        
-        # Get all the files in all subfolders of the mainpath and remove their suffix (extensions)
-        # Also make sure only relevant files are included (exclude folders, averaged tif files, data folders and .dat files)
+        """Find unique files in all subfolders and add them to the experiment
+
+        Get all files in all subfolders of the mainpath and remove their suffix (extensions), and add them to the experiment.
+
+        Note
+        ----
+        Non-relevant files are excluded e.g. files with underscores or 'Analysis' in their name, or files with dat, db,
+        ini, py and yml extensions.
+
+        Note
+        ----
+        Since sifx files made using spooling are all called 'Spooled files' the parent folder is used as file instead of the sifx file
+
+        """
+
         files = [p.relative_to(self.mainPath).with_suffix('') for p in self.mainPath.glob('**/*')
                     if  (p.is_file() & 
                         ('_' not in p.name) &
@@ -131,7 +197,6 @@ class Experiment:
                         )
                     ]
 
-        # Since sifx files made using spooling are all called 'Spooled files' the parent folder is used as file instead of the sifx file
         for i, file in enumerate(files):
             if (file.name == 'Spooled files'):
                files[i] = files[i].parent
@@ -142,6 +207,17 @@ class Experiment:
             self.addFile(file)
 
     def addFile(self, relativeFilePath):
+        """Add a file to the experiment
+
+        Add the file to the experiment only if the file object has found and imported relevant extensions .
+        If the file is already present in experiment, then try to find and import new extensions.
+
+        Parameters
+        ----------
+        relativeFilePath : pathlib.Path or str
+            Path with respect to the main experiment path
+
+        """
         relativeFilePath = Path(relativeFilePath)
 
         # if there is no extension, add all files with the same name with all extensions
@@ -156,32 +232,50 @@ class Experiment:
             new_file = File(relativeFilePath, self)
             if new_file.extensions:
                 self.files.append(new_file)
-            
-            # If not found: add file and extension, or if the file is already there then add the extention to it.
-            # If the file and extension are already imported, display a warning message.
-#            if not foundFile:
-#                self.files.append(File(relativePath, name, self, self.exposure_time))
-#                self.files[-1].addExtension(extension)
-#            else:
-#                if extension not in foundFile.extensions:
-#                    foundFile.addExtension(extension)
-#                else:
-#                    warnings.warn(fullPath + extension + ' already imported')
 
-    def histogram(self, axis = None, fileSelection = False, moleculeSelection = False, makeFit = False):
+    def histogram(self, axis = None, bins = 100, parameter = 'E', molecule_averaging = False,
+                  fileSelection = False, moleculeSelection = False, makeFit = False, export=False, **kwargs):
+        """FRET histogram of all molecules in the experiment or a specified selection
+
+        Parameters
+        ----------
+        axis : matplotlib.axis
+            Axis to use for histogram plotting
+        bins : int
+            Number of bins
+        parameter : str
+            Parameter to be used for histogram I or E
+        molecule_averaging : bool
+            If True an time average of the trace is used
+        fileSelection : bool
+            If True the histogram is made only using selected files.
+        moleculeSelection : bool
+            If True the histogram is made only using selected molecules.
+        makeFit : bool
+            If True perform Gaussian fitting.
+        export : bool
+            If True the graph is exported.
+        **kwargs
+            Arbitrary keyword arguments.
+
+        """
         #files = [file for file in exp.files if file.isSelected]
         #files = self.files
 
         if (fileSelection & moleculeSelection):
-            histogram([molecule for file in self.selectedFiles for molecule in file.selectedMolecules], axis, makeFit)
+            molecules = [molecule for file in self.selectedFiles for molecule in file.selectedMolecules]
         elif (fileSelection & (not moleculeSelection)):
-            histogram([molecule for file in self.selectedFiles for molecule in file.molecules], axis, makeFit)
+            molecules = [molecule for file in self.selectedFiles for molecule in file.molecules]
         elif ((not fileSelection) & moleculeSelection):
-            histogram([molecule for file in self.files for molecule in file.selectedMolecules], axis, makeFit)
+            molecules = [molecule for file in self.files for molecule in file.selectedMolecules]
         else:
-            histogram([molecule for file in self.files for molecule in file.molecules], axis, makeFit)
+            molecules = [molecule for file in self.files for molecule in file.molecules]
+
+        histogram(molecules, axis=axis, bins=bins, parameter=parameter, molecule_averaging=molecule_averaging, makeFit=makeFit, collection_name=self, **kwargs)
+        if export: plt.savefig(self.mainPath.joinpath(f'{self.name}_{parameter}_histogram').with_suffix('.png'))
 
     def boxplot_number_of_molecules(self):
+        """Boxplot of the number of molecules in each file"""
         fig, ax = plt.subplots(figsize = (8,1.5))
         pointCount = [len(file.molecules) for file in self.files]
         plt.boxplot(pointCount, vert=False, labels = [''], widths = (0.8))
@@ -193,6 +287,11 @@ class Experiment:
         fig.savefig(self.mainPath.joinpath('number_of_molecules.png'), bbox_inches='tight')
 
     def select(self):
+        """Simple method to look through all molecules in the experiment
+
+        Plots a molecule. If enter is pressed the next molecule is shown.
+
+        """
         for molecule in self.molecules:
             molecule.plot()
             input("Press enter to continue")

@@ -3,9 +3,11 @@ import numpy as np #scientific computing with Python
 import pandas as pd
 import matplotlib.pyplot as plt #Provides a MATLAB-like plotting framework
 import skimage.io as io
+import skimage as ski
 from trace_analysis.molecule import Molecule
 from trace_analysis.image_adapt.sifx_file import SifxFile
 from trace_analysis.image_adapt.pma_file import PmaFile
+from trace_analysis.image_adapt.tif_file import TifFile
 from trace_analysis.plotting import histogram
 from trace_analysis.mapping.mapping import Mapping2
 from trace_analysis.peak_finding import find_peaks
@@ -53,6 +55,7 @@ class File(A):
         self.molecules = list()
 
         self.exposure_time = 0.1  # Found from log file or should be inputted
+        self.number_of_frames = 0
         self.log_details = None  # a string with the contents of the log file
         self.number_of_frames = None
 
@@ -64,6 +67,7 @@ class File(A):
         self.movie = None
         self.mapping = None
         self._average_image = None
+        self._maximum_projection_image = None
 
         super().__init__()
 
@@ -107,6 +111,12 @@ class File(A):
         if self._average_image is None:
             self._average_image = self.movie.average_image
         return self._average_image
+    
+    @property
+    def maximum_projection_image(self):
+        if self._maximum_projection_image is None:
+            self._maximum_projection_image = self.movie.maximum_projection_image
+        return self._maximum_projection_image
 
     @property
     def coordinates(self):
@@ -154,6 +164,7 @@ class File(A):
         for i, molecule in enumerate(self.molecules):
             molecule.intensity = traces[:, i, :] # 3d array of traces
             # molecule.intensity = traces[(i * self.number_of_colours):((i + 1) * self.number_of_colours), :] # 2d array of traces
+        self.number_of_frames = traces.shape[2]
 
     def findAndAddExtensions(self):
         foundFiles = [file.name for file in self.experiment.mainPath.joinpath(self.relativePath).glob(self.name + '*')]
@@ -176,7 +187,9 @@ class File(A):
         # print(extension)
         importFunctions = { '.sifx': self.import_sifx_file,
                             '.pma': self.import_pma_file,
+                            '.tif': self.import_tif_file,
                             '_ave.tif': self.import_average_tif_file,
+                            '_max.tif': self.import_maximum_projection_tif_file,
                             '.coeff': self.import_coeff_file,
                             '.map': self.import_map_file,
                             '.pks': self.import_pks_file,
@@ -198,14 +211,25 @@ class File(A):
     def import_sifx_file(self):
         imageFilePath = self.absoluteFilePath.joinpath('Spooled files.sifx')
         self.movie = SifxFile(imageFilePath)
+        self.number_of_frames = self.movie.number_of_frames
 
     def import_pma_file(self):
         imageFilePath = self.absoluteFilePath.with_suffix('.pma')
         self.movie = PmaFile(imageFilePath)
+        self.number_of_frames = self.movie.number_of_frames
+
+    def import_tif_file(self):
+        imageFilePath = self.absoluteFilePath.with_suffix('.tif')
+        self.movie = TifFile(imageFilePath)
+        self.number_of_frames = self.movie.number_of_frames
 
     def import_average_tif_file(self):
         averageTifFilePath = self.absoluteFilePath.with_name(self.name+'_ave.tif')
         self._average_image = io.imread(averageTifFilePath, as_gray=True)
+        
+    def import_maximum_projection_tif_file(self):
+        maxTifFilePath = self.absoluteFilePath.with_name(self.name+'_max.tif')
+        self._maximum_projection_image = io.imread(maxTifFilePath, as_gray=True)
 
     def import_coeff_file(self):
         if self.mapping is None:
@@ -243,15 +267,33 @@ class File(A):
         self.coordinates = coordinates
 
     def find_coordinates(self, configuration = None):
+        # Refresh configuration
+        self.experiment.import_config_file()
+
         #image = self.movie.make_average_tif(write=False)
 
         if configuration is None: configuration = self.experiment.configuration['find_coordinates']
         channel = configuration['channel']
 
+        if configuration['image'] == 'average_image':
+            full_image = self.average_image
+        elif configuration['image'] == 'maximum_image':
+            full_image = self.maximum_projection_image
+
+
         if channel in ['d','a']:
-            image = self.movie.get_channel(channel=channel)
-        elif channel == 'da':
-            raise ValueError('da not yet implemented')
+            image = self.movie.get_channel(image=full_image, channel=channel)
+        elif channel in ['da']:
+            donor_image = self.movie.get_channel(image=full_image, channel='d')
+            acceptor_image = self.movie.get_channel(image=full_image, channel='a')
+
+            image_transformation = translate([-self.movie.width / 2, 0]) @ self.mapping.transformation
+            acceptor_image_transformed = ski.transform.warp(acceptor_image, image_transformation, preserve_range=True)
+            image = (donor_image + acceptor_image_transformed) / 2
+
+            plt.imshow(np.stack([donor_image.astype('uint8'),
+                                 acceptor_image_transformed.astype('uint8'),
+                                 np.zeros((self.movie.height, self.movie.width//2)).astype('uint8')], axis=-1))
 
         # #coordinates = find_peaks(image=image, method='adaptive-threshold', minimum_area=5, maximum_area=15)
         # coordinates = find_peaks(image=image, method='local-maximum', threshold=50)
@@ -314,6 +356,9 @@ class File(A):
         #self.traces = np.reshape(rawData.ravel(), (self.number_of_colours * self.number_of_molecules, self.number_of_frames), order='F') # 2d array of traces
 
     def extract_traces(self):
+        # Refresh configuration
+        self.experiment.import_config_file()
+
         if self.movie is None: raise FileNotFoundError('No movie file was found')
         self.traces = extract_traces(self.movie, self.coordinates, channel='all', gauss_width = 11)
         self.export_traces_file()
@@ -347,11 +392,13 @@ class File(A):
     #        file.close()
 
     def addMolecule(self):
+        index = len(self.molecules) # this is the molecule number
         self.molecules.append(Molecule(self))
-        self.molecules[-1].index = len(self.molecules)  # this is the molecule number
+        self.molecules[-1].index = index
 
-    def histogram(self):
-        histogram(self.molecules)
+    def histogram(self, axis = None, bins = 100, parameter = 'E', molecule_averaging = False, makeFit=False, export=False, **kwargs):
+        histogram(self.molecules, axis=axis, bins=bins, parameter=parameter, molecule_averaging=molecule_averaging, makeFit=makeFit, collection_name=self, **kwargs)
+        if export: plt.savefig(self.absoluteFilePath.with_name(f'{self.name}_{parameter}_histogram').with_suffix('.png'))
 
     def importExcel(self, filename=None):
         if filename is None:
@@ -412,18 +459,30 @@ class File(A):
 
     def select(self, figure=None):
         plt.ion()
-        for molecule in self.molecules:
+        for index, molecule in enumerate(self.molecules):
             molecule.plot(figure=figure)
+            plt.title('Molecule ' + str(index), y=-0.01)
             plt.show()
             plt.pause(0.001)
+            print('Molecule ' + str(index))
             input("Press enter to continue")
 
     def perform_mapping(self, configuration = None):
+        # Refresh configuration
+        self.experiment.import_config_file()
+
         image = self.average_image
         if configuration is None: configuration = self.experiment.configuration['mapping']
 
+        donor_image = self.movie.get_channel(image=image, channel='d')
+        acceptor_image = self.movie.get_channel(image=image, channel='a')
+        donor_coordinates = find_peaks(image=donor_image, **configuration['peak_finding']['donor'])
+        acceptor_coordinates = find_peaks(image=acceptor_image, **configuration['peak_finding']['acceptor'])
+        acceptor_coordinates = transform(acceptor_coordinates, translation=[image.shape[0]//2, 0])
+        coordinates = np.append(donor_coordinates, acceptor_coordinates, axis=0)
+
         #coordinates = find_peaks(image=image, method='adaptive-threshold', minimum_area=5, maximum_area=15)
-        coordinates = find_peaks(image=image, **configuration['peak_finding'])
+        #coordinates = find_peaks(image=image, **configuration['peak_finding'])
 
         coordinates = coordinates_after_gaussian_fit(coordinates, image)
         coordinates = coordinates_without_intensity_at_radius(coordinates, image,
@@ -443,6 +502,12 @@ class File(A):
         self.mapping.file = self
         self.is_mapping_file = True
         self.export_coeff_file()
+    
+    def copy_coordinates_to_selected_files(self):
+        for file in self.experiment.selectedFiles:
+            if file is not self:
+                file.coordinates = self.coordinates
+                file.export_pks_file()
 
     def use_mapping_for_all_files(self):
         self.is_mapping_file = True
@@ -451,24 +516,47 @@ class File(A):
             if file is not self:
                 file.mapping = self.mapping
                 file.is_mapping_file = False
-
-    def show_average_image(self, mode='2d', figure=None):
+                
+    def show_image(self, image_type='default', mode='2d', figure=None):
+        # Refresh configuration
+        if image_type is 'default':
+            self.experiment.import_config_file()
+            image_type = self.experiment.configuration['find_coordinates']['image']
+        
         if figure is None: figure = plt.figure() # Or possibly e.g. plt.figure('Movie')
+        axis = figure.gca()
+        
+        # Choose method to plot 
+        if image_type == 'average_image':
+            image = self.average_image
+            axis.set_title('Average image')
+        elif image_type == 'maximum_image':
+            image = self.maximum_projection_image
+            axis.set_title('Maximum projection')
+            
         if mode == '2d':
-            axis = figure.gca()
-            axis.imshow(self.average_image)
+            vmax = np.percentile(image, 99.99)
+            axis.imshow(image, vmax=vmax)
         if mode == '3d':
             from matplotlib import cm
             axis = figure.gca(projection='3d')
-            X = np.arange(self.average_image.shape[1])
-            Y = np.arange(self.average_image.shape[0])
+            X = np.arange(image.shape[1])
+            Y = np.arange(image.shape[0])
             X, Y = np.meshgrid(X, Y)
-            axis.plot_surface(X,Y,self.average_image, cmap=cm.coolwarm,
+            axis.plot_surface(X,Y,image, cmap=cm.coolwarm,
                                    linewidth=0, antialiased=False)
 
-    def show_coordinates(self, figure = None, **kwargs):
+    def show_average_image(self, mode='2d', figure=None):
+        self.show_image(image_type='average_image', mode=mode, figure=figure)
+
+    def show_coordinates(self, figure=None, annotate=False, **kwargs):
         if not figure: figure = plt.figure()
 
         if self.coordinates is not None:
             axis = figure.gca()
             axis.scatter(self.coordinates[:,0],self.coordinates[:,1], facecolors='none', edgecolors='r', **kwargs)
+
+            if annotate:
+                for molecule in self.molecules:
+                    for i in np.arange(self.number_of_colours):
+                        axis.annotate(molecule.index, molecule.coordinates[i], color='white')

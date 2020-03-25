@@ -42,10 +42,12 @@ class MainFrame(wx.Frame):
         # File menu in Menu bar
         fileMenu = wx.Menu()
         fileMenuOpen = fileMenu.Append(wx.ID_OPEN, "&Open", "Open directory")
+        fileMenuFindNewFiles = fileMenu.Append(wx.ID_ANY, "&Find new files")
         fileMenuAbout = fileMenu.Append(wx.ID_ABOUT, "&About")
         fileMenuExit = fileMenu.Append(wx.ID_EXIT, "&Exit")
 
         self.Bind(wx.EVT_MENU, self.OnOpen, fileMenuOpen)
+        self.Bind(wx.EVT_MENU, self.OnFindNewFiles, fileMenuFindNewFiles)
         self.Bind(wx.EVT_MENU, self.OnAbout, fileMenuAbout)
         self.Bind(wx.EVT_MENU, self.OnExit, fileMenuExit)
 
@@ -159,7 +161,15 @@ class MainFrame(wx.Frame):
 #
 #            self.tree.Expand(self.experimentRoot)
 
+    def OnFindNewFiles(self, event):
+        originalFiles = [file for file in self.experiment.files]
+        self.experiment.addAllFilesInMainPath()
+        newFiles = [file for file in self.experiment.files if file not in originalFiles]
 
+        for file in newFiles:
+            self.tree.AddFile(file, self.experiment.item)
+
+        self.tree.insertDataIntoColumns()
 
     def OnAbout(self,event):
         dlg = wx.MessageDialog(self, 'Software for trace analysis', 'About Trace Analysis', wx.OK)
@@ -248,7 +258,9 @@ class MoviePanel(wx.Frame):
     def ShowMovie(self, show_coordinates = True):
         if self.IsShown():
             self.panel.axis.clear()
-            if self._file is not None: self._file.show_average_image(figure = self.panel.figure)
+            if self._file is not None: 
+                self._file.show_image(figure = self.panel.figure)
+
             if show_coordinates:
                 if self._file.is_mapping_file:
                     self._file.mapping.show_mapping_transformation(figure=self.panel.figure)
@@ -366,6 +378,7 @@ class HyperTreeListPlus(HTL.HyperTreeList):
         experimentItemNames = [item.GetText() for item in self.root.GetChildren()]
         if experiment.name not in experimentItemNames:
             experimentItem = self.AppendItem(self.root, experiment.name, ct_type = 1, data = experiment)
+            experiment.item = experimentItem
 
         print(experiment.name)
 
@@ -467,6 +480,11 @@ class HyperTreeListPlus(HTL.HyperTreeList):
                 self.Bind(wx.EVT_MENU, lambda selectEvent: self.OnApplyMappingToOtherFiles(selectEvent, item, file),
                           popupMenuApplyMappingToOtherFiles)
 
+            if file.coordinates is not None:
+                popupMenuCopyCoordinatesToSelectedFiles = popupMenu.Append(wx.ID_ANY, "&Copy coordinates to selected files", "Copy coordinates to selected files")
+                self.Bind(wx.EVT_MENU, lambda selectEvent: self.OnCopyCoordinatesToSelectedFiles(selectEvent, item, file),
+                          popupMenuCopyCoordinatesToSelectedFiles)
+
             self.PopupMenu(popupMenu, event.GetPoint())
 
     def OnPerformMapping(self, event, item, file):
@@ -477,6 +495,11 @@ class HyperTreeListPlus(HTL.HyperTreeList):
         standardColour = self.GetItemBackgroundColour(self.GetRootItem().GetChildren()[0])
         for item in self.FileItems: self.SetItemBackgroundColour(item, standardColour)
         self.SetItemBackgroundColour(item, wx.YELLOW) #wx.Colour(160,160,160))
+        
+    def OnCopyCoordinatesToSelectedFiles(self, event, item, file):
+        # Maybe we should somehow indicate which files have coordinates from other files. [IS 31-01-2020]
+        file.copy_coordinates_to_selected_files()
+        self.insertDataIntoColumns()
 
 
     def CheckItem3(self, item, checked = True):

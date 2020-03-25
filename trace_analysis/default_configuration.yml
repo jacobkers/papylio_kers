@@ -1,8 +1,10 @@
 find_coordinates:
     channel: d
+    image: average_image
     peak_finding:
         method: local-maximum
-        threshold: 10
+        minimum_intensity_difference: 10
+        maximum_intensity_difference: 40  # Optional
     coordinate_optimization:
         coordinates_within_margin:
             margin: 20
@@ -14,8 +16,12 @@ find_coordinates:
             fraction_of_peak_max: 0.25
 mapping:
     peak_finding:
-        method: local-maximum
-        threshold: 10
+        donor:
+            method: local-maximum
+            minimum_intensity_difference: 200
+        acceptor:
+            method: local-maximum
+            minimum_intensity_difference: 50
     coordinate_optimization:
         coordinates_after_gaussian_fit:
             gaussian_width: 9
