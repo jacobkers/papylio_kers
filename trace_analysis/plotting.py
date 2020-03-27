@@ -5,7 +5,7 @@ import matplotlib.patches as patches
 from matplotlib.collections import PatchCollection
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-from trace_analysis.molecule import Molecule
+# from trace_analysis.molecule import Molecule
 
 def histogram(molecules, axis = None, bins=100, parameter = 'E', molecule_averaging=False, makeFit=False, collection_name='', **kwargs):
     if not molecules: return None
