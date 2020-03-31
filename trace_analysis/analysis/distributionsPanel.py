@@ -29,6 +29,38 @@ class Panel(wx.Frame):
 
         flagsLeft = wx.SizerFlags(0)
         flagsLeft.Align(wx.LEFT).Border(wx.ALL, 5)
+
+        # Grid sizer to hold dataset selection radiobutton and naming option
+        sboxData = wx.StaticBox(panel, label="Data")
+        sboxDataSizer = wx.StaticBoxSizer(sboxData, wx.VERTICAL)
+
+        gridSizerDataSelect = wx.GridBagSizer(5, 5)
+        self.radioDataSeparate = wx.RadioButton(sboxData,
+                                                label='Analyze separately',
+                                                style = wx.RB_GROUP)
+
+        self.radioDataSeparate.Bind(wx.EVT_RADIOBUTTON, self.onRadioSeparatePress)
+
+        self.radioDataCombine = wx.RadioButton(sboxData,
+                                                label='Combine selected')
+
+        self.radioDataCombine.Bind(wx.EVT_RADIOBUTTON, self.onRadioCombinePress)
+        self.entryDataName = wx.TextCtrl(sboxData, size=(80,20))
+
+        self.entryDataName.Disable()
+        gridSizerDataSelect.Add(self.radioDataSeparate, pos=(0, 0), flag=wx.LEFT,
+                                border=5)
+        gridSizerDataSelect.Add(self.radioDataCombine, pos=(1, 0), flag=wx.LEFT,
+                                border=5)
+        gridSizerDataSelect.Add(wx.StaticText(sboxData, label='Dataset Name:'),
+                                pos=(0, 1), flag=wx.LEFT, border=5)
+        gridSizerDataSelect.Add(self.entryDataName, pos=(1, 1), flag=wx.LEFT,
+                                border=5)
+
+        sboxDataSizer.Add(gridSizerDataSelect, 1, wx.EXPAND)
+
+
+
         # Static box for input of distribution plot and fit options
         sboxConfig = wx.StaticBox(panel, label="Configuration")
         sboxConfigSizer = wx.StaticBoxSizer(sboxConfig, wx.VERTICAL)
@@ -37,6 +69,8 @@ class Panel(wx.Frame):
         sBoxSizerSelect = wx.BoxSizer(wx.HORIZONTAL)
         sBoxSizerSelect.Add(wx.StaticText(sboxConfig, label="Distribution: ",
                                           style=wx.ALIGN_LEFT), flagsCenter)
+
+
 
         self.comboDist = wx.ComboBox(sboxConfig, value='offtime',
                                         choices=['offtime', 'ontime'],
@@ -199,6 +233,7 @@ class Panel(wx.Frame):
         self.QuitButton.Bind(wx.EVT_BUTTON, self.OnQuitPress)
 
         #  Add the main sizers to the top sizer
+        topsizer.Add(sboxDataSizer, flagsExpand)
         topsizer.Add(sboxConfigSizer, flagsExpand)
         topsizer.Add(self.gridSaveSizer, flagsExpand)
         topsizer.Add(boxPlotButtonsSizer, flagsExpand)
@@ -275,6 +310,12 @@ class Panel(wx.Frame):
         self.configuration[dist]['BootRepeats'] = self.entryBoots.GetValue()
 
         return self.configuration[dist]
+
+    def onRadioCombinePress(self, event):
+        self.entryDataName.Enable()
+
+    def onRadioSeparatePress(self, event):
+        self.entryDataName.Disable()
 
     def OnHelpPress(self, event):
         print('help')

@@ -11,35 +11,40 @@ import sys
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-from trace_analysis.analysis import SAfitting
-from trace_analysis.analysis import common_PDF
+
+if __name__ == '__main__':
+    import SAfitting
+    import common_PDF
+else:
+    from trace_analysis.analysis import SAfitting
+    from trace_analysis.analysis import common_PDF
 # import SAfitting
 sns.set(style="ticks")
 sns.set_color_codes()
 
 
-def analyze(dwells_data, dist, configuration):
-    config = configuration
-    d = apply_config_to_data(dwells_data, dist, config)
+def analyze(dwells_data, name, dist, configuration):
+    conf = configuration
+    d = apply_config_to_data(dwells_data, dist, conf)
     figures = []
     fit_data = []
-    keys_with_data = []
+    keys_with_data = []  # keys refer to 'red', 'green', 'total', 'FRET'
     for key in d.keys():
         if d[key].empty:  # check if the dataframe is empty
             print(f'{dist} dataFrame for {key} is empty')
             continue
         dwells = d[key].loc[:,dist].values
-        if config['FitBool']:
-            fit_res = fit(dwells, model=config['model'], Nfits=int(config['Nfits']),
-                           include_over_Tmax=config['TmaxBool'],
-                           bootstrap=config['BootBool'],
-                           boot_repeats=int(config['BootRepeats']))
+        if conf['FitBool']:
+            fit_res = fit(dwells, model=conf['model'], Nfits=int(conf['Nfits']),
+                           include_over_Tmax=conf['TmaxBool'],
+                           bootstrap=conf['BootBool'],
+                           boot_repeats=int(conf['BootRepeats']))
             fit_data.append(fit_res)
         else:
             fit_res = None
         print(f'plotting {key} {dist}')
-        figure = plot(dwells, dist, trace=key, binsize=config['binsize'],
-                      scale=config['scale'], style=config['PlotType'],
+        figure = plot(dwells, name, dist, trace=key, binsize=conf['binsize'],
+                      scale=conf['scale'], style=conf['PlotType'],
                       fit_result=fit_res)
         figures.append(figure)
         keys_with_data.append(key)
@@ -66,7 +71,7 @@ def fit(dwells, model='1Exp', Nfits=1,  include_over_Tmax=True,
 
 
 
-def plot(dwells, dist='offtime', trace='red', binsize='auto', scale='log',
+def plot(dwells, name, dist='offtime', trace='red', binsize='auto', scale='log',
          style='dots', color='from_trace', fit_result=None):
 
     try:
@@ -78,7 +83,7 @@ def plot(dwells, dist='offtime', trace='red', binsize='auto', scale='log',
         bin_edges = binsize
     values, bins = np.histogram(dwells, bins=bin_edges, density=True)
     centers = (bins[1:] + bins[:-1]) / 2.0
-    fig = plt.figure(f'Histogram {trace} {dist}s', figsize=(4,3), dpi=200)
+    fig = plt.figure(f'Histogram {trace} {dist}s {name}', figsize=(4,3), dpi=200)
 
     if color == 'from_trace':
         if dist == 'offtime':
@@ -90,16 +95,28 @@ def plot(dwells, dist='offtime', trace='red', binsize='auto', scale='log',
     label = f'{dist} pdf, N={dwells.size}'
     if style == 'dots':
 
-        plt.plot(centers, values, 'o', color=color, label=label)
+        plt.plot(centers, values, '.', color=color, label=label)
     if style == 'bars':
         plt.bar(centers, values, color=color, label=label,
                 width=(bins[1] - bins[0]))
     if style == 'line':
         plt.plot(centers, values, '-', lw=2, color=color, label=label)
 
-    # if fit_result is not None:
+    if fit_result is not None:
+        p = fit_result.P1[0]
+        tau1 = fit_result.tau1[0]
+        tau2 = fit_result.tau2[0]
 
+        print(p, tau1, tau2)
+        if p == 1:
+        #     print('plotting fit')
+            time, fit = common_PDF.Exp1(tau1, Tmax=centers[-1])
+            label = f'tau={tau1:.1f}'
 
+        else:
+            time, fit = common_PDF.Exp2(p, tau1, tau2, Tmax=centers[-1])
+            label = f'p={p:.2f}, tau1={tau1:.1f}, tau2={int(tau2)}'
+        plt.plot(time, fit, color='black', label='Fit \n '+label)
 
     if scale in ['Log', 'Log-Log']:
         plt.yscale('log')
@@ -161,7 +178,7 @@ if __name__ == '__main__':
          'FitBool': True,
          'TmaxBool': False,
          'BootBool': False,
-         'model': '1Exp',
+         'model': '2Exp',
          'Nfits': '1',
          'BootRepeats': '5'}
 

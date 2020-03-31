@@ -110,7 +110,7 @@ class File:
             else:
                 num_of_frames = self.experiment.configuration['compute_image']['numFrames']
                 if self.number_of_frames < num_of_frames:
-                    print('Number of frames entered exceeds size movie:', self.number_of_frames)
+                    print('Number of frames entered exceeds size movie')
                     return []
             print('#frames: ', num_of_frames)
             self._maximum_projection_image = self.movie.make_maximum_projection(number_of_frames=num_of_frames, write = True)
@@ -235,16 +235,16 @@ class File:
         if self.mapping is None: # the following only works for 'linear'transformation_type
             tmp=np.genfromtxt(str(self.relativeFilePath) + '.coeff')
             [coefficients,coefficients_inverse]=np.split(tmp,2)
-            
+
             self.mapping = Mapping2(transformation_type='linear')
             self.mapping.transformation = np.zeros((3,3))
             self.mapping.transformation[2,2] = 1
             self.mapping.transformation[[0,0,0,1,1,1],[2,0,1,2,0,1]] = coefficients
-            
+
             self.mapping.transformation_inverse = np.zeros((3,3))
             self.mapping.transformation_inverse[2,2] = 1
             self.mapping.transformation_inverse[[0,0,0,1,1,1],[2,0,1,2,0,1]] = coefficients_inverse
-                
+
             self.mapping.file = self
 
     def export_coeff_file(self):
@@ -269,7 +269,7 @@ class File:
         self.mapping = Mapping2(transformation_type='nonlinear')
         self.mapping.transformation = (P,Q) #{'P': P, 'Q': Q}
         #self.mapping.file = self
-        
+
         degree = int(np.sqrt(len(coefficients_inverse) // 2) - 1)
         Pi = coefficients_inverse[:len(coefficients_inverse) // 2].reshape((degree + 1, degree + 1))
         Qi = coefficients_inverse[len(coefficients_inverse) // 2 : len(coefficients_inverse)].reshape((degree + 1, degree + 1))
@@ -277,8 +277,8 @@ class File:
        # self.mapping = Mapping2(transformation_type='nonlinear')
         self.mapping.transformation_inverse = (Pi,Qi) # {'P': Pi, 'Q': Qi}
         self.mapping.file = self
-        
-        
+
+
     def export_map_file(self):
         #saving kx,ky, still need to see how to read it in again
         map_filepath = self.absoluteFilePath.with_suffix('.map')
@@ -345,7 +345,7 @@ class File:
              'coordinates_without_intensity_at_radius': coordinates_without_intensity_at_radius}
 
         for f, kwargs in configuration['coordinate_optimization'].items():
-                coordinates = coordinate_optimization_functions[f](coordinates, image, **kwargs)
+            coordinates = coordinate_optimization_functions[f](coordinates, image, **kwargs)
 
         acceptor_bounds = np.array([[self.movie.width//2, self.movie.width], [0, self.movie.width]])
         if channel == 'a':
@@ -444,12 +444,12 @@ class File:
         molecules = steps_data.index.unique(0)
         indices = [int(m.split()[-1]) for m in molecules]
         for mol in self.molecules:
-            if mol.index+1 not in indices:
+            if mol.index + 1 not in indices:
                 continue
-            mol.steps = steps_data.loc[f'mol {mol.index+1}']
+            mol.steps = steps_data.loc[f'mol {mol.index + 1}']
             if 'kon' in mol.steps.columns:
                 k = [int(i) for i in mol.steps.kon[0]]
-#                mol.kon_boolean = np.array(k).astype(bool).reshape((4,3))
+                mol.kon_boolean = np.array(k).astype(bool).reshape((4,3))
         return steps_data
 
     def savetoExcel(self, filename=None, save=True):
@@ -514,7 +514,7 @@ class File:
 
         image = self.average_image
         if configuration is None: configuration = self.experiment.configuration['mapping']
-        
+
         #transformation_type = self.experiment.configuration['mapping']['transformation_type']
         transformation_type = configuration['transformation_type']
         print(transformation_type)
@@ -576,20 +576,20 @@ class File:
     def show_image(self, mode='2d', figure=None):
         # Refresh configuration
         self.experiment.import_config_file()
-        
+
         if figure is None: figure = plt.figure() # Or possibly e.g. plt.figure('Movie')
         axis = figure.gca()
-        
-        # Choose method to plot 
+
+        # Choose method to plot
         if self.experiment.configuration['show_movie']['image'] == 'average_image':
             image = self.average_image
             axis.set_title('Average image')
         elif self.experiment.configuration['show_movie']['image'] == 'maximum_image':
             image = self.maximum_projection_image
             axis.set_title('Maximum projection')
-            
+
         if mode == '2d':
-            p98 = np.percentile(image, 98)            
+            p98 = np.percentile(image, 98)
             axis.imshow(image, vmax=p98)
         if mode == '3d':
             from matplotlib import cm
@@ -603,9 +603,9 @@ class File:
     def show_coordinates(self, figure=None, annotate=False, **kwargs):
         # Refresh configuration
         self.experiment.import_config_file()
-        
+
         if not figure: figure = plt.figure()
-        
+
         annotate = self.experiment.configuration['show_movie']['annotate']
 
         if self.coordinates is not None:

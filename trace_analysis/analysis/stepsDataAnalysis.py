@@ -26,7 +26,7 @@ def find_mol_dwells(mol, trace='red'):
     labels = []
     for i, d in enumerate(offtimes):
         lab = 'm'
-        if times[0] == 0 and i == 0:  # first loop
+        if times[0] < 1 and i == 0:  # first loop
             lab = 'l'
         if max_time - times[-1] < 0.1 and i == len(offtimes) - 1:  # last loop
             lab = 'r'

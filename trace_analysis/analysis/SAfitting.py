@@ -13,7 +13,6 @@ if __name__ == '__main__':
     sys.path.insert(0, str(p))
     mainPath = PureWindowsPath('C:\\Users\\pimam\\Documents\\MEP\\tracesfiles')
 
-from trace_analysis import Experiment
 import numpy as np
 import pandas as pd
 import matplotlib.pylab as plt
@@ -118,7 +117,6 @@ def Best_of_Nfits_sim_anneal(dwells, Nfits, model, x_initial,
     bestNsteps = Nsteps[ibestparam]
     return bestparam, bestNsteps
 
-
 def Bootstrap_data(dwells, Ncut, Ntrial):
     dwells_Ncut = np.concatenate((dwells, np.zeros(Ncut)))
     dwells_rand = np.random.choice(dwells_Ncut, Ntrial)
@@ -127,8 +125,7 @@ def Bootstrap_data(dwells, Ncut, Ntrial):
     return Bootstrapped_dwells, Bootstrapped_Ncut
 
 
-
-def fit(dwells_all, mdl, Nfits=1, include_over_Tmax=True,
+def fit(dwells_all, mdl, dataset_name, Nfits=1, include_over_Tmax=True,
             bootstrap=False, boot_repeats=0):
     Tmax = dwells_all.max()
     if include_over_Tmax is True:
@@ -141,10 +138,12 @@ def fit(dwells_all, mdl, Nfits=1, include_over_Tmax=True,
         dwells = dwells_all
     print(f'Ncut: {Ncut}')
 
+    fit_result = pd.DataFrame(columns=['Dataset', 'model', 'params',
+                                       'values', 'error', 'Ncut', 'BootRepeats',
+                                       'steps', 'chi-square', 'BIC'])
+
     if mdl == '1Exp':
         model = ML1expcut
-        if Nfits > 1:
-            print('Multiple fit not applicable for 1Exp fitting (Nfits>1)')
         if bootstrap is True:
             Ntrial = 1000
             Ncutarray = np.empty(boot_repeats+1)
@@ -177,8 +176,9 @@ def fit(dwells_all, mdl, Nfits=1, include_over_Tmax=True,
         else:
             fit, fitparam = ML1expcut(dwells, Tcut, Ncut)
             # Save data of interest to dataframe
-            data = pd.DataFrame({'P1': [1], 'tau1': [fitparam], 'tau2':
-                                [np.nan], 'Nsteps': [np.nan], 'Ncut': [Ncut]})
+            data = pd.DataFrame({'P1': [1], 'tau1': [fitparam],
+                                 'tau2': [np.nan],
+                                 'Nsteps': [np.nan], 'Ncut': [Ncut]})
 
     elif mdl == '2Exp':
         model = P2expcut
@@ -187,7 +187,7 @@ def fit(dwells_all, mdl, Nfits=1, include_over_Tmax=True,
         avg_dwells = np.average(dwells)
         x_initial = [0.5, avg_dwells, avg_dwells]
         lwrbnd = [0, 0, 0]
-        uprbnd = [1, 2*Tmax, 2*Tmax]
+        uprbnd = [1, 2/*Tmax, 2*Tmax]
 
         # Check if bootstrapping is used
         if bootstrap is True:
@@ -245,7 +245,6 @@ def fit(dwells_all, mdl, Nfits=1, include_over_Tmax=True,
             data = pd.DataFrame({'P1': [bestparam[0]], 'tau1': [bestparam[1]],
                                 'tau2': [bestparam[2]], 'Nsteps': [bestNsteps],
                                  'Ncut': [Ncut]})
-
 
     return data
 
