@@ -128,15 +128,17 @@ def Bootstrap_data(dwells, Ncut, Ntrial):
 def fit(dwells_all, mdl, dataset_name, Nfits=1, include_over_Tmax=True,
             bootstrap=False, boot_repeats=0):
     Tmax = dwells_all.max()
+    print(include_over_Tmax)
     if include_over_Tmax is True:
-        Tcut = Tmax - 5
+        Tcut = 300#Tmax - 5
         dwells = dwells_all[dwells_all < Tcut]
         Ncut = dwells_all[dwells_all >= Tcut].size
+        print(f'Ncut: {Ncut}')
     else:
         Tcut = 0
         Ncut = 0
         dwells = dwells_all
-    print(f'Ncut: {Ncut}')
+#    print(f'Ncut: {Ncut}')
 
     fit_result = pd.DataFrame(columns=['Dataset', 'model', 'params',
                                        'values', 'error', 'Ncut', 'BootRepeats',
@@ -187,7 +189,7 @@ def fit(dwells_all, mdl, dataset_name, Nfits=1, include_over_Tmax=True,
         avg_dwells = np.average(dwells)
         x_initial = [0.5, avg_dwells, avg_dwells]
         lwrbnd = [0, 0, 0]
-        uprbnd = [1, 2/*Tmax, 2*Tmax]
+        uprbnd = [1, 2*Tmax, 2*Tmax]
 
         # Check if bootstrapping is used
         if bootstrap is True:

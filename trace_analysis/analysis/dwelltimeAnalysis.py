@@ -34,8 +34,10 @@ def analyze(dwells_data, name, dist, configuration):
             print(f'{dist} dataFrame for {key} is empty')
             continue
         dwells = d[key].loc[:,dist].values
+        print(np.size(dwells), 'dwells selected')
+        print(conf['TmaxBool'], 'tmax')
         if conf['FitBool']:
-            fit_res = fit(dwells, model=conf['model'], Nfits=int(conf['Nfits']),
+            fit_res = fit(dwells, model=conf['model'], dataset_name=name, Nfits=int(conf['Nfits']),
                            include_over_Tmax=conf['TmaxBool'],
                            bootstrap=conf['BootBool'],
                            boot_repeats=int(conf['BootRepeats']))
@@ -53,18 +55,19 @@ def analyze(dwells_data, name, dist, configuration):
         fit_data = pd.concat(fit_data, axis=1, keys=keys_with_data)
     return d, figures, fit_data
 
-def fit(dwells, model='1Exp', Nfits=1,  include_over_Tmax=True,
+def fit(dwells, model='1Exp', dataset_name='data', Nfits=1,  include_over_Tmax=True,
         bootstrap=True, boot_repeats=100):
+    print(include_over_Tmax, 'Tmax')
     if model == '1Exp+2Exp':
         fit_result = []
         for model in ['1Exp', '2Exp']:
-            result = SAfitting.fit(dwells, model, Nfits,  include_over_Tmax,
+            result = SAfitting.fit(dwells, model, dataset_name, Nfits, include_over_Tmax,
                                   bootstrap, boot_repeats)
             fit_result.append(result)
         fit_result = pd.concat(fit_result, axis=1, ignore_index=True)
         return fit_result
 
-    fit_result = SAfitting.fit(dwells, model, Nfits,  include_over_Tmax,
+    fit_result = SAfitting.fit(dwells, model, dataset_name, Nfits, include_over_Tmax,
                                   bootstrap, boot_repeats)
     print(fit_result)
     return fit_result
@@ -73,7 +76,10 @@ def fit(dwells, model='1Exp', Nfits=1,  include_over_Tmax=True,
 
 def plot(dwells, name, dist='offtime', trace='red', binsize='auto', scale='log',
          style='dots', color='from_trace', fit_result=None):
-
+    Tmax=300
+    Ncut= dwells[dwells >= Tmax].size
+    dwells=dwells[dwells<Tmax]
+    
     try:
         bsize = float(binsize)
         bin_edges = np.arange(min(dwells), max(dwells) + bsize, bsize)
@@ -110,12 +116,12 @@ def plot(dwells, name, dist='offtime', trace='red', binsize='auto', scale='log',
         print(p, tau1, tau2)
         if p == 1:
         #     print('plotting fit')
-            time, fit = common_PDF.Exp1(tau1, Tmax=centers[-1])
+            time, fit = common_PDF.Exp1(tau1, Tmax=Tmax)#centers[-1])
             label = f'tau={tau1:.1f}'
 
         else:
-            time, fit = common_PDF.Exp2(p, tau1, tau2, Tmax=centers[-1])
-            label = f'p={p:.2f}, tau1={tau1:.1f}, tau2={int(tau2)}'
+            time, fit = common_PDF.Exp2(p, tau1, tau2, Tmax=Tmax)#centers[-1])
+            label = f'p={p:.2f}, tau1={tau1:.1f}, tau2={int(tau2)}, Ncut={Ncut}'
         plt.plot(time, fit, color='black', label='Fit \n '+label)
 
     if scale in ['Log', 'Log-Log']:
