@@ -34,8 +34,9 @@ def analyze(dwells_data, name, dist, configuration):
             print(f'{dist} dataFrame for {key} is empty')
             continue
         dwells = d[key].loc[:,dist].values
+        dwells= dwells
+        dwells = dwells[dwells>0]
         print(np.size(dwells), 'dwells selected')
-        print(conf['TmaxBool'], 'tmax')
         if conf['FitBool']:
             fit_res = fit(dwells, model=conf['model'], dataset_name=name, Nfits=int(conf['Nfits']),
                            include_over_Tmax=conf['TmaxBool'],
@@ -109,20 +110,27 @@ def plot(dwells, name, dist='offtime', trace='red', binsize='auto', scale='log',
         plt.plot(centers, values, '-', lw=2, color=color, label=label)
 
     if fit_result is not None:
-        p = fit_result.P1[0]
-        tau1 = fit_result.tau1[0]
-        tau2 = fit_result.tau2[0]
+        if fit_result.tau1[0]>fit_result.tau2[0]:
+            p = 1- fit_result.P1[0]
+            tau1 = fit_result.tau2[0]
+            tau2 = fit_result.tau1[0]
+        else:
+            p = fit_result.P1[0]
+            tau1 = fit_result.tau1[0]
+            tau2 = fit_result.tau2[0]
+            
 
         print(p, tau1, tau2)
         if p == 1:
         #     print('plotting fit')
             time, fit = common_PDF.Exp1(tau1, Tmax=Tmax)#centers[-1])
             label = f'tau={tau1:.1f}'
+            plt.plot(time, fit, color='r', label=f'1expfit, Ncut={Ncut} \n {label}')
 
         else:
             time, fit = common_PDF.Exp2(p, tau1, tau2, Tmax=Tmax)#centers[-1])
-            label = f'p={p:.2f}, tau1={tau1:.1f}, tau2={int(tau2)}, Ncut={Ncut}'
-        plt.plot(time, fit, color='black', label='Fit \n '+label)
+            label = f'p={p:.2f}, tau1={tau1:.1f}, tau2={int(tau2)}'
+            plt.plot(time, fit, color='r', label=f'2expfit, Ncut={Ncut} \n {label}')
 
     if scale in ['Log', 'Log-Log']:
         plt.yscale('log')
