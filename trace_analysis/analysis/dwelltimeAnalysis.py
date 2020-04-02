@@ -13,10 +13,10 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 if __name__ == '__main__':
-    import SAfitting_v2 as SAfitting
+    import SAfitting
     import common_PDF
 else:
-    from trace_analysis.analysis import SAfitting_v2 as SAfitting
+    from trace_analysis.analysis import SAfitting
     from trace_analysis.analysis import common_PDF
 # import SAfitting
 sns.set(style="ticks")
@@ -107,7 +107,6 @@ def plot(dwells, name, dist='offtime', trace='red', binsize='auto', scale='log',
 
     if fit_result is not None:
 
-
         if fit_result.model[0] == '1Exp':
             tau = fit_result.value[0]
             error = fit_result.error[0]
@@ -117,9 +116,9 @@ def plot(dwells, name, dist='offtime', trace='red', binsize='auto', scale='log',
             label = f'tau={tau:.1f} $\pm$ {error:.1f}'
 
         elif fit_result.model[0] == '2Exp':
-            p errp = fit_result.value[0], fit_result.error[0]
+            p, errp = fit_result.value[0], fit_result.error[0]
             tau1, err1 = fit_result.value[1], fit_result.error[1]
-            tau2, err2 = fit_result.value[2], fit_results.error[2]
+            tau2, err2 = fit_result.value[2], fit_result.error[2]
             print(fit_result)
             time, fit = common_PDF.Exp2(p, tau1, tau2, Tmax=centers[-1])
             label = f'p={p:.2f}, tau1={tau1:.1f}, tau2={int(tau2)}'
