@@ -42,9 +42,8 @@ def P2expcut(dwells, params, Tcut, Ncut):
 
 def LogLikelihood(xdata, params, model, Tcut, Ncut):
     Pi, Pcut = model(xdata, params, Tcut, Ncut)
-    LLikecut = 0
-    if Ncut != 0:
-        LLikecut = -Ncut * np.log(Pcut)
+
+    LLikecut = -Ncut * np.log(Pcut)
     LLike = np.sum(-np.log(Pi)) + LLikecut
     return LLike
 
@@ -97,6 +96,7 @@ def Metropolis(f, model, x, x_trial, T, data, Tcut, Ncut, xstep):
 def Best_of_Nfits_sim_anneal(dwells, Nfits, model, x_initial,
                              lwrbnd, uprbnd, Tcut, Ncut):
     # Perform N fits on data using simmulated annealing
+    # print(Nfits)
     LLike = np.empty(Nfits)
     for i in range(0, Nfits):
         fitdata, xstep = simulated_annealing(data=dwells,
@@ -104,7 +104,7 @@ def Best_of_Nfits_sim_anneal(dwells, Nfits, model, x_initial,
                                               model=model, x_initial=x_initial,
                                               lwrbnd=lwrbnd, uprbnd=uprbnd,
                                               Tcut=Tcut, Ncut=Ncut)
-        print(f"fit{i} found: {fitdata}")
+        # print(f"fit{i} found: {fitdata}")
         if i == 0:
             fitparam = [fitdata]
             Nsteps = [xstep]
@@ -125,11 +125,11 @@ def Bootstrap_data(dwells, Ncut):
     return Bootstrapped_dwells, Bootstrapped_Ncut
 
 
-def fit(dwells_all, mdl, dataset_name='Dwells', Tmax=1000, Nfits=1,
+def fit(dwells_all, mdl, dataset_name='Dwells', Nfits=1,
         include_over_Tmax=True, bootstrap=False, boot_repeats=0):
-
+    Tmax = dwells_all.max()
     if include_over_Tmax:
-
+        Tmax = Tmax - 5
         dwells = dwells_all[dwells_all < Tmax]
         Ncut = dwells_all[dwells_all >= Tmax].size
     else:
@@ -233,12 +233,12 @@ if __name__ == '__main__':
 
     # Start fitting
     mdl = '2Exp'
-    Tmax = 1000
-    include_over_Tmax = True
+
+    include_over_Tmax = False
     Nfits = 1
-    bootstrap = True
+    bootstrap = False
     boot_repeats = 100
-    result, boot = fit(dwells_all, mdl, 'test', Tmax, Nfits, include_over_Tmax,
+    result, boot = fit(dwells_all, mdl, 'test', Nfits, include_over_Tmax,
                   bootstrap, boot_repeats)
     print(result)
     plt.hist(boot)
