@@ -96,7 +96,6 @@ def Metropolis(f, model, x, x_trial, T, data, Tcut, Ncut, xstep):
 def Best_of_Nfits_sim_anneal(dwells, Nfits, model, x_initial,
                              lwrbnd, uprbnd, Tcut, Ncut):
     # Perform N fits on data using simmulated annealing
-    # print(Nfits)
     LLike = np.empty(Nfits)
     for i in range(0, Nfits):
         fitdata, xstep = simulated_annealing(data=dwells,
@@ -176,7 +175,7 @@ def fit(dwells_all, mdl, dataset_name='Dwells', Nfits=1,
         uprbnd = [1, 2*Tmax, 2*Tmax]
 
         # Perform N fits on data using simmulated annealing and select best
-        bestvalue, bestNsteps = Best_of_Nfits_sim_anneal(
+        bestvalues, bestNsteps = Best_of_Nfits_sim_anneal(
                                                         dwells, Nfits,
                                                         model=model,
                                                         x_initial=x_initial,
@@ -184,6 +183,11 @@ def fit(dwells_all, mdl, dataset_name='Dwells', Nfits=1,
                                                         uprbnd=uprbnd,
                                                         Tcut=Tmax,
                                                         Ncut=Ncut)
+
+        # make sure the fit parameters are ordered from low to high dwelltimes
+        if bestvalues[1] > bestvalues[2]:
+            bestvalues = [1-bestvalues[0]] + [bestvalues[2], bestvalues[1]]
+
         error = [0, 0, 0]
         boot_params = np.empty((boot_repeats,3))
         # Check if bootstrapping is used
@@ -204,16 +208,20 @@ def fit(dwells_all, mdl, dataset_name='Dwells', Nfits=1,
                                                     Tcut=Tmax,
                                                     Ncut=boot_Ncut)
                 print(f'boot: {i+1}, steps: {Nsteps}')
+                # make sure the fit parameters are ordered from low to high dwelltimes
+                if params[1] > params[2]:
+                    params = [1-params[0]] + [params[2], params[1]]
+
                 Ncutarray[i] = boot_Ncut
                 Nstepsarray[i] = Nsteps
                 boot_params[i] = params
                 LLike[i] = LogLikelihood(dwells,params, model, Tmax, Ncut)
-            error = np.std(boot_params, axis=0)
+            errors = np.std(boot_params, axis=0)
 
         # Put fit result into dataframe
 
         result = pd.DataFrame({'param': ['p', 'tau1', 'tau2'],
-                              'value': bestvalue, 'error': error})
+                              'value': bestvalues, 'error': errors})
 
         result_rest = pd.DataFrame({'Tmax': [Tmax], 'Ncut': [Ncut],
                                'BootRepeats': [boot_repeats*bootstrap],
@@ -236,8 +244,8 @@ if __name__ == '__main__':
 
     include_over_Tmax = False
     Nfits = 1
-    bootstrap = False
-    boot_repeats = 100
+    bootstrap = True
+    boot_repeats = 10
     result, boot = fit(dwells_all, mdl, 'test', Nfits, include_over_Tmax,
                   bootstrap, boot_repeats)
     print(result)

@@ -73,7 +73,6 @@ def fit(dwells, model='1Exp', dataset_name='Dwells', Nfits=1,
     return fit_result
 
 
-
 def plot(dwells, name, dist='offtime', trace='red', binsize='auto', scale='log',
          style='dots', color='from_trace', fit_result=None):
 
@@ -120,6 +119,7 @@ def plot(dwells, name, dist='offtime', trace='red', binsize='auto', scale='log',
             tau1, err1 = fit_result.value[1], fit_result.error[1]
             tau2, err2 = fit_result.value[2], fit_result.error[2]
             print(fit_result)
+            print(f'errors: ', errp, err1, err2)
             time, fit = common_PDF.Exp2(p, tau1, tau2, Tmax=centers[-1])
             label = f'p={p:.2f}, tau1={tau1:.1f}, tau2={int(tau2)}'
         plt.plot(time, fit, color='black', label='Fit \n '+label)
@@ -133,7 +133,7 @@ def plot(dwells, name, dist='offtime', trace='red', binsize='auto', scale='log',
     plt.legend()
     plt.ylabel('Probability')
     plt.xlabel(f'{dist} (s)')
-    plt.locator_params(axis='y', nbins=3)
+    # plt.locator_params(axis='y', nbins=3)
     plt.tight_layout()
     plt.show()
     return fig
