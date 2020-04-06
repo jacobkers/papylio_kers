@@ -387,6 +387,30 @@ class File:
         self.traces = np.reshape(rawData.ravel(), (self.number_of_colours, self.number_of_molecules, self.number_of_frames), order='F')  # 3d array of traces
         #self.traces = np.reshape(rawData.ravel(), (self.number_of_colours * self.number_of_molecules, self.number_of_frames), order='F') # 2d array of traces
 
+
+    def import_excel_file(self, filename=None):
+        if filename is None:
+            filename = f'{self.relativeFilePath}_steps_data.xlsx'
+        try:
+            steps_data = pd.read_excel(filename, index_col=[0,1],
+                                       dtype={'kon':np.str})       # reads from the 1st excel sheet of the file
+
+            print(f'imported steps data from excel file for {self.name}')
+        except FileNotFoundError:
+            print(f'No saved analysis for {self.name} as {filename}')
+            return
+        molecules = steps_data.index.unique(0)
+        indices = [int(m.split()[-1]) for m in molecules]
+        for mol in self.molecules:
+            if mol.index + 1 not in indices:
+                continue
+            mol.steps = steps_data.loc[f'mol {mol.index + 1}']
+            mol.isSelected = True
+            if 'kon' in mol.steps.columns:
+                k = [int(i) for i in mol.steps.kon[0]]
+                mol.kon_boolean = np.array(k).astype(bool).reshape((4,3))
+        return steps_data
+
     def extract_traces(self):
         # Refresh configuration
         self.experiment.import_config_file()
@@ -433,25 +457,7 @@ class File:
         histogram(self.molecules, axis=axis, bins=bins, parameter=parameter, molecule_averaging=molecule_averaging, makeFit=makeFit, collection_name=self, **kwargs)
         if export: plt.savefig(self.absoluteFilePath.with_name(f'{self.name}_{parameter}_histogram').with_suffix('.png'))
 
-    def import_excel_file(self, filename=None):
-        if filename is None:
-            filename = f'{self.relativeFilePath}_steps_data.xlsx'
-        try:
-            steps_data = pd.read_excel(filename, index_col=[0,1],
-                                       dtype={'kon':np.str})       # reads from the 1st excel sheet of the file
-        except FileNotFoundError:
-            print(f'No saved analysis for {self.name} as {filename}')
-            return
-        molecules = steps_data.index.unique(0)
-        indices = [int(m.split()[-1]) for m in molecules]
-        for mol in self.molecules:
-            if mol.index + 1 not in indices:
-                continue
-            mol.steps = steps_data.loc[f'mol {mol.index + 1}']
-            if 'kon' in mol.steps.columns:
-                k = [int(i) for i in mol.steps.kon[0]]
-                mol.kon_boolean = np.array(k).astype(bool).reshape((4,3))
-        return steps_data
+
 
     def savetoExcel(self, filename=None, save=True):
         if filename is None:

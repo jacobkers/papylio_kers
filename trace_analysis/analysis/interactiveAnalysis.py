@@ -173,6 +173,7 @@ class InteractivePlot(object):
         [ax.lines.clear() for ax in self.fig.get_axes()[:2]]
         # find the current molecule instance
         self.mol = self.molecules[self.mol_indx]
+        print(f'mol. coordinates: {self.mol.coordinates}')
         self.fig.canvas.set_window_title(f'Dataset: {self.file.name}')
 
         # Check if molecule is selected, This will also set the title of the axis
