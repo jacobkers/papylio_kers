@@ -15,8 +15,8 @@ from trace_analysis.mapping.icp import icp, icp_apply_transform
 class Mapping2:
     def __init__(self, source = None, destination = None, method = None,
                  transformation_type = 'linear', dest2source_translation = None):
-        self.source = source
-        self.destination = destination
+        self.source = source #source=donor=left side image
+        self.destination = destination #destination=acceptor=right side image
         self.method = method
         self.transformation_type = transformation_type
         self.transformation = None

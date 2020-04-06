@@ -12,10 +12,10 @@ import numpy as np
 
 def polywarp(xy_out,xy_in,degree=3):
     """
-    originally polywarp(xi,yi,xo,yo,,degree=3)
+    originally polywarp(Xout,Yout,Xin,Yin,degree=3)
     Fit a function of the form
-    xi = sum over i and j from 0 to degree of: kx[i,j] * xo^j * yo^i # so xo=xin, xi=xout?!
-    yi = sum over i and j from 0 to degree of: ky[i,j] * xo^j * yo^i
+    Xout = sum over i and j from 0 to degree of: kx[i,j] * Xin^j * Yin^i 
+    Yout = sum over i and j from 0 to degree of: ky[i,j] * Xin^j * Yin^i
     Return kx, ky
     len(xo) must be greater than or equal to (degree+1)^2
     """

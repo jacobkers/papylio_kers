@@ -116,22 +116,17 @@ def icp(source, destination, max_iterations=20, tolerance=0.001, dest2source_tra
         i: number of iterations to converge
     '''
 
-    source = np.hstack([source, np.ones((len(source), 1))])
-    destination = np.hstack([destination, np.ones((len(destination), 1))]) #need to go to three columns for applying translation
+    source = np.hstack([source, np.ones((len(source), 1))]) # source=donor=left side of the image
+    destination = np.hstack([destination, np.ones((len(destination), 1))]) #destination=acceptor=right side of the image
 
-    destination_dummy = destination.copy()
+    destination_dummy = destination.copy() # destination_dummy=destination (=acceptor) transformed to donor location, left side image
     #transformation_final = np.identity(3)
-
     if dest2source_translation is None:
         # Initial translation to overlap both point-sets
         dest2source_translation = np.identity(3)
         dest2source_translation[0:2,2] = (np.mean(source, axis=0) - np.mean(destination, axis=0))[0:2] # need to be set back to mapping2
-        # Possibly add initial rotation and reflection as well, see best_fit_transform?
-    
-    source2dest_translation=np.identity(3)
-    source2dest_translation[0:2,2]=-dest2source_translation[0:2,2]
-    
-    '''source_summy is the source, moved to destination location'''
+        # Possibly add initial rotation and reflection as well, see best_fit_transform?  
+    '''destination_dummy is the destination, moved to source location'''
     destination_dummy = (dest2source_translation @ destination_dummy.T).T
     #transformation_final = transformation_final @ initial_translation
 
@@ -139,7 +134,7 @@ def icp(source, destination, max_iterations=20, tolerance=0.001, dest2source_tra
 
     for i in range(max_iterations):
         print(i)
-        # Find the nearest neighbors between the current source and destination points
+        # Find the nearest neighbors between the current source and destination_dummy points (which are in the same left part of the image now)
         # distances, indices = nearest_neighbor(source_dummy[:,:2], destination[:,:2])
         distances, source_indices, destination_indices = \
             nearest_neighbor_pair(source[:, :2], destination_dummy[:, :2])
@@ -153,12 +148,12 @@ def icp(source, destination, max_iterations=20, tolerance=0.001, dest2source_tra
             source_indices = source_indices[distances<cutoff]
             destination_indices = destination_indices[distances<cutoff]
 
-            kx_s2d, ky_s2d = polywarp(destination_dummy[destination_indices,:], source[source_indices,:]) 
+   #         kx_s2d, ky_s2d = polywarp(destination_dummy[destination_indices,:], source[source_indices,:]) 
             kx_d2s, ky_d2s = polywarp(source[source_indices,:],destination_dummy[destination_indices,:]) 
             # these are the values needed to transform source into destination_dummy
             
             destination_dummy = polywarp_apply(kx_d2s, ky_d2s, destination_dummy)
-            #destination_dummy= (source2dest_translation @ destination.T).T
+
 
         elif transformation_type=='linear':
 			# compute the transformation between the current source and nearest destination points
@@ -178,12 +173,7 @@ def icp(source, destination, max_iterations=20, tolerance=0.001, dest2source_tra
             break
         prev_error = mean_error
     # continue the loop until the improvement in match is limited. The outcome are a set of matching locations, afterwards do one more transform to find final transform matrix
-    
-    # Only use indices with distances smaller than cutoff #MD: not sure you want to do this, just keep all
-    #    cutoff = 2.5 # pixels
-    #    source = source[source_indices[distances<cutoff]]
-    #    destination = destination[destination_indices[distances<cutoff]]
-    
+        
     print(i)
     plt.figure() # don't plot for every iteration --> move to after the lop
     scatter_coordinates([source,destination_dummy])
@@ -193,8 +183,8 @@ def icp(source, destination, max_iterations=20, tolerance=0.001, dest2source_tra
     if transformation_type == 'nonlinear': ## zit hier de initiele translatie nog in??
         kx_d2s, ky_d2s = polywarp(source[source_indices,:],destination[destination_indices,:]) ## or destination_dummy, really depends on how you do apply transform
         kx_s2d, ky_s2d = polywarp(destination[destination_indices,:],source[source_indices,:])
-        transformation = (kx_s2d, ky_s2d)
-        transformation_inverse = (kx_d2s,ky_d2s)
+        transformation = (kx_s2d, ky_s2d) # should be renamed to transformL2R?
+        transformation_inverse = (kx_d2s,ky_d2s) #  should be renamed to transformR2L?
         
     elif transformation_type=='linear': # replace with transform 
         T, res, rank, s = np.linalg.lstsq(source[source_indices], destination[destination_indices], rcond=None)
@@ -203,11 +193,7 @@ def icp(source, destination, max_iterations=20, tolerance=0.001, dest2source_tra
     return transformation, distances, i, transformation_inverse, dest2source_translation
 
 def icp_apply_transform  (coordinates, inverse, self_transformation,self_transformation_inverse, self_transformation_type,dest2source_translation):
-    
-    print(self_transformation)
-    source2dest_translation=np.identity(3)
-    source2dest_translation[0:2,2]=-dest2source_translation[0:2,2]
-    
+ 
     # first move destination (=acceptor) to source
     coords_dummy= coordinates.copy()
     
