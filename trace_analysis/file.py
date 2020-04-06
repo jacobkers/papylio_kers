@@ -19,7 +19,7 @@ from trace_analysis.mapping.mapping import Mapping2
 from trace_analysis.peak_finding import find_peaks
 from trace_analysis.coordinate_optimization import coordinates_within_margin, coordinates_after_gaussian_fit, coordinates_without_intensity_at_radius
 from trace_analysis.trace_extraction import extract_traces
-from trace_analysis.coordinate_transformations import translate, transform
+from trace_analysis.coordinate_transformations import translate, transform # MD: we don't want to use this anymore I think, it is only linear
 
 class File:
     def __init__(self, relativeFilePath, experiment):
@@ -187,7 +187,7 @@ class File:
                             '.pma': self.import_pma_file,
                             '.tif': self.import_tif_file,
                             '_ave.tif': self.import_average_tif_file,
-                            '_maxprojection.tif': self.import_maxprojection_tif_file,
+                            '_max.tif': self.import_maximum_projection_tif_file,
                             '.coeff': self.import_coeff_file,
                             '.map': self.import_map_file,
                             '.pks': self.import_pks_file,
@@ -226,25 +226,49 @@ class File:
     def import_average_tif_file(self):
         averageTifFilePath = self.absoluteFilePath.with_name(self.name+'_ave.tif')
         self._average_image = io.imread(averageTifFilePath, as_gray=True)
+<<<<<<< HEAD
 
     def import_maxprojection_tif_file(self):
         maxTifFilePath = self.absoluteFilePath.with_name(self.name+'_maxprojection.tif')
+=======
+        
+    def import_maximum_projection_tif_file(self):
+        maxTifFilePath = self.absoluteFilePath.with_name(self.name+'_max.tif')
+>>>>>>> 9cbf291dd367d0509b050101527471f809805c78
         self._maximum_projection_image = io.imread(maxTifFilePath, as_gray=True)
 
     def import_coeff_file(self):
         if self.mapping is None: # the following only works for 'linear'transformation_type
             tmp=np.genfromtxt(str(self.relativeFilePath) + '.coeff')
+<<<<<<< HEAD
             [coefficients,coefficients_inverse]=np.split(tmp,2)
 
+=======
+            if len(tmp)==12:  [coefficients, coefficients_inverse] = np.split(tmp,2)
+            elif len(tmp)==6: coefficients = tmp
+            else: raise TypeError('Error in importing coeff file, wrong number of lines')
+            
+>>>>>>> 9cbf291dd367d0509b050101527471f809805c78
             self.mapping = Mapping2(transformation_type='linear')
             self.mapping.transformation = np.zeros((3,3))
             self.mapping.transformation[2,2] = 1
             self.mapping.transformation[[0,0,0,1,1,1],[2,0,1,2,0,1]] = coefficients
+<<<<<<< HEAD
 
             self.mapping.transformation_inverse = np.zeros((3,3))
             self.mapping.transformation_inverse[2,2] = 1
             self.mapping.transformation_inverse[[0,0,0,1,1,1],[2,0,1,2,0,1]] = coefficients_inverse
 
+=======
+            
+            if len(tmp)==6:
+                self.mapping.transformation_inverse=np.linalg.inv(self.mapping.transformation)
+            else:
+                self.mapping.transformation_inverse = np.zeros((3,3))
+                self.mapping.transformation_inverse[2,2] = 1
+                self.mapping.transformation_inverse[[0,0,0,1,1,1],[2,0,1,2,0,1]] = coefficients_inverse
+                    
+>>>>>>> 9cbf291dd367d0509b050101527471f809805c78
             self.mapping.file = self
 
     def export_coeff_file(self):
@@ -260,8 +284,10 @@ class File:
     def import_map_file(self):
         #coefficients = np.genfromtxt(self.relativeFilePath.with_suffix('.map'))
         tmp=np.genfromtxt(self.relativeFilePath.with_suffix('.map'))
-        print(tmp)
-        [coefficients,coefficients_inverse]=np.split(tmp,2)
+        if len(tmp)==64:        [coefficients,coefficients_inverse]=np.split(tmp,2)
+        elif len(tmp)==32:      coefficients=tmp
+        else: raise TypeError ('Error in import map file, not correct number of lines')
+        
         degree = int(np.sqrt(len(coefficients) // 2) - 1)
         P = coefficients[:len(coefficients) // 2].reshape((degree + 1, degree + 1))
         Q = coefficients[len(coefficients) // 2 : len(coefficients)].reshape((degree + 1, degree + 1))
@@ -269,11 +295,25 @@ class File:
         self.mapping = Mapping2(transformation_type='nonlinear')
         self.mapping.transformation = (P,Q) #{'P': P, 'Q': Q}
         #self.mapping.file = self
+<<<<<<< HEAD
 
         degree = int(np.sqrt(len(coefficients_inverse) // 2) - 1)
         Pi = coefficients_inverse[:len(coefficients_inverse) // 2].reshape((degree + 1, degree + 1))
         Qi = coefficients_inverse[len(coefficients_inverse) // 2 : len(coefficients_inverse)].reshape((degree + 1, degree + 1))
 
+=======
+        if len(tmp)==64:
+            degree = int(np.sqrt(len(coefficients_inverse) // 2) - 1)
+            Pi = coefficients_inverse[:len(coefficients_inverse) // 2].reshape((degree + 1, degree + 1))
+            Qi = coefficients_inverse[len(coefficients_inverse) // 2 : len(coefficients_inverse)].reshape((degree + 1, degree + 1))
+        else :
+            LEN=np.shape(self._average_image)[0]
+            pts=np.array([(a,b) for a in range(20, LEN/2-20, 10) for b in range(20,LEN-20, 10)]) ##still the question whether range a & B should be swapped
+            from trace_analysis.image_adapt.polywarp import polywarp,polywarp_apply
+            pts_new=polywarp_apply(P,Q,pts)
+            plt.scatter(pts_new[:,0],pts_new[:,1],'.')
+            Pi,Qi=polywarp(pts_new[:,0],pts_new[:,1],pts[:,0],pts[:,1])
+>>>>>>> 9cbf291dd367d0509b050101527471f809805c78
        # self.mapping = Mapping2(transformation_type='nonlinear')
         self.mapping.transformation_inverse = (Pi,Qi) # {'P': Pi, 'Q': Qi}
         self.mapping.file = self
@@ -521,19 +561,23 @@ class File:
 
         image = self.average_image
         if configuration is None: configuration = self.experiment.configuration['mapping']
+<<<<<<< HEAD
 
         #transformation_type = self.experiment.configuration['mapping']['transformation_type']
+=======
+        
+>>>>>>> 9cbf291dd367d0509b050101527471f809805c78
         transformation_type = configuration['transformation_type']
         print(transformation_type)
 
         donor_image = self.movie.get_channel(image=image, channel='d')
         acceptor_image = self.movie.get_channel(image=image, channel='a')
         donor_coordinates = find_peaks(image=donor_image, **configuration['peak_finding']['donor'])
-        if donor_coordinates.size==0: #should throw a error message to warm no acceptor molecules found
-            print('no donor molecules found')
+        if donor_coordinates.size == 0: #should throw a error message to warm no acceptor molecules found
+            print('No donor molecules found')
         acceptor_coordinates = find_peaks(image=acceptor_image, **configuration['peak_finding']['acceptor'])
-        if acceptor_coordinates.size==0: #should throw a error message to warm no acceptor molecules found
-            print('no acceptor molecules found')
+        if acceptor_coordinates.size == 0: #should throw a error message to warm no acceptor molecules found
+            print('No acceptor molecules found')
         acceptor_coordinates = transform(acceptor_coordinates, translation=[image.shape[0]//2, 0])
         print(acceptor_coordinates.shape, donor_coordinates.shape)
         coordinates = np.append(donor_coordinates, acceptor_coordinates, axis=0)
@@ -549,22 +593,21 @@ class File:
                                                               # fraction_of_peak_max=0.35) # was 0.25 in IDL code
 
         margin = configuration['coordinate_optimization']['coordinates_within_margin']['margin']
-        if hasattr(self.movie, 'channel_boundaries'): #had to be added in case you do mapping on a single tif image
-            donor_coordinates = coordinates_within_margin(coordinates, bounds=self.movie.channel_boundaries('d'), margin=margin)
-            acceptor_coordinates = coordinates_within_margin(coordinates, bounds=self.movie.channel_boundaries('a'), margin=margin)
-        else:
-            donor_coordinates = coordinates_within_margin(coordinates, bounds=np.array([[0, image.shape[0] // 2],[0,image.shape[1]]]), margin=margin)
-            acceptor_coordinates = coordinates_within_margin(coordinates, bounds=np.array([[image.shape[0] // 2, image.shape[0]], [0, image.shape[1]]]), margin=margin)
+        donor_coordinates = coordinates_within_margin(coordinates, bounds=self.movie.channel_boundaries('d'), margin=margin)
+        acceptor_coordinates = coordinates_within_margin(coordinates, bounds=self.movie.channel_boundaries('a'), margin=margin)
 
-        self.mapping = Mapping2(source = donor_coordinates,
-                                destination = acceptor_coordinates,
-                                transformation_type = transformation_type,
-                                initial_translation=translate([image.shape[0]//2,0])  )
+        # donor_coordinates = coordinates_within_margin(coordinates, bounds=np.array([[0, image.shape[0] // 2],[0,image.shape[1]]]), margin=margin)
+        # acceptor_coordinates = coordinates_within_margin(coordinates, bounds=np.array([[image.shape[0] // 2, image.shape[0]], [0, image.shape[1]]]), margin=margin)
+
+        self.mapping = Mapping2(source=donor_coordinates,
+                                destination=acceptor_coordinates,
+                                transformation_type=transformation_type,
+                                dest2source_translation=translate([-image.shape[0]//2,0]))
         self.mapping.file = self
         self.is_mapping_file = True
 
-        if self.mapping.transformation_type=='linear':        self.export_coeff_file()
-        elif self.mapping.transformation_type=='nonlinear':     self.export_map_file()
+        if self.mapping.transformation_type == 'linear':        self.export_coeff_file()
+        elif self.mapping.transformation_type == 'nonlinear':     self.export_map_file()
 
     def copy_coordinates_to_selected_files(self):
         for file in self.experiment.selectedFiles:
@@ -579,6 +622,7 @@ class File:
             if file is not self:
                 file.mapping = self.mapping
                 file.is_mapping_file = False
+<<<<<<< HEAD
 
     def show_image(self, mode='2d', figure=None):
         # Refresh configuration
@@ -592,12 +636,34 @@ class File:
             image = self.average_image
             axis.set_title('Average image')
         elif self.experiment.configuration['show_movie']['image'] == 'maximum_image':
+=======
+                
+    def show_image(self, image_type='default', mode='2d', figure=None):
+        # Refresh configuration
+        if image_type is 'default':
+            self.experiment.import_config_file()
+            image_type = self.experiment.configuration['find_coordinates']['image']
+        
+        if figure is None: figure = plt.figure() # Or possibly e.g. plt.figure('Movie')
+        axis = figure.gca()
+        
+        # Choose method to plot 
+        if image_type == 'average_image':
+            image = self.average_image
+            axis.set_title('Average image')
+        elif image_type == 'maximum_image':
+>>>>>>> 9cbf291dd367d0509b050101527471f809805c78
             image = self.maximum_projection_image
             axis.set_title('Maximum projection')
 
         if mode == '2d':
+<<<<<<< HEAD
             p98 = np.percentile(image, 98)
             axis.imshow(image, vmax=p98)
+=======
+            vmax = np.percentile(image, 99.99)
+            axis.imshow(image, vmax=vmax)
+>>>>>>> 9cbf291dd367d0509b050101527471f809805c78
         if mode == '3d':
             from matplotlib import cm
             axis = figure.gca(projection='3d')
@@ -607,6 +673,12 @@ class File:
             axis.plot_surface(X,Y,image, cmap=cm.coolwarm,
                                    linewidth=0, antialiased=False)
 
+<<<<<<< HEAD
+=======
+    def show_average_image(self, mode='2d', figure=None):
+        self.show_image(image_type='average_image', mode=mode, figure=figure)
+
+>>>>>>> 9cbf291dd367d0509b050101527471f809805c78
     def show_coordinates(self, figure=None, annotate=False, **kwargs):
         # Refresh configuration
         self.experiment.import_config_file()
