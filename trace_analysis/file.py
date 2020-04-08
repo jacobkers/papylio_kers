@@ -283,11 +283,9 @@ class File:
 
     def find_coordinates(self, configuration = None):
         # Refresh configuration
-        self.experiment.import_config_file()
+        if not configuration:  self.experiment.import_config_file() # is this usefull, look at next line of code
 
-        #image = self.movie.make_average_tif(write=False)
-
-        if configuration is None: configuration = self.experiment.configuration['find_coordinates']
+        if configuration is None: configuration = self.experiment.configuration['find_coordinates'] 
         channel = configuration['channel']
 
         if configuration['image'] == 'average_image':
@@ -303,22 +301,15 @@ class File:
             acceptor_image = self.movie.get_channel(image=full_image, channel='a')
 
             image_transformation = translate([-self.movie.width / 2, 0]) @ self.mapping.transformation
-            acceptor_image_transformed = ski.transform.warp(acceptor_image, image_transformation, preserve_range=True)
+            acceptor_image_transformed = ski.transform.warp(acceptor_image, image_transformation, preserve_range=True) 
+            #MD: problem: this is a linear transform, while you might have found a nonlinear transform; is nonlinear transform of image available?
             image = (donor_image + acceptor_image_transformed) / 2
 
             plt.imshow(np.stack([donor_image.astype('uint8'),
                                  acceptor_image_transformed.astype('uint8'),
                                  np.zeros((self.movie.height, self.movie.width//2)).astype('uint8')], axis=-1))
 
-        # #coordinates = find_peaks(image=image, method='adaptive-threshold', minimum_area=5, maximum_area=15)
-        # coordinates = find_peaks(image=image, method='local-maximum', threshold=50)
-        #
-        # coordinates = coordinates_within_margin(coordinates, image, margin=20)
-        # coordinates = coordinates_after_gaussian_fit(coordinates, image)
-        # coordinates = coordinates_without_intensity_at_radius(coordinates, image,
-        #                                                       radius=4,
-        #                                                       cutoff=np.median(image),
-        #                                                       fraction_of_peak_max=0.35) # was 0.25 in IDL code
+
 
         coordinates = find_peaks(image=image, **configuration['peak_finding'])
 
@@ -332,25 +323,20 @@ class File:
 
 
         if channel == 'a':
-            coordinates = transform(coordinates, translation=[self.movie.width//2,0])
+            coordinates = transform(coordinates, translation=[self.movie.width//2,0]) 
+            # MD:here a simple transform is necessary, to move from found points in left channel to right side
 
         if self.number_of_colours == 2:
             if channel in ['d','da']:
-                acceptor_coordinates = self.mapping.transform_coordinates(coordinates, inverse=False)
+                acceptor_coordinates = self.mapping.transform_coordinates(coordinates, direction='source2destination')
                 coordinates = np.hstack([coordinates,acceptor_coordinates]).reshape((-1,2))
             if channel == 'a':
-                donor_coordinates = self.mapping.transform_coordinates(coordinates, inverse=True)
+                donor_coordinates = self.mapping.transform_coordinates(coordinates, direction='destination2source')
                 coordinates = np.hstack([donor_coordinates, coordinates]).reshape((-1, 2))
 
         self.molecules = [] # Should we put this here?
         self.coordinates = coordinates
         self.export_pks_file()
-
-        # Possibly make a separate function for this
-        #plt.imshow(image)
-        #plt.scatter(coordinates[:, 0], coordinates[:, 1], color='g')
-
-        #self.show_coordinates()
 
 
     def export_pks_file(self):
@@ -503,27 +489,29 @@ class File:
         acceptor_coordinates = transform(acceptor_coordinates, translation=[image.shape[0]//2, 0])
         coordinates = np.append(donor_coordinates, acceptor_coordinates, axis=0)
 
-        #coordinates = find_peaks(image=image, method='adaptive-threshold', minimum_area=5, maximum_area=15)
-        #coordinates = find_peaks(image=image, **configuration['peak_finding'])
+        coordinate_optimization_functions = \
+            {'coordinates_within_margin': coordinates_within_margin,
+             'coordinates_after_gaussian_fit': coordinates_after_gaussian_fit,
+             'coordinates_without_intensity_at_radius': coordinates_without_intensity_at_radius}
 
+        for f, kwargs in configuration['coordinate_optimization'].items():
+            coordinates = coordinate_optimization_functions[f](coordinates, image, **kwargs)
+            
         coordinates = coordinates_after_gaussian_fit(coordinates, image)
-        coordinates = coordinates_without_intensity_at_radius(coordinates, image,
-                                                              **configuration['coordinate_optimization']['coordinates_without_intensity_at_radius'])
-                                                              # radius=4,
-                                                              # cutoff=np.median(image),
-                                                              # fraction_of_peak_max=0.35) # was 0.25 in IDL code
-
-        margin = configuration['coordinate_optimization']['coordinates_within_margin']['margin']
-        donor_coordinates = coordinates_within_margin(coordinates, bounds=self.movie.channel_boundaries('d'), margin=margin)
-        acceptor_coordinates = coordinates_within_margin(coordinates, bounds=self.movie.channel_boundaries('a'), margin=margin)
-
-        # donor_coordinates = coordinates_within_margin(coordinates, bounds=np.array([[0, image.shape[0] // 2],[0,image.shape[1]]]), margin=margin)
-        # acceptor_coordinates = coordinates_within_margin(coordinates, bounds=np.array([[image.shape[0] // 2, image.shape[0]], [0, image.shape[1]]]), margin=margin)
+#        coordinates = coordinates_without_intensity_at_radius(coordinates, image,
+#                                                              **configuration['coordinate_optimization']['coordinates_without_intensity_at_radius'])
+#                                                              # radius=4,
+#                                                              # cutoff=np.median(image),
+#                                                              # fraction_of_peak_max=0.35) # was 0.25 in IDL code
+#
+#        margin = configuration['coordinate_optimization']['coordinates_within_margin']['margin']
+#        donor_coordinates = coordinates_within_margin(coordinates, bounds=self.movie.channel_boundaries('d'), margin=margin)
+#        acceptor_coordinates = coordinates_within_margin(coordinates, bounds=self.movie.channel_boundaries('a'), margin=margin)
 
         self.mapping = Mapping2(source=donor_coordinates,
                                 destination=acceptor_coordinates,
                                 transformation_type=transformation_type,
-                                dest2source_translation=translate([-image.shape[0]//2,0]))
+                                destination2source_translation=translate([-image.shape[0]//2,0]))
         self.mapping.file = self
         self.is_mapping_file = True
 

@@ -14,13 +14,13 @@ from trace_analysis.mapping.icp import icp, icp_apply_transform
 
 class Mapping2:
     def __init__(self, source = None, destination = None, method = None,
-                 transformation_type = 'linear', dest2source_translation = None):
+                 transformation_type = 'linear', destination2source_translation = None):
         self.source = source #source=donor=left side image
         self.destination = destination #destination=acceptor=right side image
         self.method = method
         self.transformation_type = transformation_type
         self.transformation = None
-        self.dest2source_translation = dest2source_translation
+        self.destination2source_translation = destination2source_translation
         self.transformation_inverse = None
 
         if (source is not None) and (destination is not None):
@@ -32,20 +32,18 @@ class Mapping2:
 #        return np.linalg.inv(self.transformation)
 
     @property
-    def transform_source_to_destination(self):
+    def transform_source_to_destination(self): 
         return self.transform_coordinates(self.source)
 
     def perform_mapping(self):
         print(self.transformation_type)
         if self.method == 'icp': #icp should be default
-            self.transformation, distances, iterations, self.transformation_inverse, self.dest2source_translation = \
-                icp(self.source, self.destination, dest2source_translation=self.dest2source_translation,
+            self.transformation, distances, iterations, self.transformation_inverse, self.destination2source_translation = \
+                icp(self.source, self.destination, destination2source_translation=self.destination2source_translation,
                     transformation_type=self.transformation_type)
-        # elif method == 'manual'         : mapping_manual(source, destination)
-        # elif method == 'automatic'      : mapping_automatic(source, destination)
         else: print('Method not found')
 
-    def show_mapping_transformation(self, figure=None):
+    def show_mapping_transformation(self, figure=None): 
         if not figure: figure = plt.figure()
         destination_from_source = self.transform_coordinates(self.source)
 
@@ -55,9 +53,9 @@ class Mapping2:
         axis.scatter(self.destination[:, 0], self.destination[:, 1], c='r')
         axis.scatter(destination_from_source[:, 0], destination_from_source[:, 1], c='y')
 
-    def transform_coordinates(self, coordinates, inverse = False):
+    def transform_coordinates(self, coordinates, direction='source2destination'):
         print(self.transformation)
         if self.method == 'icp':
-            return icp_apply_transform(coordinates, inverse, self.transformation,self.transformation_inverse, self.transformation_type, self.dest2source_translation)
+            return icp_apply_transform(coordinates, direction, self.transformation,self.transformation_inverse, self.transformation_type, self.destination2source_translation)
                                      
         else: print('transform_coordinates only works for icp')
