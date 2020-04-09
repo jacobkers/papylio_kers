@@ -191,4 +191,4 @@ if __name__ == '__main__':
          'Nfits': '1',
          'BootRepeats': '5'}
 
-    # result = analyze(data, 'test', 'offtime', config)
+    result = analyze(data, 'test', 'offtime', config)

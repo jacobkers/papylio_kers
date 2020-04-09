@@ -29,33 +29,18 @@ def plot_fret_histogram(molecules, Emin=0.05, Emax=0.8, Irmin=40, Iroff=0,
 
 
 
-def get_fret_per_offtime(molecule, Emin=0.05, Emax=0.8,
+def get_fret_per_offtime(molecule, trace_type='red', Emin=0.05, Emax=0.8,
                         Irmin=40, Iroff=0, Igoff=0):
     '''
     Function that gives the FRET trace with FRET calculcated only for the
     selected offtime interval. The FRET value outside this interval is put to
     zero
 
-    Parameters
-    ----------
-    molecule : TYPE
-        DESCRIPTION.
-    Emin : TYPE, optional
-        DESCRIPTION. The default is 0.05.
-    Emax : TYPE, optional
-        DESCRIPTION. The default is 0.8.
-    Irmin : TYPE, optional
-        DESCRIPTION. The default is 40.
-    Iroff : TYPE, optional
-        DESCRIPTION. The default is 0.
-    Igoff : TYPE, optional
-        DESCRIPTION. The default is 0.
-
-    Returns
-    -------
-    None.
-
     '''
+
+    if mol.steps is None:
+        return
+
 
 
 
