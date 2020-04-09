@@ -35,7 +35,6 @@ def analyze(dwells_data, dataset_name, dist, configuration):
             print(f'{dist} dataFrame for {key} is empty')
             continue
         dwells = d[key].loc[:,dist].values
-        dwells= dwells
         dwells = dwells[dwells>0]
         print(np.size(dwells), 'dwells selected')
         if conf['FitBool']:
@@ -78,10 +77,8 @@ def fit(dwells, model='1Exp', dataset_name='Dwells', Nfits=1,
 
 def plot(dwells, name, dist='offtime', trace='red', binsize='auto', scale='log',
          style='dots', color='from_trace', fit_result=None):
-    Tmax=300
-    Ncut= dwells[dwells >= Tmax].size
-    dwells=dwells[dwells<Tmax]
-    
+
+
     try:
         bsize = float(binsize)
         bin_edges = np.arange(min(dwells), max(dwells) + bsize, bsize)
@@ -114,6 +111,7 @@ def plot(dwells, name, dist='offtime', trace='red', binsize='auto', scale='log',
         if fit_result.model[0] == '1Exp':
             tau = fit_result.value[0]
             error = fit_result.error[0]
+            Ncut = fit_result.Ncut[0]
             print(f'plotting 1Exp fit')
             time, fit = common_PDF.Exp1(tau,
                                         Tmax=centers[-1]+(bins[1]-bins[0])/2)
@@ -124,6 +122,7 @@ def plot(dwells, name, dist='offtime', trace='red', binsize='auto', scale='log',
             p, errp = fit_result.value[0], fit_result.error[0]
             tau1, err1 = fit_result.value[1], fit_result.error[1]
             tau2, err2 = fit_result.value[2], fit_result.error[2]
+            Ncut = fit_result.Ncut[0]
             print(fit_result)
             print(f'errors: ', errp, err1, err2)
             time, fit = common_PDF.Exp2(p, tau1, tau2, Tmax=centers[-1])
