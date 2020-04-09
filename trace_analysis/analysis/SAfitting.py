@@ -42,9 +42,8 @@ def P2expcut(dwells, params, Tcut, Ncut):
 
 def LogLikelihood(xdata, params, model, Tcut, Ncut):
     Pi, Pcut = model(xdata, params, Tcut, Ncut)
-    LLikecut = 0
-    if Ncut != 0:
-        LLikecut = -Ncut * np.log(Pcut)
+
+    LLikecut = -Ncut * np.log(Pcut)
     LLike = np.sum(-np.log(Pi)) + LLikecut
     return LLike
 
@@ -60,7 +59,7 @@ def update_temp(T, alpha):
     return T
 
 
-def simmulated_annealing(data, objective_function, model, x_initial, lwrbnd,
+def simulated_annealing(data, objective_function, model, x_initial, lwrbnd,
                          uprbnd, Tcut, Ncut, Tstart=100.,
                          Tfinal=0.001, delta1=0.1, delta2=2.5, alpha=0.9):
     i = 0
@@ -80,7 +79,7 @@ def simmulated_annealing(data, objective_function, model, x_initial, lwrbnd,
                                            np.min([x[i] + delta2, uprbnd[i]]))
         x, xstep = Metropolis(objective_function, model, x, x_trial, T, data,
                               Tcut, Ncut, xstep)
-    print(f'steps: {xstep}')
+
     return x, xstep
 
 
@@ -99,12 +98,12 @@ def Best_of_Nfits_sim_anneal(dwells, Nfits, model, x_initial,
     # Perform N fits on data using simmulated annealing
     LLike = np.empty(Nfits)
     for i in range(0, Nfits):
-        fitdata, xstep = simmulated_annealing(data=dwells,
+        fitdata, xstep = simulated_annealing(data=dwells,
                                               objective_function=LogLikelihood,
                                               model=model, x_initial=x_initial,
                                               lwrbnd=lwrbnd, uprbnd=uprbnd,
                                               Tcut=Tcut, Ncut=Ncut)
-        print(f"fit{i} found: {fitdata}")
+        # print(f"fit{i} found: {fitdata}")
         if i == 0:
             fitparam = [fitdata]
             Nsteps = [xstep]
@@ -117,70 +116,56 @@ def Best_of_Nfits_sim_anneal(dwells, Nfits, model, x_initial,
     bestNsteps = Nsteps[ibestparam]
     return bestparam, bestNsteps
 
-def Bootstrap_data(dwells, Ncut, Ntrial):
+def Bootstrap_data(dwells, Ncut):
     dwells_Ncut = np.concatenate((dwells, np.zeros(Ncut)))
-    dwells_rand = np.random.choice(dwells_Ncut, Ntrial)
+    dwells_rand = np.random.choice(dwells_Ncut, dwells_Ncut.size)
     Bootstrapped_dwells = dwells_rand[dwells_rand > 0]
-    Bootstrapped_Ncut = np.count_nonzero(dwells_rand == 0)
+    Bootstrapped_Ncut = dwells_rand[dwells_rand == 0].size
     return Bootstrapped_dwells, Bootstrapped_Ncut
 
 
-def fit(dwells_all, mdl, dataset_name, Nfits=1, include_over_Tmax=True,
-            bootstrap=False, boot_repeats=0):
+def fit(dwells_all, mdl, dataset_name='Dwells', Nfits=1,
+        include_over_Tmax=True, bootstrap=False, boot_repeats=0):
     Tmax = dwells_all.max()
-    if include_over_Tmax is True:
-        Tcut = 300#Tmax - 5
-        dwells = dwells_all[dwells_all < Tcut]
-        Ncut = dwells_all[dwells_all >= Tcut].size
+    if include_over_Tmax:
+        Tmax = Tmax - 5
+        dwells = dwells_all[dwells_all < Tmax]
+        Ncut = dwells_all[dwells_all >= Tmax].size
         print(f'Ncut: {Ncut}')
     else:
-        Tcut = 0
         Ncut = 0
         dwells = dwells_all
 
-    fit_result = pd.DataFrame(columns=['Dataset', 'model', 'params',
-                                       'values', 'error', 'Ncut', 'BootRepeats',
-                                       'steps', 'chi-square', 'BIC'])
+    # the initial holder for the fit result irrespective of the fit model
+    fit_result = pd.DataFrame({'Dataset': [dataset_name], 'model': [mdl]})
+
 
     if mdl == '1Exp':
-        model = ML1expcut
+        #  The 1exp fit is given by analytic solution, just the average dwelltime
+        fit, bestvalue = ML1expcut(dwells, Tmax, Ncut)
+        error = 0
+        boot_params = np.empty(boot_repeats)
         if bootstrap is True:
-            Ntrial = 1000
-            Ncutarray = np.empty(boot_repeats+1)
-            Nstepsarray = np.full(boot_repeats+1, np.nan)
+            Ncutarray = np.empty(boot_repeats)
             for i in range(0, boot_repeats):
-                boot_dwells, boot_Ncut = Bootstrap_data(dwells, Ncut, Ntrial)
-                fit, param = model(boot_dwells, Tcut, boot_Ncut)
+                boot_dwells, boot_Ncut = Bootstrap_data(dwells, Ncut)
+                fit_boot, param = ML1expcut(boot_dwells, Tmax, boot_Ncut)
                 Ncutarray[i] = boot_Ncut
-                if i == 0:
-                    params = [1, param, np.nan]
-                    fitparam = [params]
-                else:
-                    params = [1, param, np.nan]
-                    fitparam = np.concatenate((fitparam, [params]), axis=0)
+                boot_params[i] = param
 
-            # Save data of interest to dataframe
-            bestfit, bestparam = model(dwells, Tcut, Ncut)
-            bestparams = [1, bestparam, np.nan]
-            Allfitparam = np.concatenate((fitparam, [bestparams]), axis=0)
-            data = pd.DataFrame(Allfitparam)
-            # print("All fitparam: ", data)
-            data.columns = ['P1', 'tau1', 'tau2']
-            data['Nsteps'] = Nstepsarray
-            data['Ncut'] = Ncutarray
-            idx = []
-            for i in range(len(fitparam)):
-                idx.append('fit' + str(i+1))
-            idx.append('Bestfit')
-            data.index = idx
-        else:
-            fit, fitparam = ML1expcut(dwells, Tcut, Ncut)
-            # Save data of interest to dataframe
-            data = pd.DataFrame({'P1': [1], 'tau1': [fitparam],
-                                 'tau2': [np.nan],
-                                 'Nsteps': [np.nan], 'Ncut': [Ncut]})
+            error = np.std(boot_params)
+
+        result = pd.DataFrame({'param': ['tau'], 'value': [bestvalue],
+                               'error': [error], 'Tmax': [Tmax], 'Ncut': [Ncut],
+                               'BootRepeats': [boot_repeats*bootstrap],
+                               'steps': ['N/A']})
+
+        fit_result = pd.concat([fit_result, result], axis=1)
+
 
     elif mdl == '2Exp':
+        # For 2exp fit the maximum likelihood of the 2exp model is obtained with
+        # simulated annealing minimization of -log(ML)
         model = P2expcut
 
         # Set parameters for simmulated annealing
@@ -189,128 +174,129 @@ def fit(dwells_all, mdl, dataset_name, Nfits=1, include_over_Tmax=True,
         lwrbnd = [0, 0, 0]
         uprbnd = [1, 2*Tmax, 2*Tmax]
 
+        # Perform N fits on data using simmulated annealing and select best
+        bestvalues, bestNsteps = Best_of_Nfits_sim_anneal(
+                                                        dwells, Nfits,
+                                                        model=model,
+                                                        x_initial=x_initial,
+                                                        lwrbnd=lwrbnd,
+                                                        uprbnd=uprbnd,
+                                                        Tcut=Tmax,
+                                                        Ncut=Ncut)
+
+        # make sure the fit parameters are ordered from low to high dwelltimes
+        if bestvalues[1] > bestvalues[2]:
+            bestvalues = [1-bestvalues[0]] + [bestvalues[2], bestvalues[1]]
+
+        errors = [0, 0, 0]
+        boot_params = np.empty((boot_repeats,3))
         # Check if bootstrapping is used
-        if bootstrap is True:
-            Ntrial = 1000
+        if bootstrap:
             LLike = np.empty(boot_repeats)
             Ncutarray = np.empty(boot_repeats)
-            Nstepsarray = np.full(boot_repeats, np.nan)
+            Nstepsarray = np.empty(boot_repeats)
             print('bootrepeats: ', boot_repeats)
             for i in range(0, boot_repeats):
-                boot_dwells, boot_Ncut = Bootstrap_data(dwells, Ncut, Ntrial)
-                param, Nsteps = Best_of_Nfits_sim_anneal(
-                                                       boot_dwells, Nfits,
-                                                       model=model,
-                                                       x_initial=x_initial,
-                                                       lwrbnd=lwrbnd,
-                                                       uprbnd=uprbnd,
-                                                       Tcut=Tcut,
-                                                       Ncut=boot_Ncut)
+                boot_dwells, boot_Ncut = Bootstrap_data(dwells, Ncut)
+                params, Nsteps =simulated_annealing(
+                                                    boot_dwells,
+                                                    LogLikelihood,
+                                                    model=model,
+                                                    x_initial=x_initial,
+                                                    lwrbnd=lwrbnd,
+                                                    uprbnd=uprbnd,
+                                                    Tcut=Tmax,
+                                                    Ncut=boot_Ncut)
+                print(f'boot: {i+1}, steps: {Nsteps}')
+                # make sure the fit parameters are ordered from low to high dwelltimes
+                if params[1] > params[2]:
+                    params = [1-params[0]] + [params[2], params[1]]
+
                 Ncutarray[i] = boot_Ncut
                 Nstepsarray[i] = Nsteps
-                if i == 0:
-                    fitparam = [param]
-                else:
-                    fitparam = np.concatenate((fitparam, [param]), axis=0)
-                LLike[i] = LogLikelihood(dwells, fitparam[i], model, Tcut, Ncut)
-            ibestparam = np.argmax(LLike)
+                boot_params[i] = params
+                LLike[i] = LogLikelihood(dwells,params, model, Tmax, Ncut)
+            errors = np.std(boot_params, axis=0)
 
-            # Save data of interest to dataframe
-            bestparam = fitparam[ibestparam]
-            bestNsteps = Nstepsarray[ibestparam]
-            bestNcut = Ncutarray[ibestparam]
-            Allfitparam = np.concatenate((fitparam, [bestparam]), axis=0)
-            Nstepsarray = np.concatenate((Nstepsarray, [bestNsteps]), axis=0)
-            Ncutarray = np.concatenate((Ncutarray, [bestNcut]), axis=0)
-            data = pd.DataFrame(Allfitparam)
-            data.columns = ['P1', 'tau1', 'tau2']
-            data['Nsteps'] = Nstepsarray
-            data['Ncut'] = Ncutarray
-            idx = []
-            for i in range(len(fitparam)):
-                idx.append('fit' + str(i+1))
-            idx.append('Bestfit')
-            data.index = idx
+        # Put fit result into dataframe
 
-        else:
-            # Perform N fits on data using simmulated annealing and select best
-            bestparam, bestNsteps = Best_of_Nfits_sim_anneal(
-                                                       dwells, Nfits,
-                                                       model=model,
-                                                       x_initial=x_initial,
-                                                       lwrbnd=lwrbnd,
-                                                       uprbnd=uprbnd,
-                                                       Tcut=Tcut,
-                                                       Ncut=Ncut)
-            data = pd.DataFrame({'P1': [bestparam[0]], 'tau1': [bestparam[1]],
-                                'tau2': [bestparam[2]], 'Nsteps': [bestNsteps],
-                                 'Ncut': [Ncut]})
+        result = pd.DataFrame({'param': ['p', 'tau1', 'tau2'],
+                              'value': bestvalues, 'error': errors})
 
-    return data
+        result_rest = pd.DataFrame({'Tmax': [Tmax], 'Ncut': [Ncut],
+                               'BootRepeats': [boot_repeats*bootstrap],
+                               'steps': [bestNsteps]})
+
+        fit_result = pd.concat([fit_result, result, result_rest], axis=1)
+
+    return fit_result, boot_params
 
 
 if __name__ == '__main__':
 
     # Import data and prepare for fitting
-    filename = '2exp_N=10000_rep=1_tau1=10_tau2=200_a=0.5'
-    dwells_all = np.load('./data/2exp_N=10000_rep=1_tau1=10_tau2=200_a=0.5.npy')
-    dwells_all = dwells_all[0]
+    path = 'C:/Users/iason/Desktop/traceanalysis/trace_analysis/traces/'
+    filename = 'hel0_dwells_data.xlsx'
+    dwells_all = pd.read_excel(path+filename).offtime.dropna().values
 
     # Start fitting
     mdl = '2Exp'
-    include_over_Tmax = True
-    Nfits = 200
+
+    include_over_Tmax = False
+    Nfits = 1
     bootstrap = True
-    boot_repeats = 200
-    fitdata = fit(dwells_all, mdl, Nfits, include_over_Tmax, bootstrap, boot_repeats)
-    print(fitdata)
-    if bootstrap is True:
-        fitdata.to_csv(f'{mdl}_inclTmax_{include_over_Tmax}_bootstrap{boot_repeats}.csv', index=False)
-    else:
-        fitdata.to_csv(f'{mdl}_inclTmax_{include_over_Tmax}_Nfits{Nfits}.csv', index=False)
+    boot_repeats = 10
+    result, boot = fit(dwells_all, mdl, 'test', Nfits, include_over_Tmax,
+                  bootstrap, boot_repeats)
+    print(result)
+    plt.hist(boot)
+    # if bootstrap is True:
+    #     fitdata.to_csv(f'{mdl}_inclTmax_{include_over_Tmax}_bootstrap{boot_repeats}.csv', index=False)
+    # else:
+    #     fitdata.to_csv(f'{mdl}_inclTmax_{include_over_Tmax}_Nfits{Nfits}.csv', index=False)
 
 #    newdata = pd.read_csv(f'{mdl}_inclTmax_{include_over_Tmax}_bootstrap{boot_repeats}.csv')
 
     # Getting measures and plotting the parameter values found
-    taubnd = 100
-    fitP1 = []
-    fittau1 = []
-    fittau2 = []
-    for i in range(0, len(fitdata['tau1'])):
-        if fitdata['tau1'][i] > taubnd:
-            fittau2.append(fitdata['tau1'][i])
-            fitP1.append(1-fitdata['P1'][i])
-        else:
-            fittau1.append(fitdata['tau1'][i])
-            fitP1.append(fitdata['P1'][i])
-        if fitdata['tau2'][i] > taubnd:
-            fittau2.append(fitdata['tau2'][i])
-        else:
-            fittau1.append(fitdata['tau2'][i])
+    # taubnd = 100
+    # fitP1 = []
+    # fittau1 = []
+    # fittau2 = []
+    # for i in range(0, len(fitdata['tau1'])):
+    #     if fitdata['tau1'][i] > taubnd:
+    #         fittau2.append(fitdata['tau1'][i])
+    #         fitP1.append(1-fitdata['P1'][i])
+    #     else:
+    #         fittau1.append(fitdata['tau1'][i])
+    #         fitP1.append(fitdata['P1'][i])
+    #     if fitdata['tau2'][i] > taubnd:
+    #         fittau2.append(fitdata['tau2'][i])
+    #     else:
+    #         fittau1.append(fitdata['tau2'][i])
 
-    P1_avg = np.average(fitP1)
-    tau1_avg = np.average(fittau1)
-    tau2_avg = np.average(fittau2)
-    P1_std = np.std(fitP1)
-    tau1_std = np.std(fittau1)
-    tau2_std = np.std(fittau2)
-    Nbins = 50
+    # P1_avg = np.average(fitP1)
+    # tau1_avg = np.average(fittau1)
+    # tau2_avg = np.average(fittau2)
+    # P1_std = np.std(fitP1)
+    # tau1_std = np.std(fittau1)
+    # tau2_std = np.std(fittau2)
+    # Nbins = 50
 
-    plt.figure()
-    plt.hist(fitP1, bins=Nbins)
-    plt.vlines(P1_avg, 0, round(Nbins/2), label='avg:'+"{0:.2f}".format(P1_avg))
-    plt.title(f'Fit values for P1 Nfits: {boot_repeats} Nbins: {Nbins}')
-    plt.legend()
-    plt.figure()
-    plt.hist(fittau1, bins=Nbins)
-    plt.vlines(tau1_avg, 0, round(Nbins/2), label='avg:'+"{0:.2f}".format(tau1_avg))
-    plt.title(rf'Fit values for $\tau$1 Nfits: {boot_repeats} Nbins: {Nbins}')
-    plt.legend()
-    plt.figure()
-    plt.hist(fittau2, bins=Nbins)
-    plt.vlines(tau2_avg, 0, round(Nbins/2), label='avg:'+"{0:.2f}".format(tau2_avg))
-    plt.title(rf'Fit values for $\tau$1 Nfits: {boot_repeats} Nbins: {Nbins}')
-    plt.legend()
+    # plt.figure()
+    # plt.hist(fitP1, bins=Nbins)
+    # plt.vlines(P1_avg, 0, round(Nbins/2), label='avg:'+"{0:.2f}".format(P1_avg))
+    # plt.title(f'Fit values for P1 Nfits: {boot_repeats} Nbins: {Nbins}')
+    # plt.legend()
+    # plt.figure()
+    # plt.hist(fittau1, bins=Nbins)
+    # plt.vlines(tau1_avg, 0, round(Nbins/2), label='avg:'+"{0:.2f}".format(tau1_avg))
+    # plt.title(rf'Fit values for $\tau$1 Nfits: {boot_repeats} Nbins: {Nbins}')
+    # plt.legend()
+    # plt.figure()
+    # plt.hist(fittau2, bins=Nbins)
+    # plt.vlines(tau2_avg, 0, round(Nbins/2), label='avg:'+"{0:.2f}".format(tau2_avg))
+    # plt.title(rf'Fit values for $\tau$1 Nfits: {boot_repeats} Nbins: {Nbins}')
+    # plt.legend()
 
 
 #    # Plot data with double and single exponential fit

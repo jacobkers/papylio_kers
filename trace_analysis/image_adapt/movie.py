@@ -120,7 +120,7 @@ class Movie:
         self._maximum_projection_image = maximum_projection_image
         
         if write:
-            tif_filepath = self.writepath.joinpath(self.name+'_maxprojection.tif')
+            tif_filepath = self.writepath.joinpath(self.name+'_max.tif')
             if self.bitdepth == 16: TIFF.imwrite(tif_filepath, np.uint16(maximum_projection_image))
             elif self.bitdepth == 8: TIFF.imwrite(tif_filepath, np.uint8(maximum_projection_image))
 

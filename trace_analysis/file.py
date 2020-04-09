@@ -19,7 +19,7 @@ from trace_analysis.mapping.mapping import Mapping2
 from trace_analysis.peak_finding import find_peaks
 from trace_analysis.coordinate_optimization import coordinates_within_margin, coordinates_after_gaussian_fit, coordinates_without_intensity_at_radius
 from trace_analysis.trace_extraction import extract_traces
-from trace_analysis.coordinate_transformations import translate, transform
+from trace_analysis.coordinate_transformations import translate, transform # MD: we don't want to use this anymore I think, it is only linear
 
 class File:
     def __init__(self, relativeFilePath, experiment):
@@ -95,7 +95,7 @@ class File:
                 if self.number_of_frames < num_of_frames:
                     print('Number of frames entered exceeds size movie')
                     return []
-            print('#frames: ', num_of_frames)
+            print('ave #frames: ', num_of_frames)
             self._average_image = self.movie.make_average_image(number_of_frames=num_of_frames, write = True)
         return self._average_image
 
@@ -112,7 +112,7 @@ class File:
                 if self.number_of_frames < num_of_frames:
                     print('Number of frames entered exceeds size movie')
                     return []
-            print('#frames: ', num_of_frames)
+            print('max #frames: ', num_of_frames)
             self._maximum_projection_image = self.movie.make_maximum_projection(number_of_frames=num_of_frames, write = True)
         return self._maximum_projection_image
 
@@ -187,7 +187,7 @@ class File:
                             '.pma': self.import_pma_file,
                             '.tif': self.import_tif_file,
                             '_ave.tif': self.import_average_tif_file,
-                            '_maxprojection.tif': self.import_maxprojection_tif_file,
+                            '_max.tif': self.import_maximum_projection_tif_file,
                             '.coeff': self.import_coeff_file,
                             '.map': self.import_map_file,
                             '.pks': self.import_pks_file,
@@ -227,14 +227,21 @@ class File:
         averageTifFilePath = self.absoluteFilePath.with_name(self.name+'_ave.tif')
         self._average_image = io.imread(averageTifFilePath, as_gray=True)
 
-    def import_maxprojection_tif_file(self):
-        maxTifFilePath = self.absoluteFilePath.with_name(self.name+'_maxprojection.tif')
+    def import_maximum_projection_tif_file(self):
+        maxTifFilePath = self.absoluteFilePath.with_name(self.name+'_max.tif')
         self._maximum_projection_image = io.imread(maxTifFilePath, as_gray=True)
 
     def import_coeff_file(self):
         if self.mapping is None: # the following only works for 'linear'transformation_type
             tmp=np.genfromtxt(str(self.relativeFilePath) + '.coeff')
             [coefficients,coefficients_inverse]=np.split(tmp,2)
+
+            if len(tmp)==12:
+                [coefficients, coefficients_inverse] = np.split(tmp,2)
+            elif len(tmp)==6:
+                coefficients = tmp
+            else:
+                raise TypeError('Error in importing coeff file, wrong number of lines')
 
             self.mapping = Mapping2(transformation_type='linear')
             self.mapping.transformation = np.zeros((3,3))
@@ -244,6 +251,14 @@ class File:
             self.mapping.transformation_inverse = np.zeros((3,3))
             self.mapping.transformation_inverse[2,2] = 1
             self.mapping.transformation_inverse[[0,0,0,1,1,1],[2,0,1,2,0,1]] = coefficients_inverse
+
+
+            if len(tmp)==6:
+                self.mapping.transformation_inverse=np.linalg.inv(self.mapping.transformation)
+            else:
+                self.mapping.transformation_inverse = np.zeros((3,3))
+                self.mapping.transformation_inverse[2,2] = 1
+                self.mapping.transformation_inverse[[0,0,0,1,1,1],[2,0,1,2,0,1]] = coefficients_inverse
 
             self.mapping.file = self
 
@@ -260,8 +275,10 @@ class File:
     def import_map_file(self):
         #coefficients = np.genfromtxt(self.relativeFilePath.with_suffix('.map'))
         tmp=np.genfromtxt(self.relativeFilePath.with_suffix('.map'))
-        print(tmp)
-        [coefficients,coefficients_inverse]=np.split(tmp,2)
+        if len(tmp)==64:        [coefficients,coefficients_inverse]=np.split(tmp,2)
+        elif len(tmp)==32:      coefficients=tmp
+        else: raise TypeError ('Error in import map file, not correct number of lines')
+
         degree = int(np.sqrt(len(coefficients) // 2) - 1)
         P = coefficients[:len(coefficients) // 2].reshape((degree + 1, degree + 1))
         Q = coefficients[len(coefficients) // 2 : len(coefficients)].reshape((degree + 1, degree + 1))
@@ -274,6 +291,17 @@ class File:
         Pi = coefficients_inverse[:len(coefficients_inverse) // 2].reshape((degree + 1, degree + 1))
         Qi = coefficients_inverse[len(coefficients_inverse) // 2 : len(coefficients_inverse)].reshape((degree + 1, degree + 1))
 
+        if len(tmp)==64:
+            degree = int(np.sqrt(len(coefficients_inverse) // 2) - 1)
+            Pi = coefficients_inverse[:len(coefficients_inverse) // 2].reshape((degree + 1, degree + 1))
+            Qi = coefficients_inverse[len(coefficients_inverse) // 2 : len(coefficients_inverse)].reshape((degree + 1, degree + 1))
+        else :
+            LEN=np.shape(self._average_image)[0]
+            pts=np.array([(a,b) for a in range(20, LEN/2-20, 10) for b in range(20,LEN-20, 10)]) ##still the question whether range a & B should be swapped
+            from trace_analysis.image_adapt.polywarp import polywarp,polywarp_apply
+            pts_new=polywarp_apply(P,Q,pts)
+            plt.scatter(pts_new[:,0],pts_new[:,1],'.')
+            Pi,Qi=polywarp(pts_new[:,0],pts_new[:,1],pts[:,0],pts[:,1])
        # self.mapping = Mapping2(transformation_type='nonlinear')
         self.mapping.transformation_inverse = (Pi,Qi) # {'P': Pi, 'Q': Qi}
         self.mapping.file = self
@@ -303,7 +331,8 @@ class File:
 
         #image = self.movie.make_average_tif(write=False)
 
-        if configuration is None: configuration = self.experiment.configuration['find_coordinates']
+        if configuration is None:
+            configuration = self.experiment.configuration['find_coordinates']
         channel = configuration['channel']
 
         if configuration['image'] == 'average_image':
@@ -324,7 +353,9 @@ class File:
 
             plt.imshow(np.stack([donor_image.astype('uint8'),
                                  acceptor_image_transformed.astype('uint8'),
-                                 np.zeros((self.movie.height, self.movie.width//2)).astype('uint8')], axis=-1))
+                                 np.zeros((self.movie.height,
+                                           self.movie.width//2)).astype('uint8')],
+                                           axis=-1))
 
         # #coordinates = find_peaks(image=image, method='adaptive-threshold', minimum_area=5, maximum_area=15)
         # coordinates = find_peaks(image=image, method='local-maximum', threshold=50)
@@ -387,6 +418,30 @@ class File:
         self.traces = np.reshape(rawData.ravel(), (self.number_of_colours, self.number_of_molecules, self.number_of_frames), order='F')  # 3d array of traces
         #self.traces = np.reshape(rawData.ravel(), (self.number_of_colours * self.number_of_molecules, self.number_of_frames), order='F') # 2d array of traces
 
+
+    def import_excel_file(self, filename=None):
+        if filename is None:
+            filename = f'{self.relativeFilePath}_steps_data.xlsx'
+        try:
+            steps_data = pd.read_excel(filename, index_col=[0,1],
+                                       dtype={'kon':np.str})       # reads from the 1st excel sheet of the file
+
+            print(f'imported steps data from excel file for {self.name}')
+        except FileNotFoundError:
+            print(f'No saved analysis for {self.name} as {filename}')
+            return
+        molecules = steps_data.index.unique(0)
+        indices = [int(m.split()[-1]) for m in molecules]
+        for mol in self.molecules:
+            if mol.index + 1 not in indices:
+                continue
+            mol.steps = steps_data.loc[f'mol {mol.index + 1}']
+            mol.isSelected = True
+            if 'kon' in mol.steps.columns:
+                k = [int(i) for i in mol.steps.kon[0]]
+                mol.kon_boolean = np.array(k).astype(bool).reshape((4,3))
+        return steps_data
+
     def extract_traces(self):
         # Refresh configuration
         self.experiment.import_config_file()
@@ -408,49 +463,18 @@ class File:
             #     time_tr[:,jj*2+1]=  acceptor[:,jj]
             np.array(self.traces.T, dtype=np.int16).tofile(traces_file)
 
-    #    def importSimFile(self):
-    #        file = open(str(self.relativeFilePath) + '.sim', 'rb')
-    #        self.data = pickle.load(file)
-    #        red, green  = self.data['red'], self.data['green']
-    #        Ntraces = red.shape[0]
-    #        self.Nframes = red.shape[1]
-    #
-    #        if not self.molecules:
-    #            for molecule in range(0, Ntraces):
-    #                self.addMolecule()
-    #
-    #        for i, molecule in enumerate(self.molecules):
-    #            molecule.intensity = np.vstack((green[i], red[i]))
-    #        file.close()
 
     def addMolecule(self):
         index = len(self.molecules) # this is the molecule number
         self.molecules.append(Molecule(self))
         self.molecules[-1].index = index
 
-    def histogram(self, axis = None, bins = 100, parameter = 'E', molecule_averaging = False, makeFit=False, export=False, **kwargs):
+    def histogram(self, axis=None, bins=100, parameter='E', molecule_averaging=False,
+                  makeFit=False, export=False, **kwargs):
         histogram(self.molecules, axis=axis, bins=bins, parameter=parameter, molecule_averaging=molecule_averaging, makeFit=makeFit, collection_name=self, **kwargs)
         if export: plt.savefig(self.absoluteFilePath.with_name(f'{self.name}_{parameter}_histogram').with_suffix('.png'))
 
-    def import_excel_file(self, filename=None):
-        if filename is None:
-            filename = f'{self.relativeFilePath}_steps_data.xlsx'
-        try:
-            steps_data = pd.read_excel(filename, index_col=[0,1],
-                                       dtype={'kon':np.str})       # reads from the 1st excel sheet of the file
-        except FileNotFoundError:
-            print(f'No saved analysis for {self.name} as {filename}')
-            return
-        molecules = steps_data.index.unique(0)
-        indices = [int(m.split()[-1]) for m in molecules]
-        for mol in self.molecules:
-            if mol.index + 1 not in indices:
-                continue
-            mol.steps = steps_data.loc[f'mol {mol.index + 1}']
-            if 'kon' in mol.steps.columns:
-                k = [int(i) for i in mol.steps.kon[0]]
-                mol.kon_boolean = np.array(k).astype(bool).reshape((4,3))
-        return steps_data
+
 
     def savetoExcel(self, filename=None, save=True):
         if filename is None:
@@ -466,7 +490,6 @@ class File:
             print(f'no data to save for {self.name}')
             return
         keys = [f'mol {mol.index + 1}' for mol in molecules_with_data]
-
 
         steps_data = pd.concat(mol_data, keys=keys, sort=False)
         # drop duplicate columns
@@ -510,23 +533,26 @@ class File:
 
     def perform_mapping(self, configuration = None):
         # Refresh configuration
-        if not configuration:        self.experiment.import_config_file()
+        if not configuration:
+            self.experiment.import_config_file()
 
         image = self.average_image
-        if configuration is None: configuration = self.experiment.configuration['mapping']
+        if configuration is None:
+            configuration = self.experiment.configuration['mapping']
 
-        #transformation_type = self.experiment.configuration['mapping']['transformation_type']
         transformation_type = configuration['transformation_type']
         print(transformation_type)
 
         donor_image = self.movie.get_channel(image=image, channel='d')
         acceptor_image = self.movie.get_channel(image=image, channel='a')
-        donor_coordinates = find_peaks(image=donor_image, **configuration['peak_finding']['donor'])
-        if donor_coordinates.size==0: #should throw a error message to warm no acceptor molecules found
-            print('no donor molecules found')
-        acceptor_coordinates = find_peaks(image=acceptor_image, **configuration['peak_finding']['acceptor'])
-        if acceptor_coordinates.size==0: #should throw a error message to warm no acceptor molecules found
-            print('no acceptor molecules found')
+        donor_coordinates = find_peaks(image=donor_image,
+                                       **configuration['peak_finding']['donor'])
+        if donor_coordinates.size == 0: #should throw a error message to warm no acceptor molecules found
+            print('No donor molecules found')
+        acceptor_coordinates = find_peaks(image=acceptor_image,
+                                          **configuration['peak_finding']['acceptor'])
+        if acceptor_coordinates.size == 0: #should throw a error message to warm no acceptor molecules found
+            print('No acceptor molecules found')
         acceptor_coordinates = transform(acceptor_coordinates, translation=[image.shape[0]//2, 0])
         print(acceptor_coordinates.shape, donor_coordinates.shape)
         coordinates = np.append(donor_coordinates, acceptor_coordinates, axis=0)
@@ -542,22 +568,23 @@ class File:
                                                               # fraction_of_peak_max=0.35) # was 0.25 in IDL code
 
         margin = configuration['coordinate_optimization']['coordinates_within_margin']['margin']
-        if hasattr(self.movie, 'channel_boundaries'): #had to be added in case you do mapping on a single tif image
-            donor_coordinates = coordinates_within_margin(coordinates, bounds=self.movie.channel_boundaries('d'), margin=margin)
-            acceptor_coordinates = coordinates_within_margin(coordinates, bounds=self.movie.channel_boundaries('a'), margin=margin)
-        else:
-            donor_coordinates = coordinates_within_margin(coordinates, bounds=np.array([[0, image.shape[0] // 2],[0,image.shape[1]]]), margin=margin)
-            acceptor_coordinates = coordinates_within_margin(coordinates, bounds=np.array([[image.shape[0] // 2, image.shape[0]], [0, image.shape[1]]]), margin=margin)
+        donor_coordinates = coordinates_within_margin(coordinates,
+                                                      bounds=self.movie.channel_boundaries('d'), margin=margin)
+        acceptor_coordinates = coordinates_within_margin(coordinates,
+                                                         bounds=self.movie.channel_boundaries('a'), margin=margin)
 
-        self.mapping = Mapping2(source = donor_coordinates,
-                                destination = acceptor_coordinates,
-                                transformation_type = transformation_type,
-                                initial_translation=translate([image.shape[0]//2,0])  )
+        # donor_coordinates = coordinates_within_margin(coordinates, bounds=np.array([[0, image.shape[0] // 2],[0,image.shape[1]]]), margin=margin)
+        # acceptor_coordinates = coordinates_within_margin(coordinates, bounds=np.array([[image.shape[0] // 2, image.shape[0]], [0, image.shape[1]]]), margin=margin)
+
+        self.mapping = Mapping2(source=donor_coordinates,
+                                destination=acceptor_coordinates,
+                                transformation_type=transformation_type,
+                                dest2source_translation=translate([-image.shape[0]//2,0]))
         self.mapping.file = self
         self.is_mapping_file = True
 
-        if self.mapping.transformation_type=='linear':        self.export_coeff_file()
-        elif self.mapping.transformation_type=='nonlinear':     self.export_map_file()
+        if self.mapping.transformation_type == 'linear':        self.export_coeff_file()
+        elif self.mapping.transformation_type == 'nonlinear':     self.export_map_file()
 
     def copy_coordinates_to_selected_files(self):
         for file in self.experiment.selectedFiles:
@@ -573,24 +600,29 @@ class File:
                 file.mapping = self.mapping
                 file.is_mapping_file = False
 
-    def show_image(self, mode='2d', figure=None):
+    def show_image(self, image_type='default', mode='2d', figure=None):
         # Refresh configuration
-        self.experiment.import_config_file()
+        if image_type == 'default':
+            self.experiment.import_config_file()
+            image_type = self.experiment.configuration['show_movie']['image']
 
         if figure is None: figure = plt.figure() # Or possibly e.g. plt.figure('Movie')
         axis = figure.gca()
 
         # Choose method to plot
-        if self.experiment.configuration['show_movie']['image'] == 'average_image':
+        if image_type == 'average_image':
             image = self.average_image
             axis.set_title('Average image')
-        elif self.experiment.configuration['show_movie']['image'] == 'maximum_image':
+        elif image_type == 'maximum_image':
             image = self.maximum_projection_image
             axis.set_title('Maximum projection')
 
         if mode == '2d':
-            p98 = np.percentile(image, 98)
-            axis.imshow(image, vmax=p98)
+#            p98 = np.percentile(image, 98)
+#            axis.imshow(image, vmax=p98)
+            vmax = np.percentile(image, 99.9)
+            axis.imshow(image, vmax=vmax)
+
         if mode == '3d':
             from matplotlib import cm
             axis = figure.gca(projection='3d')
@@ -599,6 +631,10 @@ class File:
             X, Y = np.meshgrid(X, Y)
             axis.plot_surface(X,Y,image, cmap=cm.coolwarm,
                                    linewidth=0, antialiased=False)
+
+
+    def show_average_image(self, mode='2d', figure=None):
+        self.show_image(image_type='average_image', mode=mode, figure=figure)
 
     def show_coordinates(self, figure=None, annotate=False, **kwargs):
         # Refresh configuration

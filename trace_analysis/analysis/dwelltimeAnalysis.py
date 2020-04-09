@@ -23,8 +23,9 @@ sns.set(style="ticks")
 sns.set_color_codes()
 
 
-def analyze(dwells_data, name, dist, configuration):
+def analyze(dwells_data, dataset_name, dist, configuration):
     conf = configuration
+    # find the Tmax until which data is selected
     d = apply_config_to_data(dwells_data, dist, conf)
     figures = []
     fit_data = []
@@ -38,15 +39,16 @@ def analyze(dwells_data, name, dist, configuration):
         dwells = dwells[dwells>0]
         print(np.size(dwells), 'dwells selected')
         if conf['FitBool']:
-            fit_res = fit(dwells, model=conf['model'], dataset_name=name, Nfits=int(conf['Nfits']),
-                           include_over_Tmax=conf['TmaxBool'],
-                           bootstrap=conf['BootBool'],
-                           boot_repeats=int(conf['BootRepeats']))
+            fit_res = fit(dwells, model=conf['model'], dataset_name=dataset_name,
+                          Nfits=int(conf['Nfits']),
+                          include_over_Tmax=conf['TmaxBool'],
+                          bootstrap=conf['BootBool'],
+                          boot_repeats=int(conf['BootRepeats']))
             fit_data.append(fit_res)
         else:
             fit_res = None
         print(f'plotting {key} {dist}')
-        figure = plot(dwells, name, dist, trace=key, binsize=conf['binsize'],
+        figure = plot(dwells, dataset_name, dist, trace=key, binsize=conf['binsize'],
                       scale=conf['scale'], style=conf['PlotType'],
                       fit_result=fit_res)
         figures.append(figure)
@@ -56,23 +58,22 @@ def analyze(dwells_data, name, dist, configuration):
         fit_data = pd.concat(fit_data, axis=1, keys=keys_with_data)
     return d, figures, fit_data
 
-def fit(dwells, model='1Exp', dataset_name='data', Nfits=1,  include_over_Tmax=True,
-        bootstrap=True, boot_repeats=100):
-    print(include_over_Tmax, 'Tmax')
+def fit(dwells, model='1Exp', dataset_name='Dwells', Nfits=1,
+        include_over_Tmax=True, bootstrap=True, boot_repeats=100):
+
     if model == '1Exp+2Exp':
         fit_result = []
         for model in ['1Exp', '2Exp']:
-            result = SAfitting.fit(dwells, model, dataset_name, Nfits, include_over_Tmax,
-                                  bootstrap, boot_repeats)
+            result, boots = SAfitting.fit(dwells, model, dataset_name, Nfits,
+                                   include_over_Tmax, bootstrap, boot_repeats)
             fit_result.append(result)
         fit_result = pd.concat(fit_result, axis=1, ignore_index=True)
         return fit_result
 
-    fit_result = SAfitting.fit(dwells, model, dataset_name, Nfits, include_over_Tmax,
+    fit_result, boots = SAfitting.fit(dwells, model, dataset_name, Nfits, include_over_Tmax,
                                   bootstrap, boot_repeats)
-    print(fit_result)
+    # print(fit_result)
     return fit_result
-
 
 
 def plot(dwells, name, dist='offtime', trace='red', binsize='auto', scale='log',
@@ -110,25 +111,22 @@ def plot(dwells, name, dist='offtime', trace='red', binsize='auto', scale='log',
         plt.plot(centers, values, '-', lw=2, color=color, label=label)
 
     if fit_result is not None:
-        if fit_result.tau1[0]>fit_result.tau2[0]:
-            p = 1- fit_result.P1[0]
-            tau1 = fit_result.tau2[0]
-            tau2 = fit_result.tau1[0]
-        else:
-            p = fit_result.P1[0]
-            tau1 = fit_result.tau1[0]
-            tau2 = fit_result.tau2[0]
-            
-
-        print(p, tau1, tau2)
-        if p == 1:
-        #     print('plotting fit')
-            time, fit = common_PDF.Exp1(tau1, Tmax=Tmax)#centers[-1])
-            label = f'tau={tau1:.1f}'
+        if fit_result.model[0] == '1Exp':
+            tau = fit_result.value[0]
+            error = fit_result.error[0]
+            print(f'plotting 1Exp fit')
+            time, fit = common_PDF.Exp1(tau,
+                                        Tmax=centers[-1]+(bins[1]-bins[0])/2)
+            label = f'tau={tau:.1f} $\pm$ {error:.1f}'
             plt.plot(time, fit, color='r', label=f'1expfit, Ncut={Ncut} \n {label}')
 
-        else:
-            time, fit = common_PDF.Exp2(p, tau1, tau2, Tmax=Tmax)#centers[-1])
+        elif fit_result.model[0] == '2Exp':
+            p, errp = fit_result.value[0], fit_result.error[0]
+            tau1, err1 = fit_result.value[1], fit_result.error[1]
+            tau2, err2 = fit_result.value[2], fit_result.error[2]
+            print(fit_result)
+            print(f'errors: ', errp, err1, err2)
+            time, fit = common_PDF.Exp2(p, tau1, tau2, Tmax=centers[-1])
             label = f'p={p:.2f}, tau1={tau1:.1f}, tau2={int(tau2)}'
             plt.plot(time, fit, color='r', label=f'2expfit, Ncut={Ncut} \n {label}')
 
@@ -141,11 +139,10 @@ def plot(dwells, name, dist='offtime', trace='red', binsize='auto', scale='log',
     plt.legend()
     plt.ylabel('Probability')
     plt.xlabel(f'{dist} (s)')
-    plt.locator_params(axis='y', nbins=3)
+    # plt.locator_params(axis='y', nbins=3)
     plt.tight_layout()
     plt.show()
     return fig
-
 
 def apply_config_to_data(dwells_data, dist, config):
     d = dwells_data
@@ -176,16 +173,15 @@ def apply_config_to_data(dwells_data, dist, config):
     return data
 
 
-
 if __name__ == '__main__':
-    filename = 'F:/Google Drive/PhD/Programming - Data Analysis/traceanalysis/traces/'
+    filename = 'C:/Users/iason/Desktop/traceanalysis/trace_analysis/traces/'
     filename += 'hel0_dwells_data.xlsx'
 
     data = pd.read_excel(filename, index_col=[0, 1], dtype={'kon' :np.str})
     print(data.shape)
     config = {'trace': {'red': True, 'green': False, 'total': False, 'FRET': False},
          'side': {'left': True, 'middle': True, 'right': True},
-         'min': '0', 'max': 300,
+         'min': '0', 'max': 'max',
          'scale': 'Normal',
          'PlotType': 'dots',
          'binsize': 'auto',
@@ -196,4 +192,4 @@ if __name__ == '__main__':
          'Nfits': '1',
          'BootRepeats': '5'}
 
-    result = analyze(data, 'offtime', config)
+    # result = analyze(data, 'test', 'offtime', config)

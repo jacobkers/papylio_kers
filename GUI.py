@@ -34,7 +34,7 @@ from trace_analysis.analysis import dwelltimeAnalysis
 class MainFrame(wx.Frame):
     def __init__(self, parent, title):
 
-        wx.Frame.__init__(self, parent, title='Trace Analysis', size=(320,700))
+        wx.Frame.__init__(self, parent, title='Trace Analysis', size=(390,700))
 
 
         # Status bar
@@ -235,7 +235,7 @@ class HistogramPanel(wx.Frame):
         self.parent = parent
         self.Bind(wx.EVT_CLOSE, self.OnClose)
 
-    def PlotHistogram(self, fileSelection = True, moleculeSelection = False):
+    def PlotHistogram(self, fileSelection=True, moleculeSelection = False):
         if self.IsShown():
             self.panel.axis.clear()
             self.parent.experiment.histogram(self.panel.axis, fileSelection=fileSelection)
@@ -287,7 +287,7 @@ class DwelltimeAnalysisPanel(distributionsPanel.Panel):
         super().__init__(parent, title=title)
         self.parent = parent
 
-    def get_dwells_data(self):
+    def combine_dwells_data(self):
         '''
 
         Returns
@@ -297,6 +297,7 @@ class DwelltimeAnalysisPanel(distributionsPanel.Panel):
             files for the selected files
 
         '''
+        # Check if the analyze separately radiobutton is checked
         dwells_data = []
         # print(self.parent.experiment.selectedFiles)
         for file in self.parent.experiment.selectedFiles:
@@ -317,8 +318,25 @@ class DwelltimeAnalysisPanel(distributionsPanel.Panel):
             dist = self.comboDist.GetValue()
         else:
             pass
-        dwells_data = self.get_dwells_data()
-        self.figures = dwelltimeAnalysis.analyze(dwells_data, dist,
+        # if the analyze separately radiobutton is selected:
+        if self.radioDataSeparate.GetValue():
+            self.figures = []
+            for file in self.parent.experiment.selectedFiles:
+                name = file.name
+                filename = str(file.relativePath)+'/' + file.name \
+                                +'_dwells_data.xlsx'
+                dwells = pd.read_excel(filename, index_col=[0,1],
+                                       dtype={'kon': str})
+                figs = dwelltimeAnalysis.analyze(dwells, name, dist,
+                                                 self.configuration[dist])
+                self.figures.append(figs)
+
+
+        # if the combine selected data radiobutton is selected:
+        elif self.radioDataCombine.GetValue():
+            name = self.entryDataName.GetValue()
+            dwells = self.combine_dwells_data()
+            self.figures = dwelltimeAnalysis.analyze(dwells, name, dist,
                                               self.configuration[dist])
 
 class PlotPanel(wx.Panel):
@@ -343,6 +361,7 @@ class HyperTreeListPlus(HTL.HyperTreeList):
         self.AddColumn('Files', width=150)
         self.AddColumn('Molecules', width=75)
         self.AddColumn('Selected', width=75)
+        self.AddColumn('Analyzed', width=75)
 
         self.root = self.AddRoot('root')
         self.FileItems = []
@@ -363,7 +382,7 @@ class HyperTreeListPlus(HTL.HyperTreeList):
     def AddExperiment(self, experiment):
         experimentItemNames = [item.GetText() for item in self.root.GetChildren()]
         if experiment.name not in experimentItemNames:
-            experimentItem = self.AppendItem(self.root, experiment.name, ct_type = 1, data = experiment)
+            experimentItem = self.AppendItem(self.root, experiment.name, ct_type=1, data=experiment)
             experiment.item = experimentItem
 
         print(experiment.name)
@@ -409,6 +428,8 @@ class HyperTreeListPlus(HTL.HyperTreeList):
             if type(itemData) is File:
                 self.SetItemText(item, str(len(itemData.molecules)), 1) # Should be in a different method
                 self.SetItemText(item, str(len(itemData.selectedMolecules)), 2)
+                N_analyzed_molecules = len([mol for mol in itemData.molecules if mol.steps is not None])
+                self.SetItemText(item, str(N_analyzed_molecules), 3)
 
     def OnItemActivated(self, event):
         item = event.GetItem()
