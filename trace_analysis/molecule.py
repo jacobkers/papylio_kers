@@ -31,7 +31,7 @@ class Molecule:
     def I(self, emission, Ioff=0):
         return self.intensity[emission, :] - Ioff - self.file.background[emission]
 
-    def E(self, Imin=0, alpha=0, Iroff=0, Igoff=0):
+    def E(self, Imin=0, Iroff=0, Igoff=0, alpha=0):
         red = np.copy(self.I(1, Ioff=Iroff))
         green = self.I(0, Ioff=Igoff)
         np.putmask(red, red < Imin, 0)  # the mask makes all elements of acceptor that are below the Imin zero, for E caclulation

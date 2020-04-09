@@ -78,6 +78,10 @@ def fit(dwells, model='1Exp', dataset_name='Dwells', Nfits=1,
 def plot(dwells, name, dist='offtime', trace='red', binsize='auto', scale='log',
          style='dots', color='from_trace', fit_result=None):
 
+    if fit_result is not None:
+        if fit_result.Ncut[0] > 0:
+            Tcut = dwells.max() - 5  # 5 sec is kind of arbitrary here
+            dwells = dwells[dwells < Tcut]
 
     try:
         bsize = float(binsize)
@@ -116,7 +120,7 @@ def plot(dwells, name, dist='offtime', trace='red', binsize='auto', scale='log',
             time, fit = common_PDF.Exp1(tau,
                                         Tmax=centers[-1]+(bins[1]-bins[0])/2)
             label = f'tau={tau:.1f} $\pm$ {error:.1f}'
-            plt.plot(time, fit, color='r', label=f'1expfit, Ncut={Ncut} \n {label}')
+            plt.plot(time, fit, color='r', label=f'1expfit, Ncut={int(Ncut)} \n {label}')
 
         elif fit_result.model[0] == '2Exp':
             p, errp = fit_result.value[0], fit_result.error[0]
@@ -127,7 +131,7 @@ def plot(dwells, name, dist='offtime', trace='red', binsize='auto', scale='log',
             print(f'errors: ', errp, err1, err2)
             time, fit = common_PDF.Exp2(p, tau1, tau2, Tmax=centers[-1])
             label = f'p={p:.2f}, tau1={tau1:.1f}, tau2={int(tau2)}'
-            plt.plot(time, fit, color='r', label=f'2expfit, Ncut={Ncut} \n {label}')
+            plt.plot(time, fit, color='r', label=f'2expfit, Ncut={int(Ncut)} \n {label}')
 
     if scale in ['Log', 'Log-Log']:
         plt.yscale('log')
