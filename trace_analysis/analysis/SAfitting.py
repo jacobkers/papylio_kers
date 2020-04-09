@@ -131,10 +131,10 @@ def fit(dwells_all, mdl, dataset_name='Dwells', Nfits=1,
         Tmax = Tmax - 5
         dwells = dwells_all[dwells_all < Tmax]
         Ncut = dwells_all[dwells_all >= Tmax].size
+        print(f'Ncut: {Ncut}')
     else:
         Ncut = 0
         dwells = dwells_all
-    print(f'Ncut: {Ncut}')
 
     # the initial holder for the fit result irrespective of the fit model
     fit_result = pd.DataFrame({'Dataset': [dataset_name], 'model': [mdl]})
@@ -188,7 +188,7 @@ def fit(dwells_all, mdl, dataset_name='Dwells', Nfits=1,
         if bestvalues[1] > bestvalues[2]:
             bestvalues = [1-bestvalues[0]] + [bestvalues[2], bestvalues[1]]
 
-        error = [0, 0, 0]
+        errors = [0, 0, 0]
         boot_params = np.empty((boot_repeats,3))
         # Check if bootstrapping is used
         if bootstrap:

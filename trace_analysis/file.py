@@ -95,7 +95,7 @@ class File:
                 if self.number_of_frames < num_of_frames:
                     print('Number of frames entered exceeds size movie')
                     return []
-            print('#frames: ', num_of_frames)
+            print('ave #frames: ', num_of_frames)
             self._average_image = self.movie.make_average_image(number_of_frames=num_of_frames, write = True)
         return self._average_image
 
@@ -112,7 +112,7 @@ class File:
                 if self.number_of_frames < num_of_frames:
                     print('Number of frames entered exceeds size movie')
                     return []
-            print('#frames: ', num_of_frames)
+            print('max #frames: ', num_of_frames)
             self._maximum_projection_image = self.movie.make_maximum_projection(number_of_frames=num_of_frames, write = True)
         return self._maximum_projection_image
 
@@ -606,7 +606,7 @@ class File:
         # Refresh configuration
         if image_type == 'default':
             self.experiment.import_config_file()
-            image_type = self.experiment.configuration['find_coordinates']['image']
+            image_type = self.experiment.configuration['show_movie']['image']
 
         if figure is None: figure = plt.figure() # Or possibly e.g. plt.figure('Movie')
         axis = figure.gca()
@@ -620,9 +620,9 @@ class File:
             axis.set_title('Maximum projection')
 
         if mode == '2d':
-            p98 = np.percentile(image, 98)
-            axis.imshow(image, vmax=p98)
-            vmax = np.percentile(image, 99.99)
+#            p98 = np.percentile(image, 98)
+#            axis.imshow(image, vmax=p98)
+            vmax = np.percentile(image, 99.9)
             axis.imshow(image, vmax=vmax)
 
         if mode == '3d':

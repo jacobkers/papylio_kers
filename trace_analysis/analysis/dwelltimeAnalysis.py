@@ -35,12 +35,15 @@ def analyze(dwells_data, dataset_name, dist, configuration):
             print(f'{dist} dataFrame for {key} is empty')
             continue
         dwells = d[key].loc[:,dist].values
+        dwells= dwells
+        dwells = dwells[dwells>0]
+        print(np.size(dwells), 'dwells selected')
         if conf['FitBool']:
             fit_res = fit(dwells, model=conf['model'], dataset_name=dataset_name,
                           Nfits=int(conf['Nfits']),
-                           include_over_Tmax=conf['TmaxBool'],
-                           bootstrap=conf['BootBool'],
-                           boot_repeats=int(conf['BootRepeats']))
+                          include_over_Tmax=conf['TmaxBool'],
+                          bootstrap=conf['BootBool'],
+                          boot_repeats=int(conf['BootRepeats']))
             fit_data.append(fit_res)
         else:
             fit_res = None
@@ -75,7 +78,10 @@ def fit(dwells, model='1Exp', dataset_name='Dwells', Nfits=1,
 
 def plot(dwells, name, dist='offtime', trace='red', binsize='auto', scale='log',
          style='dots', color='from_trace', fit_result=None):
-
+    Tmax=300
+    Ncut= dwells[dwells >= Tmax].size
+    dwells=dwells[dwells<Tmax]
+    
     try:
         bsize = float(binsize)
         bin_edges = np.arange(min(dwells), max(dwells) + bsize, bsize)
@@ -105,7 +111,6 @@ def plot(dwells, name, dist='offtime', trace='red', binsize='auto', scale='log',
         plt.plot(centers, values, '-', lw=2, color=color, label=label)
 
     if fit_result is not None:
-
         if fit_result.model[0] == '1Exp':
             tau = fit_result.value[0]
             error = fit_result.error[0]
@@ -113,6 +118,7 @@ def plot(dwells, name, dist='offtime', trace='red', binsize='auto', scale='log',
             time, fit = common_PDF.Exp1(tau,
                                         Tmax=centers[-1]+(bins[1]-bins[0])/2)
             label = f'tau={tau:.1f} $\pm$ {error:.1f}'
+            plt.plot(time, fit, color='r', label=f'1expfit, Ncut={Ncut} \n {label}')
 
         elif fit_result.model[0] == '2Exp':
             p, errp = fit_result.value[0], fit_result.error[0]
@@ -122,7 +128,7 @@ def plot(dwells, name, dist='offtime', trace='red', binsize='auto', scale='log',
             print(f'errors: ', errp, err1, err2)
             time, fit = common_PDF.Exp2(p, tau1, tau2, Tmax=centers[-1])
             label = f'p={p:.2f}, tau1={tau1:.1f}, tau2={int(tau2)}'
-        plt.plot(time, fit, color='black', label='Fit \n '+label)
+            plt.plot(time, fit, color='r', label=f'2expfit, Ncut={Ncut} \n {label}')
 
     if scale in ['Log', 'Log-Log']:
         plt.yscale('log')
