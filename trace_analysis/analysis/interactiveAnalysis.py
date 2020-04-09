@@ -19,7 +19,7 @@ import itertools
 import matplotlib.pyplot as plt
 import matplotlib.widgets
 import seaborn as sns
-from pathlib import Path
+from pathlib import Path, WindowsPath
 import functools
 #plt.rcParams['toolbar'] = 'toolmanager'
 # from matplotlib.backend_tools import ToolBase
@@ -551,7 +551,10 @@ if __name__ == '__main__':
     # Just as a working example of how the interactive plot whould be called. Here an example dataset is included inside the traces folder
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
     p = Path(__file__).parents[2]
-    mainPath = str(p) + '/traces'
+
+    # mainPath = Path(str(p) + '/traces')
+    mainPath = os.path.join(p, WindowsPath('traces'))  # This path cannot be found strangely
+    mainPath = r'C:\Users\iason\Desktop\traceanalysis\trace_analysis\traces'
     exp = Experiment(mainPath)
     file = exp.files[0]
     molecules = file.molecules

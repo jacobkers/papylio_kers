@@ -214,6 +214,7 @@ class Panel(wx.Frame):
         boxPlotButtonsSizer = wx.BoxSizer(wx.HORIZONTAL)
         self.PlotButton = wx.Button(panel, label='Plot')
         self.PlotAllButton = wx.Button(panel, label='Plot All')
+        self.PlotAllButton.Disable()
         boxPlotButtonsSizer.AddMany([(self.PlotButton, flagsCenter),
                                      (self.PlotAllButton, flagsCenter)])
 
@@ -221,6 +222,7 @@ class Panel(wx.Frame):
         boxControlButtonsSizer = wx.BoxSizer(wx.HORIZONTAL)
         self.HelpButton = wx.Button(panel, label='Help')
         self.ClearButton = wx.Button(panel, label='Clear')
+        self.ClearButton.Disable()
         self.QuitButton = wx.Button(panel, label='Quit')
         boxControlButtonsSizer.AddMany([(self.HelpButton, flagsCenter),
                                      (self.ClearButton, flagsCenter),
@@ -318,15 +320,15 @@ class Panel(wx.Frame):
         self.entryDataName.Disable()
 
     def OnHelpPress(self, event):
-        print('help')
+        print('Help')
 
     def OnPlotPress(self, event):
         print('Plot')
-        self.save_enable()
+        # self.save_enable()
 
     def OnPlotAllPress(self, event):
         print('Plot All')
-        self.save_enable()
+        # self.save_enable()
 
     def OnClearPress(self, event):
         print('Clear')

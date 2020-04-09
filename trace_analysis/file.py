@@ -123,9 +123,10 @@ class File:
 
         #return np.concatenate([[molecule.coordinates[0, :] for molecule in self.molecules]])
         coordinates = [molecule.coordinates for molecule in self.molecules]
-        if coordinates: return np.concatenate(coordinates)
-        else: return None
-
+        if coordinates:
+            return np.concatenate(coordinates)
+        else:
+            return None
 
     @coordinates.setter
     def coordinates(self, coordinates, number_of_colours = None):
@@ -325,7 +326,7 @@ class File:
 
         self.coordinates = coordinates
 
-    def find_coordinates(self, configuration = None):
+    def find_coordinates(self, configuration=None):
         # Refresh configuration
         self.experiment.import_config_file()
 
@@ -472,7 +473,8 @@ class File:
     def histogram(self, axis=None, bins=100, parameter='E', molecule_averaging=False,
                   makeFit=False, export=False, **kwargs):
         histogram(self.molecules, axis=axis, bins=bins, parameter=parameter, molecule_averaging=molecule_averaging, makeFit=makeFit, collection_name=self, **kwargs)
-        if export: plt.savefig(self.absoluteFilePath.with_name(f'{self.name}_{parameter}_histogram').with_suffix('.png'))
+        if export:
+            plt.savefig(self.absoluteFilePath.with_name(f'{self.name}_{parameter}_histogram').with_suffix('.png'))
 
 
 
