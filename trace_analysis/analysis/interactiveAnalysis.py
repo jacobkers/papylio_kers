@@ -352,7 +352,8 @@ class InteractivePlot(object):
         if move:
             if event.inaxes == self.axnextb or event.key in ['e']:
                 self.mol_indx += 1
-                if self.mol_indx >= len(self.molecules):
+                if self.mol_indx >= len(self.molecules) \
+                    or self.mol_indx <= -len(self.molecules):
                     self.mol_indx = 0
 
 
