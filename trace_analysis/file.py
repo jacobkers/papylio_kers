@@ -325,12 +325,17 @@ class File:
         self.traces = np.reshape(rawData.ravel(), (self.number_of_colours, self.number_of_molecules, self.number_of_frames), order='F')  # 3d array of traces
         #self.traces = np.reshape(rawData.ravel(), (self.number_of_colours * self.number_of_molecules, self.number_of_frames), order='F') # 2d array of traces
 
-    def extract_traces(self):
+    def extract_traces(self, configuration = None):
         # Refresh configuration
         self.experiment.import_config_file()
 
         if self.movie is None: raise FileNotFoundError('No movie file was found')
-        self.traces = extract_traces(self.movie, self.coordinates, channel='all', gauss_width = 11)
+
+        if configuration is None: configuration = self.experiment.configuration['trace_extraction']
+        channel = configuration['channel']  # Default was 'all'
+        gaussian_width = configuration['gaussian_width']  # Default was 11
+
+        self.traces = extract_traces(self.movie, self.coordinates, channel=channel, gauss_width = gaussian_width)
         self.export_traces_file()
         if '.traces' not in self.extensions: self.extensions.append('.traces')
 
