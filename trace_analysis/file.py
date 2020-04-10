@@ -520,13 +520,14 @@ class File:
 
 
 
-    def show_coordinates(self, figure=None, annotate=False, **kwargs):
+    def show_coordinates(self, figure=None, annotate=None, **kwargs):
         # Refresh configuration
         self.experiment.import_config_file()
         
         if not figure: figure = plt.figure()
-        
-        annotate = self.experiment.configuration['show_movie']['annotate']
+
+        if annotate is None:
+            annotate = self.experiment.configuration['show_movie']['annotate']
 
         if self.coordinates is not None:
             axis = figure.gca()
