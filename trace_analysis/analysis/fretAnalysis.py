@@ -29,30 +29,43 @@ def plot_fret_histogram(molecules, Emin=0.05, Emax=0.8, Irmin=40, Iroff=0,
 
 
 
-def get_fret_per_offtime(molecule, trace_type='red', Emin=0.05, Emax=1,
+def get_fret_for_offtimes(molecules, trace_type='red', Emin=0.05, Emax=1,
                         Irmin=40, Iroff=0, Igoff=0):
     '''
     Function that gives the FRET trace with FRET calculcated only for the
     selected offtime interval. The FRET value outside this interval is put to
     zero
     '''
-    if mol.steps is None:
-        return
-    time_axis = mol.file.time
-    indices = np.empty(mol.steps.time.values.size, dtype=int)
-    for i, t in enumerate(mol.steps.time.values):
-        print(t)
-        idx = find_nearest(time_axis, t)
-        indices[i] = idx
-    fret = molecule.E(Irmin, Iroff, Igoff)
-    idx_start = indices[::2]
-    idx_stop = indices[1::2]
-    mask = np.zeros(fret.size, dtype=int)
-    for i in range(idx_start.size):
-        mask[idx_start[i]+1:idx_stop[i]-1] = 1
+    fret_masked_traces = []
+    for mol in molecules:
+        if mol.steps is None:
+            continue
+        print(mol.index)
+        time_axis = mol.file.time
+        # select the times in which steps are taken for the particular trace_type
+        times = mol.steps.time.values[mol.steps.trace == trace_type]
+        indices = np.empty(times.size, dtype=int)
+        for i, t in enumerate(times):
+            idx = find_nearest(time_axis, t)
+            indices[i] = idx
+        fret = mol.E(Irmin, Iroff, Igoff)
+        idx_start = indices[::2]
+        idx_stop = indices[1::2]
+        mask = np.zeros(fret.size, dtype=int)
+        for i in range(idx_start.size):
+            mask[idx_start[i]+1:idx_stop[i]-1] = 1
+        # Multiply by zero all the fret values outside the offtime intervals
+        fret_masked = np.multiply(fret, mask)
+        fret_masked_traces.append(fret_masked)
 
-    fret_masked = np.multiply(fret, mask)
-    return fret, mask
+    fret_masked_traces = np.array(fret_masked_traces)
+
+    return fret_masked_traces
+
+def get_fret_for_offtimes_all(molecules):
+    fret_traces = []
+    for mol in molecules:
+        fret_masked = get_fret_for_offtimes
 
 
 def find_nearest(array, value):
@@ -71,5 +84,6 @@ if __name__ == '__main__':
     dwell_data =  pd.read_excel(filename, index_col=[0, 1], dtype={'kon' :np.str})
     # fret_hist = plot_fret_histogram(file.molecules, bins=100)
     mol = file.molecules[0]
-    fret, mask = get_fret_per_offtime(mol)
+    fret = get_fret_for_offtimes(file.molecules)
+    # plt.plot(mol.file.time, fret)
 
