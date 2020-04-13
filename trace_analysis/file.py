@@ -517,8 +517,7 @@ class File:
         self.mapping = Mapping2(source=donor_coordinates,
                                 destination=acceptor_coordinates,
                                 transformation_type=transformation_type,
-                                destination2source_translation=translate([-image.shape[0]//2,0]))
-                                # The minus here will probably cause problems. This was an itial tranlation from source onto destination
+                                initial_translation=translate([image.shape[0]//2,0]))
         self.mapping.file = self
         self.is_mapping_file = True
 
