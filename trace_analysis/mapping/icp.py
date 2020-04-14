@@ -183,7 +183,7 @@ def icp(source, destination, max_iterations=20, tolerance=0.001, initial_transla
     if transformation_type == 'nonlinear': ## zit hier de initiele translatie nog in??
         kx_inv, ky_inv = polywarp(source[source_indices,:],destination[destination_indices,:])
         kx, ky = polywarp(destination[destination_indices,:],source[source_indices,:])
-        transformation = (kx_inv, ky_inv) # should be renamed to transformL2R?
+        transformation = (kx, ky) # should be renamed to transformL2R?
         transformation_inverse = (kx_inv,ky_inv) #  should be renamed to transformR2L?
         
     elif transformation_type=='linear': # replace with transform 
