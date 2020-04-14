@@ -1,4 +1,4 @@
-*.pptx
+
 
 development_not_to_be_included_in_git/
 
@@ -7,20 +7,25 @@ __pycache__/*.pyc
 .idea/
 twoColourExampleData/
 traces/
+trace_analysis/analysis/SAfitting/data/
 Start_analysis.py
 *test*
 *.xml
 *.iml
 *.*.pyc
+.DS_Store
 
+*.pyc
+Example_MD*
+*.pptx
+*.*.pyc
+
+Example_MD*
 *.pma
-
 *.traces
 
 
-
 # STANDARD python gitignore
-
 
 # Editors
 .vscode/

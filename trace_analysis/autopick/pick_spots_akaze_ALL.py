@@ -59,24 +59,24 @@ def imadjust(src, tol=1, vout=(0,255)):
     tol = max(0, min(100, tol))
 
     vin = [np.min(src), np.max(src)]
-    vout = [0, 65535] # 65535=16 bits
-    if tol > 0:
-# Compute in and out limits
-# Histogram
-        hist = np.histogram(src,bins=list(range(vin[1] - vin[0])),range=tuple(vin))[0]
-
-# Cumulative histogram
-        cum = hist.copy()
-        for i in range(0, vin[1]-vin[0]-1): cum[i] = cum[i - 1] + hist[i] # why not hist.cumsum() here?
-
-# Compute bounds
-        total = src.shape[0] * src.shape[1]
-        low_bound = total * tol / 100
-        upp_bound = total * (100 - tol) / 100
-        vin[0] = bisect.bisect_left(cum, low_bound)
-        vin[1] = bisect.bisect_left(cum, upp_bound)
-        if vin[0]==0 and vin[1]==0: #do not allow vin=0,0
-             vin = [np.min(src), np.max(src)]
+    #vout = [0, 65535] # 65535=16 bits # should not be overwriting the vout given as input
+#    if tol > 0:
+## Compute in and out limits
+## Histogram
+#        hist = np.histogram(src,bins=list(range(vin[1] - vin[0])),range=tuple(vin))[0]
+#
+## Cumulative histogram
+#        cum = hist.copy()
+#        for i in range(0, vin[1]-vin[0]-1): cum[i] = cum[i - 1] + hist[i] # why not hist.cumsum() here?
+#
+## Compute bounds
+#        total = src.shape[0] * src.shape[1]
+#        low_bound = total * tol / 100
+#        upp_bound = total * (100 - tol) / 100
+#        vin[0] = bisect.bisect_left(cum, low_bound)
+#        vin[1] = bisect.bisect_left(cum, upp_bound)
+#        if vin[0]==0 and vin[1]==0: #do not allow vin=0,0
+#             vin = [np.min(src), np.max(src)]
 # Stretching
     scale = (vout[1] - vout[0]) / (vin[1] - vin[0])
     vs = src-vin[0]

@@ -1,3 +1,9 @@
+if __name__ == '__main__':
+    import sys
+    from pathlib import Path
+    p = Path(__file__).parents[1]
+    sys.path.insert(0, str(p))
+
 from pathlib import Path # For efficient path manipulation
 import numpy as np #scientific computing with Python
 import pandas as pd
@@ -13,8 +19,7 @@ from trace_analysis.mapping.mapping import Mapping2
 from trace_analysis.peak_finding import find_peaks
 from trace_analysis.coordinate_optimization import coordinates_within_margin, coordinates_after_gaussian_fit, coordinates_without_intensity_at_radius
 from trace_analysis.trace_extraction import extract_traces
-from trace_analysis.coordinate_transformations import translate, transform
-
+from trace_analysis.coordinate_transformations import translate, transform # MD: we don't want to use this anymore I think, it is only linear
 
 class File:
     def __init__(self, relativeFilePath, experiment):
@@ -27,8 +32,8 @@ class File:
 
         self.molecules = list()
 
-        self.exposure_time = 0.1  # Found from log file or should be inputted
-        self.number_of_frames = 0
+        self.exposure_time = None  # Found from log file or should be inputted
+
         self.log_details = None  # a string with the contents of the log file
         self.number_of_frames = None
 
@@ -80,13 +85,35 @@ class File:
     @property
     def average_image(self):
         if self._average_image is None:
-            self._average_image = self.movie.average_image
+            # reload config file
+            self.experiment.import_config_file()
+            # compute and save image
+            if self.experiment.configuration['compute_image']['numFrames'] == 'All':
+                num_of_frames = self.number_of_frames
+            else:
+                num_of_frames = self.experiment.configuration['compute_image']['numFrames']
+                if self.number_of_frames < num_of_frames:
+                    print('Number of frames entered exceeds size movie')
+                    return []
+            print('ave #frames: ', num_of_frames)
+            self._average_image = self.movie.make_average_image(number_of_frames=num_of_frames, write = True)
         return self._average_image
-    
+
     @property
     def maximum_projection_image(self):
         if self._maximum_projection_image is None:
-            self._maximum_projection_image = self.movie.maximum_projection_image
+            # reload config file
+            self.experiment.import_config_file()
+            # compute and save image
+            if self.experiment.configuration['compute_image']['numFrames'] == 'All':
+                num_of_frames = self.number_of_frames
+            else:
+                num_of_frames = self.experiment.configuration['compute_image']['numFrames']
+                if self.number_of_frames < num_of_frames:
+                    print('Number of frames entered exceeds size movie')
+                    return []
+            print('max #frames: ', num_of_frames)
+            self._maximum_projection_image = self.movie.make_maximum_projection(number_of_frames=num_of_frames, write = True)
         return self._maximum_projection_image
 
     @property
@@ -96,9 +123,10 @@ class File:
 
         #return np.concatenate([[molecule.coordinates[0, :] for molecule in self.molecules]])
         coordinates = [molecule.coordinates for molecule in self.molecules]
-        if coordinates: return np.concatenate(coordinates)
-        else: return None
-
+        if coordinates:
+            return np.concatenate(coordinates)
+        else:
+            return None
 
     @coordinates.setter
     def coordinates(self, coordinates, number_of_colours = None):
@@ -165,7 +193,8 @@ class File:
                             '.map': self.import_map_file,
                             '.pks': self.import_pks_file,
                             '.traces': self.import_traces_file,
-                            '.log' : self.import_log_file
+                            '.log' : self.import_log_file,
+                            '_steps_data.xlsx': self.import_excel_file
                             }
 
         importFunctions.get(extension, self.noneFunction)()
@@ -176,6 +205,7 @@ class File:
 
     def import_log_file(self):
         self.exposure_time = np.genfromtxt(f'{self.relativeFilePath}.log', max_rows=1)[2]
+        print(f'Exposure time set to {self.exposure_time} sec for {self.name}')
         self.log_details = open(f'{self.relativeFilePath}.log').readlines()
         self.log_details = ''.join(self.log_details)
 
@@ -197,37 +227,97 @@ class File:
     def import_average_tif_file(self):
         averageTifFilePath = self.absoluteFilePath.with_name(self.name+'_ave.tif')
         self._average_image = io.imread(averageTifFilePath, as_gray=True)
-        
+
     def import_maximum_projection_tif_file(self):
         maxTifFilePath = self.absoluteFilePath.with_name(self.name+'_max.tif')
         self._maximum_projection_image = io.imread(maxTifFilePath, as_gray=True)
 
     def import_coeff_file(self):
-        if self.mapping is None:
+        if self.mapping is None: # the following only works for 'linear'transformation_type
+            tmp=np.genfromtxt(str(self.relativeFilePath) + '.coeff')
+            [coefficients,coefficients_inverse]=np.split(tmp,2)
+
+            if len(tmp)==12:
+                [coefficients, coefficients_inverse] = np.split(tmp,2)
+            elif len(tmp)==6:
+                coefficients = tmp
+            else:
+                raise TypeError('Error in importing coeff file, wrong number of lines')
+
             self.mapping = Mapping2(transformation_type='linear')
             self.mapping.transformation = np.zeros((3,3))
             self.mapping.transformation[2,2] = 1
-            self.mapping.transformation[[0,0,0,1,1,1],[2,0,1,2,0,1]] = \
-                np.genfromtxt(str(self.relativeFilePath) + '.coeff')
+            self.mapping.transformation[[0,0,0,1,1,1],[2,0,1,2,0,1]] = coefficients
+
+            self.mapping.transformation_inverse = np.zeros((3,3))
+            self.mapping.transformation_inverse[2,2] = 1
+            self.mapping.transformation_inverse[[0,0,0,1,1,1],[2,0,1,2,0,1]] = coefficients_inverse
+
+
+            if len(tmp)==6:
+                self.mapping.transformation_inverse=np.linalg.inv(self.mapping.transformation)
+            else:
+                self.mapping.transformation_inverse = np.zeros((3,3))
+                self.mapping.transformation_inverse[2,2] = 1
+                self.mapping.transformation_inverse[[0,0,0,1,1,1],[2,0,1,2,0,1]] = coefficients_inverse
+
             self.mapping.file = self
 
     def export_coeff_file(self):
         if self.mapping.transformation_type == 'linear':
             coeff_filepath = self.absoluteFilePath.with_suffix('.coeff')
             coefficients = self.mapping.transformation[[0, 0, 0, 1, 1, 1], [2, 0, 1, 2, 0, 1]]
-            np.savetxt(coeff_filepath, coefficients, fmt='%13.6g') # Same format used as in IDL code
+           # np.savetxt(coeff_filepath, coefficients, fmt='%13.6g') # Same format used as in IDL code
+            coefficients_inverse = self.mapping.transformation_inverse[[0, 0, 0, 1, 1, 1], [2, 0, 1, 2, 0, 1]]
+            np.savetxt(coeff_filepath,  np.concatenate((coefficients,coefficients_inverse)), fmt='%13.6g') # Same format used as in IDL code
         else:
             raise TypeError('Mapping is not of type linear')
 
     def import_map_file(self):
-        coefficients = np.genfromtxt(self.relativeFilePath.with_suffix('.map'))
+        #coefficients = np.genfromtxt(self.relativeFilePath.with_suffix('.map'))
+        tmp=np.genfromtxt(self.relativeFilePath.with_suffix('.map'))
+        if len(tmp)==64:        [coefficients,coefficients_inverse]=np.split(tmp,2)
+        elif len(tmp)==32:      coefficients=tmp
+        else: raise TypeError ('Error in import map file, not correct number of lines')
+
         degree = int(np.sqrt(len(coefficients) // 2) - 1)
         P = coefficients[:len(coefficients) // 2].reshape((degree + 1, degree + 1))
         Q = coefficients[len(coefficients) // 2 : len(coefficients)].reshape((degree + 1, degree + 1))
 
-        self.mapping = Mapping2(transformation_type='polynomial')
-        self.mapping.transformation = {'P': P, 'Q': Q}
+        self.mapping = Mapping2(transformation_type='nonlinear')
+        self.mapping.transformation = (P,Q) #{'P': P, 'Q': Q}
+        #self.mapping.file = self
+
+        degree = int(np.sqrt(len(coefficients_inverse) // 2) - 1)
+        Pi = coefficients_inverse[:len(coefficients_inverse) // 2].reshape((degree + 1, degree + 1))
+        Qi = coefficients_inverse[len(coefficients_inverse) // 2 : len(coefficients_inverse)].reshape((degree + 1, degree + 1))
+
+        if len(tmp)==64:
+            degree = int(np.sqrt(len(coefficients_inverse) // 2) - 1)
+            Pi = coefficients_inverse[:len(coefficients_inverse) // 2].reshape((degree + 1, degree + 1))
+            Qi = coefficients_inverse[len(coefficients_inverse) // 2 : len(coefficients_inverse)].reshape((degree + 1, degree + 1))
+        else :
+            LEN=np.shape(self._average_image)[0]
+            pts=np.array([(a,b) for a in range(20, LEN/2-20, 10) for b in range(20,LEN-20, 10)]) ##still the question whether range a & B should be swapped
+            from trace_analysis.image_adapt.polywarp import polywarp,polywarp_apply
+            pts_new=polywarp_apply(P,Q,pts)
+            plt.scatter(pts_new[:,0],pts_new[:,1],'.')
+            Pi,Qi=polywarp(pts_new[:,0],pts_new[:,1],pts[:,0],pts[:,1])
+       # self.mapping = Mapping2(transformation_type='nonlinear')
+        self.mapping.transformation_inverse = (Pi,Qi) # {'P': Pi, 'Q': Qi}
         self.mapping.file = self
+
+
+    def export_map_file(self):
+        #saving kx,ky, still need to see how to read it in again
+        map_filepath = self.absoluteFilePath.with_suffix('.map')
+        A=self.mapping.transformation
+        coefficients = np.concatenate((A[0].flatten(),A[1].flatten()),axis=None)
+        #np.savetxt(map_filepath, coefficients, fmt='%13.6g') # Same format used as in IDL code
+        AA=self.mapping.transformation_inverse
+        coefficients_inverse = np.concatenate((AA[0].flatten(),AA[1].flatten()),axis=None)
+        np.savetxt(map_filepath, np.concatenate((coefficients,coefficients_inverse)), fmt='%13.6g') # Same format used as in IDL code
+
 
     def import_pks_file(self):
         # Background value stored in pks file is not imported yet
@@ -236,13 +326,14 @@ class File:
 
         self.coordinates = coordinates
 
-    def find_coordinates(self, configuration = None):
+    def find_coordinates(self, configuration=None):
         # Refresh configuration
         self.experiment.import_config_file()
 
         #image = self.movie.make_average_tif(write=False)
 
-        if configuration is None: configuration = self.experiment.configuration['find_coordinates']
+        if configuration is None:
+            configuration = self.experiment.configuration['find_coordinates']
         channel = configuration['channel']
 
         if configuration['image'] == 'average_image':
@@ -263,7 +354,9 @@ class File:
 
             plt.imshow(np.stack([donor_image.astype('uint8'),
                                  acceptor_image_transformed.astype('uint8'),
-                                 np.zeros((self.movie.height, self.movie.width//2)).astype('uint8')], axis=-1))
+                                 np.zeros((self.movie.height,
+                                           self.movie.width//2)).astype('uint8')],
+                                           axis=-1))
 
         # #coordinates = find_peaks(image=image, method='adaptive-threshold', minimum_area=5, maximum_area=15)
         # coordinates = find_peaks(image=image, method='local-maximum', threshold=50)
@@ -276,6 +369,7 @@ class File:
         #                                                       fraction_of_peak_max=0.35) # was 0.25 in IDL code
 
         coordinates = find_peaks(image=image, **configuration['peak_finding'])
+        margin = configuration['coordinate_optimization']['coordinates_within_margin']['margin']
 
         coordinate_optimization_functions = \
             {'coordinates_within_margin': coordinates_within_margin,
@@ -285,10 +379,10 @@ class File:
         for f, kwargs in configuration['coordinate_optimization'].items():
             coordinates = coordinate_optimization_functions[f](coordinates, image, **kwargs)
 
-
+        acceptor_bounds = np.array([[self.movie.width//2, self.movie.width], [0, self.movie.width]])
         if channel == 'a':
             coordinates = transform(coordinates, translation=[self.movie.width//2,0])
-
+            coordinates = coordinates_within_margin(coordinates, bounds=acceptor_bounds, margin=margin)
         if self.number_of_colours == 2:
             if channel in ['d','da']:
                 acceptor_coordinates = self.mapping.transform_coordinates(coordinates, inverse=False)
@@ -325,6 +419,31 @@ class File:
         self.traces = np.reshape(rawData.ravel(), (self.number_of_colours, self.number_of_molecules, self.number_of_frames), order='F')  # 3d array of traces
         #self.traces = np.reshape(rawData.ravel(), (self.number_of_colours * self.number_of_molecules, self.number_of_frames), order='F') # 2d array of traces
 
+
+    def import_excel_file(self, filename=None):
+        if filename is None:
+            filename = f'{self.relativeFilePath}_steps_data.xlsx'
+        try:
+            steps_data = pd.read_excel(filename, index_col=[0,1],
+                                       dtype={'kon':np.str})       # reads from the 1st excel sheet of the file
+
+            print(f'imported steps data from excel file for {self.name}')
+        except FileNotFoundError:
+            print(f'No saved analysis for {self.name} as {filename}')
+            return
+        molecules = steps_data.index.unique(0)
+        indices = [int(m.split()[-1]) for m in molecules]
+        for mol in self.molecules:
+            if mol.index + 1 not in indices:
+                continue
+            mol.steps = steps_data.loc[f'mol {mol.index + 1}']
+            mol.isSelected = True
+            if 'kon' in mol.steps.columns:
+                k = [int(i) for i in mol.steps.kon[0]]
+                mol.kon_boolean = np.array(k).astype(bool).reshape((4,3))
+        return steps_data
+
+
     def extract_traces(self, configuration = None):
         # Refresh configuration
         self.experiment.import_config_file()
@@ -351,60 +470,38 @@ class File:
             #     time_tr[:,jj*2+1]=  acceptor[:,jj]
             np.array(self.traces.T, dtype=np.int16).tofile(traces_file)
 
-    #    def importSimFile(self):
-    #        file = open(str(self.relativeFilePath) + '.sim', 'rb')
-    #        self.data = pickle.load(file)
-    #        red, green  = self.data['red'], self.data['green']
-    #        Ntraces = red.shape[0]
-    #        self.Nframes = red.shape[1]
-    #
-    #        if not self.molecules:
-    #            for molecule in range(0, Ntraces):
-    #                self.addMolecule()
-    #
-    #        for i, molecule in enumerate(self.molecules):
-    #            molecule.intensity = np.vstack((green[i], red[i]))
-    #        file.close()
 
     def addMolecule(self):
         index = len(self.molecules) # this is the molecule number
         self.molecules.append(Molecule(self))
         self.molecules[-1].index = index
 
-    def histogram(self, axis = None, bins = 100, parameter = 'E', molecule_averaging = False, makeFit=False, export=False, **kwargs):
+    def histogram(self, axis=None, bins=100, parameter='E', molecule_averaging=False,
+                  makeFit=False, export=False, **kwargs):
         histogram(self.molecules, axis=axis, bins=bins, parameter=parameter, molecule_averaging=molecule_averaging, makeFit=makeFit, collection_name=self, **kwargs)
-        if export: plt.savefig(self.absoluteFilePath.with_name(f'{self.name}_{parameter}_histogram').with_suffix('.png'))
+        if export:
+            plt.savefig(self.absoluteFilePath.with_name(f'{self.name}_{parameter}_histogram').with_suffix('.png'))
 
-    def importExcel(self, filename=None):
-        if filename is None:
-            filename = self.name+'_steps_data.xlsx'
-        try:
-            steps_data = pd.read_excel(filename, index_col=[0,1],
-                                            dtype={'kon':np.str})       # reads from the 1st excel sheet of the file
-        except FileNotFoundError:
-            print(f'No saved analysis for {self.name}')
-            return
-        molecules = steps_data.index.unique(0)
-        indices = [int(m.split()[-1]) for m in molecules]
-        for mol in self.molecules:
-            if mol.index not in indices:
-                continue
-            mol.steps = steps_data.loc[f'mol {mol.index}']
-            if 'kon' in mol.steps.columns:
-                k = [int(i) for i in mol.steps.kon[0]]
-                mol.kon_boolean = np.array(k).astype(bool).reshape((3,3))
-        return steps_data
+
 
     def savetoExcel(self, filename=None, save=True):
         if filename is None:
-            filename = self.name+'_steps_data.xlsx'
+            filename = f'{self.relativeFilePath}_steps_data.xlsx'
+
+        # Find the molecules for which steps were selected
+        molecules_with_data = [mol for mol in self.molecules if mol.steps is not None]
+
+
         # Concatenate all steps dataframes that are not None
-        mol_data = [mol.steps for mol in self.molecules if mol.steps is not None]
+        mol_data = [mol.steps for mol in molecules_with_data]
         if not mol_data:
             print(f'no data to save for {self.name}')
             return
-        keys = [f'mol {mol.index}' for mol in self.molecules if mol.steps is not None]
+        keys = [f'mol {mol.index + 1}' for mol in molecules_with_data]
+
         steps_data = pd.concat(mol_data, keys=keys, sort=False)
+        # drop duplicate columns
+        steps_data = steps_data.loc[:,~steps_data.columns.duplicated()]
         if save:
             print("data saved in: " + filename)
             writer = pd.ExcelWriter(filename)
@@ -444,16 +541,28 @@ class File:
 
     def perform_mapping(self, configuration = None):
         # Refresh configuration
-        self.experiment.import_config_file()
+        if not configuration:
+            self.experiment.import_config_file()
 
         image = self.average_image
-        if configuration is None: configuration = self.experiment.configuration['mapping']
+        if configuration is None:
+            configuration = self.experiment.configuration['mapping']
+
+        transformation_type = configuration['transformation_type']
+        print(transformation_type)
 
         donor_image = self.movie.get_channel(image=image, channel='d')
         acceptor_image = self.movie.get_channel(image=image, channel='a')
-        donor_coordinates = find_peaks(image=donor_image, **configuration['peak_finding']['donor'])
-        acceptor_coordinates = find_peaks(image=acceptor_image, **configuration['peak_finding']['acceptor'])
+        donor_coordinates = find_peaks(image=donor_image,
+                                       **configuration['peak_finding']['donor'])
+        if donor_coordinates.size == 0: #should throw a error message to warm no acceptor molecules found
+            print('No donor molecules found')
+        acceptor_coordinates = find_peaks(image=acceptor_image,
+                                          **configuration['peak_finding']['acceptor'])
+        if acceptor_coordinates.size == 0: #should throw a error message to warm no acceptor molecules found
+            print('No acceptor molecules found')
         acceptor_coordinates = transform(acceptor_coordinates, translation=[image.shape[0]//2, 0])
+        print(acceptor_coordinates.shape, donor_coordinates.shape)
         coordinates = np.append(donor_coordinates, acceptor_coordinates, axis=0)
 
         #coordinates = find_peaks(image=image, method='adaptive-threshold', minimum_area=5, maximum_area=15)
@@ -467,17 +576,24 @@ class File:
                                                               # fraction_of_peak_max=0.35) # was 0.25 in IDL code
 
         margin = configuration['coordinate_optimization']['coordinates_within_margin']['margin']
-        donor_coordinates = coordinates_within_margin(coordinates, bounds=self.movie.channel_boundaries('d'), margin=margin)
-        acceptor_coordinates = coordinates_within_margin(coordinates, bounds=self.movie.channel_boundaries('a'), margin=margin)
+        donor_coordinates = coordinates_within_margin(coordinates,
+                                                      bounds=self.movie.channel_boundaries('d'), margin=margin)
+        acceptor_coordinates = coordinates_within_margin(coordinates,
+                                                         bounds=self.movie.channel_boundaries('a'), margin=margin)
 
-        self.mapping = Mapping2(source = donor_coordinates,
-                                destination = acceptor_coordinates,
-                                transformation_type = 'linear',
-                                initial_translation=translate([image.shape[0]//2,0]))
+        # donor_coordinates = coordinates_within_margin(coordinates, bounds=np.array([[0, image.shape[0] // 2],[0,image.shape[1]]]), margin=margin)
+        # acceptor_coordinates = coordinates_within_margin(coordinates, bounds=np.array([[image.shape[0] // 2, image.shape[0]], [0, image.shape[1]]]), margin=margin)
+
+        self.mapping = Mapping2(source=donor_coordinates,
+                                destination=acceptor_coordinates,
+                                transformation_type=transformation_type,
+                                dest2source_translation=translate([-image.shape[0]//2,0]))
         self.mapping.file = self
         self.is_mapping_file = True
-        self.export_coeff_file()
-    
+
+        if self.mapping.transformation_type == 'linear':        self.export_coeff_file()
+        elif self.mapping.transformation_type == 'nonlinear':     self.export_map_file()
+
     def copy_coordinates_to_selected_files(self):
         for file in self.experiment.selectedFiles:
             if file is not self:
@@ -491,16 +607,16 @@ class File:
             if file is not self:
                 file.mapping = self.mapping
                 file.is_mapping_file = False
-                
+
     def show_image(self, image_type='default', mode='2d', figure=None):
         # Refresh configuration
-        if image_type is 'default':
+        if image_type == 'default':
             self.experiment.import_config_file()
-            image_type = self.experiment.configuration['find_coordinates']['image']
-        
+            image_type = self.experiment.configuration['show_movie']['image']
+
         if figure is None: figure = plt.figure() # Or possibly e.g. plt.figure('Movie')
         axis = figure.gca()
-        
+
         # Choose method to plot
         if image_type == 'average_image':
             image = self.average_image
@@ -508,10 +624,13 @@ class File:
         elif image_type == 'maximum_image':
             image = self.maximum_projection_image
             axis.set_title('Maximum projection')
-            
+
         if mode == '2d':
-            vmax = np.percentile(image, 99.99)
+#            p98 = np.percentile(image, 98)
+#            axis.imshow(image, vmax=p98)
+            vmax = np.percentile(image, 99.9)
             axis.imshow(image, vmax=vmax)
+
         if mode == '3d':
             from matplotlib import cm
             axis = figure.gca(projection='3d')
@@ -521,21 +640,24 @@ class File:
             axis.plot_surface(X,Y,image, cmap=cm.coolwarm,
                                    linewidth=0, antialiased=False)
 
+
     def show_average_image(self, mode='2d', figure=None):
         self.show_image(image_type='average_image', mode=mode, figure=figure)
 
     def show_coordinates(self, figure=None, annotate=None, **kwargs):
         # Refresh configuration
         self.experiment.import_config_file()
-        
+
         if not figure: figure = plt.figure()
 
+
+        annotate = self.experiment.configuration['show_movie']['annotate']
         if annotate is None:
             annotate = self.experiment.configuration['show_movie']['annotate']
 
         if self.coordinates is not None:
             axis = figure.gca()
-            axis.scatter(self.coordinates[:,0],self.coordinates[:,1], facecolors='none', edgecolors='r', **kwargs)
+            axis.scatter(self.coordinates[:,0],self.coordinates[:,1], facecolors='none', edgecolors='yellow', **kwargs)
             if annotate:
                 for molecule in self.molecules:
                     for i in np.arange(self.number_of_colours):
