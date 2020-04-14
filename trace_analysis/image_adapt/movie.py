@@ -110,32 +110,6 @@ class Movie:
         elif channel is 'a':
             return np.array([[self.width // 2, self.width], [0, self.height]])
 
-    def make_maximum_projection(self, number_of_frames=20, write=False):
-
-        # Check and specify number of frames
-        if number_of_frames == 'All':
-            number_of_frames = self.number_of_frames
-        elif self.number_of_frames < number_of_frames:
-            print('Number of frames entered exceeds size movie')
-            return []
-        print('Calculating maximum projection image of ' + str(number_of_frames) + ' frames')
-
-        # Calculate maximum of projection and each frame
-        maximum_projection_image = np.zeros((self.height, self.width))
-        for i in range(number_of_frames):
-            print(i)
-            frame = self.read_frame(frame_number=i)
-            maximum_projection_image = np.maximum(maximum_projection_image, frame)
-        self._maximum_projection_image = maximum_projection_image
-
-        # Write image to file
-        if write:
-            tif_filepath = self.writepath.joinpath(self.name+'_max.tif')
-            if self.bitdepth == 16: TIFF.imwrite(tif_filepath, np.uint16(maximum_projection_image))
-            elif self.bitdepth == 8: TIFF.imwrite(tif_filepath, np.uint8(maximum_projection_image))
-
-        return maximum_projection_image
-
     def saveas_tif(self):
         tif_filepath = self.writepath.joinpath(self.name+'.tif')
         try:
@@ -186,6 +160,32 @@ class Movie:
             elif self.bitdepth == 8: TIFF.imwrite(tif_filepath, np.uint8(frame_array_mean))
   
         return frame_array_mean
+
+    def make_maximum_projection(self, number_of_frames=20, write=False):
+
+        # Check and specify number of frames
+        if number_of_frames == 'All':
+            number_of_frames = self.number_of_frames
+        elif self.number_of_frames < number_of_frames:
+            print('Number of frames entered exceeds size movie')
+            return []
+        print('Calculating maximum projection image of ' + str(number_of_frames) + ' frames')
+
+        # Calculate maximum of projection and each frame
+        maximum_projection_image = np.zeros((self.height, self.width))
+        for i in range(number_of_frames):
+            print(i)
+            frame = self.read_frame(frame_number=i)
+            maximum_projection_image = np.maximum(maximum_projection_image, frame)
+        self._maximum_projection_image = maximum_projection_image
+
+        # Write image to file
+        if write:
+            tif_filepath = self.writepath.joinpath(self.name+'_max.tif')
+            if self.bitdepth == 16: TIFF.imwrite(tif_filepath, np.uint16(maximum_projection_image))
+            elif self.bitdepth == 8: TIFF.imwrite(tif_filepath, np.uint8(maximum_projection_image))
+
+        return maximum_projection_image
 
     # Moved to file, can probably be removed
     def show_average_image(self, mode='2d', figure=None):
