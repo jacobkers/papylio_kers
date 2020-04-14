@@ -113,6 +113,14 @@ class Movie:
     def make_maximum_projection(self, number_of_frames = 20, write = False):
         maximum_projection_image = np.zeros((self.height, self.width))
 
+        # Check and specify number of frames
+        if number_of_frames == 'All':
+            number_of_frames = self.number_of_frames
+        elif self.number_of_frames < number_of_frames:
+            print('Number of frames entered exceeds size movie')
+            return []
+        print('#frames: ', number_of_frames)    
+        
         for i in range(number_of_frames):
             frame = self.read_frame(frame_number=i)
             print(i)
@@ -152,6 +160,14 @@ class Movie:
 #                         for i in range(np.min([self.number_of_frames, number_of_frames]))]
 #         frame_array = np.dstack(frame_list)
 #         frame_array_mean = np.mean(frame_array, axis=2).astype(int)
+        
+        # Check and specify number of frames
+        if number_of_frames == 'All':
+            number_of_frames = self.number_of_frames
+        elif self.number_of_frames < number_of_frames:
+            print('Number of frames entered exceeds size movie')
+            return []
+        print('#frames: ', number_of_frames)
 
         frame_array_sum = np.zeros((self.height, self.width))
         for i in range(np.min([self.number_of_frames, number_of_frames])):
