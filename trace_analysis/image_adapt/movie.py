@@ -111,7 +111,6 @@ class Movie:
             return np.array([[self.width // 2, self.width], [0, self.height]])
 
     def make_maximum_projection(self, number_of_frames=20, write=False):
-        maximum_projection_image = np.zeros((self.height, self.width))
 
         # Check and specify number of frames
         if number_of_frames == 'All':
@@ -119,16 +118,19 @@ class Movie:
         elif self.number_of_frames < number_of_frames:
             print('Number of frames entered exceeds size movie')
             return []
-        print('#frames: ', number_of_frames)
+        print('Calculating maximum projection image of ' + str(number_of_frames) + ' frames')
 
+        # Calculate maximum of projection and each frame
+        maximum_projection_image = np.zeros((self.height, self.width))
         for i in range(number_of_frames):
-            frame = self.read_frame(frame_number=i)
             print(i)
+            frame = self.read_frame(frame_number=i)
             maximum_projection_image = np.maximum(maximum_projection_image, frame)
         self._maximum_projection_image = maximum_projection_image
 
+        # Write image to file
         if write:
-            tif_filepath = self.writepath.joinpath(self.name+'_maxprojection.tif')
+            tif_filepath = self.writepath.joinpath(self.name+'_max.tif')
             if self.bitdepth == 16: TIFF.imwrite(tif_filepath, np.uint16(maximum_projection_image))
             elif self.bitdepth == 8: TIFF.imwrite(tif_filepath, np.uint8(maximum_projection_image))
 
@@ -166,21 +168,23 @@ class Movie:
         elif self.number_of_frames < number_of_frames:
             print('Number of frames entered exceeds size movie')
             return []
-        print('#frames: ', number_of_frames)
+        print('Calculating average image of ' + str(number_of_frames) + ' frames')
 
+        # Calculate sum of frames and find mean
         frame_array_sum = np.zeros((self.height, self.width))
-        for i in range(np.min([self.number_of_frames, number_of_frames])):
-            frame_array_sum = frame_array_sum + self.read_frame(frame_number=i).astype(float)
-
+        for i in range(number_of_frames):
+            print(i)
+            frame = self.read_frame(frame_number=i).astype(float)
+            frame_array_sum = frame_array_sum + frame
         frame_array_mean = (frame_array_sum / number_of_frames).astype(int)
-        
+        self._average_image = frame_array_mean
+
+        # Write image to file
         if write:
             tif_filepath = self.writepath.joinpath(self.name+'_ave.tif')
             if self.bitdepth == 16: TIFF.imwrite(tif_filepath, np.uint16(frame_array_mean))
             elif self.bitdepth == 8: TIFF.imwrite(tif_filepath, np.uint8(frame_array_mean))
-        
-        self._average_image = frame_array_mean
-        
+  
         return frame_array_mean
 
     # Moved to file, can probably be removed
