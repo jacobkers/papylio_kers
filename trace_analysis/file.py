@@ -80,19 +80,21 @@ class File:
     @property
     def average_image(self):
         if self._average_image is None:
-            # reload config file
+            # Refresh configuration
             self.experiment.import_config_file()
+
             number_of_frames = self.experiment.configuration['compute_image']['numFrames']
-            self._average_image = self.movie.make_average_image(number_of_frames=number_of_frames, write = True)
+            self._average_image = self.movie.make_average_image(number_of_frames=number_of_frames, write=True)
         return self._average_image
-    
+
     @property
     def maximum_projection_image(self):
         if self._maximum_projection_image is None:
-            # reload config file
+            # Refresh configuration
             self.experiment.import_config_file()
+
             number_of_frames = self.experiment.configuration['compute_image']['numFrames']
-            self._maximum_projection_image = self.movie.make_maximum_projection(number_of_frames=number_of_frames, write = True)
+            self._maximum_projection_image = self.movie.make_maximum_projection(number_of_frames=number_of_frames, write=True)
         return self._maximum_projection_image
 
     @property

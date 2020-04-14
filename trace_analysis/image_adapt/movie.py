@@ -110,7 +110,7 @@ class Movie:
         elif channel is 'a':
             return np.array([[self.width // 2, self.width], [0, self.height]])
 
-    def make_maximum_projection(self, number_of_frames = 20, write = False):
+    def make_maximum_projection(self, number_of_frames=20, write=False):
         maximum_projection_image = np.zeros((self.height, self.width))
 
         # Check and specify number of frames
@@ -119,14 +119,14 @@ class Movie:
         elif self.number_of_frames < number_of_frames:
             print('Number of frames entered exceeds size movie')
             return []
-        print('#frames: ', number_of_frames)    
-        
+        print('#frames: ', number_of_frames)
+
         for i in range(number_of_frames):
             frame = self.read_frame(frame_number=i)
             print(i)
             maximum_projection_image = np.maximum(maximum_projection_image, frame)
         self._maximum_projection_image = maximum_projection_image
-        
+
         if write:
             tif_filepath = self.writepath.joinpath(self.name+'_maxprojection.tif')
             if self.bitdepth == 16: TIFF.imwrite(tif_filepath, np.uint16(maximum_projection_image))
@@ -151,16 +151,15 @@ class Movie:
             print(i)
             #naam=r'M:\tnw\bn\cmj\Shared\margreet\Cy3 G50\ModifiedData\Python'+'{:03d}'.format(ii)+'.tif'
             TIFF.imwrite(tif_filepath, np.uint16(frame), append=True)
-    
 
-    def make_average_image(self, number_of_frames = 20, write = False):
+    def make_average_image(self, number_of_frames=20, write=False):
 #        frame_list = [(read_one_page(self.filepath, pageNb=i, A=self.movie_file_object)).astype(float) 
 #                        for i in range(np.min([self.number_of_frames, number_of_frames]))]
 #         frame_list = [(self.read_frame(frame_number=i)).astype(float)
 #                         for i in range(np.min([self.number_of_frames, number_of_frames]))]
 #         frame_array = np.dstack(frame_list)
 #         frame_array_mean = np.mean(frame_array, axis=2).astype(int)
-        
+
         # Check and specify number of frames
         if number_of_frames == 'All':
             number_of_frames = self.number_of_frames
