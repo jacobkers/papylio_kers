@@ -19,12 +19,13 @@ Install git from https://git-scm.com/download/win
 
 *Advanced installation instructions can be found below*
 
-Get the `Setup.cmd` file for Windows or the `Setup.command` file for Mac (and probably Linux)
-Place this file in a directory where you want the code to be located
-Double click on the setup file
-Give your netid and password to log into gitlab and download the code
-The code will be in a subfolder called "traceanalysis", you can move this folder anywhere you like
-The original `Setup.cmd` or `Setup.command` file can be deleted.
+- Get the `Setup.cmd` file for Windows or the `Setup.command` file for Mac (and probably Linux)
+- Place this file in a directory where you want the code to be located
+- Double click on the setup file
+  *Note for Mac: If you download the .command file from the internet you have to give it execute permission using `chmod 755 Setup.command`*  
+- Give your netid and password to log into gitlab and download the code
+- The code will be in a subfolder called "traceanalysis", you can move this folder anywhere you like
+- The original `Setup.cmd` or `Setup.command` file can be deleted.
 
 ## Using the GUI
 Start the user interface by double clicking the file `Start GUI.cmd` for Windows or `Start GUI.command` for Mac
