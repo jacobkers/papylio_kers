@@ -274,16 +274,18 @@ class File:
             Pi = coefficients_inverse[:len(coefficients_inverse) // 2].reshape((degree + 1, degree + 1))
             Qi = coefficients_inverse[len(coefficients_inverse) // 2 : len(coefficients_inverse)].reshape((degree + 1, degree + 1))
         else :
-            image_height = self._average_image.shape[0]
+            grid_range = 500 # in principle the actual image size doesn't matter
+            # image_height = self._average_image.shape[0]
             # Can't we make this independent of the image?
-            # (Can't we just take the whole image here [IS 26-03-2020])
-            grid_coordinates = np.array([(a,b) for a in range(20, image_height/2-20, 10) for b in range(20, image_height-20, 10)])
-            ##still the question whether range a & B should be swapped
-            # I think so, but does the precies  [IS
+            grid_coordinates = np.array([(a,b) for a in np.arange(0, grid_range//2, 5) for b in np.arange(0, grid_range, 5)])
             from trace_analysis.image_adapt.polywarp import polywarp, polywarp_apply
             transformed_grid_coordinates = polywarp_apply(P, Q, grid_coordinates)
-            plt.scatter(transformed_grid_coordinates[:,0],transformed_grid_coordinates[:,1],'.')
-            Pi, Qi = polywarp(transformed_grid_coordinates[:,0],transformed_grid_coordinates[:,1],grid_coordinates[:,0],grid_coordinates[:,1])
+            # plt.scatter(grid_coordinates[:, 0], grid_coordinates[:, 1], marker='.')
+            # plt.scatter(transformed_grid_coordinates[:,0], transformed_grid_coordinates[:,1], marker='.')
+            Pi, Qi = polywarp(grid_coordinates, transformed_grid_coordinates)
+            # transformed_grid_coordinates2 = polywarp_apply(Pi, Qi, transformed_grid_coordinates)
+            # plt.scatter(transformed_grid_coordinates2[:, 0], transformed_grid_coordinates2[:, 1], marker='.')
+            # plt.scatter(grid_coordinates[:, 0], grid_coordinates[:, 1], marker='.', facecolors='none', edgecolors='r')
        # self.mapping = Mapping2(transformation_type='nonlinear')
         self.mapping.transformation_inverse = (Pi, Qi) # {'P': Pi, 'Q': Qi}
         self.mapping.file = self
