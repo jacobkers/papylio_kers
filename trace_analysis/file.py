@@ -21,6 +21,8 @@ from trace_analysis.coordinate_optimization import coordinates_within_margin, co
 from trace_analysis.trace_extraction import extract_traces
 from trace_analysis.coordinate_transformations import translate, transform # MD: we don't want to use this anymore I think, it is only linear
                                                                            # IS: We do! But we just need to make them usable with the nonlinear mapping
+from trace_analysis import find_molecules_utils as findMols
+
 
 class File:
     def __init__(self, relativeFilePath, experiment):
@@ -305,60 +307,98 @@ class File:
 
         self.coordinates = coordinates
 
-    def find_coordinates(self, configuration=None):
-        # Refresh configuration
+    def find_molecules(self, configuration=None):
+        '''
+        This function finds and sets the locations of all molecules within the movie's images.
+
+        Main part of the work is done within 'find_molecules_utils.py'(imported as findMols)
+
+        findMols.find_unique_molecules(), will loop through frames of the movie:
+        1. creates an average image or maximum projection (for every N frames)
+        2. finds the peaks in the new image (wraps around built-in method)
+        3. keeps only the unique positions/pixels of peak locations ()
+             3B allows to select only 'FRET pairs': intensity peak is seen in both donor/acceptor
+        4. Finally, correct for an uncertainty in exact location due to photon shot noise etc. to remove 'functional duplicates'
+        5. generate the coordinates array that is compatible with the Molecule() properties:
+            [ [array1: donor coordinates],[array2: acceptor coordinates]  ]
+            First array has all the coordinates (either found directly or inferred) of the donors:
+            donor_coordinates = [[x1,y1],[x2,y2], etc.]
+            Similar for acceptor coordinates
+
+
+
+
+        configurations to be set by user:
+        (within the find_coordinates section of the configuration file)
+        --------------------------------
+        channel : choose 'd'/'donor' or 'a'/'acceptor' for using only one of the two channels. alternatively
+                  choose 'total_intensity' to use the sum of donor and acceptor signals
+                  choose 'FRET pair' to only keep peak intensities found in both channels
+                  choose 'both channels' to keep all peaks found in the entire image
+
+        method:  choose 'average_image' or 'maximum_projection_image' to
+                         set type of image used to find peak intensities.
+
+
+
+        uncertainty_pixels: set number of pixels within which two peak intensities
+                            should be considered to correspond to the same molecule
+
+        img_per_N_pixels: use the image type of 'method' for every N frames of the movie (sliding window).
+                         If no sliding window is used, the first N frames are used (a 'single window')
+
+        use_sliding_window: type 'True' or 'False' to activate sliding window
+
+
+        Additional configurations to be set
+        (within 'peak_finding' section of configuration file)
+        ------------------------------------
+        ADD DESCRIPTIONS HERE!!!
+        '''
+
+        # --- Refresh configuration ----
         if not configuration:  self.experiment.import_config_file() # is this usefull, look at next line of code
 
         if configuration is None:
             configuration = self.experiment.configuration['find_coordinates']
+            configs_peak_finding = self.experiment.configuration['peak_finding']
 
+        # --- fatch parameters/settings from configuration file ----
         channel = configuration['channel']
+        method = configuration['method']
+        uncertainty_pixels = configuration['uncertainty_pixels']
+        img_per_N_frames = configuration['window_length_frames']
+        use_sliding_window = bool( configuration['use_sliding_window'])
 
-        if configuration['image'] == 'average_image':
-            full_image = self.average_image
-        elif configuration['image'] == 'maximum_image':
-            full_image = self.maximum_projection_image
+        # ----  Find the unique set of molecule coordinates ----
+        # --- peak finding is called within this function ----
+        coordinates, image = findMols.find_unique_molecules(self,
+                                  SlidingWindow=use_sliding_window,
+                                  method=method,
+                                  channel=channel,
+                                  img_per_N_frames=img_per_N_frames,
+                                  uncertainty_pixels=uncertainty_pixels,
+                                 configs_peak_finding=configs_peak_finding)
 
 
-        if channel in ['d','a']:
-            image = self.movie.get_channel(image=full_image, channel=channel)
-        elif channel in ['da']:
-            donor_image = self.movie.get_channel(image=full_image, channel='d')
-            acceptor_image = self.movie.get_channel(image=full_image, channel='a')
 
-            image_transformation = translate([-self.movie.width / 2, 0]) @ self.mapping.transformation
-            acceptor_image_transformed = ski.transform.warp(acceptor_image, image_transformation, preserve_range=True) 
-            #MD: problem: this is a linear transform, while you might have found a nonlinear transform; is nonlinear transform of image available?
-            image = (donor_image + acceptor_image_transformed) / 2
-
-            plt.imshow(np.stack([donor_image.astype('uint8'),
-                                 acceptor_image_transformed.astype('uint8'),
-                                 np.zeros((self.movie.height,
-                                           self.movie.width//2)).astype('uint8')],
-                                           axis=-1))
-
-        coordinates = find_peaks(image=image, **configuration['peak_finding'])
-
+        # ---- optimize / fine-tune the coordinate positions ----
         coordinate_optimization_functions = \
             {'coordinates_within_margin': coordinates_within_margin,
              'coordinates_after_gaussian_fit': coordinates_after_gaussian_fit,
              'coordinates_without_intensity_at_radius': coordinates_without_intensity_at_radius}
-
         for f, kwargs in configuration['coordinate_optimization'].items():
             coordinates = coordinate_optimization_functions[f](coordinates, image, **kwargs)
 
-        acceptor_bounds = np.array([[self.movie.width//2, self.movie.width], [0, self.movie.width]])
-        if channel == 'a':
-            coordinates = transform(coordinates, translation=[self.movie.width//2,0])
 
-        if self.number_of_colours == 2:
-            if channel in ['d','da']:
-                acceptor_coordinates = self.mapping.transform_coordinates(coordinates, direction='source2destination')
-                coordinates = np.hstack([coordinates,acceptor_coordinates]).reshape((-1,2))
-            if channel == 'a':
-                donor_coordinates = self.mapping.transform_coordinates(coordinates, direction='destination2source')
-                coordinates = np.hstack([donor_coordinates, coordinates]).reshape((-1, 2))
 
+
+
+        # --- generate the coordinates array that can be used to set the Molecule() properties ---
+        coordinates = findMols.get_coordinate_pairs(self, peak_coordinates=coordinates, channel=channel)
+
+
+        # --- finally, we set the coordinates of the molecules ---
         self.molecules = [] # Should we put this here?
         self.coordinates = coordinates
         self.export_pks_file()
