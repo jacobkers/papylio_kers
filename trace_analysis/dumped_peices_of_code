@@ -1,0 +1,108 @@
+Here are some peices of code, previously commented out or parts I think are not needed.
+I removed them from the code, but if needed, use this document to place 'em back.
+
+
+######################################
+1A.  [traceanalysis/traceanalysis/image_adapt/] movie.py --> make_average_image
+#        frame_list = [(read_one_page(self.filepath, pageNb=i, A=self.movie_file_object)).astype(float)
+#                        for i in range(np.min([self.number_of_frames, number_of_frames]))]
+#         frame_list = [(self.read_frame(frame_number=i)).astype(float)
+#                         for i in range(np.min([self.number_of_frames, number_of_frames]))]
+#         frame_array = np.dstack(frame_list)
+#         frame_array_mean = np.mean(frame_array, axis=2).astype(int)
+
+1B. The name of the function is clear. No need for a print statement in my opinion.
+        print('Calculating average image of ' + str(number_of_frames) + ' frames')
+
+
+
+1C. The user should simply not ask for the average image over more frames than available. Solved.
+This elaborate check seems not needed, as nobody will attempt to exceed that number of frames, right?
+        # Check and specify number of frames
+        if number_of_frames == 'all':
+            number_of_frames = self.number_of_frames
+        elif self.number_of_frames < number_of_frames:
+            print('Number of frames entered exceeds size movie')
+            return []
+
+
+
+
+######################################
+2A.  [traceanalysis/traceanalysis/image_adapt/] movie.py --> make_maximum_projection_image()
+
+Same as 1C.
+        # Check and specify number of frames
+        if number_of_frames == 'all':
+            number_of_frames = self.number_of_frames
+        elif self.number_of_frames < number_of_frames:
+            print('Number of frames entered exceeds size movie')
+            return []
+        print('Calculating maximum projection image of ' + str(number_of_frames) + ' frames')
+
+
+
+2B. Given we are using this twice already, it is easier to read I think if this is a separate function. The "average_image"
+than is just the few lines of code needed to actually make an average image.
+
+            tif_filepath = self.writepath.joinpath(self.name+'_max.tif')
+            if self.bitdepth == 16: TIFF.imwrite(tif_filepath, np.uint16(maximum_projection_image))
+            elif self.bitdepth == 8: TIFF.imwrite(tif_filepath, np.uint8(maximum_projection_image))
+--> I made a method "def movie.write_image(self, image)" that is called by "average_image"  and "maximum_projection_image"
+
+
+
+
+
+################################
+3. [traceanalysis/traceanalysis/] file.py --> find_coordinates()
+            plt.imshow(np.stack([donor_image.astype('uint8'),
+                                 acceptor_image_transformed.astype('uint8'),
+                                 np.zeros((self.movie.height,
+                                           self.movie.width//2)).astype('uint8')],
+                                           axis=-1))
+     --> this plot was only made if a molecules were found in total intensity.
+     ---> If a user wants to plot something, they can do this afterwards, no need to clutter this function :-)
+
+
+3B. A variable that was not commented, but also not used  ?
+        acceptor_bounds = np.array([[self.movie.width//2, self.movie.width], [0, self.movie.width]])
+
+
+
+
+3C. Not dumped, but seems that there is an extra condition for no reason?
+        # Refresh configuration
+        if not configuration:  self.experiment.import_config_file() # is this usefull, look at next line of code
+
+        if configuration is None:
+            configuration = self.experiment.configuration['find_coordinates']
+
+if configuration = None, it is also evaluated as 'False', i.e. 'if not configuration' and 'if configuration is None'
+are both 'True' if configuration= None.
+Am I wrong?
+
+Can we replace by?
+        # Refresh configuration
+        if configuration is None:
+            self.experiment.import_config_file()
+            configuration = self.experiment.configuration['find_coordinates']
+
+
+################
+4. [traceanalysis/traceanalysis/] file.py --> find_coordinates() (now called find_molecules())
+Technically, I did not remove the following code.
+However, I incorporated it into my own, such that we should be resulting in the same.
+Just in case, I list it here in case something went wrong.
+
+            if channel == 'a':
+            coordinates = transform(coordinates, translation=[self.movie.width//2,0])
+
+        if self.number_of_colours == 2:
+            if channel in ['d','da']:
+                acceptor_coordinates = self.mapping.transform_coordinates(coordinates, direction='source2destination')
+                coordinates = np.hstack([coordinates,acceptor_coordinates]).reshape((-1,2))
+            if channel == 'a':
+                donor_coordinates = self.mapping.transform_coordinates(coordinates, direction='destination2source')
+                coordinates = np.hstack([donor_coordinates, coordinates]).reshape((-1, 2))
+
