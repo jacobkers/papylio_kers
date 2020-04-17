@@ -11,9 +11,9 @@ import matplotlib.pyplot as plt #Provides a MATLAB-like plotting framework
 import skimage.io as io
 import skimage as ski
 from trace_analysis.molecule import Molecule
-from trace_analysis.image_adapt.sifx_file import SifxFile
-from trace_analysis.image_adapt.pma_file import PmaFile
-from trace_analysis.image_adapt.tif_file import TifFile
+from trace_analysis.movie.sifx import SifxMovie
+from trace_analysis.movie.pma import PmaMovie
+from trace_analysis.movie.tif import TifMovie
 from trace_analysis.plotting import histogram
 from trace_analysis.mapping.mapping import Mapping2
 from trace_analysis.peak_finding import find_peaks
@@ -196,17 +196,17 @@ class File:
 
     def import_sifx_file(self):
         imageFilePath = self.absoluteFilePath.joinpath('Spooled files.sifx')
-        self.movie = SifxFile(imageFilePath)
+        self.movie = SifxMovie(imageFilePath)
         self.number_of_frames = self.movie.number_of_frames
 
     def import_pma_file(self):
         imageFilePath = self.absoluteFilePath.with_suffix('.pma')
-        self.movie = PmaFile(imageFilePath)
+        self.movie = PmaMovie(imageFilePath)
         self.number_of_frames = self.movie.number_of_frames
 
     def import_tif_file(self):
         imageFilePath = self.absoluteFilePath.with_suffix('.tif')
-        self.movie = TifFile(imageFilePath)
+        self.movie = TifMovie(imageFilePath)
         self.number_of_frames = self.movie.number_of_frames
 
     def import_average_tif_file(self):
