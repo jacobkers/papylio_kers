@@ -125,63 +125,60 @@ class Movie:
             #naam=r'M:\tnw\bn\cmj\Shared\margreet\Cy3 G50\ModifiedData\Python'+'{:03d}'.format(ii)+'.tif'
             TIFF.imwrite(tif_filepath, np.uint16(frame), append=True)
 
-    def make_average_image(self, number_of_frames=20, write=False):
-#        frame_list = [(read_one_page(self.filepath, pageNb=i, A=self.movie_file_object)).astype(float) 
-#                        for i in range(np.min([self.number_of_frames, number_of_frames]))]
-#         frame_list = [(self.read_frame(frame_number=i)).astype(float)
-#                         for i in range(np.min([self.number_of_frames, number_of_frames]))]
-#         frame_array = np.dstack(frame_list)
-#         frame_array_mean = np.mean(frame_array, axis=2).astype(int)
-
-        # Check and specify number of frames
-        if number_of_frames == 'all':
-            number_of_frames = self.number_of_frames
-        elif self.number_of_frames < number_of_frames:
-            print('Number of frames entered exceeds size movie')
-            return []
-        print('Calculating average image of ' + str(number_of_frames) + ' frames')
+    def make_average_image(self, start_frame=0,stop_frame=20, write=False):
+        '''
+        determine average image over frames [start_frame, stop_frame)
+        Hence, "start_frame" is included, while "stop_frame" is not
+        (the previous frame is the last one included)
+        '''
 
         # Calculate sum of frames and find mean
         frame_array_sum = np.zeros((self.height, self.width))
-        for i in range(number_of_frames):
-            print(i)
+        for i in range(start_frame, stop_frame):
             frame = self.read_frame(frame_number=i).astype(float)
             frame_array_sum = frame_array_sum + frame
+        number_of_frames= stop_frame - start_frame
         frame_array_mean = (frame_array_sum / number_of_frames).astype(int)
         self._average_image = frame_array_mean
 
         # Write image to file
         if write:
-            tif_filepath = self.writepath.joinpath(self.name+'_ave.tif')
-            if self.bitdepth == 16: TIFF.imwrite(tif_filepath, np.uint16(frame_array_mean))
-            elif self.bitdepth == 8: TIFF.imwrite(tif_filepath, np.uint8(frame_array_mean))
+            self.write_image(frame_array_mean)
   
         return frame_array_mean
 
-    def make_maximum_projection(self, number_of_frames=20, write=False):
-        # Check and specify number of frames
-        if number_of_frames == 'all':
-            number_of_frames = self.number_of_frames
-        elif self.number_of_frames < number_of_frames:
-            print('Number of frames entered exceeds size movie')
-            return []
-        print('Calculating maximum projection image of ' + str(number_of_frames) + ' frames')
+    def make_maximum_projection(self,start_frame=0,stop_frame=20, write=False):
+        '''
+        determine image of maximum intensity over frames [start_frame, stop_frame)
+        Hence, "start_frame" is included, while "stop_frame" is not
+        (the previous frame is the last one included)
+        '''
 
         # Calculate maximum of projection and each frame
         maximum_projection_image = np.zeros((self.height, self.width))
-        for i in range(number_of_frames):
-            print(i)
+        for i in range(start_frame, stop_frame):
             frame = self.read_frame(frame_number=i)
             maximum_projection_image = np.maximum(maximum_projection_image, frame)
         self._maximum_projection_image = maximum_projection_image
 
         # Write image to file
         if write:
-            tif_filepath = self.writepath.joinpath(self.name+'_max.tif')
-            if self.bitdepth == 16: TIFF.imwrite(tif_filepath, np.uint16(maximum_projection_image))
-            elif self.bitdepth == 8: TIFF.imwrite(tif_filepath, np.uint8(maximum_projection_image))
+            self.write_image(maximum_projection_image)
 
         return maximum_projection_image
+
+
+    def write_image(self, image):
+        '''
+        write an image to TIFF.
+        '''
+        tif_filepath = self.writepath.joinpath(self.name + '_max.tif')
+        if self.bitdepth == 16:
+            TIFF.imwrite(tif_filepath, np.uint16(image))
+        elif self.bitdepth == 8:
+            TIFF.imwrite(tif_filepath, np.uint8(image))
+        return
+
 
 # Moved to file, can probably be removed
     def show_average_image(self, mode='2d', figure=None):
