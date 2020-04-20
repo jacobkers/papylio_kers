@@ -160,7 +160,7 @@ class Panel(wx.Frame):
         self.chbBootBool = wx.CheckBox(sboxConfig, label='Bootstrap')
         self.comboFitModel = wx.ComboBox(sboxConfig, value='1Exp',
                                         choices=['1Exp', '2Exp',
-                                                 '1Exp+2Exp', 'Gaussian'],
+                                                 '1Exp+2Exp', '3Exp'],
                                         style = wx.ALIGN_CENTRE)
         self.entryNfits = wx.TextCtrl(sboxConfig, value="10", size=(40,20))
         self.entryBoots = wx.TextCtrl(sboxConfig, value="100", size=(40,20))
