@@ -2,5 +2,5 @@
 *.yml text eol=crlf
 *.cmd text eol=crlf
 *.rst text eol=crlf
-*.command text eol=crlf
+*.command text eol=lf
 Makefile text eol=crlf
