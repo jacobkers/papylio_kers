@@ -9,7 +9,7 @@ Software for single-molecule trace analysis
 Install Anaconda with python version 3.7 64-bit from https://www.anaconda.com/distribution/  
     IMPORTANT: For Windows under advanced options tick the box "Add Anaconda to my PATH enivronment variable"
 
-*Note: Advanced users may prefer the more lightweight Miniconda without any packages preinstalled and without a graphical user interface.*
+*Note: Advanced users may prefer the more lightweight Miniconda without any packages preinstalled and without a graphical user interface, i.e. you can only use it through the command line. Miniconda is available from https://docs.conda.io/en/latest/miniconda.html*
 
 ### Git
 
