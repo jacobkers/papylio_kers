@@ -85,22 +85,47 @@ def plot(dwells, name, dist='offtime', trace='red', binsize='auto', scale='log',
 
     try:
         bsize = float(binsize)
-        bin_edges = np.arange(min(dwells), max(dwells) + bsize, bsize)
+        if scale == 'Log-Log':
+            bin_edges = 10**(np.arange(np.log10(min(dwells)), np.log10(max(dwells)) + bsize, bsize))
+        else:
+            bin_edges = np.arange(min(dwells), max(dwells) + bsize, bsize)
     except ValueError:
         if binsize == 'Auto':
             binsize = 'auto'
         bin_edges = binsize
     values, bins = np.histogram(dwells, bins=bin_edges, density=True)
-    centers = (bins[1:] + bins[:-1]) / 2.0
-    fig = plt.figure(f'Histogram {trace} {dist}s {name}', figsize=(4,3), dpi=200)
+
+    # Determine position of bin
+    if scale == 'Log-Log':
+        centers = (bins[1:] * bins[:-1])**0.5  # geometric average of bin edges
+    else:
+        centers = (bins[1:] + bins[:-1]) / 2.0
+
+    # combine bins until they contain at least one data point (for log plots)
+    if scale in ['Log', 'Log-Log']:
+        izeros = np.where(values == 0)[0]
+        print('izeros', izeros)
+        j = 0
+        while j < len(izeros):
+            i = j
+            j += 1
+            while j < len(izeros) and izeros[j] - izeros[j-1] == 1:
+                j += 1
+            print('jstart ', izeros[i])
+            print('jend ', izeros[i]+(j-i))
+            print('values ', values[izeros[i]:(izeros[i]+j-i+1)])
+            print('mean value', np.sum(values[izeros[i]:(izeros[i]+j-i+1)])/(j-i+1))
+            values[izeros[i]:(izeros[i]+j-i+1)] = np.sum(values[izeros[i]:(izeros[i]+j-i+1)])/(j-i+1)
+
+    fig = plt.figure(f'Histogram {trace} {dist}s {name}', figsize=(4, 3), dpi=200)
 
     if color == 'from_trace':
         if dist == 'offtime':
-            color = 'r'*(trace=='red') + 'g'*(trace=='green') + \
-                    'b'*(trace=='FRET') + 'sandybrown'*(trace=='total')
+            color = 'r'*(trace == 'red') + 'g'*(trace == 'green') + \
+                    'b'*(trace == 'FRET') + 'sandybrown'*(trace == 'total')
         if dist == 'ontime':
-            color = 'firebrick'*(trace=='red') + 'olive'*(trace=='green') + \
-                    'darkviolet'*(trace=='FRET') + 'saddlebrown'*(trace=='total')
+            color = 'firebrick'*(trace == 'red') + 'olive'*(trace == 'green') + \
+                    'darkviolet'*(trace == ' FRET') + 'saddlebrown'*(trace == 'total')
     label = f'{dist} pdf, N={dwells.size}'
     if style == 'dots':
 
