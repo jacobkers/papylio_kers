@@ -43,8 +43,8 @@ def P3expcut(dwells, params, Tcut, Ncut):
     P1, P2, tau1, tau2, tau3 = params
     Pi = P1/tau1*np.exp(-dwells/tau1)+P2/tau2*np.exp(-dwells/tau2) + \
         (1 - P1 - P2)/tau3*np.exp(-dwells/tau3)
-    Pcut = P1/tau1*np.exp(-Tcut/tau1)+P2/tau2*np.exp(-Tcut/tau2) + \
-        (1 - P1 - P2)/tau3*np.exp(-Tcut/tau3)
+    Pcut = P1*np.exp(-Tcut/tau1)+P2*np.exp(-Tcut/tau2) + \
+        (1 - P1 - P2)*np.exp(-Tcut/tau3)
     return Pi, Pcut
 
 def BIC(dwells, k, LogLike):
