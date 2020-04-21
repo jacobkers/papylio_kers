@@ -56,7 +56,7 @@ def least_squares_fit(src, dst):
     plt.scatter(src[:,0],src[:,1], color = 'b')
     plt.scatter(dst[:,0],dst[:,1], color = 'r')
 
-   # src_transformed = ((T) @ (src.T)).T
+   #### src_transformed = ((T) @ (src.T)).T
     plt.scatter(src_transformed[:, 0], src_transformed[:, 1], color = 'g')
 
 
@@ -139,13 +139,21 @@ def icp(source, destination, max_iterations=20, tolerance=0.001, destination2sou
         # use = nearest_neighbor()
         distances, source_indices, destination_indices = \
             nearest_neighbor_pair(source[:, :2], destination_moved2source[:, :2])
-
+            
+#        plt.figure(i+10) # don't plot for every iteration --> move to after the loop
+#        scatter_coordinates([source,destination_moved2source])
+#        show_point_connections(source[source_indices],destination_moved2source[destination_indices])
+#        plt.axis('equal') 
+ 
+        # following three lines are good for nonlinear, expected to be also beneficial for linear
+        # with cutoff you remove the entries with outlier distances
+        cutoff = np.median(distances)+np.std(distances) #changed
+        source_indices = source_indices[distances<cutoff]
+        destination_indices = destination_indices[distances<cutoff]           
         if transformation_type=='nonlinear':
-            # Might be useful as well for linear. with cutoff you remove the entries with outlier distances
-            cutoff = np.median(distances)+np.std(distances) #changed
-            source_indices = source_indices[distances<cutoff]
-            destination_indices = destination_indices[distances<cutoff]
 
+            if  len(source_indices)<16 | len(destination_indices)<16: 
+                print('Not enough points found for non linear mapping')
             kx_d2s, ky_d2s = polywarp(source[source_indices,:],destination_moved2source[destination_indices,:]) 
             # these are the values needed to transform source into destination_moved2source
             
@@ -155,13 +163,13 @@ def icp(source, destination, max_iterations=20, tolerance=0.001, destination2sou
         elif transformation_type=='linear':
 			# compute the transformation between the current source and nearest destination points
 			#T,_,_ = best_fit_transform(src[:m,:].T, dst[:m,indices].T)
+            
             T, res, rank, s = np.linalg.lstsq(source[source_indices], destination_moved2source[destination_indices], rcond=None)
             transformation_s2d = T.T
             destination_moved2source = (transformation_s2d @ destination_moved2source.T).T
 
-        plt.figure(i) # don't plot for every iteration --> move to after the lop
-        scatter_coordinates([source,destination_moved2source])
-        show_point_connections(source[source_indices],destination_moved2source[destination_indices])
+
+       
         # Check error
         mean_error = np.mean(distances)
         print(i, mean_error, prev_error, len(distances))
@@ -171,9 +179,11 @@ def icp(source, destination, max_iterations=20, tolerance=0.001, destination2sou
     # continue the loop until the improvement in match is limited. The outcome are a set of matching locations, afterwards do one more transform to find final transform matrix
         
     print(i)
-    plt.figure() # don't plot for every iteration --> move to after the lop
+    plt.figure() # don't plot for every iteration --> move to after the loop
     scatter_coordinates([source,destination_moved2source])
     show_point_connections(source[source_indices],destination_moved2source[destination_indices])
+    plt.axis('equal')
+    plt.title('#donor='+str(len(source))+'#acceptor='+str(len(destination))+'#overlap='+str(len(source_indices)))
  
     # Calculate final transformation, need to be redone, since above you retrieve kx,ky per iteration, now you want the overall one
     if transformation_type == 'nonlinear': ## zit hier de initiele translatie nog in??

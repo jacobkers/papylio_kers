@@ -76,7 +76,10 @@ class PmaFile(Movie):
         with self.filepath.open('rb') as fid:
             self.width = np.fromfile(fid, np.int16,count=1)[0].astype(int)
             self.height =  np.fromfile(fid, np.int16,count=1)[0].astype(int)
-        
+       
+        if self.width==0: #required for hel21.pma from Sung Hyun
+            self.width=512;
+            self.height=512;
         self.number_of_frames = int((statinfo.st_size-4)/(self.width*self.height))
         
         

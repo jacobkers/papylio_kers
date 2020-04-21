@@ -14,6 +14,7 @@ from trace_analysis.peak_finding import find_peaks
 from trace_analysis.coordinate_optimization import coordinates_within_margin, coordinates_after_gaussian_fit, coordinates_without_intensity_at_radius
 from trace_analysis.trace_extraction import extract_traces
 from trace_analysis.coordinate_transformations import translate, transform # MD: we don't want to use this anymore I think, it is only linear
+from trace_analysis.mapping.icp import nearest_neighbor_pair, scatter_coordinates, show_point_connections
 
 
 class File:
@@ -252,7 +253,7 @@ class File:
             Pi = coefficients_inverse[:len(coefficients_inverse) // 2].reshape((degree + 1, degree + 1))
             Qi = coefficients_inverse[len(coefficients_inverse) // 2 : len(coefficients_inverse)].reshape((degree + 1, degree + 1))
         else :
-            LEN=np.shape(self._average_image)[0]
+            LEN=np.shape(self._average_image)[0] #is an issue if average image does not yet exist
             pts=np.array([(a,b) for a in range(20, LEN/2-20, 10) for b in range(20,LEN-20, 10)]) ##still the question whether range a & B should be swapped
             from trace_analysis.image_adapt.polywarp import polywarp,polywarp_apply
             pts_new=polywarp_apply(P,Q,pts)
@@ -287,22 +288,26 @@ class File:
 
         if configuration is None: configuration = self.experiment.configuration['find_coordinates'] 
         channel = configuration['channel']
-
+        configuration['image']
         if configuration['image'] == 'average_image':
             full_image = self.average_image
         elif configuration['image'] == 'maximum_image':
             full_image = self.maximum_projection_image
-
+       # plt.figure(30), plt.subplot(1,2,1), plt.imshow(self.average_image)
+       # plt.figure(30), plt.subplot(1,2,2), plt.imshow(self.maximum_projection_image)
 
         if channel in ['d','a']:
             image = self.movie.get_channel(image=full_image, channel=channel)
         elif channel in ['da']:
             donor_image = self.movie.get_channel(image=full_image, channel='d')
-            acceptor_image = self.movie.get_channel(image=full_image, channel='a')
+            #acceptor_image = self.movie.get_channel(image=full_image, channel='a')
 
-            image_transformation = translate([-self.movie.width / 2, 0]) @ self.mapping.transformation
-            acceptor_image_transformed = ski.transform.warp(acceptor_image, image_transformation, preserve_range=True) 
-            #MD: problem: this is a linear transform, while you might have found a nonlinear transform; is nonlinear transform of image available?
+            #image_transformation = translate([-self.movie.width / 2, 0]) @ self.mapping.transformation #$$
+            #acceptor_image_transformed = ski.transform.warp(acceptor_image, image_transformation, preserve_range=True) #$$
+            #MD: ski.transfrom.PolynomialTransform
+            tform = ski.transform.PolynomialTransform()
+            tform.estimate(source[source_indices, :2],destination[destination_indices, :2],order=4)
+            acceptor_image_transformed = ski.transform.warp(full_image, tform,preserve_range=True)
             image = (donor_image + acceptor_image_transformed) / 2
 
             plt.imshow(np.stack([donor_image.astype('uint8'),
@@ -323,22 +328,30 @@ class File:
 
 
         if channel == 'a':
-            coordinates = transform(coordinates, translation=[self.movie.width//2,0]) 
+            coordinates = transform(coordinates, translation=[self.movie.width//2,0]) #$$
             # MD:here a simple transform is necessary, to move from found points in left channel to right side
+            # why: because you detect in a cropped image size 1024x2048, 
 
         if self.number_of_colours == 2:
             if channel in ['d','da']:
-                acceptor_coordinates = self.mapping.transform_coordinates(coordinates, direction='source2destination')
-                coordinates = np.hstack([coordinates,acceptor_coordinates]).reshape((-1,2))
+                donor_coordinates=coordinates
+                acceptor_coordinates = self.mapping.transform_coordinates(donor_coordinates, direction='source2destination')
+                print(np.shape(acceptor_coordinates), np.shape(coordinates))
             if channel == 'a':
-                donor_coordinates = self.mapping.transform_coordinates(coordinates, direction='destination2source')
-                coordinates = np.hstack([donor_coordinates, coordinates]).reshape((-1, 2))
-
+                acceptor_coordinates=coordinates
+                donor_coordinates = self.mapping.transform_coordinates(acceptor_coordinates, direction='destination2source')
+            coordinates = np.hstack([donor_coordinates,acceptor_coordinates]).reshape((-1,2))
+            
         self.molecules = [] # Should we put this here?
         self.coordinates = coordinates
         self.export_pks_file()
-
-
+        
+        plt.figure(44), plt.imshow(full_image)
+        scatter_coordinates(donor_coordinates,marker='+', c='w')
+        scatter_coordinates(acceptor_coordinates,marker='x', c='w')
+        if channel=='a': plt.title('#acceptor='+str(len(acceptor_coordinates)))
+        else:            plt.title('#donor='+str(len(donor_coordinates)))
+                                       
     def export_pks_file(self):
         pks_filepath = self.absoluteFilePath.with_suffix('.pks')
         with pks_filepath.open('w') as pks_file:
@@ -497,17 +510,18 @@ class File:
         for f, kwargs in configuration['coordinate_optimization'].items():
             coordinates = coordinate_optimization_functions[f](coordinates, image, **kwargs)
             
-        coordinates = coordinates_after_gaussian_fit(coordinates, image)
+ #       coordinates = coordinates_after_gaussian_fit(coordinates, image)
 #        coordinates = coordinates_without_intensity_at_radius(coordinates, image,
 #                                                              **configuration['coordinate_optimization']['coordinates_without_intensity_at_radius'])
 #                                                              # radius=4,
 #                                                              # cutoff=np.median(image),
 #                                                              # fraction_of_peak_max=0.35) # was 0.25 in IDL code
 #
-#        margin = configuration['coordinate_optimization']['coordinates_within_margin']['margin']
-#        donor_coordinates = coordinates_within_margin(coordinates, bounds=self.movie.channel_boundaries('d'), margin=margin)
-#        acceptor_coordinates = coordinates_within_margin(coordinates, bounds=self.movie.channel_boundaries('a'), margin=margin)
-
+        margin = configuration['coordinate_optimization']['coordinates_within_margin']['margin']
+        donor_coordinates = coordinates_within_margin(coordinates, bounds=self.movie.channel_boundaries('d'), margin=margin)
+        acceptor_coordinates = coordinates_within_margin(coordinates, bounds=self.movie.channel_boundaries('a'), margin=margin)
+        if (len(donor_coordinates)<16) | (len(acceptor_coordinates)<16):
+            print('Error in mapping, need at least 16 points in acceptor and donor channel') # should we iterate config settings
         self.mapping = Mapping2(source=donor_coordinates,
                                 destination=acceptor_coordinates,
                                 transformation_type=transformation_type,

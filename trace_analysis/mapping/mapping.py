@@ -54,7 +54,7 @@ class Mapping2:
         axis.scatter(destination_from_source[:, 0], destination_from_source[:, 1], c='y')
 
     def transform_coordinates(self, coordinates, direction='source2destination'):
-        print(self.transformation)
+        print(self.transformation, self.method)
         if self.method == 'icp':
             return icp_apply_transform(coordinates, direction, self.transformation,self.transformation_inverse, self.transformation_type, self.destination2source_translation)
                                      
