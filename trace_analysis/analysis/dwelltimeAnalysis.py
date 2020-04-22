@@ -111,10 +111,10 @@ def plot(dwells, name, dist='offtime', trace='red', binsize='auto', scale='log',
             j += 1
             while j < len(izeros) and izeros[j] - izeros[j-1] == 1:
                 j += 1
-            print('jstart ', izeros[i])
-            print('jend ', izeros[i]+(j-i))
-            print('values ', values[izeros[i]:(izeros[i]+j-i+1)])
-            print('mean value', np.sum(values[izeros[i]:(izeros[i]+j-i+1)])/(j-i+1))
+            # print('jstart ', izeros[i])
+            # print('jend ', izeros[i]+(j-i))
+            # print('values ', values[izeros[i]:(izeros[i]+j-i+1)])
+            # print('mean value', np.sum(values[izeros[i]:(izeros[i]+j-i+1)])/(j-i+1))
             values[izeros[i]:(izeros[i]+j-i+1)] = np.sum(values[izeros[i]:(izeros[i]+j-i+1)])/(j-i+1)
 
     fig = plt.figure(f'Histogram {trace} {dist}s {name}', figsize=(4, 3), dpi=200)
@@ -176,7 +176,7 @@ def plot(dwells, name, dist='offtime', trace='red', binsize='auto', scale='log',
         if fit_result.Ncut[0] > 0:
             label = f', Ncut={int(Ncut)}' + label
 
-        plt.plot(time, fit, color='r', label=f'{fit_result.model[0]}fit{label}')
+        plt.plot(time, fit, color='k', label=f'{fit_result.model[0]}fit{label}')
 
     if scale in ['Log', 'Log-Log']:
         plt.yscale('log')

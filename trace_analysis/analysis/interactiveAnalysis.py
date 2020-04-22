@@ -331,10 +331,37 @@ class InteractivePlot(object):
 
     def throw_away(self, event):
         if self.mol.steps is not None:
-            self.mol.steps = None
+            # self.mol.steps = None
             lines = self.axes[0].get_lines() + self.axes[1].get_lines()
-            [l.remove() for l in lines if l.get_label().split()[0] in ['man','thres','saved']]
-            self.select_molecule(toggle=False, deselect=True)
+            # select only the vertical lines
+            lines = [l for l in lines if l.get_label().split()[0] \
+                     in ['man','thres','saved']]
+            # check if the lines are inside the current zoom level
+            lines = [l for l in lines if \
+                     l.get_xdata()[0] > self.axes[0].get_xlim()[0] and \
+                         l.get_xdata()[0] < self.axes[0].get_xlim()[1]]
+
+
+            # remove the corresponding data from molecule.steps
+            # for t in mol.steps.time.values:
+            for l in lines:
+                steps = self.mol.steps.time.values
+                xdat = l.get_xdata()[0]
+                indx = next(i for i, _ in enumerate(steps) \
+                                if np.isclose(_, xdat, 10**-4))
+                self.mol.steps.drop(indx, inplace=True)
+                self.mol.steps.reset_index(drop=True, inplace=True)
+                print(self.mol.steps)
+            if self.mol.steps.empty:
+                self.mol.steps = None
+
+
+
+            # remove the selected lines
+            print(self.axes[0].get_xlim()[0], self.axes[0].get_xlim()[1])
+            [print(f'line at {l.get_xdata()[0]} removed') for l in lines]
+            [l.remove() for l in lines]
+            # self.select_molecule(toggle=False, deselect=True)
             self.fig.canvas.draw_idle()
 
 
@@ -627,7 +654,7 @@ if __name__ == '__main__':
 
     # mainPath = Path(str(p) + '/traces')
     mainPath = os.path.join(p, WindowsPath('traces'))  # This path cannot be found strangely
-    mainPath = r'C:\Users\iason\Desktop\traceanalysis\trace_analysis\traces'
+    mainPath = r'C:\Users\iason\Desktop\traceanalysis\trace_analysis\traces\test_data\DNA04'
     exp = Experiment(mainPath)
     file = exp.files[0]
     molecules = file.molecules
