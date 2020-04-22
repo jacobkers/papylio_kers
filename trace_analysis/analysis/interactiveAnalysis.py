@@ -83,8 +83,11 @@ class InteractivePlot(object):
         self.axprevb = plt.axes([0.075, 0.90, 0.08, 0.062])
 
         self.axsavetraceb = plt.axes([0.26, 0.90, 0.065, 0.062])
+
+        self.axgotomolecule = plt.axes([0.50, 0.89, 0.05, 0.062])
         self.axplotselected = plt.axes([0.63, 0.90, 0.065, 0.062])
         self.axsaveselectedb = plt.axes([0.77, 0.90, 0.065, 0.062])
+
         self.axtotal = plt.axes([0.865, 0.90, 0.065,  0.062])
         [ax.set_frame_on(False) for ax in self.fig.get_axes()[2:]]
 
@@ -118,13 +121,20 @@ class InteractivePlot(object):
 
         self.bsavetrace = matplotlib.widgets.Button(self.axsavetraceb,'save trace' , **bp)
         self.bsavetrace.on_clicked(self.save_trace)
-        # A button to save selected molecules
-        self.bsaveselected = matplotlib.widgets.Button(self.axsaveselectedb,'save selected' , **bp)
-        self.bsaveselected.on_clicked(self.save_selected)
 
+        # an entry box to go to desired molecule
+        gotodict = {'initial': str(1), 'color':'k', 'hovercolor': 'k', 'label_pad':.2}
+        self.gotoentry = matplotlib.widgets.TextBox(self.axgotomolecule,
+                                                    'Go To:', **gotodict)
+
+        # a checkbutton to whether plot only the selected molecules
         self.checkbplotselected = matplotlib.widgets.CheckButtons(self.axplotselected,
                                                                   ["plot selected"],
                                                                   actives=[False])
+
+        # A button to save selected molecules
+        self.bsaveselected = matplotlib.widgets.Button(self.axsaveselectedb,'save selected' , **bp)
+        self.bsaveselected.on_clicked(self.save_selected)
 
         #  A checkbutton for whether to display the total intensity
         self.checkbtotal = matplotlib.widgets.CheckButtons(self.axtotal, ["show total"],
@@ -134,14 +144,14 @@ class InteractivePlot(object):
         self.checkbfret = matplotlib.widgets.CheckButtons(self.axcheckfret, ["E fret"],
                                                           actives=[False])
 
-
-        for chbutton in [self.checkbtotal, self.checkbfret]:
+        #  Remove the x lines from the checkbuttons
+        for chbutton in [self.checkbplotselected, self.checkbtotal, self.checkbfret]:
             chbutton.rectangles[0].set_color("black")
             chbutton.rectangles[0].set_height( 0.2)
             [line.remove() for line in chbutton.lines[0]]
 
         #  Entryboxes for offset corrections
-        corrdict = {'initial': str(0), 'color':'k', 'hovercolor': "k", 'label_pad':.2}
+        corrdict = {'initial': str(0), 'color':'k', 'hovercolor': 'k', 'label_pad':.2}
         corrlabels = [r'$I_{R_{off}}$', r'$I_{G_{off}}$', r'$I_{min}$']
         corraxes = [self.axcorred, self.axcorgreen, self.axcorrfretI]
         self.correntries = [matplotlib.widgets.TextBox(ax, label, **corrdict)
@@ -169,7 +179,8 @@ class InteractivePlot(object):
         self.fig.canvas.mpl_connect('axes_enter_event', functools.partial(self.change_axis, 'enter'))
         [entry.on_submit(lambda _: self.plot_molecule()) for entry in self.correntries]
         [slider.on_changed(functools.partial(self.change_slider, slider)) for slider in self.thrsliders]
-        self.checkbplotselected.on_clicked(self.plot_molecule)
+        self.checkbplotselected.on_clicked(self.checkbutton_color)
+        self.gotoentry.on_submit(self.go_to_molecule)
         self.checkbtotal.on_clicked(self.check_total)
         self.checkbfret.on_clicked(self.checkbutton_color)
 
@@ -337,6 +348,7 @@ class InteractivePlot(object):
             if len(lines) % 2 != 0:
                 print(f'Found an odd number of steps. Molecule {self.mol.index} not added')
                 return
+            self.mol.isSelected = True
             if self.mol.steps is None:
                 self.mol.steps = pd.DataFrame(columns=['time', 'trace', 'state',
                                                        'method','thres','kon',
@@ -373,9 +385,21 @@ class InteractivePlot(object):
 
         elif event.inaxes == self.axprevb or event.key in ['w']:
             self.mol_indx -= 1
+            if self.mol_indx >= len(self.molecules) \
+                or self.mol_indx <= -len(self.molecules):
+                self.mol_indx = 0
 
+        # if the plot_selected checkbutton is active move again until a selected
+        # molecule is found
+        if self.checkbplotselected.get_status()[0]:
+            mol = self.molecules[self.mol_indx]
+            if not mol.isSelected:
+                self.move_molecule(event, draw)
+            else:
+                self.plot_molecule(draw_plot=draw)
+        else:
 
-        self.plot_molecule(draw_plot=draw)
+            self.plot_molecule(draw_plot=draw)
 
     def conclude_analysis(self, event=None, save=True, filename=None):
         # Save current molecule if it was analyzed
@@ -386,6 +410,8 @@ class InteractivePlot(object):
 
         if save:
             self.file.savetoExcel(filename=filename)
+            # save also the selected molecules
+            self.save_selected()
 
 
     def autoThreshold_plot(self, event=None, find_all=False):
@@ -487,6 +513,8 @@ class InteractivePlot(object):
         j = ['left', 'bottom', 'right'].index(side)
         self.kon[i][j] = (ax.spines[side].get_edgecolor() == selcol)
 
+
+
     def check_total(self, label):
         if self.checkbtotal.get_status()[0]:
             self.ltotal.set_visible(True)
@@ -498,8 +526,10 @@ class InteractivePlot(object):
     def checkbutton_color(self, label):  # changes the color of the fret checkbutton. Purely for aesthetics
         if label == 'E fret':
             chbutton = self.checkbfret ; c = 'b'
-        elif label == 'Show Total':
+        elif label == 'show total':
             chbutton = self.checkbtotal ; c = 'bisque'
+        elif label == 'plot selected':
+            chbutton =  self.checkbplotselected ; c = 'gold'
 
         if chbutton.get_status()[0]:
             chbutton.rectangles[0].set_color(c)
@@ -537,6 +567,9 @@ class InteractivePlot(object):
         else:
             print('no molecules selected')
 
+    def go_to_molecule(self, event=None):
+        self.mol_indx = int(self.gotoentry.text) - 1
+        self.plot_molecule()
 
 
 class Draw_lines(object):

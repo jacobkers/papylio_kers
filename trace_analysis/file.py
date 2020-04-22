@@ -194,7 +194,8 @@ class File:
                             '.pks': self.import_pks_file,
                             '.traces': self.import_traces_file,
                             '.log' : self.import_log_file,
-                            '_steps_data.xlsx': self.import_excel_file
+                            '_steps_data.xlsx': self.import_excel_file,
+                            '_selected_molecules.txt': self.import_selected
                             }
 
         importFunctions.get(extension, self.noneFunction)()
@@ -443,6 +444,20 @@ class File:
                 mol.kon_boolean = np.array(k).astype(bool).reshape((4,3))
         return steps_data
 
+    def import_selected(self):
+        '''
+        Imports the selected molecules stored in {filename}_selected_molecules.txt
+        '''
+        try:
+            filename = f'{self.relativeFilePath}_selected_molecules.txt'
+            selected = np.loadtxt(filename, dtype=int) - 1
+        except FileNotFoundError:
+            return
+
+        for i in selected:
+            self.molecules[i].isSelected = True
+
+
 
     def extract_traces(self, configuration = None):
         # Refresh configuration
@@ -530,6 +545,7 @@ class File:
         return data
 
     def select(self, figure=None):
+        # iasonas: I think this function is not needed anymore
         plt.ion()
         for index, molecule in enumerate(self.molecules):
             molecule.plot(figure=figure)
