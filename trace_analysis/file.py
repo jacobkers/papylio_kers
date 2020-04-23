@@ -438,7 +438,8 @@ class File:
             if mol.index + 1 not in indices:
                 continue
             mol.steps = steps_data.loc[f'mol {mol.index + 1}']
-            # mol.isSelected = True
+            # if saved steps are found for molecule it is assumed selected
+            mol.isSelected = True
             if 'kon' in mol.steps.columns:
                 k = [int(i) for i in mol.steps.kon[0]]
                 mol.kon_boolean = np.array(k).astype(bool).reshape((4,3))
