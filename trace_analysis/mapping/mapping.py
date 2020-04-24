@@ -14,7 +14,6 @@ from trace_analysis.mapping.icp import icp
 from trace_analysis.coordinate_transformations import transform
 from trace_analysis.image_adapt.polywarp import polywarp, polywarp_apply #required for nonlinear
 
-
 class Mapping2:
     def __init__(self, source = None, destination = None, method = None,
                  transformation_type = 'linear', initial_translation = None):
