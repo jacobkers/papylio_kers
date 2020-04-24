@@ -201,22 +201,7 @@ def icp(source, destination, max_iterations=20, tolerance=0.001, initial_transla
     return transformation, distances, i, transformation_inverse
 
 
-def icp_apply_transform  (coordinates, direction, self_transformation,self_transformation_inverse, self_transformation_type):
- 
-    # first move destination to source
-    coords_transformed= coordinates.copy()
-    
-    if self_transformation_type == 'linear': #$$$$$$$$$$$$$$$$$
-        # Maybe we should rename transform to linear_transform [IS 05-03-2020]
-        #transform(pointSet, transformationMatrix=None, **kwargs):
-        if direction == 'source2destination': return transform(coords_transformed[:,:2], self_transformation)
-        elif direction == 'destination2source' : return transform(coords_transformed[:,:2], self_transformation_inverse)
 
-    elif self_transformation_type == 'nonlinear':
-            if direction == 'source2destination' : return polywarp_apply(self_transformation[0],self_transformation[1],coords_transformed)
-            elif direction == 'destination2source' : return polywarp_apply(self_transformation_inverse[0],self_transformation_inverse[1],coords_transformed)
-    
-    return coords_transformed[:,:1]
 
 
 if __name__ == '__main__': ## MD: what is this??

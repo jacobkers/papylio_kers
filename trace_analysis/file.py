@@ -212,7 +212,7 @@ class File:
             elif len(file_content)==6: coefficients = file_content
             else: raise TypeError('Error in importing coeff file, wrong number of lines')
             
-            self.mapping = Mapping2(transformation_type='linear')
+            self.mapping = Mapping2(transformation_type='linear', method='icp')
             self.mapping.transformation = np.zeros((3,3))
             self.mapping.transformation[2,2] = 1
             self.mapping.transformation[[0,0,0,1,1,1],[2,0,1,2,0,1]] = coefficients
@@ -250,7 +250,7 @@ class File:
         P = coefficients[:len(coefficients) // 2].reshape((degree + 1, degree + 1))
         Q = coefficients[len(coefficients) // 2 : len(coefficients)].reshape((degree + 1, degree + 1))
 
-        self.mapping = Mapping2(transformation_type='nonlinear')
+        self.mapping = Mapping2(transformation_type='nonlinear', method='icp')
         self.mapping.transformation = (P,Q) #{'P': P, 'Q': Q}
         #self.mapping.file = self
         if len(file_content)==64:

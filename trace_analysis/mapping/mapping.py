@@ -9,7 +9,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-from trace_analysis.mapping.icp import icp, icp_apply_transform
+from trace_analysis.mapping.icp import icp
 
 from trace_analysis.coordinate_transformations import transform
 from trace_analysis.image_adapt.polywarp import polywarp, polywarp_apply #required for nonlinear
@@ -61,7 +61,17 @@ class Mapping2:
     def transform_coordinates(self, coordinates, direction='source2destination'):
         print(self.transformation, self.method)
         if self.method == 'icp':
-            return icp_apply_transform(coordinates, direction, self.transformation,self.transformation_inverse, self.transformation_type)
-                                     
+#            return icp_apply_transform(coordinates, direction, self.transformation,self.transformation_inverse, self.transformation_type)
+            coords_transformed= coordinates.copy()
+        
+            if self.transformation_type == 'linear': #$$$$$$$$$$$$$$$$$
+                if direction == 'source2destination': return transform(coords_transformed[:,:2], self.transformation)
+                elif direction == 'destination2source' : return transform(coords_transformed[:,:2], self.transformation_inverse)
+        
+            elif self.transformation_type == 'nonlinear':
+                    if direction == 'source2destination' : return polywarp_apply(self.transformation[0],self.transformation[1],coords_transformed)
+                    elif direction == 'destination2source' : return polywarp_apply(self.transformation_inverse[0],self.transformation_inverse[1],coords_transformed)
+            
+            return coords_transformed[:,:1]
         else: print('transform_coordinates only works for icp')
 
