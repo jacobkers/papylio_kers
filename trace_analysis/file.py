@@ -14,6 +14,7 @@ from trace_analysis.peak_finding import find_peaks
 from trace_analysis.coordinate_optimization import coordinates_within_margin, coordinates_after_gaussian_fit, coordinates_without_intensity_at_radius
 from trace_analysis.trace_extraction import extract_traces
 from trace_analysis.coordinate_transformations import translate, transform # MD: we don't want to use this anymore I think, it is only linear
+
 from trace_analysis.mapping.icp import nearest_neighbor_pair, scatter_coordinates, show_point_connections
 
 
@@ -205,9 +206,9 @@ class File:
 
     def import_coeff_file(self):
         if self.mapping is None: # the following only works for 'linear'transformation_type
-            tmp=np.genfromtxt(str(self.relativeFilePath) + '.coeff')
-            if len(tmp)==12:  [coefficients, coefficients_inverse] = np.split(tmp,2)
-            elif len(tmp)==6: coefficients = tmp
+            file_content=np.genfromtxt(str(self.relativeFilePath) + '.coeff')
+            if len(file_content)==12:  [coefficients, coefficients_inverse] = np.split(file_content,2)
+            elif len(file_content)==6: coefficients = file_content
             else: raise TypeError('Error in importing coeff file, wrong number of lines')
             
             self.mapping = Mapping2(transformation_type='linear')
@@ -215,7 +216,7 @@ class File:
             self.mapping.transformation[2,2] = 1
             self.mapping.transformation[[0,0,0,1,1,1],[2,0,1,2,0,1]] = coefficients
             
-            if len(tmp)==6:
+            if len(file_content)==6:
                 self.mapping.transformation_inverse=np.linalg.inv(self.mapping.transformation)
             else:
                 self.mapping.transformation_inverse = np.zeros((3,3))
@@ -236,10 +237,13 @@ class File:
 
     def import_map_file(self):
         #coefficients = np.genfromtxt(self.relativeFilePath.with_suffix('.map'))
-        tmp=np.genfromtxt(self.relativeFilePath.with_suffix('.map'))
-        if len(tmp)==64:        [coefficients,coefficients_inverse]=np.split(tmp,2)
-        elif len(tmp)==32:      coefficients=tmp
-        else: raise TypeError ('Error in import map file, not correct number of lines')
+        file_content=np.genfromtxt(self.relativeFilePath.with_suffix('.map'))
+        if len(file_content) == 64:
+            [coefficients, coefficients_inverse] = np.split(file_content, 2)
+        elif len(file_content) == 32:
+            coefficients = file_content
+        else:
+            raise TypeError('Error in import map file, incorrect number of lines')
         
         degree = int(np.sqrt(len(coefficients) // 2) - 1)
         P = coefficients[:len(coefficients) // 2].reshape((degree + 1, degree + 1))
@@ -248,32 +252,32 @@ class File:
         self.mapping = Mapping2(transformation_type='nonlinear')
         self.mapping.transformation = (P,Q) #{'P': P, 'Q': Q}
         #self.mapping.file = self
-        if len(tmp)==64:
+        if len(file_content)==64:
             degree = int(np.sqrt(len(coefficients_inverse) // 2) - 1)
             Pi = coefficients_inverse[:len(coefficients_inverse) // 2].reshape((degree + 1, degree + 1))
             Qi = coefficients_inverse[len(coefficients_inverse) // 2 : len(coefficients_inverse)].reshape((degree + 1, degree + 1))
         else :
+
             LEN=np.shape(self._average_image)[0] #is an issue if average image does not yet exist
             pts=np.array([(a,b) for a in range(20, LEN/2-20, 10) for b in range(20,LEN-20, 10)]) ##still the question whether range a & B should be swapped
             from trace_analysis.image_adapt.polywarp import polywarp,polywarp_apply
             pts_new=polywarp_apply(P,Q,pts)
             plt.scatter(pts_new[:,0],pts_new[:,1],'.')
             Pi,Qi=polywarp(pts_new[:,0],pts_new[:,1],pts[:,0],pts[:,1])
+
        # self.mapping = Mapping2(transformation_type='nonlinear')
-        self.mapping.transformation_inverse = (Pi,Qi) # {'P': Pi, 'Q': Qi}
+        self.mapping.transformation_inverse = (Pi, Qi) # {'P': Pi, 'Q': Qi}
         self.mapping.file = self
-        
         
     def export_map_file(self):
         #saving kx,ky, still need to see how to read it in again
         map_filepath = self.absoluteFilePath.with_suffix('.map')
-        A=self.mapping.transformation
-        coefficients = np.concatenate((A[0].flatten(),A[1].flatten()),axis=None)
+        PandQ = self.mapping.transformation
+        coefficients = np.concatenate((PandQ[0].flatten(),PandQ[1].flatten()),axis=None)
         #np.savetxt(map_filepath, coefficients, fmt='%13.6g') # Same format used as in IDL code
-        AA=self.mapping.transformation_inverse
-        coefficients_inverse = np.concatenate((AA[0].flatten(),AA[1].flatten()),axis=None)
+        PiandQi = self.mapping.transformation_inverse
+        coefficients_inverse = np.concatenate((PiandQi[0].flatten(),PiandQi[1].flatten()),axis=None)
         np.savetxt(map_filepath, np.concatenate((coefficients,coefficients_inverse)), fmt='%13.6g') # Same format used as in IDL code
-
 
     def import_pks_file(self):
         # Background value stored in pks file is not imported yet
@@ -483,7 +487,7 @@ class File:
 
     def perform_mapping(self, configuration = None):
         # Refresh configuration
-        if not configuration:        self.experiment.import_config_file()
+        if not configuration: self.experiment.import_config_file()
 
         image = self.average_image
         if configuration is None: configuration = self.experiment.configuration['mapping']
@@ -525,12 +529,14 @@ class File:
         self.mapping = Mapping2(source=donor_coordinates,
                                 destination=acceptor_coordinates,
                                 transformation_type=transformation_type,
-                                destination2source_translation=translate([-image.shape[0]//2,0]))
+                                initial_translation=translate([image.shape[0]//2,0]))
         self.mapping.file = self
         self.is_mapping_file = True
 
-        if self.mapping.transformation_type == 'linear':        self.export_coeff_file()
-        elif self.mapping.transformation_type == 'nonlinear':     self.export_map_file()
+        if self.mapping.transformation_type == 'linear':
+            self.export_coeff_file()
+        elif self.mapping.transformation_type == 'nonlinear':
+            self.export_map_file()
 
     def copy_coordinates_to_selected_files(self):
         for file in self.experiment.selectedFiles:

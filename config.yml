@@ -6,7 +6,7 @@ find_coordinates:
     maximum_intensity_difference: 40
   coordinate_optimization:
     coordinates_within_margin:
-      margin: 20
+      margin: 30
     coordinates_after_gaussian_fit:
       gaussian_width: 9
     coordinates_without_intensity_at_radius:
@@ -21,7 +21,7 @@ mapping:
       minimum_intensity_difference: 200
     acceptor:
       method: local-maximum
-      minimum_intensity_difference: 50
+      minimum_intensity_difference: 100
   coordinate_optimization:
     coordinates_after_gaussian_fit:
       gaussian_width: 9
