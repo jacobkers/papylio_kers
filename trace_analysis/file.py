@@ -14,6 +14,7 @@ from trace_analysis.peak_finding import find_peaks
 from trace_analysis.coordinate_optimization import coordinates_within_margin, coordinates_after_gaussian_fit, coordinates_without_intensity_at_radius
 from trace_analysis.trace_extraction import extract_traces
 from trace_analysis.coordinate_transformations import translate, transform # MD: we don't want to use this anymore I think, it is only linear
+                                                                           # IS: We do! But we just need to make them usable with the nonlinear mapping
 
 from trace_analysis.mapping.icp import nearest_neighbor_pair, scatter_coordinates, show_point_connections
 
@@ -257,13 +258,16 @@ class File:
             Pi = coefficients_inverse[:len(coefficients_inverse) // 2].reshape((degree + 1, degree + 1))
             Qi = coefficients_inverse[len(coefficients_inverse) // 2 : len(coefficients_inverse)].reshape((degree + 1, degree + 1))
         else :
-
-            LEN=np.shape(self._average_image)[0] #is an issue if average image does not yet exist
-            pts=np.array([(a,b) for a in range(20, LEN/2-20, 10) for b in range(20,LEN-20, 10)]) ##still the question whether range a & B should be swapped
-            from trace_analysis.image_adapt.polywarp import polywarp,polywarp_apply
-            pts_new=polywarp_apply(P,Q,pts)
-            plt.scatter(pts_new[:,0],pts_new[:,1],'.')
-            Pi,Qi=polywarp(pts_new[:,0],pts_new[:,1],pts[:,0],pts[:,1])
+            image_height = self._average_image.shape[0]
+            # Can't we make this independent of the image?
+            # (Can't we just take the whole image here [IS 26-03-2020])
+            grid_coordinates = np.array([(a,b) for a in range(20, image_height/2-20, 10) for b in range(20, image_height-20, 10)])
+            ##still the question whether range a & B should be swapped
+            # I think so, but does the precies  [IS
+            from trace_analysis.image_adapt.polywarp import polywarp, polywarp_apply
+            transformed_grid_coordinates = polywarp_apply(P, Q, grid_coordinates)
+            plt.scatter(transformed_grid_coordinates[:,0],transformed_grid_coordinates[:,1],'.')
+            Pi, Qi = polywarp(transformed_grid_coordinates[:,0],transformed_grid_coordinates[:,1],grid_coordinates[:,0],grid_coordinates[:,1])
 
        # self.mapping = Mapping2(transformation_type='nonlinear')
         self.mapping.transformation_inverse = (Pi, Qi) # {'P': Pi, 'Q': Qi}

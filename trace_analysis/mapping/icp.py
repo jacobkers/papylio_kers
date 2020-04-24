@@ -143,6 +143,7 @@ def icp(source, destination, max_iterations=20, tolerance=0.001, initial_transla
         # use = nearest_neighbor()
         distances, source_indices, destination_indices = \
             nearest_neighbor_pair(source_moving_to_destination[:, :2], destination[:, :2])
+
         # following three lines are good for nonlinear, expected to be also beneficial for linear
         # with cutoff you remove the entries with outlier distances
         cutoff = np.median(distances)+np.std(distances) #changed
@@ -154,12 +155,12 @@ def icp(source, destination, max_iterations=20, tolerance=0.001, initial_transla
                 print('Not enough points found for non linear mapping')
             kx, ky = polywarp(destination[destination_indices,0:2], source_moving_to_destination[source_indices,0:2])
 
+
             source_moving_to_destination = polywarp_apply(kx, ky, source_moving_to_destination)
 
         elif transformation_type=='linear':
 			# compute the transformation between the current source and nearest destination points
 			#T,_,_ = best_fit_transform(src[:m,:].T, dst[:m,indices].T)
-
             T, res, rank, s = np.linalg.lstsq(source_moving_to_destination[source_indices], destination[destination_indices], rcond=None)
             transformation = T.T
             source_moving_to_destination = (transformation @ source_moving_to_destination.T).T
@@ -181,9 +182,10 @@ def icp(source, destination, max_iterations=20, tolerance=0.001, initial_transla
     plt.figure() # don't plot for every iteration --> move to after the lop
     scatter_coordinates([source_moving_to_destination,destination])
     show_point_connections(source_moving_to_destination[source_indices],destination[destination_indices])
+
     plt.axis('equal')
     plt.title('#donor='+str(len(source))+'#acceptor='+str(len(destination))+'#overlap='+str(len(source_indices)))
- 
+
     # Calculate final transformation, need to be redone, since above you retrieve kx,ky per iteration, now you want the overall one
     if transformation_type == 'nonlinear': ## zit hier de initiele translatie nog in??
         kx_inv, ky_inv = polywarp(source[source_indices,:],destination[destination_indices,:])
@@ -197,6 +199,7 @@ def icp(source, destination, max_iterations=20, tolerance=0.001, initial_transla
         transformation_inverse= np.linalg.inv(transformation)
 
     return transformation, distances, i, transformation_inverse
+
 
 def icp_apply_transform  (coordinates, direction, self_transformation,self_transformation_inverse, self_transformation_type):
  
@@ -214,6 +217,7 @@ def icp_apply_transform  (coordinates, direction, self_transformation,self_trans
             elif direction == 'destination2source' : return polywarp_apply(self_transformation_inverse[0],self_transformation_inverse[1],coords_transformed)
     
     return coords_transformed[:,:1]
+
 
 if __name__ == '__main__': ## MD: what is this??
     Npoints = 40
