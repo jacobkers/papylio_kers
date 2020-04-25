@@ -29,7 +29,7 @@ class InteractivePlot(object):
     def __init__(self, molecules, canvas=None):
 
         self.molecules = molecules
-        self.mol_indx = 6  #From which molecule to start the analysis
+        self.mol_indx = 0  #From which molecule to start the analysis
         self.canvas = canvas
 
 
@@ -53,7 +53,7 @@ class InteractivePlot(object):
             self.axes = self.fig.subplots(2, 1, sharex=True)
 
 
-        self.axes[0].set_ylim((-50, 500))  # Set default intensity limits
+        self.axes[0].set_ylim((-20, 500))  # Set default intensity limits
         self.axes[0].set_ylabel("intensity (a.u)\n")
         self.axes[1].set_ylim((-0.1,1.1))  # Set default fret limits
         self.axes[1].set_xlabel("time (s)")
@@ -237,7 +237,7 @@ class InteractivePlot(object):
                                zorder=-1, visible=self.checkbtotal.get_status()[0])[0]
 
         Imax = np.max(self.red + self.green)
-        self.axes[0].set_ylim((-50, Imax))
+        self.axes[0].set_ylim((self.axes[0].get_ylim()[0], Imax))
 
         self.axes[1].plot(self.time, self.fret, "b", lw=.75)
 
@@ -307,13 +307,13 @@ class InteractivePlot(object):
             return
         else:
             s = self.mol.steps
-            [self.axes[0].axvline(f, zorder=0, lw=0.65, label="saved r")
+            [self.axes[0].axvline(f, zorder=0, lw=0.4, c='red', label="saved r")
              for f in s.time[s.trace == 'red'].values]
-            [self.axes[0].axvline(f, zorder=0, lw=0.65, label="saved g")
+            [self.axes[0].axvline(f, zorder=0, lw=0.4, c='lime', label="saved g")
              for f in s.time[s.trace == 'green'].values]
-            [self.axes[0].axvline(f, zorder=0, lw=0.65, label="saved t")
+            [self.axes[0].axvline(f, zorder=0, lw=0.4, c='gold', label="saved t")
              for f in s.time[s.trace == 'total'].values]
-            [self.axes[1].axvline(f, zorder=0, lw=0.65, label="saved E")
+            [self.axes[1].axvline(f, zorder=0, lw=0.4, c='aqua', label="saved E")
              for f in s.time[s.trace == 'E'].values]
 
     def select_molecule(self, toggle=True, deselect=False):
@@ -399,6 +399,7 @@ class InteractivePlot(object):
 
            #Sort the timepoints first by trace type and then in ascending order
             self.mol.steps = self.mol.steps.sort_values(by=['trace', 'time'])
+            self.mol.steps.reset_index(inplace=True, drop=True)
 
         if move:
             self.move_molecule(event, draw)
@@ -446,20 +447,22 @@ class InteractivePlot(object):
         self.auto_reject()
         #  Find the steps for the checked buttons
         sel = self.radio.value_selected
-        color = self.red*bool(sel == 'red') + self.green*bool(sel == 'green') \
+        c = 'red'*(sel=='red') + 'lime'*(sel=='green')\
+                    + 'gold'*(sel=='total') + 'aqua'*(sel=='E')
+        trace = self.red*bool(sel == 'red') + self.green*bool(sel == 'green') \
                 + self.total*bool(sel == 'total')  # Select trace data for red  or green
         # get the color indices for the current zoom level
         i_left = find_nearest(self.time, self.axes[0].get_xlim()[0])
         i_right = find_nearest(self.time, self.axes[0].get_xlim()[1])
-        print(i_left, i_right)
+        # print(i_left, i_right)
 
-        mask = np.zeros(color.size)
+        mask = np.zeros(trace.size)
         mask[i_left: i_right] = 1
-        color = np.multiply(color, mask)
+        trace = np.multiply(trace, mask)
 
-        steps = self.mol.find_steps(color, threshold=self.thrsliders[0].val)
-        print(steps)
-        l_props = {"lw": 0.75, "zorder": 5, "label": "thres "+sel}
+        steps = self.mol.find_steps(trace, threshold=self.thrsliders[0].val)
+        # print(steps)
+        l_props = {"lw": 0.4, "zorder": 5,'color':c, "label": "thres "+sel}
         [self.axes[0].axvline(s*self.file.exposure_time, **l_props) \
          for s in steps["frames"]]
         if self.checkbfret.get_status()[0]:
@@ -634,7 +637,9 @@ class Draw_lines(object):
                 sel = self.radio.value_selected*(ax == self.fig.get_axes()[0])
 #                print(sel)
                 sel = sel + "E"*(ax == self.fig.get_axes()[1])
-                l = ax.axvline(x=event.xdata, zorder=0, lw=0.65, label="man "+sel)
+                c = 'red'*(sel=='red') + 'lime'*(sel=='green')\
+                    + 'gold'*(sel=='total') + 'aqua'*(sel=='E')
+                l = ax.axvline(x=event.xdata, zorder=0, lw=0.4, c=c, label="man "+sel)
                 self.lines.append(l)
 
         if event.button == 3 and self.lines != []:

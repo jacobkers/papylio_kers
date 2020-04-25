@@ -451,12 +451,12 @@ class File:
         '''
         try:
             filename = f'{self.relativeFilePath}_selected_molecules.txt'
-            selected = np.loadtxt(filename, dtype=int) - 1
+            selected = np.loadtxt(filename, dtype=int)
         except FileNotFoundError:
             return
 
-        for i in selected:
-            self.molecules[i].isSelected = True
+        for i in list(selected):
+            self.molecules[i-1].isSelected = True
 
 
 
