@@ -285,14 +285,15 @@ class InteractivePlot(object):
         elif k == 'c': self.draw.clear_all(event)
         elif k in [',', '.', '/']: self.select_edge(k)
         elif k == ' ': self.select_molecule(toggle=True)
-        elif k == 'r': self.radio_manage('red')
-        elif k == 't': self.radio_manage('green')
+        elif k == '1': self.radio_manage('red')
+        elif k == '2': self.radio_manage('green')
+        elif k == '3': self.radio_manage('total')
         elif k == 'f':
             self.checkbfret.set_active(0)
             self.checkbutton_color('E fret')
         elif k == 'i':
             self.checkbtotal.set_active(0)
-            self.check_total('Total')
+            self.check_total('show total')
 
         elif k == 'x': self.throw_away(event)
         elif k == 'l': self.conclude_analysis()
@@ -381,7 +382,7 @@ class InteractivePlot(object):
                                                        'Iroff', 'Igoff', 'Imin'],
                                               dtype=object)
             # Molecule is automatically selected if steps are indicated
-            self.mol.isSelected = True
+            # self.mol.isSelected = True
             # turn the kon matrix into a flat string
             kon = [f'{int(i)}' for i in self.mol.kon_boolean.flatten()]
             kon = ''.join(kon)
@@ -513,6 +514,7 @@ class InteractivePlot(object):
                                 r"$I_R$"*(label=='red') + \
                                 r"$I_T$"*(label=='total') )
 
+        self.radio.value_selected = label
         # Check the edge colors and set to white if not selected color
         # sel = self.radio.value_selected
         selcol = matplotlib.colors.to_rgba(color)
