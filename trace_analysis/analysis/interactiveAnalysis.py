@@ -171,6 +171,13 @@ class InteractivePlot(object):
 
         self.connect_events_to_canvas()
 
+        # remove keyboard shortcuts from default matplotlib
+        try:
+            plt.rcParams['keymap.home'].remove('r')
+            plt.rcParams['keymap.grid'].remove('g')
+        except ValueError:
+            pass
+
 
     def connect_events_to_canvas(self):
         self.fig.canvas.mpl_connect('button_press_event', self.draw.onclick)
@@ -277,6 +284,7 @@ class InteractivePlot(object):
 
 
     def key_bind(self, event):
+
         k = event.key
         if k == 'a': self.autoThreshold_plot(event, find_all=False)
         if k == 'ctrl+a': self.autoThreshold_plot(event, find_all=True)
@@ -285,9 +293,9 @@ class InteractivePlot(object):
         elif k == 'c': self.draw.clear_all(event)
         elif k in [',', '.', '/']: self.select_edge(k)
         elif k == ' ': self.select_molecule(toggle=True)
-        elif k == '1': self.radio_manage('red')
-        elif k == '2': self.radio_manage('green')
-        elif k == '3': self.radio_manage('total')
+        elif k == 'r': self.radio_manage('red')
+        elif k == 'g': self.radio_manage('green')
+        elif k == 't': self.radio_manage('total')
         elif k == 'f':
             self.checkbfret.set_active(0)
             self.checkbutton_color('E fret')
