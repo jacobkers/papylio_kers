@@ -57,7 +57,8 @@ def fit_twoD_gaussian(Z):
     xdata = np.vstack((X.ravel(), Y.ravel()))
 
     p0 = [20,20,0,0,1,1]
-    popt, pcov = curve_fit(twoD_gaussian, xdata, Z.ravel(), p0)
+    popt, pcov = curve_fit(twoD_gaussian, xdata, Z.ravel(), p0) #input: function, xdata, ydata,p0
+      
     # The offset can potentially be used for background subtraction
     return popt
 
@@ -71,12 +72,18 @@ def coordinates_after_gaussian_fit(coordinates, image, gaussian_width = 9):
         #if np.all(coordinate > gaussian_width//2+1) and \
         #        np.all(coordinate < np.array(image.shape)-gaussian_width//2-1):
         cropped_peak = crop(image, coordinate, gaussian_width)
-
         try:
             coefficients = fit_twoD_gaussian(cropped_peak)
-            new_coordinates.append(coordinate + coefficients[2:4])
+            #new_coordinates.append(coordinate + coefficients[2:4])
+            #MD: check your two_D gaussian, x0 and y0 are [3:5]; 2:4= amplitude&x0
+            tmp=coordinate + coefficients[3:5]
+            if np.sum(np.abs(coefficients[3:5]))<gaussian_width*2:
+                new_coordinates.append(tmp)
+            # else: #MD do nothing, you don't want to include fits with a center far outside the cropped image
         except RuntimeError:
-            print('No fit possible')
+            pass
+       #     # MD: leave this print out? 
+       #    print('RuntimeError: No 2dGaussian fit possible')
     return np.array(new_coordinates)
 
 if __name__ == '__main__':
