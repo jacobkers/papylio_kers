@@ -9,7 +9,7 @@ this code takes an images, calculates the rolling_ball background, and subtracts
 #Based on the a „rolling ball“ algorithm described in Stanley Sternberg's article, „Biomedical Image Processing“, IEEE Computer, January 1983. 
 import scipy.ndimage as scim
 import skimage
-from skimage.morphology import ball
+#from skimage.morphology import ball
 import matplotlib.pyplot as plt
 
 def rollingball(*args): # Matlab[im_out,im_bg]=rollingball(im_in,size_ball,im_bg)
@@ -22,7 +22,7 @@ def rollingball(*args): # Matlab[im_out,im_bg]=rollingball(im_in,size_ball,im_bg
     if len(varargin)<3:
         # from https://stackoverflow.com/questions/29320954/rolling-ball-background-subtraction-algorithm-for-opencv
         # Create 3D ball structure
-        s = ball(size_ball)
+        s = skimage.morphology.ball(size_ball)
         # Take only the upper half of the ball
         h = int((s.shape[1] + 1) / 2)
         # Flat the 3D ball to a weighted 2D disc
