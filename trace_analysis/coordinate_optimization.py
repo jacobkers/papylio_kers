@@ -7,11 +7,11 @@ def coordinates_within_margin(coordinates,  image = None, bounds = None, margin=
     if coordinates.size == 0: return np.array([])
 
     if image is not None:
-        bounds = np.array([[0,image.shape[1]], [0,image.shape[0]]])
+        bounds = np.array([[0,0], [image.shape[1],image.shape[0]]])
 
     criteria = np.array([(coordinates[:, 0] > (bounds[0,0] + margin)),
-                         (coordinates[:, 0] < (bounds[0,1] - margin)),
-                         (coordinates[:, 1] > (bounds[1,0] + margin)),
+                         (coordinates[:, 0] < (bounds[1,0] - margin)),
+                         (coordinates[:, 1] > (bounds[0,1] + margin)),
                          (coordinates[:, 1] < (bounds[1,1] - margin))
                          ])
 

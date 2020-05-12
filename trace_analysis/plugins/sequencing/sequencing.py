@@ -93,8 +93,8 @@ class Experiment:
 def within_bounds(coordinates, bounds, margin=0):
     bounds = np.sort(bounds)
     criteria = np.array([(coordinates[:, 0] > (bounds[0, 0] + margin)),
-                         (coordinates[:, 0] < (bounds[0, 1] - margin)),
-                         (coordinates[:, 1] > (bounds[1, 0] + margin)),
+                         (coordinates[:, 0] < (bounds[1, 0] - margin)),
+                         (coordinates[:, 1] > (bounds[0, 1] + margin)),
                          (coordinates[:, 1] < (bounds[1, 1] - margin))
                          ])
 
@@ -137,12 +137,12 @@ class File:
     def get_all_sequences_from_sequencing_data(self):
         #raise Warning('Only works on acceptor channel for now')
         coordinate_bounds_file = self.movie.channel_boundaries('a')
-        coordinate_bounds_tile = self.sequence_match.transform_coordinates(coordinate_bounds_file.T).T
+        coordinate_bounds_tile = self.sequence_match.transform_coordinates(coordinate_bounds_file)
 
         self.sequencing_data = \
             self.experiment.sequencing_data.get_selection(tile=int(self.sequence_match.tile.name),
-                                                          x=coordinate_bounds_tile[0],
-                                                          y=coordinate_bounds_tile[1])
+                                                          x=coordinate_bounds_tile[:,0],
+                                                          y=coordinate_bounds_tile[:,1])
         self.molecules = []
         self.coordinates = self.sequence_match.transform_coordinates(self.sequencing_data.coordinates,
                                                                      inverse=True)
@@ -157,7 +157,7 @@ class File:
         sequencing_data = sequencing_data.select(indices_within_tile, copyData=True)
 
         #raise Warning("Not implemented for the donor channel yet")
-        boundaries = self.sequence_match.transform_coordinates(self.movie.channel_boundaries('a').T).T
+        boundaries = self.sequence_match.transform_coordinates(self.movie.channel_boundaries('a'))
 
         indices_within_bounds = within_bounds(sequencing_data.coordinates, boundaries)
         sequencing_data.select(indices_within_bounds, copyData=False)

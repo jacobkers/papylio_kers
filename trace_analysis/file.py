@@ -281,9 +281,9 @@ class File(A):
             full_image = self.maximum_projection_image
 
 
-        if channel in ['d','a']:
+        if len(channel) == 1:
             image = self.movie.get_channel(image=full_image, channel=channel)
-        elif channel in ['da']:
+        elif len(channel) > 1:
             donor_image = self.movie.get_channel(image=full_image, channel='d')
             acceptor_image = self.movie.get_channel(image=full_image, channel='a')
 
