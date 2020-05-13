@@ -10,13 +10,23 @@ import time
 # Make random source and destination dataset
 np.random.seed(42)
 destination = np.random.rand(1000,2)*1000
-source_bounds = [[300, 450], [300, 600]]
+source_bounds = np.array([[300, 300], [450, 600]])
 
-selection = (destination[:,0] > 300) & (destination[:,0] < 450) & \
-            (destination[:,1] > 300) & (destination[:,1] < 600)
+
+
+def crop_coordinates(coordinates, bounds):
+    bounds.sort(axis=0)
+    selection = (coordinates[:, 0] > bounds[0, 0]) & (coordinates[:, 0] < bounds[1, 0]) & \
+                (coordinates[:, 1] > bounds[0, 1]) & (coordinates[:, 1] < bounds[1, 1])
+    return coordinates[selection]
+
+#
+# selection = (destination[:,0] > source_bounds[0,0]) & (destination[:,0] < source_bounds[1,0]) & \
+#             (destination[:,1] > source_bounds[0,1]) & (destination[:,1] < source_bounds[1,1])
 #source = destination[selection]
 transformation = AffineTransform(scale=(0.1, 0.1), rotation=np.pi, shear=None, translation=(-100,350))
-source = transformation(destination[selection])
+source = transformation(crop_coordinates(destination, source_bounds))
+source_bounds_transformed = transformation(source_bounds)
 plt.figure()
 plt.scatter(destination[:,0],destination[:,1])
 plt.scatter(source[:,0],source[:,1])
@@ -99,34 +109,50 @@ source_KDTree, source_tuples, source_hash_table_KDTree = geometric_hash(source, 
 # 200 points 200,20
 # 10000 points 10,1
 
-# plt.figure()
-# scatter_coordinates([destination])
-# for source_tuple_index in np.arange(len(source_tuples)):
-#     distance, destination_tuple_index = destination_hash_table_KDTree.query(
-#         source_hash_table_KDTree.data[source_tuple_index])
-#     if distance < 0.01:
-#         print(distance, source_tuple_index)
-#         distance, destination_tuple_index = destination_hash_table_KDTree.query(
-#             source_hash_table_KDTree.data[source_tuple_index])
-#
-#         source_coordinate_tuple = source[list(source_tuples[source_tuple_index])]
-#         destination_coordinate_tuple = destination[list(destination_tuples[destination_tuple_index])]
-#
-#         source_transformed, transformation_matrix = mapToPoint(source, source_coordinate_tuple[:2],
-#                                                                destination_coordinate_tuple[:2],
-#                                                                returnTransformationMatrix=True)
-#
-#         scatter_coordinates([source_transformed])
+plt.figure()
+scatter_coordinates([destination])
 
 source_tuple_index = 0
-distance, destination_tuple_index = destination_hash_table_KDTree.query(source_hash_table_KDTree.data[source_tuple_index])
+for source_tuple_index in np.arange(len(source_tuples)):
+    distance, destination_tuple_index = destination_hash_table_KDTree.query(source_hash_table_KDTree.data[source_tuple_index])
+    # We can also put a threshold on the distance here possibly
+    # if distance < 0.01:
+    print(distance, source_tuple_index)
+    source_coordinate_tuple = source[list(source_tuples[source_tuple_index])]
+    destination_coordinate_tuple = destination[list(destination_tuples[destination_tuple_index])]
 
-source_coordinate_tuple = source[list(source_tuples[source_tuple_index])]
-destination_coordinate_tuple = destination[list(destination_tuples[destination_tuple_index])]
+    source_transformed, transformation_matrix = mapToPoint(source, source_coordinate_tuple[:2], destination_coordinate_tuple[:2], returnTransformationMatrix=True)
+    scatter_coordinates([source_transformed])
 
-t1 = time.time()
+    found_transformation = AffineTransform(transformation_matrix)
+    source_bounds_in_destination = found_transformation(source_bounds_transformed)
+    destination_cropped = crop_coordinates(destination, source_bounds_in_destination)
 
-source_transformed, transformation_matrix = mapToPoint(source, source_coordinate_tuple[:2], destination_coordinate_tuple[:2], returnTransformationMatrix=True)
+    source_in_destination_area = np.linalg.norm(source_bounds_in_destination[0] - source_bounds_in_destination[1])
+    pDB = 1 / source_in_destination_area
+
+    alpha = 0
+    test_radius = 5
+    K=1
+    K_threshold = 10e9
+    is_match = False
+    for coordinate in source_transformed:
+        points_within_radius = destination_KDTree.query_ball_point(coordinate, test_radius)
+        pDF = alpha/source_in_destination_area + (1-alpha)*len(points_within_radius)/len(destination_cropped)
+        K = K * pDF/pDB
+        if K > K_threshold:
+            is_match = True
+            break
+    if is_match: break
+
+    t1 = time.time()
+
+
+
+
+
+
+
 
 scatter_coordinates([destination,source_transformed])
 print(t1-t0)
@@ -141,7 +167,6 @@ print(t1-t0)
 
 
 scatter_coordinates([source_coordinate_tuple, destination_coordinate_tuple])
-
 
 def connect_pairs(pairs):
     for pair in pairs:
