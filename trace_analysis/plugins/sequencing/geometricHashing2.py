@@ -10,7 +10,7 @@ import time
 # Make random source and destination dataset
 np.random.seed(42)
 destination = np.random.rand(1000,2)*1000
-source_bounds = np.array([[300, 300], [450, 600]])
+source_bounds_in_destination = np.array([[300, 300], [450, 600]])
 
 
 
@@ -25,8 +25,8 @@ def crop_coordinates(coordinates, bounds):
 #             (destination[:,1] > source_bounds[0,1]) & (destination[:,1] < source_bounds[1,1])
 #source = destination[selection]
 transformation = AffineTransform(scale=(0.1, 0.1), rotation=np.pi, shear=None, translation=(-100,350))
-source = transformation(crop_coordinates(destination, source_bounds))
-source_bounds_transformed = transformation(source_bounds)
+source = transformation(crop_coordinates(destination, source_bounds_in_destination))
+source_bounds = transformation(source_bounds_in_destination)
 plt.figure()
 plt.scatter(destination[:,0],destination[:,1])
 plt.scatter(source[:,0],source[:,1])
@@ -101,90 +101,119 @@ def geometric_hash(point_set, maximum_distance=100, point_set_size=4):
 
     return point_set_KDTree, point_tuples, hash_table_KDTree
 
-t0 = time.time()
-destination_KDTree, destination_tuples, destination_hash_table_KDTree = geometric_hash(destination, 40, 4)
+def find_match_after_hashing(destination_KDTree, destination_tuples, destination_hash_table_KDTree,
+                             source_KDTree, source_tuples, source_hash_table_KDTree, source_bounds):
 
-source_KDTree, source_tuples, source_hash_table_KDTree = geometric_hash(source, 4, 4)
+    for source_tuple_index in np.arange(len(source_tuples)):
+        distance, destination_tuple_index = destination_hash_table_KDTree.query(
+            source_hash_table_KDTree.data[source_tuple_index])
+        # We can also put a threshold on the distance here possibly
+        # if distance < 0.01:
+        print(distance, source_tuple_index)
+        # source_coordinate_tuple = source[list(source_tuples[source_tuple_index])]
+        # destination_coordinate_tuple = destination[list(destination_tuples[destination_tuple_index])]
 
-# 200 points 200,20
-# 10000 points 10,1
+        source_tuple = source_tuples[source_tuple_index]
+        destination_tuple = destination_tuples[destination_tuple_index]
+        match = tuple_match(source_KDTree, destination_KDTree, source_bounds, source_tuple, destination_tuple)
+        if match:
+            return match
 
-plt.figure()
-scatter_coordinates([destination])
+def tuple_match(source_KDTree, destination_KDTree, source_bounds, source_tuple, destination_tuple):
+    source_coordinate_tuple = source_KDTree.data[list(source_tuple)]
+    destination_coordinate_tuple = destination_KDTree.data[list(destination_tuple)]
 
-source_tuple_index = 0
-for source_tuple_index in np.arange(len(source_tuples)):
-    distance, destination_tuple_index = destination_hash_table_KDTree.query(source_hash_table_KDTree.data[source_tuple_index])
-    # We can also put a threshold on the distance here possibly
-    # if distance < 0.01:
-    print(distance, source_tuple_index)
-    source_coordinate_tuple = source[list(source_tuples[source_tuple_index])]
-    destination_coordinate_tuple = destination[list(destination_tuples[destination_tuple_index])]
-
-    source_transformed, transformation_matrix = mapToPoint(source, source_coordinate_tuple[:2], destination_coordinate_tuple[:2], returnTransformationMatrix=True)
-    scatter_coordinates([source_transformed])
+    source_transformed, transformation_matrix = mapToPoint(source_KDTree.data, source_coordinate_tuple[:2], destination_coordinate_tuple[:2], returnTransformationMatrix=True)
+    # scatter_coordinates([source_transformed])
 
     found_transformation = AffineTransform(transformation_matrix)
-    source_bounds_in_destination = found_transformation(source_bounds_transformed)
-    destination_cropped = crop_coordinates(destination, source_bounds_in_destination)
+    source_bounds_transformed = found_transformation(source_bounds)
+    destination_cropped = crop_coordinates(destination, source_bounds_transformed)
 
-    source_in_destination_area = np.linalg.norm(source_bounds_in_destination[0] - source_bounds_in_destination[1])
-    pDB = 1 / source_in_destination_area
+    source_transformed_area = np.linalg.norm(source_bounds_transformed[0] - source_bounds_transformed[1])
+    pDB = 1 / source_transformed_area
 
     alpha = 0
     test_radius = 5
     K=1
     K_threshold = 10e9
-    is_match = False
     for coordinate in source_transformed:
         points_within_radius = destination_KDTree.query_ball_point(coordinate, test_radius)
-        pDF = alpha/source_in_destination_area + (1-alpha)*len(points_within_radius)/len(destination_cropped)
+        pDF = alpha/source_transformed_area + (1-alpha)*len(points_within_radius)/len(destination_cropped)
         K = K * pDF/pDB
         if K > K_threshold:
-            is_match = True
-            break
-    if is_match: break
+            return found_transformation
 
     t1 = time.time()
 
 
 
+t0 = time.time()
+
+def find_match(source, destination, source_bounds):
+    # destination_KDTree, destination_tuples, destination_hash_table_KDTree = geometric_hash(destination, 40, 4)
+    # source_KDTree, source_tuples, source_hash_table_KDTree = geometric_hash(source, 4, 4)
+    # 200 points 200,20
+    # 10000 points 10,1
+    return find_match_after_hashing(*geometric_hash(destination, 40, 4), *geometric_hash(source, 4, 4), source_bounds)
+
+match = find_match(source, destination, source_bounds)
+scatter_coordinates([source,destination,match(source)])
+
+
+#
+# destination_KDTree, destination_tuples, destination_hash_table_KDTree = geometric_hash(destination, 40, 4)
+# source_KDTree, source_tuples, source_hash_table_KDTree = geometric_hash(source, 4, 4)
 
 
 
 
 
-scatter_coordinates([destination,source_transformed])
-print(t1-t0)
 
 
 
-#destination_coordinate_tuples = [destination[list(t)] for t in destination_tuples]
-#source_coordinate_tuples = [source[list(t)] for t in source_tuples]
-#source_coordinate_tuple = source_coordinate_tuples[source_tuple_index]
-#destination_coordinate_tuple = destination_coordinate_tuples[destination_tuple_index]
 
 
 
-scatter_coordinates([source_coordinate_tuple, destination_coordinate_tuple])
 
-def connect_pairs(pairs):
-    for pair in pairs:
-        plt.plot(pair[:,0], pair[:,1], color='r')
+# scatter_coordinates([destination,source_transformed])
+# print(t1-t0)
 
-def plot_tuple(tuple_coordinates):
-    pair_coordinates = tuple_coordinates[:2]
-    internal_coordinates = tuple_coordinates[2:]
-    plt.figure()
-    center = (pair_coordinates[0] + pair_coordinates[1]) / 2
-    distance = np.linalg.norm(pair_coordinates[0] - pair_coordinates[1])
-    connect_pairs([pair_coordinates])
-    scatter_coordinates([pair_coordinates, np.atleast_2d(center), internal_coordinates])
-    plt.gca().set_aspect('equal')
-    circle = plt.Circle(center, distance / 2, fill=False)
-    plt.gcf().gca().add_artist(circle)
-    axis_limits = np.array([center-distance/2*1.2, center+distance/2*1.2])
-    plt.xlim(axis_limits[:, 0])
-    plt.ylim(axis_limits[:, 1])
-    plt.xlabel('x')
-    plt.ylabel('y')
+
+
+# destination_coordinate_tuples = [destination[list(t)] for t in destination_tuples]
+# source_coordinate_tuples = [source[list(t)] for t in source_tuples]
+# source_coordinate_tuple = source_coordinate_tuples[source_tuple_index]
+# destination_coordinate_tuple = destination_coordinate_tuples[destination_tuple_index]
+
+
+#
+# scatter_coordinates([source_coordinate_tuple, destination_coordinate_tuple])
+#
+# def connect_pairs(pairs):
+#     for pair in pairs:
+#         plt.plot(pair[:,0], pair[:,1], color='r')
+#
+# def plot_tuple(tuple_coordinates):
+#     pair_coordinates = tuple_coordinates[:2]
+#     internal_coordinates = tuple_coordinates[2:]
+#     plt.figure()
+#     center = (pair_coordinates[0] + pair_coordinates[1]) / 2
+#     distance = np.linalg.norm(pair_coordinates[0] - pair_coordinates[1])
+#     connect_pairs([pair_coordinates])
+#     scatter_coordinates([pair_coordinates, np.atleast_2d(center), internal_coordinates])
+#     plt.gca().set_aspect('equal')
+#     circle = plt.Circle(center, distance / 2, fill=False)
+#     plt.gcf().gca().add_artist(circle)
+#     axis_limits = np.array([center-distance/2*1.2, center+distance/2*1.2])
+#     plt.xlim(axis_limits[:, 0])
+#     plt.ylim(axis_limits[:, 1])
+#     plt.xlabel('x')
+#     plt.ylabel('y')
+
+
+
+
+
+
+
