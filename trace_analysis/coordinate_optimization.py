@@ -64,7 +64,6 @@ def fit_twoD_gaussian(Z):
 
 def coordinates_after_gaussian_fit(coordinates, image, gaussian_width = 9):
     new_coordinates = []
-
     coordinates = coordinates_within_margin(coordinates, image=image, margin=gaussian_width//2+1)
 
     for i, coordinate in enumerate(coordinates):
@@ -75,9 +74,8 @@ def coordinates_after_gaussian_fit(coordinates, image, gaussian_width = 9):
         try:
             coefficients = fit_twoD_gaussian(cropped_peak)
             #new_coordinates.append(coordinate + coefficients[2:4])
-            #MD: check your two_D gaussian, x0 and y0 are [3:5]; 2:4= amplitude&x0
-            tmp=coordinate + coefficients[3:5]
-            if np.sum(np.abs(coefficients[3:5]))<gaussian_width*2:
+            tmp=coordinate + coefficients[2:4]
+            if np.sum(np.abs(coefficients[2:4]))<gaussian_width*2:
                 new_coordinates.append(tmp)
             # else: #MD do nothing, you don't want to include fits with a center far outside the cropped image
         except RuntimeError:
