@@ -171,20 +171,24 @@ class Movie:
         Parameters
         ----------
         channel : str
-            Name of a channel
+            Name of a channel or 'all'
 
         Returns
         -------
         channel_boundaries : np.array
             Formatted as two coordinates, with the lowest and highest x and y values respectively
         """
-        channel_number = self.get_channel_number(channel)
+        if channel == 'all':
+            horizontal_boundaries = [0, self.width]
+            vertical_boundaries = [0, self.height]
+        else:
+            channel_number = self.get_channel_number(channel)
 
-        channel_width = self.width // self.channel_grid[0]
-        horizontal_boundaries = [0, channel_width] + channel_width * (channel_number % self.channel_grid[0])
+            channel_width = self.width // self.channel_grid[0]
+            horizontal_boundaries = [0, channel_width] + channel_width * (channel_number % self.channel_grid[0])
 
-        channel_height = self.height // self.channel_grid[1]
-        vertical_boundaries = [0, channel_height] + channel_height * (channel_number // self.channel_grid[0])
+            channel_height = self.height // self.channel_grid[1]
+            vertical_boundaries = [0, channel_height] + channel_height * (channel_number // self.channel_grid[0])
 
         return np.vstack([horizontal_boundaries, vertical_boundaries]).T
 
@@ -192,6 +196,37 @@ class Movie:
         #     return np.array([[0, self.width // 2],[0,self.height]])
         # elif channel is 'a':
         #     return np.array([[self.width // 2, self.width], [0, self.height]])
+
+    def channel_vertices(self, channel):
+        """Get the vertices of the channel within the movie
+
+        Parameters
+        ----------
+        channel : str
+            Name of a channel or 'all'
+
+        Returns
+        -------
+        channel_vertices : np.array
+            Four coordinates giving the four corners of the channel
+            Coordinates form a closed shape
+        """
+        if channel == 'all':
+            channel_width = self.width
+            channel_height = self.height
+            channel_origin = [0, 0]
+        else:
+            channel_number = self.get_channel_number(channel)
+            channel_width = self.width // self.channel_grid[0]
+            channel_height = self.height // self.channel_grid[1]
+            channel_origin = [channel_width * (channel_number % self.channel_grid[0]),
+                              channel_height * (channel_number // self.channel_grid[0])]
+
+        channel_vertices = np.array([channel_origin,]*4)
+        channel_vertices[[1,2],0] += channel_width
+        channel_vertices[[2,3],1] += channel_height
+
+        return channel_vertices
 
     def make_maximum_projection(self, write = False):
         maximum_projection_image = np.zeros((self.height, self.width))
