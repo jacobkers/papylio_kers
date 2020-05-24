@@ -43,8 +43,8 @@ def extract_trace_values_from_image(image, coordinates, twoD_gaussians):  # extr
 
     for i, coordinate in enumerate(coordinates):
         # First crop around spot, then do multiplication
-        intensities = image[(coordinate[1] - half_size_Gaussian): (coordinate[1] + half_size_Gaussian + 1),
-                      (coordinate[0] - half_size_Gaussian): (coordinate[0] + half_size_Gaussian + 1)
+        intensities = image[(coordinate[1] - half_size_Gaussian):(coordinate[1] + half_size_Gaussian + 1),
+                      (coordinate[0] - half_size_Gaussian):(coordinate[0] + half_size_Gaussian + 1)
                       ]
 
         weighed_intensities = intensities * twoD_gaussians[i]
