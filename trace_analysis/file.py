@@ -211,16 +211,19 @@ class File(A):
     def import_sifx_file(self):
         imageFilePath = self.absoluteFilePath.joinpath('Spooled files.sifx')
         self.movie = SifxFile(imageFilePath)
+        self.movie.number_of_colours = self.experiment.Ncolours
         self.number_of_frames = self.movie.number_of_frames
 
     def import_pma_file(self):
         imageFilePath = self.absoluteFilePath.with_suffix('.pma')
         self.movie = PmaFile(imageFilePath)
+        self.movie.number_of_colours = self.experiment.Ncolours
         self.number_of_frames = self.movie.number_of_frames
 
     def import_tif_file(self):
         imageFilePath = self.absoluteFilePath.with_suffix('.tif')
         self.movie = TifFile(imageFilePath)
+        self.movie.number_of_colours = self.experiment.Ncolours
         self.number_of_frames = self.movie.number_of_frames
 
     def import_average_tif_file(self):
