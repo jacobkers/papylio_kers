@@ -20,6 +20,7 @@ class FastqData:
         self.write_path = self.path.parent
         self.adapter_sequences = ['AATGATACGGCGACCACCGAGATCTACACTCTTTCCCTACACGACGCTCTTCCGATCT', 'ATCTCGTATGCCGTCTTCTGCTTG']
         self._text_file = None
+        self._tiles = []
 
         file = open(path, 'r')
 
@@ -84,6 +85,12 @@ class FastqData:
         return np.unique(self.tile)
 
     @property
+    def tiles(self):
+        if not self._tiles:
+            self._tiles = [self.get_tile_object(tile_number) for tile_number in self.tile_numbers]
+        return self._tiles
+
+    @property
     def coordinates(self):
         return np.vstack([self.x, self.y]).T
 
@@ -127,6 +134,7 @@ class FastqData:
         new.sequence = self.sequence[item, :]
         new.quality = self.quality[item, :]
 
+        new._tiles = []
         return new
 
     def __add__(self, other):
@@ -141,6 +149,8 @@ class FastqData:
         new.sample = np.append(new.sample, other.sample)
         new.sequence = np.vstack([new.sequence, other.sequence])
         new.quality = np.vstack([new.quality, other.quality])
+
+        new._tiles = []
         return new
 
     def __radd__(self, other):
@@ -165,6 +175,8 @@ class FastqData:
         selection.sample = self.sample[indices]
         selection.sequence = self.sequence[indices,:]
         selection.quality = self.quality[indices,:]
+
+        selection._tiles = []
         
         if copyData:
             return selection
@@ -258,9 +270,13 @@ class FastqData:
 
 
 class Tile:
-    def __init__(self, name, coordinates):
-        self.name = str(name)
+    def __init__(self, number, coordinates):
+        self.name = str(number)
+        self.number = number
         self.coordinates = coordinates
+
+    def __repr__(self):
+        return (f'{self.__class__.__name__}({self.name})')
 
 #https://stackoverflow.com/questions/9476797/how-do-i-create-character-arrays-in-numpy
 
