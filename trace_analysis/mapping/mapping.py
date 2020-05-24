@@ -11,7 +11,6 @@ import matplotlib.pyplot as plt
 from trace_analysis.mapping.icp import icp, nearest_neighbor_pair
 from trace_analysis.mapping.icp_nonrigid import icp_nonrigid
 from trace_analysis.coordinate_transformations import transform
-from trace_analysis.plotting import plot_match
 
 class Mapping2:
     def __init__(self, source = None, destination = None, method = None,

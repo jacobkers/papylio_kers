@@ -14,7 +14,7 @@ from matplotlib.pyplot import cm
 import scipy.stats
 from trace_analysis.mapping.mapping import Mapping2
 from trace_analysis.coordinate_transformations import translate, rotate, magnify, reflect, transform
-from trace_analysis.plotting import plot_match
+from trace_analysis.plugins.sequencing.plotting import plot_sequencing_match
 
 
 def mapToPoint(pointSet,startPoints,endPoints,returnTransformationMatrix = False, tr = None, di = None, ro = None):
@@ -600,7 +600,7 @@ class SequencingDataMapping:
     def plot_match(self, match):
         name = str(self.files[self.matches.index(match)].relativeFilePath)
         print(name)
-        plot_match(match, self.dataPath, name, unit='um')
+        plot_sequencing_match(match, self.dataPath, name, unit='um')
 
     def loop_through_matches(self, figure=plt.figure()):
         plt.ion()
