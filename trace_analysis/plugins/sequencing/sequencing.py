@@ -5,6 +5,7 @@ from skimage.transform import AffineTransform
 # from trace_analysis.experiment import Experiment
 # from trace_analysis.file import File
 from trace_analysis.mapping.geometricHashing import SequencingDataMapping
+from trace_analysis.mapping.mapping import Mapping2
 from .fastqAnalysis import FastqData
 from .geometricHashing2 import geometric_hash, find_match_after_hashing
 from .plotting import plot_sequencing_match
@@ -26,9 +27,9 @@ class Experiment:
         elif imaged_surface in ['bottom', 2]:
             self.sequencing_data_for_mapping = self.sequencing_data_for_mapping[self.sequencing_data_for_mapping.tile > 2000]
 
-        for tile in self.sequencing_data_for_mapping.tiles:
-            # TODO: get maximum_distance_tile and tuple_size from configuration
-            tile.geometric_hash_data = geometric_hash(tile.coordinates, maximum_distance_tile, tuple_size)
+        tile_coordinate_sets = [tile.coordinates for tile in self.sequencing_data_for_mapping.tiles]
+        # TODO: get maximum_distance_tile and tuple_size from configuration
+        self.geometric_hash_data = geometric_hash(tile_coordinate_sets, maximum_distance_tile, tuple_size)
 
     def select_sequencing_data_for_mapping(self, mapping_sequence, number_of_allowed_mismatches):
         self.mapping_sequence = mapping_sequence
@@ -74,7 +75,7 @@ class Experiment:
     def sequencing_mapping_to_files(self, minimal_number_of_matching_points):
         self.seqmap.give_matches_to_files(match_threshold=minimal_number_of_matching_points)
 
-    # TODO: PUt this improvement in file
+    # TODO: Put this improvement in file
     def sequencing_mapping_improvement(self):
         for match in self.seqmap.matches:
             match.nearest_neighbour_match(distance_threshold=25)
@@ -159,36 +160,41 @@ class File:
     #     #     molecule.sequencing_data = sequencing_data[i]
 
 
-    def find_sequences(self, maximum_distance_file, tuple_size, initial_transform={}):
+    def find_sequences(self, maximum_distance_file, tuple_size, initial_transformation={}):
         # TODO: Make geometric hashing reflection invariant
-        initial_transform = AffineTransform(**initial_transform)
+        initial_transformation = AffineTransform(**initial_transformation)
 
         # TODO: make the following line more general and remove bounds dependence in geometric hashing
-        coordinate_vertices_file = initial_transform(self.movie.channel_vertices('a'))
+        coordinate_vertices_file = initial_transformation(self.movie.channel_vertices('a'))
 
-        self.geometric_hash_data = geometric_hash(initial_transform(self.coordinates), maximum_distance_file, tuple_size)
+        #self.geometric_hash_data = geometric_hash(initial_transform(self.coordinates), maximum_distance_file, tuple_size)
 
-        for tile in self.experiment.sequencing_data_for_mapping.tiles:
-            match = find_match_after_hashing(*self.geometric_hash_data, coordinate_vertices_file,
-                                             *tile.geometric_hash_data)
-            if match:
-                self.sequencing_tile = tile
-                match.source = self.coordinates
-                match.transform = match.transform @ initial_transform.params
-                self.sequencing_match = match
-                self.get_all_sequences_from_sequencing_data()
+        #match.destination_index = destination_index
+        match = find_match_after_hashing(initial_transformation(self.coordinates), maximum_distance_file, tuple_size, coordinate_vertices_file,
+                                         *self.experiment.geometric_hash_data,
+                                        hash_table_distance_threshold = 0.01,
+                                        alpha = 0.1, test_radius = 10, K_threshold = 10e9)
+        if match:
+            self.sequencing_tile = self.experiment.sequencing_data_for_mapping.tiles[match.destination_index]
+            match.source = self.coordinates
+            match.initial_transformation = initial_transformation
+            match.transformation = match.transformation @ initial_transformation.params
+            # TODO: Base this on some better criteria
+            match.nearest_neighbour_match(distance_threshold=25)
+            self.sequencing_match = match
+            self.get_all_sequences_from_sequencing_data()
 
     def get_all_sequences_from_sequencing_data(self):
         # raise Warning('Only works on acceptor channel for now')
         coordinate_bounds_file = self.movie.channel_boundaries('a')
-        coordinate_bounds_tile = self.sequence_match.transform_coordinates(coordinate_bounds_file)
+        coordinate_bounds_tile = self.sequencing_match.transform_coordinates(coordinate_bounds_file)
 
         self.sequencing_data = \
-            self.experiment.sequencing_data.get_selection(tile=int(self.sequence_match.tile.name),
+            self.experiment.sequencing_data.get_selection(tile=int(self.sequencing_tile.name),
                                                           x=coordinate_bounds_tile[:, 0],
                                                           y=coordinate_bounds_tile[:, 1])
         self.molecules = []
-        self.coordinates = self.sequence_match.transform_coordinates(self.sequencing_data.coordinates,
+        self.coordinates = self.sequencing_match.transform_coordinates(self.sequencing_data.coordinates,
                                                                      inverse=True)
         self.sequencing_data.export_fastq(self.relativeFilePath)
 
