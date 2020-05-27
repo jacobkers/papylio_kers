@@ -160,7 +160,10 @@ class File:
     #     #     molecule.sequencing_data = sequencing_data[i]
 
 
-    def find_sequences(self, maximum_distance_file, tuple_size, initial_transformation={}):
+    def find_sequences(self, maximum_distance_file, tuple_size, initial_transformation={},
+                       hash_table_distance_threshold=0.01,
+                       alpha=0.1, test_radius=10, K_threshold=10e9,
+                       nearest_neighbour_match_distance_threshold=25):
         # TODO: Make geometric hashing reflection invariant
         initial_transformation = AffineTransform(**initial_transformation)
 
@@ -172,15 +175,14 @@ class File:
         #match.destination_index = destination_index
         match = find_match_after_hashing(initial_transformation(self.coordinates), maximum_distance_file, tuple_size, coordinate_vertices_file,
                                          *self.experiment.geometric_hash_data,
-                                        hash_table_distance_threshold = 0.01,
-                                        alpha = 0.1, test_radius = 10, K_threshold = 10e9)
+                                        hash_table_distance_threshold, alpha, test_radius, K_threshold)
         if match:
             self.sequencing_tile = self.experiment.sequencing_data_for_mapping.tiles[match.destination_index]
             match.source = self.coordinates
             match.initial_transformation = initial_transformation
             match.transformation = match.transformation @ initial_transformation.params
             # TODO: Base this on some better criteria
-            match.nearest_neighbour_match(distance_threshold=25)
+            match.nearest_neighbour_match(nearest_neighbour_match_distance_threshold)
             self.sequencing_match = match
             self.get_all_sequences_from_sequencing_data()
 
@@ -199,10 +201,11 @@ class File:
         self.sequencing_data.export_fastq(self.relativeFilePath)
 
     def plot_sequencing_match(self):
-        plot_sequencing_match(self.sequencing_match)
-        name = f'Tile: {self.sequencing_tile.name}, File: {str(self.relativeFilePath)}'
+        #plot_sequencing_match(self.sequencing_match)
+        #name = f'Tile: {self.sequencing_tile.name}, File: {str(self.relativeFilePath)}'
+        name = self.name + '_sequencing_mapping'
         print(name)
-        plot_sequencing_match(self.sequencing_match, self.dataPath, name, unit='um')
+        plot_sequencing_match(self.sequencing_match, self.absoluteFilePath.parent, name, unit='um')
 
     # This is probably not the way to go
     # def give_molecules_closest_sequence(self):
