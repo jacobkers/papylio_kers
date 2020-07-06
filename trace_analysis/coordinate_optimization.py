@@ -36,8 +36,8 @@ def coordinates_without_intensity_at_radius(coordinates, image, radius, cutoff, 
         #        np.all(coordinate < (np.array(image.shape)-radius-1)):
 
         cropped_peak = crop(image, coordinate, radius*2+1)
-        if np.all((cropped_peak * circle_matrix) <
-                  (cutoff + fraction_of_peak_max * np.max(cropped_peak))):
+        #if np.all((cropped_peak * circle_matrix) < (cutoff + fraction_of_peak_max * np.max(cropped_peak))): #OLd version!
+        if np.all((cropped_peak * circle_matrix) < (cutoff + fraction_of_peak_max * (np.max(cropped_peak)-cutoff))):
             new_coordinates.append(coordinate)
 
     return np.array(new_coordinates)

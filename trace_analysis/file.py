@@ -369,8 +369,8 @@ class File:
         self.export_pks_file()
         
         plt.figure(44), plt.imshow(full_image)
-        scatter_coordinates(donor_coordinates,marker='+', c='w')
-        scatter_coordinates(acceptor_coordinates,marker='x', c='w')
+#        scatter_coordinates(donor_coordinates,marker='+', c='w')
+#        scatter_coordinates(acceptor_coordinates,marker='x', c='w')
         if channel=='a': plt.title('#acceptor='+str(len(acceptor_coordinates)))
         else:            plt.title('#donor='+str(len(donor_coordinates)))
                                        
@@ -536,7 +536,7 @@ class File:
         acceptor_coordinates = transform(acceptor_coordinates, translation=[image.shape[0]//2, 0])
         print(acceptor_coordinates.shape, donor_coordinates.shape)
         coordinates = np.append(donor_coordinates, acceptor_coordinates, axis=0)
-
+        self.coordinates=coordinates ##MD: required for testing
         # coordinate_optimization_functions = \
         #     {'coordinates_within_margin': coordinates_within_margin,
         #      'coordinates_after_gaussian_fit': coordinates_after_gaussian_fit,
@@ -557,7 +557,10 @@ class File:
                                                       bounds=self.movie.channel_boundaries('d'), margin=margin)
         acceptor_coordinates = coordinates_within_margin(coordinates,
                                                          bounds=self.movie.channel_boundaries('a'), margin=margin)
-
+        
+        coordinates = np.append(donor_coordinates, acceptor_coordinates, axis=0) ##MD: required for testing
+        self.coordinates2=coordinates ##MD: required for testing
+        
         self.mapping = Mapping2(source=donor_coordinates,
                                 destination=acceptor_coordinates,
                                 transformation_type=transformation_type,

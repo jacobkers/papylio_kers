@@ -93,7 +93,9 @@ class Movie:
 
     def get_channel(self, image = None, channel = 'd'):
         if image is None: image = self.average_image
+        plt.imshow(image)
         sh = np.shape(image)
+        print(sh)
         if channel in ['d', 'donor']:
             return image[:,:sh[0]//2]
         elif channel in ['a','acceptor']:
@@ -137,8 +139,8 @@ class Movie:
         if number_of_frames == 'all':
             number_of_frames = self.number_of_frames
         elif self.number_of_frames < number_of_frames:
-            print('Number of frames entered exceeds size movie')
-            return []
+            print('Number of frames entered exceeds size movie, used {0} frames instead'.format(self.number_of_frames))
+            number_of_frames = self.number_of_frames # return []
         print('Calculating average image of ' + str(number_of_frames) + ' frames')
 
         # Calculate sum of frames and find mean
