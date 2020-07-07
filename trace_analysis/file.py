@@ -73,7 +73,8 @@ class File:
             for molecule in range(0, number_of_molecules):
                 self.addMolecule()
         elif number_of_molecules != self.number_of_molecules:
-            raise ValueError('Requested number of molecules differs from existing number of molecules')
+            print (self.name, number_of_molecules, self.number_of_molecules)
+            raise ValueError('Requested number of molecules differs from existing number of molecules, perhaps delete old pks file?')
 
     @property
     def number_of_colours(self):
@@ -536,6 +537,7 @@ class File:
         acceptor_coordinates = transform(acceptor_coordinates, translation=[image.shape[0]//2, 0])
         print(acceptor_coordinates.shape, donor_coordinates.shape)
         coordinates = np.append(donor_coordinates, acceptor_coordinates, axis=0)
+        print('coords 2 optimization')
         self.coordinates=coordinates ##MD: required for testing
         # coordinate_optimization_functions = \
         #     {'coordinates_within_margin': coordinates_within_margin,
@@ -544,7 +546,7 @@ class File:
         #
         # for f, kwargs in configuration['coordinate_optimization'].items():
         #     coordinates = coordinate_optimization_functions[f](coordinates, image, **kwargs)
-
+        print('coords before optimization')
         coordinates = coordinates_after_gaussian_fit(coordinates, image)
         coordinates = coordinates_without_intensity_at_radius(coordinates, image,
                                                               **configuration['coordinate_optimization']['coordinates_without_intensity_at_radius'])
@@ -560,7 +562,6 @@ class File:
         
         coordinates = np.append(donor_coordinates, acceptor_coordinates, axis=0) ##MD: required for testing
         self.coordinates2=coordinates ##MD: required for testing
-        
         self.mapping = Mapping2(source=donor_coordinates,
                                 destination=acceptor_coordinates,
                                 transformation_type=transformation_type,
