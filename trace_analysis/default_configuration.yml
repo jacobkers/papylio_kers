@@ -21,6 +21,7 @@ find_coordinates:
             fraction_of_peak_max: 0.25
 mapping:
     transformation_type: nonlinear
+    initial_translation: 'width/2' # Or e.g. [1024,0]
     peak_finding:
         donor:
             method: local-maximum

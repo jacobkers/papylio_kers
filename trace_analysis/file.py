@@ -554,23 +554,36 @@ class File:
         # for f, kwargs in configuration['coordinate_optimization'].items():
         #     coordinates = coordinate_optimization_functions[f](coordinates, image, **kwargs)
 
-        coordinates = coordinates_after_gaussian_fit(coordinates, image)
-        coordinates = coordinates_without_intensity_at_radius(coordinates, image,
-                                                              **configuration['coordinate_optimization']['coordinates_without_intensity_at_radius'])
-                                                              # radius=4,
-                                                              # cutoff=np.median(image),
-                                                              # fraction_of_peak_max=0.35) # was 0.25 in IDL code
+        if 'coordinates_after_gaussian_fit' in configuration['coordinate_optimization']:
+            gaussian_width = configuration['coordinate_optimization']['coordinates_after_gaussian_fit']['gaussian_width']
+            coordinates = coordinates_after_gaussian_fit(coordinates, image, gaussian_width)
 
-        margin = configuration['coordinate_optimization']['coordinates_within_margin']['margin']
+        if 'coordinates_without_intensity_at_radius' in configuration['coordinate_optimization']:
+            coordinates = coordinates_without_intensity_at_radius(coordinates, image,
+                                                                  **configuration['coordinate_optimization']['coordinates_without_intensity_at_radius'])
+                                                                  # radius=4,
+                                                                  # cutoff=np.median(image),
+                                                                  # fraction_of_peak_max=0.35) # was 0.25 in IDL code
+
+        if 'coordinates_within_margin' in configuration['coordinate_optimization']:
+            margin = configuration['coordinate_optimization']['coordinates_within_margin']['margin']
+        else:
+            margin = 0
+
         donor_coordinates = coordinates_within_margin(coordinates,
                                                       bounds=self.movie.channel_boundaries('d'), margin=margin)
         acceptor_coordinates = coordinates_within_margin(coordinates,
                                                          bounds=self.movie.channel_boundaries('a'), margin=margin)
 
+        if ('initial_translation' in configuration) and (configuration['initial_translation'] == 'width/2'):
+            initial_translation = translate([image.shape[0] // 2, 0])
+        else:
+            initial_translation = translate(configuration['initial_translation'])
+
         self.mapping = Mapping2(source=donor_coordinates,
                                 destination=acceptor_coordinates,
                                 transformation_type=transformation_type,
-                                initial_translation=translate([image.shape[0]//2,0]))
+                                initial_translation=initial_translation)
         self.mapping.file = self
         self.is_mapping_file = True
 
