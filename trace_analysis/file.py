@@ -325,16 +325,25 @@ class File:
             image = self.movie.get_channel(image=full_image, channel=channel)
         elif channel in ['da']:
             donor_image = self.movie.get_channel(image=full_image, channel='d')
-            #acceptor_image = self.movie.get_channel(image=full_image, channel='a')
+            acceptor_image = self.movie.get_channel(image=full_image, channel='a')
 
             #image_transformation = translate([-self.movie.width / 2, 0]) @ self.mapping.transformation #$$
             #acceptor_image_transformed = ski.transform.warp(acceptor_image, image_transformation, preserve_range=True) #$$
             #MD: ski.transfrom.PolynomialTransform
             tform = ski.transform.PolynomialTransform()
+            ## to adapt MD200712
+            from trace_analysis.mapping.icp import nearest_neighbor_pair
+            source=self.mapping.source # checked in ExampleMD_try_making_inverse_map_fromPQ_skimageVSnonlinear.py
+            destination=self.mapping.destination  # in this case right destination channel, x:w/2-w
+            destination_moved2source= self.mapping.transform_coordinates(destination, direction='destination2source') 
+            distances, source_indices, destination_indices = nearest_neighbor_pair(source[:, :2], destination_moved2source[:, :2])
+            cutoff = np.median(distances)+np.std(distances) #changed
+            source_indices = source_indices[distances<cutoff]
+            destination_indices = destination_indices[distances<cutoff]
             tform.estimate(source[source_indices, :2],destination[destination_indices, :2],order=4)
-            acceptor_image_transformed = ski.transform.warp(full_image, tform,preserve_range=True)
+            acceptor_image_transformed = ski.transform.warp(acceptor_image, tform,preserve_range=True)#acceptor_image_transformed = ski.transform.warp(full_image, tform,preserve_range=True)
             image = (donor_image + acceptor_image_transformed) / 2
-
+            ## to adapt MD200712
             plt.imshow(np.stack([donor_image.astype('uint8'),
                                  acceptor_image_transformed.astype('uint8'),
                                  np.zeros((self.movie.height,
