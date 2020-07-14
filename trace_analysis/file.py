@@ -362,9 +362,9 @@ class File:
             destination_simple_move[:,0]=destination_simple_move[:,0]-self.movie.width/2
 #            plt.scatter(destination_simple_move[destination_indices,0],destination_simple_move[destination_indices,1], color='r', marker='4')
         
-        #   tform.estimate(source[source_indices, :2],destination_moved2source[destination_indices, :2],order=4)
-         #   tform.estimate(source[source_indices, :2],destination_simple_move[destination_indices, :2],order=4)
-            tform.estimate(destination_simple_move[destination_indices, :2],source[source_indices, :2],order=4)
+        ####   tform.estimate(source[source_indices, :2],destination_moved2source[destination_indices, :2],order=4)
+            tform.estimate(source[source_indices, :2],destination_simple_move[destination_indices, :2],order=4)
+        ### #   tform.estimate(destination_simple_move[destination_indices, :2],source[source_indices, :2],order=4)
             #apply transform
             #apply transform
             acceptor_image_transformed = ski.transform.warp(acceptor_image, tform,preserve_range=True)#acceptor_image_transformed = ski.transform.warp(full_image, tform,preserve_range=True)
