@@ -14,6 +14,7 @@ from trace_analysis.molecule import Molecule
 from trace_analysis.movie.sifx import SifxMovie
 from trace_analysis.movie.pma import PmaMovie
 from trace_analysis.movie.tif import TifMovie
+from trace_analysis.movie.nd2 import ND2Movie
 from trace_analysis.plotting import histogram
 from trace_analysis.mapping.mapping import Mapping2
 from trace_analysis.peak_finding import find_peaks
@@ -172,7 +173,9 @@ class File:
         # print(extension)
         importFunctions = { '.sifx': self.import_sifx_file,
                             '.pma': self.import_pma_file,
+                            '.nd2': self.import_nd2_file,
                             '.tif': self.import_tif_file,
+                            
                             '_ave.tif': self.import_average_tif_file,
                             '_max.tif': self.import_maximum_projection_tif_file,
                             '.coeff': self.import_coeff_file,
@@ -208,6 +211,11 @@ class File:
     def import_tif_file(self):
         imageFilePath = self.absoluteFilePath.with_suffix('.tif')
         self.movie = TifMovie(imageFilePath)
+        self.number_of_frames = self.movie.number_of_frames
+        
+    def import_nd2_file(self):
+        imageFilePath = self.absoluteFilePath.with_suffix('.nd2')
+        self.movie = ND2Movie(imageFilePath)
         self.number_of_frames = self.movie.number_of_frames
 
     def import_average_tif_file(self):

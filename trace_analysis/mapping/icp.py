@@ -179,7 +179,7 @@ def icp(source, destination, max_iterations=20, tolerance=0.001, initial_transla
         
     print(i)
 
-    plt.figure() # don't plot for every iteration --> move to after the lop
+    plt.figure(10002) # don't plot for every iteration --> move to after the lop
     scatter_coordinates([source_moving_to_destination,destination])
     show_point_connections(source_moving_to_destination[source_indices],destination[destination_indices])
 

@@ -5,6 +5,8 @@ Created on Mon Apr  8 10:45:41 2019
 @author: mwdocter
 
 main function = read_one_page, which then refers to reading a tif/pma/sifx file
+
+was used in movie before, now redundant
 """
 import sys
 import os
