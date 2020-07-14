@@ -341,23 +341,40 @@ class File:
             tform = ski.transform.PolynomialTransform()
             ## to adapt MD200712
             from trace_analysis.mapping.icp import nearest_neighbor_pair
+            # first part to estimate the tform.estimate
             source=self.mapping.source # checked in ExampleMD_try_making_inverse_map_fromPQ_skimageVSnonlinear.py
             destination=self.mapping.destination  # in this case right destination channel, x:w/2-w
             destination_moved2source= self.mapping.transform_coordinates(destination, direction='destination2source') 
+#            plt.figure(27)
+#            plt.scatter(source[:,0],source[:,1],marker='x')
+#            plt.scatter(destination[:,0],destination[:,1],marker='+')
+#            plt.scatter(destination_moved2source[:,0],destination_moved2source[:,1], marker='3')
             distances, source_indices, destination_indices = nearest_neighbor_pair(source[:, :2], destination_moved2source[:, :2])
             cutoff = np.median(distances)+np.std(distances) #changed
             source_indices = source_indices[distances<cutoff]
             destination_indices = destination_indices[distances<cutoff]
-            tform.estimate(source[source_indices, :2],destination[destination_indices, :2],order=4)
+#            plt.figure(28)
+#            plt.scatter(source[source_indices,0],source[source_indices,1], color='g', marker='x')
+#            plt.scatter(destination[destination_indices,0],destination[destination_indices,1], color='k', marker='+')
+#            plt.scatter(destination_moved2source[destination_indices,0],destination_moved2source[destination_indices,1], color='b',marker='3')
+            # so you found the correct matching points, now transform 
+            destination_simple_move=destination.copy()
+            destination_simple_move[:,0]=destination_simple_move[:,0]-self.movie.width/2
+#            plt.scatter(destination_simple_move[destination_indices,0],destination_simple_move[destination_indices,1], color='r', marker='4')
+        
+        #   tform.estimate(source[source_indices, :2],destination_moved2source[destination_indices, :2],order=4)
+         #   tform.estimate(source[source_indices, :2],destination_simple_move[destination_indices, :2],order=4)
+            tform.estimate(destination_simple_move[destination_indices, :2],source[source_indices, :2],order=4)
+            #apply transform
+            #apply transform
             acceptor_image_transformed = ski.transform.warp(acceptor_image, tform,preserve_range=True)#acceptor_image_transformed = ski.transform.warp(full_image, tform,preserve_range=True)
             image = (donor_image + acceptor_image_transformed) / 2
             ## to adapt MD200712
-            plt.imshow(np.stack([donor_image.astype('uint8'),
-                                 acceptor_image_transformed.astype('uint8'),
-                                 np.zeros((self.movie.height,
-                                           self.movie.width//2)).astype('uint8')],
-                                           axis=-1))
-
+#            plt.figure(35), plt.subplot(1,4,1), plt.imshow(donor_image.astype('uint8'))
+#            plt.figure(35), plt.subplot(1,4,2), plt.imshow(acceptor_image_transformed.astype('uint8'))
+#            plt.figure(35), plt.subplot(1,4,3), plt.imshow(acceptor_image.astype('uint8'))
+#            plt.figure(35), plt.subplot(1,4,4), plt.imshow(image.astype('uint8'))
+            
         coordinates = find_peaks(image=image, **configuration['peak_finding'])
 
         coordinate_optimization_functions = \
