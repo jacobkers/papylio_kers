@@ -150,23 +150,35 @@ def find_match_after_hashing(source, maximum_distance_source, tuple_size, source
     source_KDTree = cKDTree(source)
     source_tuple_generator = generate_point_tuples(source_KDTree, maximum_distance_source, tuple_size)
 
+    hash_table_distances_checked = 0
+    tuples_checked = 0
     # for source_tuple_index in np.arange(len(source_tuples)):
     for source_tuple, source_hash_code in geometric_hash_table(source_KDTree, source_tuple_generator, tuple_size):
+        # TODO: Get all destination tuple indices witin a range
         distance, destination_tuple_index = destination_hash_table_KDTree.query(source_hash_code)
+
         # We can also put a threshold on the distance here possibly
-        print(distance)
+        #print(distance)
+        hash_table_distances_checked += 1
+        # if hash_table_distances_checked > 500:
+        #     return
+
         if distance < hash_table_distance_threshold:
             # source_coordinate_tuple = source[list(source_tuples[source_tuple_index])]
             # destination_coordinate_tuple = destination[list(destination_tuples[destination_tuple_index])]
 
             # source_tuple = source_tuples[source_tuple_index]
+            # Find the destination tuple by determining in which destination pointset the destination tuple index is located
+            # and by determining what the index is within that destination pointset.
             cumulative_tuples_per_destination = np.cumsum([0]+[len(point_tuples) for point_tuples in destination_tuple_sets])
-            destination_index = np.where((cumulative_tuples_per_destination[:-1] < destination_tuple_index) &
+            destination_index = np.where((cumulative_tuples_per_destination[:-1] <= destination_tuple_index) &
                                          (cumulative_tuples_per_destination[1:] > destination_tuple_index))[0][0]
             tuple_index_in_destination_set = destination_tuple_index - cumulative_tuples_per_destination[destination_index]
             destination_tuple = destination_tuple_sets[destination_index][tuple_index_in_destination_set]
 
             #Or list(itertools.chain.from_iterable(destination_tuple_sets))[destination_tuple_index]
+
+            tuples_checked += 1
 
             destination_KDTree = destination_KDTrees[destination_index]
             found_transformation = tuple_match(source, destination_KDTree, source_vertices, source_tuple, destination_tuple,
@@ -176,22 +188,42 @@ def find_match_after_hashing(source, maximum_distance_source, tuple_size, source
                                 transformation_type='linear', initial_translation=None)
                 match.transformation = found_transformation.params
                 match.destination_index = destination_index
+
+                match.hash_table_distance = distance
+                match.hash_table_distances_checked = hash_table_distances_checked
+                match.tuples_checked = tuples_checked
                 return match
 
 def tuple_match(source, destination_KDTree, source_vertices, source_tuple, destination_tuple, alpha=0.1, test_radius=10, K_threshold=10e9):
     source_coordinate_tuple = source[list(source_tuple)]
     destination_coordinate_tuple = destination_KDTree.data[list(destination_tuple)]
 
+    source_indices_without_tuple = [i for i in range(len(source)) if i not in source_tuple]
+    source = source[source_indices_without_tuple]
+
     source_transformed, transformation_matrix = mapToPoint(source, source_coordinate_tuple[:2], destination_coordinate_tuple[:2], returnTransformationMatrix=True)
     # scatter_coordinates([source_transformed])
 
     found_transformation = AffineTransform(transformation_matrix)
+
+    rot = found_transformation.rotation/(2*np.pi)*360
+    sca = np.mean(found_transformation.scale)
+    # if not (-1 < rot < 1) & (3.3 < sca < 3.4):
+    #     return
+    # if (-1 < rot < 1) & (3.3 < sca < 3.4):
+    #     print('found')
+    # scatter_coordinates([destination_KDTree.data, source_transformed])
+
     source_vertices_transformed = found_transformation(source_vertices)
     destination_cropped = crop_coordinates(destination_KDTree.data, source_vertices_transformed)
 
     #source_transformed_area = np.linalg.norm(source_vertices_transformed[0] - source_vertices_transformed[1])
     source_transformed_area = np.abs(np.cross(source_vertices_transformed[1] - source_vertices_transformed[0],
                                               source_vertices_transformed[3] - source_vertices_transformed[0]))
+    # pDB = 1 / source_transformed_area
+    # pDB = 1 / len(destination_cropped)
+    # pDB = 1
+    # pDB = 1 / len(source)
     pDB = 1 / source_transformed_area
 
     # alpha = 0.1
@@ -199,10 +231,21 @@ def tuple_match(source, destination_KDTree, source_vertices, source_tuple, desti
     # test_radius = 10
     K=1
     # K_threshold = 10e9
+    # bayes_factor6 = []
     for coordinate in source_transformed:
-        points_within_radius = destination_KDTree.query_ball_point(coordinate, test_radius)
-        pDF = alpha/source_transformed_area + (1-alpha)*len(points_within_radius)/len(destination_cropped)
-        #print(len(points_within_radius))
+        # points_within_radius = destination_KDTree.query_ball_point(coordinate, test_radius)
+        # pDF = alpha/source_transformed_area + (1-alpha)*len(points_within_radius)/len(destination_cropped)
+        # pDF = alpha/len(destination_cropped) + (1-alpha)*len(points_within_radius)/len(destination_cropped)
+        # pDF = alpha + (1-alpha)*len(points_within_radius)
+        # pDF = alpha/len(source) + (1-alpha)*len(points_within_radius)/len(destination_cropped)
+        # pDF = alpha/source_transformed_area + (1-alpha)*len(points_within_radius)/(len(destination_cropped)*np.pi*test_radius**2)
+
+        sigma = test_radius
+        # sigma = 10
+        distance, index = destination_KDTree.query(coordinate)
+        pDF = alpha/source_transformed_area + (1-alpha)/(2*np.pi*sigma**2)*np.exp(-distance**2/(2*sigma**2))/len(destination_cropped)
+        # print(len(points_within_radius))
+        # bayes_factor6.append(pDF/pDB)
         K = K * pDF/pDB
         if K > K_threshold:
             print("Found match")

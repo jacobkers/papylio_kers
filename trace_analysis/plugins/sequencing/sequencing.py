@@ -31,6 +31,9 @@ class Experiment:
         # TODO: get maximum_distance_tile and tuple_size from configuration
         self.geometric_hash_data = geometric_hash(tile_coordinate_sets, maximum_distance_tile, tuple_size)
 
+    def generate_mapping_hashtable_from_coordinate_set(self, tile_coordinate_sets, maximum_distance_tile, tuple_size):
+        self.geometric_hash_data = geometric_hash(tile_coordinate_sets, maximum_distance_tile, tuple_size)
+
     def select_sequencing_data_for_mapping(self, mapping_sequence, number_of_allowed_mismatches):
         self.mapping_sequence = mapping_sequence
         self.sequencing_data.matches_per_tile(sequence=mapping_sequence)
@@ -177,14 +180,14 @@ class File:
                                          *self.experiment.geometric_hash_data,
                                         hash_table_distance_threshold, alpha, test_radius, K_threshold)
         if match:
-            self.sequencing_tile = self.experiment.sequencing_data_for_mapping.tiles[match.destination_index]
+            # self.sequencing_tile = self.experiment.sequencing_data_for_mapping.tiles[match.destination_index]
             match.source = self.coordinates
             match.initial_transformation = initial_transformation
             match.transformation = match.transformation @ initial_transformation.params
             # TODO: Base this on some better criteria
-            match.nearest_neighbour_match(nearest_neighbour_match_distance_threshold)
+            #match.nearest_neighbour_match(nearest_neighbour_match_distance_threshold)
             self.sequencing_match = match
-            self.get_all_sequences_from_sequencing_data()
+            #self.get_all_sequences_from_sequencing_data()
 
     def get_all_sequences_from_sequencing_data(self):
         # raise Warning('Only works on acceptor channel for now')
@@ -195,6 +198,7 @@ class File:
             self.experiment.sequencing_data.get_selection(tile=int(self.sequencing_tile.name),
                                                           x=coordinate_bounds_tile[:, 0],
                                                           y=coordinate_bounds_tile[:, 1])
+
         self.molecules = []
         self.coordinates = self.sequencing_match.transform_coordinates(self.sequencing_data.coordinates,
                                                                      inverse=True)
