@@ -96,7 +96,8 @@ for file in exp.files:
     file.sequencing_match = None
     file.find_sequences(maximum_distance_file=1000, tuple_size=4, initial_transformation={'scale': [-1,1]},
                         hash_table_distance_threshold=0.01,
-                        alpha=0.1, test_radius=10, K_threshold=10e6) # original K_threshold = 10e9
+                        alpha=0.1, test_radius=10, K_threshold=10e6, # original K_threshold = 10e9
+                        magnification_range=[3.3,3.4], rotation_range=[-1,1])
     print(file)
 end = time.time()
 print(f'Matching: {end - start} seconds')

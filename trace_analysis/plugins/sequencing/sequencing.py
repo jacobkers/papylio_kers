@@ -166,6 +166,7 @@ class File:
     def find_sequences(self, maximum_distance_file, tuple_size, initial_transformation={},
                        hash_table_distance_threshold=0.01,
                        alpha=0.1, test_radius=10, K_threshold=10e9,
+                       magnification_range=None, rotation_range=None,
                        nearest_neighbour_match_distance_threshold=25):
         # TODO: Make geometric hashing reflection invariant
         initial_transformation = AffineTransform(**initial_transformation)
@@ -178,7 +179,8 @@ class File:
         #match.destination_index = destination_index
         match = find_match_after_hashing(initial_transformation(self.coordinates), maximum_distance_file, tuple_size, coordinate_vertices_file,
                                          *self.experiment.geometric_hash_data,
-                                        hash_table_distance_threshold, alpha, test_radius, K_threshold)
+                                         hash_table_distance_threshold, alpha, test_radius, K_threshold,
+                                         magnification_range, rotation_range)
         if match:
             # self.sequencing_tile = self.experiment.sequencing_data_for_mapping.tiles[match.destination_index]
             match.source = self.coordinates

@@ -142,7 +142,8 @@ def geometric_hash(point_sets, maximum_distance=100, tuple_size=4):
 def find_match_after_hashing(source, maximum_distance_source, tuple_size, source_vertices,
                              destination_KDTrees, destination_tuple_sets, destination_hash_table_KDTree,
                              hash_table_distance_threshold=0.01,
-                             alpha=0.1, test_radius=10, K_threshold=10e9):
+                             alpha=0.1, test_radius=10, K_threshold=10e9,
+                             magnification_range=None, rotation_range=None):
 
     if type(destination_KDTrees) is not list:
         destination_KDTrees = [destination_KDTrees]
@@ -182,7 +183,7 @@ def find_match_after_hashing(source, maximum_distance_source, tuple_size, source
 
             destination_KDTree = destination_KDTrees[destination_index]
             found_transformation = tuple_match(source, destination_KDTree, source_vertices, source_tuple, destination_tuple,
-                                alpha, test_radius, K_threshold)
+                                alpha, test_radius, K_threshold, magnification_range, rotation_range)
             if found_transformation:
                 match = Mapping2(source=source, destination=destination_KDTree.data, method='Geometric hashing',
                                 transformation_type='linear', initial_translation=None)
@@ -194,7 +195,8 @@ def find_match_after_hashing(source, maximum_distance_source, tuple_size, source
                 match.tuples_checked = tuples_checked
                 return match
 
-def tuple_match(source, destination_KDTree, source_vertices, source_tuple, destination_tuple, alpha=0.1, test_radius=10, K_threshold=10e9):
+def tuple_match(source, destination_KDTree, source_vertices, source_tuple, destination_tuple,
+                alpha=0.1, test_radius=10, K_threshold=10e9, scaling_range=None, rotation_range=None):
     source_coordinate_tuple = source[list(source_tuple)]
     destination_coordinate_tuple = destination_KDTree.data[list(destination_tuple)]
 
@@ -206,8 +208,15 @@ def tuple_match(source, destination_KDTree, source_vertices, source_tuple, desti
 
     found_transformation = AffineTransform(transformation_matrix)
 
-    rot = found_transformation.rotation/(2*np.pi)*360
-    sca = np.mean(found_transformation.scale)
+    if rotation_range:
+        rotation = found_transformation.rotation/(2*np.pi)*360
+        if not (rotation_range[0] < rotation < rotation_range[1]):
+            return
+    if scaling_range:
+        scaling = np.mean(found_transformation.scale)
+        if not (scaling_range[0] < scaling < scaling_range[1]):
+            return
+
     # if not (-1 < rot < 1) & (3.3 < sca < 3.4):
     #     return
     # if (-1 < rot < 1) & (3.3 < sca < 3.4):
