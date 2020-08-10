@@ -132,12 +132,17 @@ class File:
     #     self.seqmap, self.matches = map_sequences_to_molecules([self], self.experiment.sequencing_data, mapping_sequence,
     #                                                             tile, sequencing_mapping_path, match_threshold)
     #
-    def __init__(self, arg, *args, **kwargs):
-        super().__init__(arg, *args, **kwargs)
 
-        self.sequencing_tile = None
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
         self.sequencing_data = None
         self.sequencing_match = None
+
+        self.importFunctions['.fastq'] = self.import_sequencing_data
+
+        if self.experiment.import_all is True:
+            self.findAndAddExtensions()
 
     @property
     def sequences(self):
@@ -151,6 +156,16 @@ class File:
         for i, molecule in enumerate(self.molecules):
             molecule.sequence = sequences[i]
 
+    @property
+    def sequencing_tile(self):
+        if self.sequencing_data:
+            if len(self.sequencing_data.tiles)==1:
+                return self.sequencing_data.tiles[0]
+            else:
+                raise ValueError('File contains sequences from multiple tiles')
+        else:
+            return None
+
     # @property
     # def sequencing_data(self):
     #     return self._sequencing_data
@@ -162,6 +177,9 @@ class File:
     #     # for i, molecule in enumerate(self.molecules):
     #     #     molecule.sequencing_data = sequencing_data[i]
 
+    def import_sequencing_data(self):
+        self.sequencing_data = FastqData(self.absoluteFilePath.with_suffix('.fastq'))
+        self.sequences = self.sequencing_data.sequence
 
     def find_sequences(self, maximum_distance_file, tuple_size, initial_transformation={},
                        hash_table_distance_threshold=0.01,
@@ -196,8 +214,10 @@ class File:
         coordinate_bounds_file = self.movie.channel_boundaries('a')
         coordinate_bounds_tile = self.sequencing_match.transform_coordinates(coordinate_bounds_file)
 
+        tile = self.experiment.sequencing_data_for_mapping.tiles[self.sequencing_match.destination_index]
+
         self.sequencing_data = \
-            self.experiment.sequencing_data.get_selection(tile=int(self.sequencing_tile.name),
+            self.experiment.sequencing_data.get_selection(tile=tile.number,
                                                           x=coordinate_bounds_tile[:, 0],
                                                           y=coordinate_bounds_tile[:, 1])
 
@@ -255,8 +275,8 @@ class File:
 class Molecule:
     @property
     def sequence(self):
-        return self.file.sequencing_data.sequence[self.file.experiment.files.index(self.file), :]
+        return self.file.sequencing_data.sequence[self.index, :].tostring()
 
     @property
     def sequencing_data(self):
-        return self.file.sequencing_data[self.file.experiment.files.index(self.file)]
+        return self.file.sequencing_data[self.index]
