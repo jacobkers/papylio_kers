@@ -69,10 +69,22 @@ class File(A):
         self._average_image = None
         self._maximum_projection_image = None
 
+        self.importFunctions = {'.sifx': self.import_sifx_file,
+                                '.pma': self.import_pma_file,
+                                '.tif': self.import_tif_file,
+                                '_ave.tif': self.import_average_tif_file,
+                                '_max.tif': self.import_maximum_projection_tif_file,
+                                '.coeff': self.import_coeff_file,
+                                '.map': self.import_map_file,
+                                '.pks': self.import_pks_file,
+                                '.traces': self.import_traces_file,
+                                '.log' : self.import_log_file
+                                }
+
         super().__init__()
 
-        if self.experiment.import_all is True:
-            self.findAndAddExtensions()
+        # if self.experiment.import_all is True:
+        #     self.findAndAddExtensions()
 
 
     def __repr__(self):
@@ -185,20 +197,9 @@ class File(A):
         #     self.extensions.append(extension)
 
         # print(extension)
-        importFunctions = { '.sifx': self.import_sifx_file,
-                            '.pma': self.import_pma_file,
-                            '.tif': self.import_tif_file,
-                            '_ave.tif': self.import_average_tif_file,
-                            '_max.tif': self.import_maximum_projection_tif_file,
-                            '.coeff': self.import_coeff_file,
-                            '.map': self.import_map_file,
-                            '.pks': self.import_pks_file,
-                            '.traces': self.import_traces_file,
-                            '.log' : self.import_log_file
-                            }
 
-        importFunctions.get(extension, self.noneFunction)()
-        if extension in importFunctions.keys(): self.extensions.append(extension)
+        self.importFunctions.get(extension, self.noneFunction)()
+        if extension in self.importFunctions.keys(): self.extensions.append(extension)
 
     def noneFunction(self):
         return
