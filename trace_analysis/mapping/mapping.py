@@ -7,6 +7,9 @@ Created on Fri Aug 23 13:55:53 2019
 
 import numpy as np
 import matplotlib.pyplot as plt
+from pathlib import Path
+import yaml
+import skimage.transform
 
 from trace_analysis.mapping.icp import icp, nearest_neighbor_pair
 from trace_analysis.mapping.icp_nonrigid import icp_nonrigid
@@ -14,7 +17,8 @@ from trace_analysis.coordinate_transformations import transform
 
 class Mapping2:
     def __init__(self, source = None, destination = None, method = None,
-                 transformation_type = 'linear', initial_translation = None):
+                 transformation_type = None, initial_translation = None, load = None):
+
         self.source = source
         self.destination = destination
         self.method = method
@@ -26,6 +30,16 @@ class Mapping2:
         # if (source is not None) and (destination is not None):
         #     if self.method is None: self.method = 'icp'
         #     self.perform_mapping()
+
+        if load:
+            filepath = Path(load)
+            if filepath.suffix in ['.yml','.yaml']:
+                with filepath.open('r') as yml_file:
+                    attributes = yaml.load(yml_file, Loader=yaml.SafeLoader)
+                    for key, value in attributes.items():
+                        if type(value) == list:
+                            value = np.array(value)
+                        setattr(self, key, value)
 
     @property
     def translation(self):
@@ -110,6 +124,29 @@ class Mapping2:
             if inverse is False: return transform(coordinates, self.transformation)
             elif inverse is True: return transform(coordinates, self.transformation_inverse)
         else: print('Transformation not found')
+
+
+    def save(self, filepath, filetype='yaml'):
+        filepath = Path(filepath)
+        if filetype == 'classic':
+            if self.transformation_type == 'linear':
+                coeff_filepath = filepath.with_suffix('.coeff')
+                coefficients = self.mapping.transformation[[0, 0, 0, 1, 1, 1], [2, 0, 1, 2, 0, 1]]
+                np.savetxt(coeff_filepath, coefficients, fmt='%13.6g') # Same format used as in IDL code
+            else:
+                raise TypeError('Mapping is not of type linear')
+        elif filetype in ['yml', 'yaml']:
+            attributes = self.__dict__.copy()
+            for key, value in attributes.items():
+                if type(value) in [str, int, float]:
+                    continue
+                if isinstance(value, skimage.transform._geometric.GeometricTransform):
+                    value = value.params
+                if type(value).__module__ == np.__name__:
+                    attributes[key] = value.tolist()
+
+            with filepath.with_suffix('.yml').open('w') as yml_file:
+                yaml.dump(attributes, yml_file, sort_keys=False)
 
 
 # from trace_analysis.icp_nonrigid import icp_nonrigid

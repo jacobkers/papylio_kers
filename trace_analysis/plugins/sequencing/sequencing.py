@@ -140,6 +140,7 @@ class File:
         self.sequencing_match = None
 
         self.importFunctions['.fastq'] = self.import_sequencing_data
+        self.importFunctions['_sequencing_match.yml'] = self.import_sequencing_match
 
         if self.experiment.import_all is True:
             self.findAndAddExtensions()
@@ -181,6 +182,12 @@ class File:
         self.sequencing_data = FastqData(self.absoluteFilePath.with_suffix('.fastq'))
         self.sequences = self.sequencing_data.sequence
 
+    def import_sequencing_match(self):
+        self.sequencing_match = Mapping2(load=self.absoluteFilePath.with_name(self.name+'_sequencing_match.yml'))
+
+    def export_sequencing_match(self):
+        self.sequencing_match.save(self.absoluteFilePath.with_name(self.name+'_sequencing_match.yml'))
+
     def find_sequences(self, maximum_distance_file, tuple_size, initial_transformation={},
                        hash_table_distance_threshold=0.01,
                        alpha=0.1, test_radius=10, K_threshold=10e9,
@@ -207,6 +214,7 @@ class File:
             # TODO: Base this on some better criteria
             #match.nearest_neighbour_match(nearest_neighbour_match_distance_threshold)
             self.sequencing_match = match
+            self.export_sequencing_match()
             #self.get_all_sequences_from_sequencing_data()
 
     def get_all_sequences_from_sequencing_data(self):

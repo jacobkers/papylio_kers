@@ -69,6 +69,12 @@ class File(A):
         self._average_image = None
         self._maximum_projection_image = None
 
+        # I think it will be easier if we have import functions for specific data instead of specific files.
+        # For example. the sifx, pma and tif files can better be handled in the Movie class. Here we then just have a method import_movie.
+        # [IS 10-08-2020]
+        # TODO: Make an import_movie method and move the specific file type handling to the movie class (probably this should also include the log file)
+        # TODO: Make an import_mapping method and move the specific mapping type handling (.map, .coeff) to the mapping class.
+
         self.importFunctions = {'.sifx': self.import_sifx_file,
                                 '.pma': self.import_pma_file,
                                 '.tif': self.import_tif_file,
@@ -78,7 +84,7 @@ class File(A):
                                 '.map': self.import_map_file,
                                 '.pks': self.import_pks_file,
                                 '.traces': self.import_traces_file,
-                                '.log' : self.import_log_file
+                                '.log': self.import_log_file,
                                 }
 
         super().__init__()
