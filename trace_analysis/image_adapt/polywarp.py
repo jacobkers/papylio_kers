@@ -10,36 +10,42 @@ Shamelessly copied, well tested against IDL procedure
 import numpy as np
 #from scipy.optimize import curve_fit
 
-def polywarp(xi,yi,xo,yo,degree=3):
+def polywarp(xy_out,xy_in,degree=3):
     """
+    originally polywarp(Xout,Yout,Xin,Yin,degree=3)
     Fit a function of the form
-    xi = sum over i and j from 0 to degree of: kx[i,j] * xo^j * yo^i
-    yi = sum over i and j from 0 to degree of: ky[i,j] * xo^j * yo^i
+    Xout = sum over i and j from 0 to degree of: kx[i,j] * Xin^j * Yin^i 
+    Yout = sum over i and j from 0 to degree of: ky[i,j] * Xin^j * Yin^i
     Return kx, ky
     len(xo) must be greater than or equal to (degree+1)^2
     """
-    if len(xo) != len(yo) or len(xo) != len(xi) or len(xo) != len(yi):
+    x_out=xy_out[:,0]
+    y_out=xy_out[:,1]
+    x_in=xy_in[:,0]
+    y_in=xy_in[:,1]
+    
+    if len(x_in) != len(y_in) or len(x_in) != len(x_out) or len(x_in) != len(y_out):
         print("Error: length of xo, yo, xi, and yi must be the same")
         return
 
-    if len(xo) < (degree+1.)**2.:
+    if len(x_in) < (degree+1.)**2.:
         print ("Error: length of arrays must be greater than (degree+1)^2")
         return
 
     # ensure numpy arrays
-    xo = np.array(xo)
-    yo = np.array(yo)
-    xi = np.array(xi)
-    yi = np.array(yi)
+    x_in = np.array(x_in)
+    y_in = np.array(y_in)
+    x_out = np.array(x_out)
+    y_out = np.array(y_out)
 
     # set up some useful variables
     degree2 = (degree+1)**2
-    x = np.array([xi,yi])
-    u = np.array([xo,yo])
-    ut = np.zeros([len(xo),degree2])
+    x = np.array([x_out,y_out])
+    u = np.array([x_in,y_in])
+    ut = np.zeros([len(x_in),degree2])
     u2i = np.zeros(degree+1)
 
-    for i in range(len(xo)):
+    for i in range(len(x_in)):
         u2i[0] = 1.
         zz = u[1,i]
         for j in range(1,degree+1):
@@ -76,7 +82,7 @@ def polywarp(xi,yi,xo,yo,degree=3):
 
 def polywarp_apply(P,Q,pts1):
      deg=len(P)-1
-     dst=np.zeros(np.shape(pts1))
+     dst=np.ones(np.shape(pts1))
      dst[:,0]=[np.sum([P[ii,jj]*pts1[kk,0]**ii * pts1[kk,1]**jj for ii in range(deg+1) for jj in range(deg+1)]) for kk in range(len(pts1))]
      dst[:,1]=[np.sum([Q[ii,jj]*pts1[kk,0]**ii * pts1[kk,1]**jj for ii in range(deg+1) for jj in range(deg+1)]) for kk in range(len(pts1))]
      return(dst)

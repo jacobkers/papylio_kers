@@ -53,7 +53,7 @@ def extract_trace_values_from_image(image, coordinates, twoD_gaussians):  # extr
     return trace_values
 
 
-def extract_traces(movie, coordinates, channel='all', gauss_width = 7):
+def extract_traces(movie, coordinates, channel='all', gauss_width=4):
     # reutnr donor and acceptor for the full data set
     #     root, name = os.path.split(self.filepath)
     #     traces_fn=os.path.join(root,name[:-4]+'-P.traces')

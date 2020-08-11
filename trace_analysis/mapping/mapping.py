@@ -12,20 +12,23 @@ import yaml
 import skimage.transform
 
 from trace_analysis.mapping.icp import icp, nearest_neighbor_pair
-from trace_analysis.mapping.icp_nonrigid import icp_nonrigid
+
 from trace_analysis.coordinate_transformations import transform
+from trace_analysis.image_adapt.polywarp import polywarp, polywarp_apply #required for nonlinear
 
 class Mapping2:
     def __init__(self, source = None, destination = None, method = None,
                  transformation_type = None, initial_translation = None, load = None):
 
-        self.source = source
-        self.destination = destination
+        self.source_name = 'source'
+        self.source = source #source=donor=left side image
+        self.destination_name = 'destination'
+        self.destination = destination #destination=acceptor=right side image
         self.method = method
         self.transformation_type = transformation_type
-        self._transformation = None
-        self.transformation_inverse = None
         self.initial_translation = initial_translation
+        self.transformation = None
+        self.transformation_inverse = None
 
         # if (source is not None) and (destination is not None):
         #     if self.method is None: self.method = 'icp'
@@ -59,30 +62,22 @@ class Mapping2:
     def reflection(self):
         return ~(np.sign(self.transformation[0, 0]) == np.sign(self.transformation[1, 1]))
 
-    # @property
-    # def transformation_inverse(self):
-    #     return np.linalg.inv(self.transformation)
-
     @property
-    def transform_source_to_destination(self):
+    def transform_source_to_destination(self): 
         return self.transform_coordinates(self.source)
 
-    @property
-    def transformation(self):
-        return self._transformation
-
-    @transformation.setter
-    def transformation(self, transformation):
-        self._transformation = transformation
-        self.transformation_inverse = np.linalg.inv(self.transformation)
+    def calculate_inverse_transformation(self):
+        if self.transformation_type == 'linear':
+            self.transformation_inverse = np.linalg.inv(self.transformation)
+        else:
+            raise RuntimeError('Inverse transformation cannot be determined. Transformation type must be linear')
 
     def perform_mapping(self):
-        if self.method == 'icp':
-            self.transformation, distances, iterations = icp(self.source, self.destination, initial_translation=self.initial_translation)
-        elif self.method == 'icp-non-rigid':
-            self.transformation, distances, iterations = icp_nonrigid(self.source, self.destination)
-        # elif method == 'manual'         : mapping_manual(source, destination)
-        # elif method == 'automatic'      : mapping_automatic(source, destination)
+        print(self.transformation_type)
+        if self.method == 'icp': #icp should be default
+            self.transformation, distances, iterations, self.transformation_inverse = \
+                icp(self.source, self.destination, initial_translation=self.initial_translation,
+                    transformation_type=self.transformation_type)
         else: print('Method not found')
 
     def nearest_neighbour_match(self, distance_threshold = 1):
@@ -117,14 +112,28 @@ class Mapping2:
 
         axis.scatter(self.source[:, 0], self.source[:, 1], c='g')
         axis.scatter(self.destination[:, 0], self.destination[:, 1], c='r')
-        axis.scatter(destination_from_source[:, 0], destination_from_source[:, 1], c='g')
+        axis.scatter(destination_from_source[:, 0], destination_from_source[:, 1], c='y')
 
-    def transform_coordinates(self, coordinates, inverse = False):
+    def transform_coordinates(self, coordinates, inverse=False, direction=None):
+        if direction is not None:
+            if direction == self.source_name + '2' + self.destination_name:
+                inverse = False
+            elif direction == self.destination_name + '2' + self.source_name:
+                inverse = True
+            else:
+                raise ValueError('Wrong direction')
+
+        if not inverse:
+            current_transformation = self.transformation
+        else:
+            current_transformation = self.transformation_inverse
+
         if self.transformation_type == 'linear':
-            if inverse is False: return transform(coordinates, self.transformation)
-            elif inverse is True: return transform(coordinates, self.transformation_inverse)
-        else: print('Transformation not found')
-
+            # Maybe we should rename transform to linear_transform [IS 05-03-2020]
+            # transform(pointSet, transformationMatrix=None, **kwargs):
+            return transform(coordinates[:, :2], current_transformation)
+        elif self.transformation_type == 'nonlinear':
+            return polywarp_apply(current_transformation[0], current_transformation[1], coordinates)
 
     def save(self, filepath, filetype='yaml'):
         filepath = Path(filepath)
@@ -153,3 +162,4 @@ class Mapping2:
 # from trace_analysis.image_adapt.polywarp import polywarp_apply
 # kx, ky, distances, i = icp_nonrigid(donor,acceptor, tolerance=0.00000001, max_iterations=50)
 # acceptor_calculated = polywarp_apply(kx, ky, donor)
+

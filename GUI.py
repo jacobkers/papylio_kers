@@ -4,15 +4,18 @@ Created on Fri Sep 14 15:44:52 2018
 
 @author: ivoseverins
 """
+# from matplotlib import use
+# use('wx', warn=False)
 
 # If you get the error wxApp must be created first, restart kernel
 
 #!/usr/bin/env python
+import time
+import pandas as pd
 import wx #cross-platform GUI API
 import wx.dataview
 import wx.lib.agw.hypertreelist as HTL
 from trace_analysis import Experiment, File
-
 
 #Use the following lines on Mac
 from sys import platform
@@ -20,21 +23,19 @@ if platform == "darwin":
     from matplotlib import use
     use('WXAgg')
 
-
-#from matplotlib import use
-#use('WXAgg')
 import matplotlib as mpl
 from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg as FigureCanvas
 from matplotlib.backends.backend_wxagg import NavigationToolbar2WxAgg as NavigationToolbar
-from trace_analysis.analysis import interactiveAnalysis
+from trace_analysis.analysis import interactiveAnalysis, distributionsPanel
+
+from trace_analysis.analysis.stepsDataAnalysis import analyze_steps
+from trace_analysis.analysis import dwelltimeAnalysis
 
 class MainFrame(wx.Frame):
     def __init__(self, parent, title):
 
-        wx.Frame.__init__(self, parent, title='Trace Analysis', size=(320,700))
+        wx.Frame.__init__(self, parent, title='Trace Analysis', size=(390,700))
 
-        #self.panel1 = wx.Panel(self, wx.ID_ANY, size = (200,200))
-        #self.panel2 = wx.Panel(self, wx.ID_ANY, size = (200,200))
 
         # Status bar
         self.CreateStatusBar()
@@ -55,11 +56,9 @@ class MainFrame(wx.Frame):
         viewMenu = wx.Menu()
         self.viewMenuShowMovie = viewMenu.AppendCheckItem(wx.ID_ANY, "&Show movie", "Show movie")
         self.viewMenuShowHistogram = viewMenu.AppendCheckItem(wx.ID_ANY,"&Show histogram", "Show histogram")
-#        self.viewMenuShowTrace = viewMenu.AppendCheckItem(wx.ID_ANY,"&Show trace", "Show trace")
 
         self.Bind(wx.EVT_MENU, self.OnShowMovie, self.viewMenuShowMovie)
         self.Bind(wx.EVT_MENU, self.OnShowHistogram, self.viewMenuShowHistogram)
-#        self.Bind(wx.EVT_MENU, self.OnShowTrace, self.viewMenuShowTrace)
 
         # Data menu in Menu bar
         dataMenu = wx.Menu()
@@ -69,21 +68,26 @@ class MainFrame(wx.Frame):
         self.Bind(wx.EVT_MENU, self.OnFindMolecules, self.dataMenuFindMolecules)
         self.Bind(wx.EVT_MENU, self.OnExtractTraces, self.dataMenuExtractTraces)
 
-        # Select menu in Menu bar
-        selectMenu = wx.Menu()
-        self.selectMenuInteractiveAnalysis = selectMenu.Append(wx.ID_ANY,"&Interactive Analysis", "Interactive Analysis")
+        # Analysis menu in Menu bar
+        analysisMenu = wx.Menu()
+        self.analysisMenuInteractiveAnalysis = analysisMenu.Append(wx.ID_ANY,
+                        "&Interactive Analysis", "Interactive Analysis")
+        self.analysisMenuAnalyzeSteps = analysisMenu.Append(wx.ID_ANY,
+                            "&Analyze Steps Data", "Analyze Steps Data")
+        self.analysisMenuPlotDistributions = analysisMenu.Append(wx.ID_ANY,
+                                "&Dwelltime Analysis", "Dwelltime Analysis")
 
-        self.Bind(wx.EVT_MENU, self.OnInteractiveSelection, self.selectMenuInteractiveAnalysis)
+        self.Bind(wx.EVT_MENU, self.OnInteractiveSelection, self.analysisMenuInteractiveAnalysis)
+        self.Bind(wx.EVT_MENU, self.OnAnalyzeStepsSelection, self.analysisMenuAnalyzeSteps)
+        self.Bind(wx.EVT_MENU, self.OnPlotDistributionsSelection, self.analysisMenuPlotDistributions)
 
-        # Menu bar        x
+        # Menu bar
         menuBar = wx.MenuBar()
         menuBar.Append(fileMenu,"&File")
         menuBar.Append(viewMenu,"&View")
         menuBar.Append(dataMenu,"&Data")
-        menuBar.Append(selectMenu,"&Analysis")
+        menuBar.Append(analysisMenu,"&Analysis")
         self.SetMenuBar(menuBar)
-
-
 
 
         # HyperTreeList
@@ -91,48 +95,14 @@ class MainFrame(wx.Frame):
                                       0,
                                       wx.TR_HIDE_ROOT | HTL.TR_MULTIPLE | HTL.TR_EXTENDED |
                                       HTL.TR_HAS_BUTTONS | HTL.TR_LINES_AT_ROOT)
-        #self.tree = HTL.HyperTreeList(self, wx.ID_ANY, wx.DefaultPosition, wx.Size(200,300),
-        #                              HTL.TR_MULTIPLE | HTL.TR_EXTENDED)
-
-
-
-        # TreeListCtrl
-        #self.tree = wx.dataview.TreeListCtrl(self, wx.ID_ANY, wx.DefaultPosition, wx.Size(200,300),
-        #                                     wx.dataview.TL_CHECKBOX | wx.dataview.TL_MULTIPLE)
-        #self.Bind(wx.dataview.EVT_TREELIST_ITEM_CHECKED, self.Test, self.tree)
-        #self.Bind(wx.EVT_TREE_SEL_CHANGED, self.Test, self.tree)
-        ##self.tree.Bind(wx.EVT_LEFT_DOWN, self.Test)
-        #panel = TreePanel(self)
 
         self.movie = MoviePanel(parent=self)
 
         self.histogram = HistogramPanel(parent=self)
-        self.interactive = InteractiveAnalysisPanel(parent=self)
-        #self.histogram = PlotPanel(self)
-        #self.histogram.figure.gca().plot([1, 2, 3, 4, 5], [2, 1, 4, 2, 3])
-        #self.histogram.figure.gca().hist([1, 2, 3, 4, 5])
-
-        #test = wx.Button(self, -1, 'Large button')
-        #test = wx.Button(self, -1, 'Large button')
-        #wx.Button(self.panel1, -1, 'Small button')
-        #box = wx.BoxSizer(wx.HORIZONTAL)
-        #box.Add(self.tree, 0,wx.EXPAND,0)
-        #box.Add(self.plotter, 0,0,0)
-        #box.Add(self.histogram,1,wx.EXPAND,0)
-
-        #box.Add(wx.Button(self, -1, 'Small button'), 0, 0, 0)
-        #box.Add(wx.Button(self, -1, 'Large button'), 0, 0, 0)
-        #box.Add(self.tree, 1,0,0)
-        #box.Add(self.panel2, 1,0,0)
-        #self.SetSizerAndFit(box)
+        self.interactive = InteractiveAnalysisPanel(self)
+        self.distributions = DwelltimeAnalysisPanel(self)
 
         self.Show(True)
-
-        #self.createTree(r'D:\ivoseverins\SURFdrive\Promotie\Code\Python\traceAnalysis\twoColourExampleData')
-        #self.createTree(r'D:\SURFdrive\Promotie\Code\Python\traceAnalysis\twoColourExampleData')
-        #self.createTree(r'/Users/ivoseverins/SURFdrive/Promotie/Code/Python/traceAnalysis/twoColourExampleData')
-
-
 
 
     # File menu event handlers
@@ -149,9 +119,6 @@ class MainFrame(wx.Frame):
 
             print(self.experiment.files[0].movie)
 
-#            self.experimentRoot = dlg.GetPath()
-#            print(self.experimentRoot)
-#            exp = Experiment(self.experimentRoot)
 #
 #            self.tree.AppendColumn('Files')
 #            self.experimentRoot = self.tree.AppendItem(self.tree.GetRootItem(),exp.name)
@@ -190,12 +157,6 @@ class MainFrame(wx.Frame):
         if event.IsChecked(): self.histogram.Show()
         elif ~event.IsChecked(): self.histogram.Hide()
 
-#    def OnShowTrace(self,event):
-#        if event.IsChecked():
-#            self.trace.Show()
-#            self.trace.PlotTrace(self.experiment.files[0].molecules[0])
-#        elif ~event.IsChecked(): self.trace.Hide()
-
     # Data menu event handlers
     def OnFindMolecules(self, event):
         for file in self.experiment.selectedFiles:
@@ -208,34 +169,34 @@ class MainFrame(wx.Frame):
 
     # Select menu event handlers
     def OnInteractiveSelection(self, event):
-        file = self.tree.GetSelection().GetData()
-        print(self.tree.GetSelection().GetData())
-        print(f'{file.name} dataset selected')
-        self.interactive.start(file.molecules, import_excel=True)
+        if self.experiment.selectedFiles:
+            molecules = [mol for file in self.experiment.selectedFiles
+                         for mol in file.molecules]
+    #        print(f'{file.name} dataset selected')
+            self.interactive.start(molecules)
+        else:
+            print('No file selected')
+            dlg = wx.MessageDialog(self, 'No file selected', 'Interactive analysis', wx.OK)
+            dlg.ShowModal()
+            dlg.Destroy()
 
+    def OnAnalyzeStepsSelection(self, event):
+        print('Analyzing Steps...')
+        start = time.perf_counter()
+        for file in self.experiment.selectedFiles:
+            analyze_steps(file)
+            print(f'Analyzing Steps for {file.name}')
+        finish = time.perf_counter()
+        msg = f'Steps Data analyzed for selected files. \
+                \Time elapsed: {finish - start:.2f} sec.'
+        dlg = wx.MessageDialog(self, msg, 'Analyze Steps Data', wx.OK)
+        dlg.ShowModal()
+        dlg.Destroy()
 
-    # TreeListCtrl event handlers
-#    def Test(self, event):
-#        item = event.GetItem()
-#        #newItemCheckedState = bool(self.tree.GetCheckedState(item))
-#        newItemCheckedState = bool(item.IsChecked())
-#        #file = self.tree.GetItemData(item)
-#        file = self.tree.GetItemPyData(item)
-#        file.isSelected = newItemCheckedState
+    def OnPlotDistributionsSelection(self,event):
+        if event.IsChecked(): self.distributions.Show()
+        elif ~event.IsChecked(): self.distributions.Hide()
 
-
-        # self.histogram.axis.clear()
-        # self.experiment.histogram(self.histogram.axis, fileSelection = True)
-        # self.histogram.canvas.draw()
-        # self.histogram.canvas.Refresh()
-
-        #print(self.h.IsShown())
-#        if self.histogram.IsShown():
-#            self.histogram.panel.axis.clear()
-#            self.experiment.histogram(self.histogram.panel.axis, fileSelection=True)
-#            self.histogram.panel.canvas.draw()
-#            self.histogram.panel.canvas.Refresh()
-        self.histogram.PlotHistogram()
 
 class MoviePanel(wx.Frame):
     def __init__(self, title='Movie', parent=None):
@@ -258,7 +219,7 @@ class MoviePanel(wx.Frame):
     def ShowMovie(self, show_coordinates = True):
         if self.IsShown():
             self.panel.axis.clear()
-            if self._file is not None: 
+            if self._file is not None:
                 self._file.show_image(figure = self.panel.figure)
 
             if show_coordinates:
@@ -280,7 +241,7 @@ class HistogramPanel(wx.Frame):
         self.parent = parent
         self.Bind(wx.EVT_CLOSE, self.OnClose)
 
-    def PlotHistogram(self, fileSelection = True, moleculeSelection = False):
+    def PlotHistogram(self, fileSelection=True, moleculeSelection = False):
         if self.IsShown():
             self.panel.axis.clear()
             self.parent.experiment.histogram(self.panel.axis, fileSelection=fileSelection)
@@ -292,9 +253,8 @@ class HistogramPanel(wx.Frame):
         self.Hide()
 
 class InteractiveAnalysisPanel(wx.Frame):
-    def __init__(self, title='Interactive Analysis', parent=None):
+    def __init__(self, parent=None, title='Interactive Analysis'):
         wx.Frame.__init__(self, parent=parent, title=title)
-        # self.panel = PlotPanel(self) # Probably necessary in the end - IS
         self.parent = parent
         self.Bind(wx.EVT_CLOSE, self.OnClose)
 
@@ -316,24 +276,75 @@ class InteractiveAnalysisPanel(wx.Frame):
             print('InteractiveAnalysis not initialized')
 
 
-    def start(self, molecules, import_excel=True):
+    def start(self, molecules):
         self.moleculesToLoopThrough = molecules
-        #self.iPlot = interactiveAnalysis.InteractivePlot(molecules, self.panel.canvas,
-        #                                        import_excel=import_excel)
-        self.iPlot = interactiveAnalysis.InteractivePlot(molecules, import_excel=import_excel)
+        self.iPlot = interactiveAnalysis.InteractivePlot(molecules)
         self.iPlot.plot_initialize()
         self.iPlot.plot_molecule()
 
-
-
     def OnClose(self,event):
-        self.parent.viewMenuShowTrace.Check(False)
+        self.parent.analysisMenuInteractiveAnalysis.Check(False)
         self.Hide()
 
 
+class DwelltimeAnalysisPanel(distributionsPanel.Panel):
+    def __init__(self, parent=None, title='Dwelltime Analysis'):
+        # initialize parent class and build the GUI
+        super().__init__(parent, title=title)
+        self.parent = parent
+        self.parent.Show()
+
+    def combine_dwells_data(self):
+        '''
+
+        Returns
+        -------
+        dwells_data : pd.DataFrame4
+            The concatenated pd.DataFrame from all the [..]_dwells_data.xlsx
+            files for the selected files
+
+        '''
+        # Check if the analyze separately radiobutton is checked
+        dwells_data = []
+        # print(self.parent.experiment.selectedFiles)
+        for file in self.parent.experiment.selectedFiles:
+            filename = str(file.relativePath)+'/' + file.name +'_dwells_data.xlsx'
+            d = pd.read_excel(filename, index_col=[0,1], dtype={'kon': str})
+            dwells_data.append(d)
+
+        dwells_data = pd.concat(dwells_data)#, ignore_index=True)
+
+        return dwells_data
+
+    # Override parent methods
+    def OnPlotPress(self, event, dist=None):
+        self.DistConfigSave()
+        print('Plotting from GUI')
+        self.save_enable()  # enable the save controls, parent method
+        if dist is None:
+            dist = self.comboDist.GetValue()
+        else:
+            pass
+        # if the analyze separately radiobutton is selected:
+        if self.radioDataSeparate.GetValue():
+            self.figures = []
+            for file in self.parent.experiment.selectedFiles:
+                name = file.name
+                filename = str(file.relativePath)+'/' + file.name \
+                                +'_dwells_data.xlsx'
+                dwells = pd.read_excel(filename, index_col=[0,1],
+                                       dtype={'kon': str})
+                figs = dwelltimeAnalysis.analyze(dwells, name, dist,
+                                                 self.configuration[dist])
+                self.figures.append(figs)
 
 
-
+        # if the combine selected data radiobutton is selected:
+        elif self.radioDataCombine.GetValue():
+            name = self.entryDataName.GetValue()
+            dwells = self.combine_dwells_data()
+            self.figures = dwelltimeAnalysis.analyze(dwells, name, dist,
+                                              self.configuration[dist])
 
 class PlotPanel(wx.Panel):
     def __init__(self, parent, id=-1, dpi=None, **kwargs):
@@ -357,6 +368,7 @@ class HyperTreeListPlus(HTL.HyperTreeList):
         self.AddColumn('Files', width=150)
         self.AddColumn('Molecules', width=75)
         self.AddColumn('Selected', width=75)
+        self.AddColumn('Analyzed', width=75)
 
         self.root = self.AddRoot('root')
         self.FileItems = []
@@ -377,7 +389,7 @@ class HyperTreeListPlus(HTL.HyperTreeList):
     def AddExperiment(self, experiment):
         experimentItemNames = [item.GetText() for item in self.root.GetChildren()]
         if experiment.name not in experimentItemNames:
-            experimentItem = self.AppendItem(self.root, experiment.name, ct_type = 1, data = experiment)
+            experimentItem = self.AppendItem(self.root, experiment.name, ct_type=1, data=experiment)
             experiment.item = experimentItem
 
         print(experiment.name)
@@ -423,6 +435,8 @@ class HyperTreeListPlus(HTL.HyperTreeList):
             if type(itemData) is File:
                 self.SetItemText(item, str(len(itemData.molecules)), 1) # Should be in a different method
                 self.SetItemText(item, str(len(itemData.selectedMolecules)), 2)
+                N_analyzed_molecules = len([mol for mol in itemData.molecules if mol.steps is not None])
+                self.SetItemText(item, str(N_analyzed_molecules), 3)
 
     def OnItemActivated(self, event):
         item = event.GetItem()
@@ -495,12 +509,11 @@ class HyperTreeListPlus(HTL.HyperTreeList):
         standardColour = self.GetItemBackgroundColour(self.GetRootItem().GetChildren()[0])
         for item in self.FileItems: self.SetItemBackgroundColour(item, standardColour)
         self.SetItemBackgroundColour(item, wx.YELLOW) #wx.Colour(160,160,160))
-        
+
     def OnCopyCoordinatesToSelectedFiles(self, event, item, file):
         # Maybe we should somehow indicate which files have coordinates from other files. [IS 31-01-2020]
         file.copy_coordinates_to_selected_files()
         self.insertDataIntoColumns()
-
 
     def CheckItem3(self, item, checked = True):
         self.CheckItem2(item, checked=checked, torefresh=True)
@@ -512,6 +525,59 @@ class HyperTreeListPlus(HTL.HyperTreeList):
         else:
             for child in item.GetChildren():
                 self.CheckItem3(child, checked = checked)
+
+
+app = wx.App(False)
+frame = MainFrame(None, "MainFrame")
+app.MainLoop()
+
+print('End')
+
+del app
+
+
+"""
+
+class MyTree(wx.TreeCtrl):
+    def __init__(self, parent, id, pos, size, style):
+        wx.TreeCtrl.__init__(self, parent, id, pos, size, style)
+
+class TreePanel(wx.Panel):
+    def __init__(self, parent):
+        wx.Panel.__init__(self, parent)
+
+        self.tree = MyTree(self, wx.ID_ANY, wx.DefaultPosition, (300,200), wx.TR_HAS_BUTTONS)
+
+        self.root = self.tree.AddRoot('Something goes here')
+        self.tree.SetPyData(self.root, ('key', 'value'))
+        self.tree.AppendItem(self.root, 'Operating Systems')
+        self.tree.Expand(self.root)
+
+"""
+
+
+    # TreeListCtrl event handlers
+#    def Test(self, event):
+#        item = event.GetItem()
+#        #newItemCheckedState = bool(self.tree.GetCheckedState(item))
+#        newItemCheckedState = bool(item.IsChecked())
+#        #file = self.tree.GetItemData(item)
+#        file = self.tree.GetItemPyData(item)
+#        file.isSelected = newItemCheckedState
+
+
+        # self.histogram.axis.clear()
+        # self.experiment.histogram(self.histogram.axis, fileSelection = True)
+        # self.histogram.canvas.draw()
+        # self.histogram.canvas.Refresh()
+
+        #print(self.h.IsShown())
+#        if self.histogram.IsShown():
+#            self.histogram.panel.axis.clear()
+#            self.experiment.histogram(self.histogram.panel.axis, fileSelection=True)
+#            self.histogram.panel.canvas.draw()
+#            self.histogram.panel.canvas.Refresh()
+        # self.histogram.PlotHistogram()
 
 #class Plot(wx.Panel):
 #    def __init__(self, parent, id=-1, dpi=None, **kwargs):
@@ -578,32 +644,30 @@ class HyperTreeListPlus(HTL.HyperTreeList):
 #        print('LoopThrough')
 
 
-app = wx.App(False)
-frame = MainFrame(None, "MainFrame")
-app.MainLoop()
-
-print('End')
-
-del app
-
-
-"""
-
-class MyTree(wx.TreeCtrl):
-    def __init__(self, parent, id, pos, size, style):
-        wx.TreeCtrl.__init__(self, parent, id, pos, size, style)
-
-class TreePanel(wx.Panel):
-    def __init__(self, parent):
-        wx.Panel.__init__(self, parent)
-
-        self.tree = MyTree(self, wx.ID_ANY, wx.DefaultPosition, (300,200), wx.TR_HAS_BUTTONS)
-
-        self.root = self.tree.AddRoot('Something goes here')
-        self.tree.SetPyData(self.root, ('key', 'value'))
-        self.tree.AppendItem(self.root, 'Operating Systems')
-        self.tree.Expand(self.root)
+        #self.tree = HTL.HyperTreeList(self, wx.ID_ANY, wx.DefaultPosition, wx.Size(200,300),
+        #                              HTL.TR_MULTIPLE | HTL.TR_EXTENDED)
 
 
 
-"""
+        # TreeListCtrl
+        #self.tree = wx.dataview.TreeListCtrl(self, wx.ID_ANY, wx.DefaultPosition, wx.Size(200,300),
+        #                                     wx.dataview.TL_CHECKBOX | wx.dataview.TL_MULTIPLE)
+        #self.Bind(wx.dataview.EVT_TREELIST_ITEM_CHECKED, self.Test, self.tree)
+        #self.Bind(wx.EVT_TREE_SEL_CHANGED, self.Test, self.tree)
+        ##self.tree.Bind(wx.EVT_LEFT_DOWN, self.Test)
+        #panel = TreePanel(self)
+
+
+        #test = wx.Button(self, -1, 'Large button')
+        #test = wx.Button(self, -1, 'Large button')
+        #wx.Button(self.panel1, -1, 'Small button')
+        #box = wx.BoxSizer(wx.HORIZONTAL)
+        #box.Add(self.tree, 0,wx.EXPAND,0)
+        #box.Add(self.plotter, 0,0,0)
+        #box.Add(self.histogram,1,wx.EXPAND,0)
+
+        #box.Add(wx.Button(self, -1, 'Small button'), 0, 0, 0)
+        #box.Add(wx.Button(self, -1, 'Large button'), 0, 0, 0)
+        #box.Add(self.tree, 1,0,0)
+        #box.Add(self.panel2, 1,0,0)
+        #self.SetSizerAndFit(box)

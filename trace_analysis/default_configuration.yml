@@ -1,3 +1,8 @@
+compute_image:
+    number_of_frames: all
+show_movie:
+    image: average_image
+    annotate: False
 find_coordinates:
     channel: d
     image: average_image
@@ -15,6 +20,8 @@ find_coordinates:
             cutoff: image_median
             fraction_of_peak_max: 0.25
 mapping:
+    transformation_type: nonlinear
+    initial_translation: 'width/2' # Or e.g. [1024,0]
     peak_finding:
         donor:
             method: local-maximum

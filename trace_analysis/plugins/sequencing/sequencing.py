@@ -211,6 +211,7 @@ class File:
             match.source = self.coordinates
             match.initial_transformation = initial_transformation
             match.transformation = match.transformation @ initial_transformation.params
+            match.calculate_inverse_transformation()
             # TODO: Base this on some better criteria
             #match.nearest_neighbour_match(nearest_neighbour_match_distance_threshold)
             self.sequencing_match = match
@@ -230,8 +231,7 @@ class File:
                                                           y=coordinate_bounds_tile[:, 1])
 
         self.molecules = []
-        self.coordinates = self.sequencing_match.transform_coordinates(self.sequencing_data.coordinates,
-                                                                     inverse=True)
+        self.coordinates = self.sequencing_match.transform_coordinates(self.sequencing_data.coordinates, inverse=True)
         self.sequencing_data.export_fastq(self.relativeFilePath)
 
     def plot_sequencing_match(self):
