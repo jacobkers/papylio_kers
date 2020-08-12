@@ -276,7 +276,7 @@ class File:
             Pi = coefficients_inverse[:len(coefficients_inverse) // 2].reshape((degree + 1, degree + 1))
             Qi = coefficients_inverse[len(coefficients_inverse) // 2 : len(coefficients_inverse)].reshape((degree + 1, degree + 1))
         else :
-            image_height = self._average_image.shape[0]
+            image_height = self.average_image.shape[0]
             # Can't we make this independent of the image?
             # (Can't we just take the whole image here [IS 26-03-2020])
             grid_coordinates = np.array([(a,b) for a in range(20, image_height/2-20, 10) for b in range(20, image_height-20, 10)])
