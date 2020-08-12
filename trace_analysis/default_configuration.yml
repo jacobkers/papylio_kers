@@ -7,8 +7,8 @@ find_coordinates:
     channel: donor
     method: average_image
     uncertainty_pixels: 2
-    img_per_N_pixels: 20
-    use_window: True
+    img_per_N_frames: 20
+    use_sliding_window: True
     peak_finding:
         method: local-maximum
         minimum_intensity_difference: 10

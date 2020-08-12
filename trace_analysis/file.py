@@ -361,13 +361,13 @@ class File:
 
         if configuration is None:
             configuration = self.experiment.configuration['find_coordinates']
-            configs_peak_finding = self.experiment.configuration['peak_finding']
+            configs_peak_finding = configuration['peak_finding']
 
         # --- fatch parameters/settings from configuration file ----
         channel = configuration['channel']
         method = configuration['method']
         uncertainty_pixels = configuration['uncertainty_pixels']
-        img_per_N_frames = configuration['window_length_frames']
+        img_per_N_frames = configuration['img_per_N_frames']
         use_sliding_window = bool( configuration['use_sliding_window'])
 
         # ----  Find the unique set of molecule coordinates ----
