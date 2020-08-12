@@ -150,9 +150,9 @@ class Movie:
         # Check and specify number of frames
         if number_of_frames == 'all':
             number_of_frames = self.number_of_frames
-        elif self.number_of_frames < number_of_frames:
+        elif (self.number_of_frames - start_frame) < number_of_frames:
             print('Number of frames entered exceeds size movie')
-            number_of_frames = self.number_of_frames
+            number_of_frames = (self.number_of_frames - start_frame)
 
         # Calculate sum of frames and find mean
         image = np.zeros((self.height, self.width))
