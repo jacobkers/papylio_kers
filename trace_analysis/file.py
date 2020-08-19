@@ -693,15 +693,39 @@ class File(A):
 
         if not figure: figure = plt.figure()
 
-        annotate = self.experiment.configuration['show_movie']['annotate']
         if annotate is None:
             annotate = self.experiment.configuration['show_movie']['annotate']
 
         if self.coordinates is not None:
             axis = figure.gca()
-            axis.scatter(self.coordinates[:,0],self.coordinates[:,1], facecolors='none', edgecolors='red', **kwargs)
+            sc_coordinates = axis.scatter(self.coordinates[:, 0], self.coordinates[:, 1], facecolors='none', edgecolors='red', **kwargs)
 
             if annotate:
-                for molecule in self.molecules:
-                    for i in np.arange(self.number_of_colours):
-                        axis.annotate(molecule.index, molecule.coordinates[i], color='white')
+                annotation = axis.annotate("", xy=(0, 1.03), xycoords=axis.transAxes) # x in data units, y in axes fraction
+                annotation.set_visible(False)
+
+                def update_annotation(ind):
+                    if hasattr(self, 'sequences'):
+                        text = "Molecule number: {} \nSequence: {}".format(" ".join(list(map(str, ind["ind"]))),
+                                               " ".join([str(self.sequences[n][0].decode('UTF-8')) for n in ind["ind"]]))
+                    else:
+                        text = "Molecule number: {}".format(" ".join(list(map(str, ind["ind"]))))
+
+                    annotation.set_text(text)
+
+                def hover(event):
+                    vis = annotation.get_visible()
+                    if event.inaxes == axis:
+                        cont, ind = sc_coordinates.contains(event)
+                        if cont:
+                            update_annotation(ind)
+                            annotation.set_visible(True)
+                            figure.canvas.draw_idle()
+                        else:
+                            if vis:
+                                annotation.set_visible(False)
+                                figure.canvas.draw_idle()
+
+                figure.canvas.mpl_connect("motion_notify_event", hover)
+
+            plt.show()
