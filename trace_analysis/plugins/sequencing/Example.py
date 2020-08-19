@@ -113,6 +113,9 @@ for file in matched_files:
 # Import sequencing data and locations into the files
 for file in matched_files:
     file.get_all_sequences_from_sequencing_data()
+    # Export pks file with all molecules that have a linked sequence
+    file.export_pks_file()
+
 
 # Make and export a sequencing match plot for files that have a sequencing match
 for file in matched_files: #exp.files # files_correct: #exp.files:
