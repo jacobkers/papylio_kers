@@ -704,12 +704,15 @@ class File(A):
                 annotation = axis.annotate("", xy=(0, 1.03), xycoords=axis.transAxes) # x in data units, y in axes fraction
                 annotation.set_visible(False)
 
+                indices = np.repeat(np.arange(0, self.number_of_molecules), self.number_of_colours)
+                sequences = np.repeat(self.sequences, self.number_of_colours)
+
                 def update_annotation(ind):
                     if hasattr(self, 'sequences'):
-                        text = "Molecule number: {} \nSequence: {}".format(" ".join(list(map(str, ind["ind"]))),
-                                               " ".join([str(self.sequences[n][0].decode('UTF-8')) for n in ind["ind"]]))
+                        text = "Molecule number: {} \nSequence: {}".format(" ".join([str(indices[ind["ind"][0]])]),
+                                               " ".join([str(sequences[ind["ind"][0]].decode('UTF-8'))]))
                     else:
-                        text = "Molecule number: {}".format(" ".join(list(map(str, ind["ind"]))))
+                        text = "Molecule number: {}".format(" ".join([str(indices[ind["ind"][0]])]))
 
                     annotation.set_text(text)
 
