@@ -10,6 +10,8 @@ from trace_analysis import peak_finding
 from trace_analysis import coordinate_transformations as ctrans
 import skimage as ski
 
+import matplotlib.pyplot as plt
+from scipy.spatial import cKDTree
 
 '''
 Main function called directly within 'file.py'--> 'find_molecules()'
@@ -87,7 +89,6 @@ def find_unique_molecules(file,
             channel_coordinates = set_of_tuples_from_array(channel_coordinates)
             coordinate_sets[i].update(channel_coordinates)
 
-
     #TODO: make this work properly using a the mapping transformation
     #TODO: make this usable for any number of channels
     if len(channels) > 1:
@@ -96,7 +97,7 @@ def find_unique_molecules(file,
 
     # --- correct for photon shot noise / stage drift ---
     # Not sure whether to put this in front of combine_coordinate_sets/detect_FRET_pairs or behind [IS: 12-08-2020]
-    coordinates = apply_uncertainty(coordinates, uncertainty=uncertainty_pixels, nmbr_pixels=nmbr_pixels)
+    coordinates = merge_nearby_coordinates(coordinates, distance_threshold=uncertainty_pixels)
 
     #TODO: map coordinates to main channel in movie
 
@@ -104,6 +105,123 @@ def find_unique_molecules(file,
     coordinates = array_from_set_of_tuples(coordinates)
 
     return coordinates, find_coords_img
+
+
+def merge_nearby_coordinates(coordinates, distance_threshold=2, plot=False):
+    """Merge nearby coordinates to a single coordinate
+
+    Coordinates are stored in a KD-tree.
+    Each pair of points with a distance smaller than the distance threshold is obtained
+    Pairs are chained to obtain groups of points
+    For each group find the center coordinate and use that as a new coordinate
+    (do this only if each member of the group is within the distance threshold from the center coordinate).
+    Add individual points to the new coordinate list, i.e. points that do not have other points within the distance threshold.
+
+    Parameters
+    ----------
+    coordinates : numpy.ndarray of ints or floats OR set of tuples
+        Array with each row a set of coordinates
+    distance_threshold : int or float
+        Points closer than this distance are considered belonging to the same molecule.
+    plot : bool
+        If True shows a scatter plot of the coordinates and the new coordinates on top. (Only for 2D coordinates)
+
+    Returns
+    -------
+    new_coordinates : numpy.ndarray of floats
+        Coordinate array after merging nearby coordinates
+
+    """
+
+    # Convert to numpy array in case the coordinates are given as a set of tuples
+    coordinates = array_from_set_of_tuples(coordinates)
+
+    # Put coordinates in KD-tree for fast nearest-neighbour finding
+    coordinates_KDTree = cKDTree(coordinates)
+
+    # Determine pairs of points closer than the distance_threshold
+    close_pairs = coordinates_KDTree.query_pairs(r=distance_threshold)
+    close_pairs = [set(pair) for pair in close_pairs] # Convert to list of sets
+
+    # Chain the pairs to obtain groups (or clusters) of points
+    groups_of_points = combine_overlapping_sets(close_pairs)
+
+    # Calculate the new coordinates by taking the center of all the neighbouring points.
+    # A threshold for the total group is applied, i.e. all points must lie within the distance_threshold
+    # from the center coordinate.
+    new_coordinates = []
+    for group in groups_of_points:
+        group_coordinates = coordinates[list(group)]
+        center_coordinate = np.mean(group_coordinates, axis=0)
+        distances_to_center = np.sqrt(np.sum((group_coordinates-center_coordinate)**2, axis=1))
+        if not (np.max(distances_to_center) > distance_threshold): # This could be another threshold
+            new_coordinates.append(center_coordinate)
+
+    # Obtain individual points, i.e. those that do not have another point within the distance_threshold.
+    # This is done by taking the difference from all points and the ones that are present in any of the groups.
+    all_points_in_groups = set(point for group in groups_of_points for point in group)
+    all_points = set(range(len(coordinates)))
+    individual_points = all_points.difference(all_points_in_groups)
+
+    # Add individual points to new_coordinates list
+    for point in individual_points:
+        new_coordinates.append(coordinates[point])
+
+    # Convert to numpy array
+    new_coordinates = np.array(new_coordinates)
+
+    if plot:
+        axis = plt.figure().gca()
+        axis.scatter(coordinates[:,0],coordinates[:,1])
+        axis.scatter(new_coordinates[:,0],new_coordinates[:,1])
+
+    return new_coordinates
+
+
+def combine_overlapping_sets(old_list_of_sets):
+    """ Combine sets that have overlap
+
+    Go through each set, if it has overlap with one of the sets in the new list of sets, then combine it with this set
+    If there is no overlap, append the set to the new list of sets.
+    Perform this function recursively until the new_list_of_sets does not change anymore.
+
+    Parameters
+    ----------
+    old_list_of_sets : list of sets
+        List of sets of which overlapping ones should be combined
+
+    Returns
+    -------
+    new_list_of_sets : list of sets
+        Combined list of sets
+
+    """
+
+    # test_set1 = [set((1,2)),set((3,4)),set((5,2)),set((5,6)),set((4,10))]
+    # test_set2 = [set((1,2)),set((3,4)),set((2,3)),set((5,6)),set((4,10))]
+
+    new_list_of_sets = []
+    for old_set in old_list_of_sets:
+        append = True
+        for new_set in new_list_of_sets:
+            if not (old_set.isdisjoint(new_set)):
+                new_set.update(old_set)
+                append = False
+        if append:
+            new_list_of_sets.append(old_set.copy())
+
+    if not (new_list_of_sets == old_list_of_sets):
+        new_list_of_sets = combine_overlapping_sets(new_list_of_sets)
+
+    return new_list_of_sets
+
+
+def set_of_tuples_from_array(array):
+    return set([tuple(a) for a in array])
+
+
+def array_from_set_of_tuples(set_of_tuples):
+    return np.array([t for t in set_of_tuples])
 
 '''
 utility functions (called within find_unique_molecules())
@@ -193,65 +311,6 @@ def find_FRET_pairs(Acceptor, Donor, uncertainty, nmbr_pixels):
                 break  # No need to continue checking the Donor channel, already found a match
 
     return FRETpairs
-
-def apply_uncertainty(Peaks, uncertainty=2, nmbr_pixels=512):
-    '''
-    due to photon shot noise + stage drift, the exact molecule position on the image can shift a bit
-
-    first version:
-    * pick a point from the full set of points found
-    * determine difference in x and y coordinates to all other points
-    * if ANY of the dx,dy pairs lies within the allowed uncertainty...
-    * keep the test (x,y) and remove the ones that lie too close
-    * In this fashion, the total loop should not need to run over all points.
-    Once a peak is discarded because it is concidered "belonging to the same molecule", we don't need to use it as the
-    reference (x,y) no longer.
-    '''
-    # --- the following just allows for the nicer name of the input variable
-    # ------- without me needing to carry this over into the whole code  ---------
-    u = uncertainty
-
-    # --- make array of peak locations ---
-    NewPeaks = list(Peaks.copy())
-    PeakArray = coordinates_from_set(Peaks, channel='donor', nmbr_pixels=nmbr_pixels)
-    xcoords = PeakArray[:, 0]
-    ycoords = PeakArray[:, 1]
-
-    removedIDs = []
-    # --- choose a reference peak/molecule ---
-    # --- needed to loop over the original set of peaks, otherwise loop ends before checking all pairs
-    # --- because you reduce the size of the new set ----
-    for ID, (x, y) in enumerate(Peaks):
-
-        # --- If this pixel location allready has been discarded, no need to continue ---
-        if ID in removedIDs:
-            continue
-
-        # --- determine if ANY of the remainig peaks can be concidered identical to the reference location ---
-        xdiffs = np.abs(xcoords - x)
-        ydiffs = np.abs(ycoords - y)
-        condition_x_coordinate = xdiffs <= u
-        condition_y_coordinate = ydiffs <= u
-
-        # -- return the 'molecule'/'peak' indices that represent the same molecule/fluoresence spot ---
-        no_need_these_peaks = np.where(condition_x_coordinate & condition_y_coordinate)[0]
-
-        # --- remove the duplicates (keep the one used as reference) ---
-        NoNeeds = no_need_these_peaks[no_need_these_peaks != ID]
-
-        # --- to prevent the algorithm of trying to remove things twice ---
-        NoNeeds = NoNeeds[~np.isin(NoNeeds, removedIDs)]
-
-        for p in PeakArray[NoNeeds]:
-            xNo = p[0]
-            yNo = p[1]
-            NewPeaks.remove((xNo, yNo))
-
-
-        # --- to prevent the loop of checking something we allready know is going to be removed ---
-        removedIDs.extend(NoNeeds)
-
-    return set(NewPeaks)
 
 
 def get_coordinate_pairs(file, peak_coordinates, channel):
