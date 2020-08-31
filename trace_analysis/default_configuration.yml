@@ -4,11 +4,13 @@ show_movie:
     image: average_image
     annotate: False
 find_coordinates:
-    channel: donor
-    method: average_image
-    uncertainty_pixels: 2
-    img_per_N_frames: 20
-    use_sliding_window: True
+    channels:
+        - donor
+    projection_image_type: average # average or maximum
+    method: by_channel # by_channel or overlay
+    window_size: 20
+    use_sliding_window: False
+    minimal_point_separation: 2
     peak_finding:
         method: local-maximum
         minimum_intensity_difference: 10
