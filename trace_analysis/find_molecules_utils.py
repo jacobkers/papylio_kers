@@ -83,23 +83,47 @@ def find_unique_molecules(file,
             acceptor_image_transformed = ski.transform.warp(acceptor_image, image_transformation, preserve_range=True)
             # MD: problem: this is a linear transform, while yo u might have found a nonlinear transform; is nonlinear transform of image available?
             channel_images = [(donor_image + acceptor_image_transformed) / 2]
+            channels = ['d']
 
         for i, channel_image in enumerate(channel_images):
             channel_coordinates = peak_finding.find_peaks(image=channel_image, **configs_peak_finding)#.astype(int)))
             channel_coordinates = set_of_tuples_from_array(channel_coordinates)
-            coordinate_sets[i].update(channel_coordinates)
 
-    #TODO: make this work properly using a the mapping transformation
-    #TODO: make this usable for any number of channels
-    if len(channels) > 1:
-        raise NotImplementedError('Assessing found coordinates in multiple channels does not work properly yet')
-        coordinates = combine_coordinate_sets(coordinate_sets, method='and') # the old detect_FRET_pairs
+            coordinate_optimization_functions = \
+                {'coordinates_within_margin': coordinates_within_margin,
+                 'coordinates_after_gaussian_fit': coordinates_after_gaussian_fit,
+                 'coordinates_without_intensity_at_radius': coordinates_without_intensity_at_radius}
+            for f, kwargs in configuration['coordinate_optimization'].items():
+                coordinates = coordinate_optimization_functions[f](coordinates, image, **kwargs)
+
+            coordinate_sets[i].update(channel_coordinates)
 
     # --- correct for photon shot noise / stage drift ---
     # Not sure whether to put this in front of combine_coordinate_sets/detect_FRET_pairs or behind [IS: 12-08-2020]
-    coordinates = merge_nearby_coordinates(coordinates, distance_threshold=uncertainty_pixels)
+    # I think before, as you would do it either for each window, or for the combined windows.
+    # Transforming the coordinate sets for each window will be time consuming and changes the distance_threshold.
+    # And you would like to combine the channel sets on the merged coordinates.
+    for i in range(len(coordinate_sets)):
+        if sliding_window:
+            coordinate_sets[i] = merge_nearby_coordinates(coordinate_sets[i], distance_threshold=uncertainty_pixels)
 
-    #TODO: map coordinates to main channel in movie
+        # Map coordinates to main channel in movie
+        # TODO: make this usable for any number of channels
+        coordinate_sets[i] = transform(coordinate_sets[i], translation=file.movie.channel_boundaries('a')[:,0])
+        if channel=='a':
+            coordinate_sets[i] = self.mapping.transform_coordinates(coordinate_sets[i], direction='destination2source')
+
+    #TODO: make this work properly using a the mapping transformation
+    #TODO: make this usable for any number of channels
+    if len(coordinate_sets) == 1:
+        coordinates = coordinate_sets[0]
+    if len(coordinate_sets) > 1:
+        raise NotImplementedError('Assessing found coordinates in multiple channels does not work properly yet')
+        coordinates = combine_coordinate_sets(coordinate_sets, method='and') # the old detect_FRET_pairs
+
+    donor_coordinates = coordinates
+    acceptor_coordinates = self.mapping.transform_coordinates(coordinates, direction='source2destination')
+    coordinates = np.hstack([donor_coordinates, acceptor_coordinates]).reshape((-1, 2))
 
     # --- turn into array ---
     coordinates = array_from_set_of_tuples(coordinates)
