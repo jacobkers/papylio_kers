@@ -15,10 +15,11 @@ import skimage as ski
 Main function called directly within 'file.py'--> 'find_molecules()'
 '''
 def find_unique_molecules(file,
-                          SlidingWindow=True,
-                          method='average_image',
-                          channel='donor',
-                          img_per_N_frames=20,
+                          sliding_window=True,
+                          projection_image_type='average',
+                          method='by_channel',
+                          channels=['donor'],
+                          window_size=20,
                           uncertainty_pixels=2,
                           configs_peak_finding=None):
     '''
@@ -32,129 +33,107 @@ def find_unique_molecules(file,
     '''
 
     # --- fatch values from config file and objects ---
-    nmbr_pixels = file.movie.width_pixels
+    nmbr_pixels = file.movie.width
     number_of_frames = file.number_of_frames
 
 
-    # --- initialize output image/ unique sets of molecules ---
+    # --- initialize output image ---
     find_coords_img = np.zeros((nmbr_pixels, nmbr_pixels))
-    D_and_A = set()
-    D_plus_A= set()
-    D = set()
-    A = set()
 
 
     # --- make the windows
     # (if no sliding windows, just a single window is made to make it compatible with next bit of code) ----
-    if SlidingWindow:
-        windows = [(i * img_per_N_frames, (i + 1) * img_per_N_frames) for i in
-                   range(number_of_frames// img_per_N_frames)]
+    if sliding_window:
+        window_start_frames = [i * window_size for i in range(number_of_frames // window_size)]
     else:
-        windows = [(0, img_per_N_frames)]
+        window_start_frames = [0]
 
+    # coordinates = set()
+    if method == 'by_channel':
+        coordinate_sets = [set() for channel in channels]
+    elif method == 'overlay_channels':
+        if len(channels) < 2:
+            raise ValueError('No channels to overlay')
+        coordinate_sets = [set()]
+
+    #coordinates_sets = dict([(channel, set()) for channel in channels])
+    # coordinate_sets = [set() for channel in channels]
 
     # --- Loop over all frames and find unique set of molecules ----
-    for start_frame, stop_frame in windows:
+    for window_start_frame in window_start_frames:
 
         # --- allowed to apply sliding window to either the max projection OR the averages ----
-        if (method == 'average_image'):
-            img = file.movie.make_average_image(start_frame=start_frame,stop_frame=stop_frame)
-        elif (method == 'maximum_projection_image'):
-            img = file.movie.make_maximum_projection(start_frame=start_frame, stop_frame=stop_frame)
+        image = file.movie.make_projection_image(type=projection_image_type, start_frame=window_start_frame, number_of_frames=window_size)
 
         # --- we output the "sum of these images" ----
-        find_coords_img += img
+        find_coords_img += image
 
+        if method == 'by_channel':
+            coordinates_per_channel = dict([(channel, set()) for channel in channels])
+            channel_images = [file.movie.get_channel(image=image, channel='donor') for channel in channels]
 
-        # --- find the new peaks in the image created over new set of frames -----
-        if (channel in ['d', 'donor']) or (channel == 'FRET pair'):
-            # --- get image of donor channel only ---
-            donor_img = file.movie.get_channel(image=img, channel='donor')
-
-            # --- find peaks in this image / add new peaks to current set if not found before  ----
-            D = check_new_molecules(image_to_check=donor_img, unique_set=D, configs_peak_finding=configs_peak_finding)
-
-        if (channel in ['a', 'acceptor']) or (channel == 'FRET pair'):
-            # --- get image of acceptor channel only ---
-            acceptor_img = file.movie.get_channel(image=img, channel='acceptor')
-
-            # --- find peaks in this image / add new peaks to current set if not found before  ----
-            A = check_new_molecules(image_to_check=acceptor_img, unique_set=A, configs_peak_finding=configs_peak_finding)
-
-        elif (channel == 'both channels'):
-            # --- find molecules over full image (not caring of channels ) ---
-            # --- update set of molecule positions in movie ----
-            D_and_A = check_new_molecules(image_to_check=img, unique_set=D_and_A, configs_peak_finding=configs_peak_finding)
-
-        elif (channel == 'total intensity'):
-
-            donor_image = file.movie.get_channel(image=img, channel='d')
-            acceptor_image = file.movie.get_channel(image=img, channel='a')
+        if method == 'overlay_channels':
+            # TODO: make this usable for any number of channels
+            donor_image = file.movie.get_channel(image=image, channel='d')
+            acceptor_image = file.movie.get_channel(image=image, channel='a')
 
             image_transformation = ctrans.translate([-file.movie.width / 2, 0]) @ file.mapping.transformation
             acceptor_image_transformed = ski.transform.warp(acceptor_image, image_transformation, preserve_range=True)
-            #MD: problem: this is a linear transform, while yo u might have found a nonlinear transform; is nonlinear transform of image available?
-            img = (donor_image + acceptor_image_transformed)/ 2
-            # --- find molecules over full image, using the total intensity (donor + acceptor) ----
-            D_plus_A = check_new_molecules(image_to_check=img, unique_set=D_plus_A, configs_peak_finding=configs_peak_finding)
+            # MD: problem: this is a linear transform, while yo u might have found a nonlinear transform; is nonlinear transform of image available?
+            channel_images = [(donor_image + acceptor_image_transformed) / 2]
+
+        for i, channel_image in enumerate(channel_images):
+            channel_coordinates = peak_finding.find_peaks(image=channel_image, **configs_peak_finding)#.astype(int)))
+            channel_coordinates = set_of_tuples_from_array(channel_coordinates)
+            coordinate_sets[i].update(channel_coordinates)
 
 
-    # --- if chosen to do such, now only keep pairs of peaks found in A and D channels ----
-    if channel == 'FRET pair':
-        FRET_pairs = find_FRET_pairs(A, D, uncertainty=uncertainty_pixels)
-
-    # --- now return the correct set ----
-    if (channel in ['d', 'donor']):
-        Peaks = D
-    elif (channel in ['a', 'acceptor']):
-        Peaks = A
-    elif (channel == 'FRET pair'):
-        Peaks = FRET_pairs
-    elif (channel == 'both channels'):
-        Peaks = D_and_A
-    elif (channel == 'total intensity'):
-        Peaks = D_plus_A
+    #TODO: make this work properly using a the mapping transformation
+    #TODO: make this usable for any number of channels
+    if len(channels) > 1:
+        raise NotImplementedError('Assessing found coordinates in multiple channels does not work properly yet')
+        coordinates = combine_coordinate_sets(coordinate_sets, method='and') # the old detect_FRET_pairs
 
     # --- correct for photon shot noise / stage drift ---
-    Peaks = apply_uncertainty(Peaks, uncertainty=uncertainty_pixels, nmbr_pixels=nmbr_pixels)
+    # Not sure whether to put this in front of combine_coordinate_sets/detect_FRET_pairs or behind [IS: 12-08-2020]
+    coordinates = apply_uncertainty(coordinates, uncertainty=uncertainty_pixels, nmbr_pixels=nmbr_pixels)
+
+    #TODO: map coordinates to main channel in movie
 
     # --- turn into array ---
-    coordinates = coordinates_from_set(Peaks, channel='d', nmbr_pixels=nmbr_pixels)
+    coordinates = array_from_set_of_tuples(coordinates)
+
     return coordinates, find_coords_img
-
-
 
 '''
 utility functions (called within find_unique_molecules())
 '''
-def check_new_molecules(image_to_check, unique_set, configs_peak_finding):
-    '''
-    from an input image this function finds the 'peaks'/molecule locations (built by others)
-    and keeps the unique set of molecules by comparing with the already found molecules
-
-
-    THE trick:
-    use the 'set operations' to get the union: "A U B"
-    '''
-    # --- use peak finding alogithm to find the locations of peaks/molecules in current image ---
-    new_molecule_locations = peak_finding.find_peaks(image=image_to_check, **configs_peak_finding)
-
-
-    # --- store the newly found molecules into a set ----
-    NewMolecules = set()
-    for new_loc in new_molecule_locations:
-        NewMolecules.add(tuple(new_loc.astype(int)))
-
-    # --- use set operations (like in statistics books) to get unique set of molecules w. Python ---
-    # ------ this next line just allows me to use the more intuitive name as the input parameter w/o
-    #  having to carry it  all the way through the function  -----------
-    UniqueMolecules = unique_set
-
-    # --- THE update: simply keep the union "A U B" ----
-    UniqueMolecules = NewMolecules.union(UniqueMolecules)
-    return UniqueMolecules
-
-
+# def check_new_molecules(image_to_check, unique_set, configs_peak_finding):
+#     '''
+#     from an input image this function finds the 'peaks'/molecule locations (built by others)
+#     and keeps the unique set of molecules by comparing with the already found molecules
+#
+#
+#     THE trick:
+#     use the 'set operations' to get the union: "A U B"
+#     '''
+#     # --- use peak finding alogithm to find the locations of peaks/molecules in current image ---
+#     new_molecule_locations = peak_finding.find_peaks(image=image_to_check, **configs_peak_finding)
+#
+#
+#     # --- store the newly found molecules into a set ----
+#     NewMolecules = set()
+#     for new_loc in new_molecule_locations:
+#         NewMolecules.add(tuple(new_loc))#.astype(int)))
+#
+#     # --- use set operations (like in statistics books) to get unique set of molecules w. Python ---
+#     # ------ this next line just allows me to use the more intuitive name as the input parameter w/o
+#     #  having to carry it  all the way through the function  -----------
+#     UniqueMolecules = unique_set
+#
+#     # --- THE update: simply keep the union "A U B" ----
+#     UniqueMolecules = NewMolecules.union(UniqueMolecules)
+#     return UniqueMolecules
 
 def coordinates_from_set(Set, channel, nmbr_pixels=512):
     '''
@@ -214,7 +193,6 @@ def find_FRET_pairs(Acceptor, Donor, uncertainty, nmbr_pixels):
                 break  # No need to continue checking the Donor channel, already found a match
 
     return FRETpairs
-
 
 def apply_uncertainty(Peaks, uncertainty=2, nmbr_pixels=512):
     '''

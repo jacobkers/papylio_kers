@@ -373,12 +373,13 @@ class File:
         # ----  Find the unique set of molecule coordinates ----
         # --- peak finding is called within this function ----
         coordinates, image = findMols.find_unique_molecules(self,
-                                  SlidingWindow=use_sliding_window,
-                                  method=method,
-                                  channel=channel,
-                                  img_per_N_frames=img_per_N_frames,
-                                  uncertainty_pixels=uncertainty_pixels,
-                                 configs_peak_finding=configs_peak_finding)
+                                                              sliding_window=use_sliding_window,
+                                                              projection_image_type='average',
+                                                              method='by_channel',
+                                                              channels=[channel],
+                                                              window_size=img_per_N_frames,
+                                                              uncertainty_pixels=uncertainty_pixels,
+                                                              configs_peak_finding=configs_peak_finding)
 
 
 
