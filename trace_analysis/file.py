@@ -25,7 +25,6 @@ from trace_analysis.coordinate_optimization import  coordinates_within_margin, \
 from trace_analysis.trace_extraction import extract_traces
 from trace_analysis.coordinate_transformations import translate, transform # MD: we don't want to use this anymore I think, it is only linear
                                                                            # IS: We do! But we just need to make them usable with the nonlinear mapping
-from trace_analysis import find_molecules_utils as findMols
 
 
 class File:
