@@ -412,6 +412,9 @@ class File:
                 donor_image = self.movie.get_channel(image=image, channel='d')
                 acceptor_image = self.movie.get_channel(image=image, channel='a')
 
+                if self.mapping.transformation_type is not 'linear':
+                    raise NotImplementedError('Method overlay_channels is not implemented yet for mapping transformation types other than linear')
+                # TODO: Make this work for nonlinear mapping
                 image_transformation = translate([-self.movie.width / 2, 0]) @ self.mapping.transformation
                 acceptor_image_transformed = ski.transform.warp(acceptor_image, image_transformation,
                                                                 preserve_range=True)
@@ -450,14 +453,14 @@ class File:
             # Map coordinates to main channel in movie
             # TODO: make this usable for any number of channels
             coordinate_sets[i] = transform(coordinate_sets[i], translation=self.movie.channel_boundaries(channels[i])[:, 0])
-            if channels[i] == 'a':
+            if channels[i] in ['a', 'acceptor']:
                 coordinate_sets[i] = self.mapping.transform_coordinates(coordinate_sets[i],
                                                                         direction='destination2source')
 
         # TODO: make this usable for any number of channels
         if len(coordinate_sets) == 1:
             coordinates = coordinate_sets[0]
-        if len(coordinate_sets) > 1:
+        elif len(coordinate_sets) > 1:
             raise NotImplementedError('Assessing found coordinates in multiple channels does not work properly yet')
             # TODO: Make this function.
             #  This can easily be done by creating a cKDtree for each coordinate set and

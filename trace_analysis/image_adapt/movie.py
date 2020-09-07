@@ -102,9 +102,9 @@ class Movie:
             return image
 
     def channel_boundaries(self, channel):
-        if channel is 'd':
+        if channel in ['d', 'donor']:
             return np.array([[0, self.width // 2],[0,self.height]])
-        elif channel is 'a':
+        elif channel in ['a', 'acceptor']:
             return np.array([[self.width // 2, self.width], [0, self.height]])
 
     def saveas_tif(self):
