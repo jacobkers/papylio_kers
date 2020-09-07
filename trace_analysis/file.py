@@ -408,6 +408,7 @@ class File:
                 channel_images = [self.movie.get_channel(image=image, channel=channel) for channel in channels]
 
             if method == 'overlay_channels':
+                # Possibly we can move making the overlayed image to the Movie class.
                 # TODO: make this usable for any number of channels
                 donor_image = self.movie.get_channel(image=image, channel='d')
                 acceptor_image = self.movie.get_channel(image=image, channel='a')
@@ -421,6 +422,13 @@ class File:
                 # MD: problem: this is a linear transform, while yo u might have found a nonlinear transform; is nonlinear transform of image available?
                 channel_images = [(donor_image + acceptor_image_transformed) / 2]
                 channels = ['d']
+
+                # TODO: Make this a separate plotting function, possibly in Movie
+                # plt.imshow(np.stack([donor_image.astype('uint8'),
+                #                      acceptor_image_transformed.astype('uint8'),
+                #                      np.zeros((self.movie.height,
+                #                                self.movie.width // 2)).astype('uint8')],
+                #                     axis=-1))
 
             for i, channel_image in enumerate(channel_images):
                 channel_coordinates = find_peaks(image=channel_image, **peak_finding_configuration)  # .astype(int)))
