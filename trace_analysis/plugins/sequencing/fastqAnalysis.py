@@ -199,7 +199,13 @@ class FastqData:
 
     def number_of_matches(self, sequence):
         # sequence must be a string
-        return np.sum(self.sequence[:,0:len(sequence)]==np.array(list(sequence), dtype = bytes),1)
+        # return np.sum(self.sequence[:,0:len(sequence)]==np.array(list(sequence), dtype = bytes),1)
+
+        sequence_bytes = np.array(list(sequence), dtype=bytes)
+        indices_not_N = np.where(sequence_bytes != np.array('N', dtype=bytes))[0]
+        number_of_Ns = len(sequence)-len(indices_not_N)
+
+        return np.sum(self.sequence[:, indices_not_N] == sequence_bytes[indices_not_N], 1) + number_of_Ns
 
 
     def matches_per_tile(self, sequence):
