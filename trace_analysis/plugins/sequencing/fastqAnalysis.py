@@ -13,6 +13,8 @@ import gc
 import copy
 from tabulate import tabulate
 from pathlib import Path
+import pandas as pd
+import logomaker
 
 class FastqData:
     def __init__(self, path):
@@ -21,6 +23,7 @@ class FastqData:
         self.adapter_sequences = ['AATGATACGGCGACCACCGAGATCTACACTCTTTCCCTACACGACGCTCTTCCGATCT', 'ATCTCGTATGCCGTCTTCTGCTTG']
         self._text_file = None
         self._tiles = []
+        self.is_reverse_complement = False
 
         file = open(path, 'r')
 
@@ -196,6 +199,108 @@ class FastqData:
     def get_selection(self, **kwargs):
         selection = self.selection(**kwargs)
         return self[selection]
+
+    def reverse_complement(self):
+        condlist = [self.sequence == b'A', self.sequence == b'T',
+                    self.sequence == b'C', self.sequence == b'G']
+        choicelist = [b'T', b'A', b'G', b'C']
+        self.sequence = np.fliplr(np.select(condlist, choicelist))
+        self.quality = np.fliplr(self.quality)
+        self.is_reverse_complement = not self.is_reverse_complement
+
+    def base_count(self):
+        base_count = pd.DataFrame()
+        for b in ['A', 'C', 'T', 'G']:
+            base_count[b] = np.sum(self.sequence == b.encode(), axis=0)
+        return base_count
+
+    def logo_plot(self, start=None, end=None, row_length=None, figure=None, save=False, title='', **kwargs):
+        base_count = self.base_count()[slice(start, end)]
+        if not row_length:
+            row_length=len(base_count)
+        n_rows = len(base_count) // row_length
+        if not figure:
+            figure = plt.figure(figsize=(row_length/5,2*n_rows))
+
+        figure.subplots(n_rows,1, sharey=True)
+        axes = figure.axes
+
+        for i in np.arange(n_rows):
+            logo_object = logomaker.Logo(base_count[(i*row_length):((i+1)*row_length)], ax=axes[i], **kwargs)
+            axes[i].set_ylabel('Count')
+
+        axes[0].set_title(title)
+        axes[-1].set_xlabel('Position')
+
+
+        figure.tight_layout(pad=1)
+        if save:
+            title = title.replace('>','gt').replace('<','st')
+            figure.savefig(f'{title}_seqlogo.png')
+
+        return logo_object
+
+    def sequence_density(self, expected_seq=None, start=None, end=None, row_length=None, figure=None, save=False, title=''):
+        sequence = self.sequence[~np.any(self.sequence == b'N', axis=1)]
+        # sequence_int = sequence.view('uint8')
+        # sequence_df = pd.DataFrame(sequence_int).iloc[:, slice(start, end)]
+        sequence_df = pd.DataFrame(sequence)
+        expected_seq = expected_seq[slice(start, end)]
+
+        total_length = sequence_df.shape[1]
+
+        if not row_length:
+            row_length = total_length
+
+        n_rows = total_length // row_length
+        if not figure:
+            figure = plt.figure(figsize=(row_length/5,2*n_rows))
+
+        figure.subplots(n_rows, 1, sharey=False)
+        axes = figure.axes
+
+        bases = [b'A', b'T', b'C',b'G']
+        index = [(b1,b2) for b1 in bases for b2 in bases]
+        # out = pd.DataFrame(index=index)
+        for r in np.arange(n_rows):
+            for i in np.arange((r*row_length),((r+1)*row_length)-1):
+                print(i)
+                # out[i] = (test.iloc[:,i:(i+2)].value_counts(normalize=True))
+                base_transition_count = (sequence_df.iloc[:, i:(i + 2)].value_counts(normalize=True)).reindex(index)
+                ys = base_transition_count.index.to_list()
+                zs = base_transition_count.values
+                x = (i, i + 1)
+                for y, z in zip(ys, zs):
+                    axes[r].plot(x, y, lw=z * 10, c='b', solid_capstyle='round')
+                # ax.plot((i, i + 1), [0, 0])
+            # expected_seq=sequences_per_read['Read1']['HJ1']
+            if expected_seq:
+                # axis.set_xticklabels(list(expected_seq))
+                # axis.set_xticks(np.arange(len(expected_seq)))
+                xs = np.where(np.array(list(expected_seq)) != 'N')[0]
+                x0 = 0
+                for s in re.split('N', expected_seq):
+                    if s:
+                        x = xs[x0:(x0 + len(s))]
+                        y = np.array(list(s), dtype='S1')#.view('uint8')
+                        axes[r].plot(x, y, c='r')
+                        x0 += len(s)
+            axes[r].set_xlim(r*row_length, (r+1)*row_length-1)
+            axes[r].set_ylabel('Base')
+            # axes[r].xaxis.set_minor_locator(plt.MultipleLocator(1))
+
+        axes[0].set_title(title)
+        axes[-1].set_xlabel('Position')
+
+        # for axis in axes:
+        #     bases = list('ATGC')
+        #     axis.set_yticks(np.array(bases, dtype='S1').view('uint8'))
+        #     axis.set_yticklabels(bases)
+
+        figure.tight_layout(pad=1)
+        if save:
+            title = title.replace('>','gt').replace('<','st')
+            figure.savefig(f'{title}_seqdensity.png')
 
     def number_of_matches(self, sequence):
         # sequence must be a string
