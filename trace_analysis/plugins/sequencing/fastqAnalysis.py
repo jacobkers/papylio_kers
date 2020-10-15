@@ -312,6 +312,19 @@ class FastqData:
 
         return np.sum(self.sequence[:, indices_not_N] == sequence_bytes[indices_not_N], 1) + number_of_Ns
 
+    def number_of_matches_with_sequence_dict(self, sequence_dict):
+        number_of_matches = [pd.Series(self.number_of_matches(sequence), name=sequence_name) for
+                             sequence_name, sequence in sequence_dict.items()]
+        number_of_matches = (pd.concat(number_of_matches, keys=sequence_dict.keys(), names='Sequence', axis=1)
+                             .rename_axis('Sequence index').astype(pd.Int64Dtype()))
+        return number_of_matches
+
+    def number_of_mismatches_with_sequence_dict(self, sequence_dict):
+        number_of_matches = self.number_of_matches_with_sequence_dict(sequence_dict)
+        number_of_mismatches = number_of_matches.copy()
+        for sequence in number_of_matches.columns:
+            number_of_mismatches[sequence] = len(sequence_dict[sequence]) - number_of_matches[sequence]
+        return number_of_mismatches
 
     def matches_per_tile(self, sequence):
         if len(sequence) < 5: return
