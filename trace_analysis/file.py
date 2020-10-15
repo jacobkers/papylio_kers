@@ -17,10 +17,15 @@ from trace_analysis.movie.tif import TifMovie
 from trace_analysis.plotting import histogram
 from trace_analysis.mapping.mapping import Mapping2
 from trace_analysis.peak_finding import find_peaks
-from trace_analysis.coordinate_optimization import coordinates_within_margin, coordinates_after_gaussian_fit, coordinates_without_intensity_at_radius
+from trace_analysis.coordinate_optimization import  coordinates_within_margin, \
+                                                    coordinates_after_gaussian_fit, \
+                                                    coordinates_without_intensity_at_radius, \
+                                                    merge_nearby_coordinates, \
+                                                    set_of_tuples_from_array, array_from_set_of_tuples
 from trace_analysis.trace_extraction import extract_traces
 from trace_analysis.coordinate_transformations import translate, transform # MD: we don't want to use this anymore I think, it is only linear
                                                                            # IS: We do! But we just need to make them usable with the nonlinear mapping
+
 
 class File:
     def __init__(self, relativeFilePath, experiment):
@@ -274,9 +279,10 @@ class File:
             degree = int(np.sqrt(len(coefficients_inverse) // 2) - 1)
             Pi = coefficients_inverse[:len(coefficients_inverse) // 2].reshape((degree + 1, degree + 1))
             Qi = coefficients_inverse[len(coefficients_inverse) // 2 : len(coefficients_inverse)].reshape((degree + 1, degree + 1))
-        else :
+        else:
             grid_range = 500 # in principle the actual image size doesn't matter
             # image_height = self._average_image.shape[0]
+
             # Can't we make this independent of the image?
             grid_coordinates = np.array([(a,b) for a in np.arange(0, grid_range//2, 5) for b in np.arange(0, grid_range, 5)])
             from trace_analysis.image_adapt.polywarp import polywarp, polywarp_apply
@@ -309,63 +315,179 @@ class File:
         self.coordinates = coordinates
 
     def find_coordinates(self, configuration=None):
-        # Refresh configuration
-        if not configuration:  self.experiment.import_config_file() # is this usefull, look at next line of code
+        '''
+        This function finds and sets the locations of all molecules within the movie's images.
 
-        if configuration is None:
+        Main part of the work is done within 'find_molecules_utils.py'(imported as findMols)
+
+        findMols.find_unique_molecules(), will loop through frames of the movie:
+        1. creates an average image or maximum projection (for every N frames)
+        2. finds the peaks in the new image (wraps around built-in method)
+        3. keeps only the unique positions/pixels of peak locations ()
+             3B allows to select only 'FRET pairs': intensity peak is seen in both donor/acceptor
+        4. Finally, correct for an uncertainty in exact location due to photon shot noise etc. to remove 'functional duplicates'
+        5. generate the coordinates array that is compatible with the Molecule() properties:
+            [ [array1: donor coordinates],[array2: acceptor coordinates]  ]
+            First array has all the coordinates (either found directly or inferred) of the donors:
+            donor_coordinates = [[x1,y1],[x2,y2], etc.]
+            Similar for acceptor coordinates
+
+
+
+
+        configurations to be set by user:
+        (within the find_coordinates section of the configuration file)
+        --------------------------------
+        channel : choose 'd'/'donor' or 'a'/'acceptor' for using only one of the two channels. alternatively
+                  choose 'total_intensity' to use the sum of donor and acceptor signals
+                  choose 'FRET pair' to only keep peak intensities found in both channels
+                  choose 'both channels' to keep all peaks found in the entire image
+
+        method:  choose 'average_image' or 'maximum_projection_image' to
+                         set type of image used to find peak intensities.
+
+
+
+        uncertainty_pixels: set number of pixels within which two peak intensities
+                            should be considered to correspond to the same molecule
+
+        img_per_N_pixels: use the image type of 'method' for every N frames of the movie (sliding window).
+                         If no sliding window is used, the first N frames are used (a 'single window')
+
+        use_sliding_window: type 'True' or 'False' to activate sliding window
+
+
+        Additional configurations to be set
+        (within 'peak_finding' section of configuration file)
+        ------------------------------------
+        ADD DESCRIPTIONS HERE!!!
+        '''
+
+        # --- Refresh configuration ----
+        if not configuration:
+            self.experiment.import_config_file()
             configuration = self.experiment.configuration['find_coordinates']
 
-        channel = configuration['channel']
 
-        if configuration['image'] == 'average_image':
-            full_image = self.average_image
-        elif configuration['image'] == 'maximum_image':
-            full_image = self.maximum_projection_image
+        # --- Get settings from configuration file ----
+        channels = configuration['channels']
+        method = configuration['method']
+        peak_finding_configuration = configuration['peak_finding']
+        projection_image_type = configuration['projection_image_type']
+        minimal_point_separation = configuration['minimal_point_separation']
+        window_size = configuration['window_size']
+        use_sliding_window = bool(configuration['use_sliding_window'])
 
+        # --- make the windows
+        # (if no sliding windows, just a single window is made to make it compatible with next bit of code) ----
+        if use_sliding_window:
+            window_start_frames = [i * window_size for i in range(self.number_of_frames // window_size)]
+        else:
+            window_start_frames = [0]
 
-        if channel in ['d','a']:
-            image = self.movie.get_channel(image=full_image, channel=channel)
-        elif channel in ['da']:
-            donor_image = self.movie.get_channel(image=full_image, channel='d')
-            acceptor_image = self.movie.get_channel(image=full_image, channel='a')
+        # coordinates = set()
+        if method == 'by_channel':
+            coordinate_sets = [set() for channel in channels]
+        elif method == 'overlay_channels':
+            if len(channels) < 2:
+                raise ValueError('No channels to overlay')
+            coordinate_sets = [set()]
 
-            image_transformation = translate([-self.movie.width / 2, 0]) @ self.mapping.transformation
-            acceptor_image_transformed = ski.transform.warp(acceptor_image, image_transformation, preserve_range=True) 
-            #MD: problem: this is a linear transform, while you might have found a nonlinear transform; is nonlinear transform of image available?
-            image = (donor_image + acceptor_image_transformed) / 2
+        # coordinates_sets = dict([(channel, set()) for channel in channels])
+        # coordinate_sets = [set() for channel in channels]
 
-            plt.imshow(np.stack([donor_image.astype('uint8'),
-                                 acceptor_image_transformed.astype('uint8'),
-                                 np.zeros((self.movie.height,
-                                           self.movie.width//2)).astype('uint8')],
-                                           axis=-1))
+        # --- Loop over all frames and find unique set of molecules ----
+        for window_start_frame in window_start_frames:
 
-        coordinates = find_peaks(image=image, **configuration['peak_finding'])
+            # --- allowed to apply sliding window to either the max projection OR the averages ----
+            image = self.movie.make_projection_image(type=projection_image_type, start_frame=window_start_frame,
+                                                     number_of_frames=window_size)
 
-        coordinate_optimization_functions = \
-            {'coordinates_within_margin': coordinates_within_margin,
-             'coordinates_after_gaussian_fit': coordinates_after_gaussian_fit,
-             'coordinates_without_intensity_at_radius': coordinates_without_intensity_at_radius}
+            # Do we need a separate image?
+            # # --- we output the "sum of these images" ----
+            # find_coords_img += image
 
-        for f, kwargs in configuration['coordinate_optimization'].items():
-            coordinates = coordinate_optimization_functions[f](coordinates, image, **kwargs)
+            if method == 'by_channel':
+                # coordinates_per_channel = dict([(channel, set()) for channel in channels])
+                channel_images = [self.movie.get_channel(image=image, channel=channel) for channel in channels]
 
-        acceptor_bounds = np.array([[self.movie.width//2, self.movie.width], [0, self.movie.width]])
-        if channel == 'a':
-            coordinates = transform(coordinates, translation=[self.movie.width//2,0])
+            if method == 'overlay_channels':
+                # Possibly we can move making the overlayed image to the Movie class.
+                # TODO: make this usable for any number of channels
+                donor_image = self.movie.get_channel(image=image, channel='d')
+                acceptor_image = self.movie.get_channel(image=image, channel='a')
 
-        if self.number_of_colours == 2:
-            if channel in ['d','da']:
-                acceptor_coordinates = self.mapping.transform_coordinates(coordinates, direction='source2destination')
-                coordinates = np.hstack([coordinates,acceptor_coordinates]).reshape((-1,2))
-            if channel == 'a':
-                donor_coordinates = self.mapping.transform_coordinates(coordinates, direction='destination2source')
-                coordinates = np.hstack([donor_coordinates, coordinates]).reshape((-1, 2))
+                if self.mapping.transformation_type is not 'linear':
+                    raise NotImplementedError('Method overlay_channels is not implemented yet for mapping transformation types other than linear')
+                # TODO: Make this work for nonlinear mapping
+                image_transformation = translate([-self.movie.width / 2, 0]) @ self.mapping.transformation
+                acceptor_image_transformed = ski.transform.warp(acceptor_image, image_transformation,
+                                                                preserve_range=True)
+                # MD: problem: this is a linear transform, while yo u might have found a nonlinear transform; is nonlinear transform of image available?
+                channel_images = [(donor_image + acceptor_image_transformed) / 2]
+                channels = ['d']
 
+                # TODO: Make this a separate plotting function, possibly in Movie
+                # plt.imshow(np.stack([donor_image.astype('uint8'),
+                #                      acceptor_image_transformed.astype('uint8'),
+                #                      np.zeros((self.movie.height,
+                #                                self.movie.width // 2)).astype('uint8')],
+                #                     axis=-1))
+
+            for i, channel_image in enumerate(channel_images):
+                channel_coordinates = find_peaks(image=channel_image, **peak_finding_configuration)  # .astype(int)))
+
+                # ---- optimize / fine-tune the coordinate positions ----
+                coordinate_optimization_functions = \
+                    {'coordinates_within_margin': coordinates_within_margin,
+                     'coordinates_after_gaussian_fit': coordinates_after_gaussian_fit,
+                     'coordinates_without_intensity_at_radius': coordinates_without_intensity_at_radius}
+                for f, kwargs in configuration['coordinate_optimization'].items():
+                    channel_coordinates = coordinate_optimization_functions[f](channel_coordinates, channel_image, **kwargs)
+
+                channel_coordinates = set_of_tuples_from_array(channel_coordinates)
+
+                coordinate_sets[i].update(channel_coordinates)
+
+        # --- correct for photon shot noise / stage drift ---
+        # Not sure whether to put this in front of combine_coordinate_sets/detect_FRET_pairs or behind [IS: 12-08-2020]
+        # I think before, as you would do it either for each window, or for the combined windows.
+        # Transforming the coordinate sets for each window will be time consuming and changes the distance_threshold.
+        # And you would like to combine the channel sets on the merged coordinates.
+        for i in range(len(coordinate_sets)):
+            # --- turn into array ---
+            coordinate_sets[i] = array_from_set_of_tuples(coordinate_sets[i])
+
+            if use_sliding_window: # Do we actually need to put this if statement here [IS: 31-08-2020]
+                                   # If not, in default configuration take minimal_point_separation outside sliding_window
+                coordinate_sets[i] = merge_nearby_coordinates(coordinate_sets[i], distance_threshold=minimal_point_separation)
+
+            # Map coordinates to main channel in movie
+            # TODO: make this usable for any number of channels
+            coordinate_sets[i] = transform(coordinate_sets[i], translation=self.movie.channel_boundaries(channels[i])[:, 0])
+            if channels[i] in ['a', 'acceptor']:
+                coordinate_sets[i] = self.mapping.transform_coordinates(coordinate_sets[i],
+                                                                        direction='destination2source')
+
+        # TODO: make this usable for any number of channels
+        if len(coordinate_sets) == 1:
+            coordinates = coordinate_sets[0]
+        elif len(coordinate_sets) > 1:
+            raise NotImplementedError('Assessing found coordinates in multiple channels does not work properly yet')
+            # TODO: Make this function.
+            #  This can easily be done by creating a cKDtree for each coordinate set and
+            #  by finding the points close to each other
+            coordinates = combine_coordinate_sets(coordinate_sets, method='and')  # the old detect_FRET_pairs
+
+        # TODO: make this usable for any number of channels
+        donor_coordinates = coordinates
+        acceptor_coordinates = self.mapping.transform_coordinates(coordinates, direction='source2destination')
+        coordinates = np.hstack([donor_coordinates, acceptor_coordinates]).reshape((-1, 2))
+
+        # --- finally, we set the coordinates of the molecules ---
         self.molecules = [] # Should we put this here?
         self.coordinates = coordinates
         self.export_pks_file()
-
 
     def export_pks_file(self):
         pks_filepath = self.absoluteFilePath.with_suffix('.pks')
