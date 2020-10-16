@@ -5,24 +5,23 @@ import matplotlib.patches as patches
 from matplotlib.patches import ConnectionPatch
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-def plot_sequencing_match(match, write_path, name, unit = 'um', ax1pos = None, ax2pos = None):
-
-    def MiSeq_pixels_to_um(pixels):
-        return 958 / 2800 * (pixels - 1000) / 10
-
-    source = match.transform_source_to_destination
+def plot_sequencing_match(match, write_path, name, unit = 'um', MiSeq_pixels_to_um = None, Fluo_pixels_to_um = None, save=True):
+    source = match.source
+    source_in_destination = match.transform_coordinates(source)
     destination = match.destination
-    transformationMatrix = match.transformation
+    destination_in_source = match.transform_coordinates(destination, inverse=True)
 
-    # ps2 = 5.2 / 30 * ps2
-
-    image_size_in_source = np.array([[1024,0],[2048,2048]])
-    image_size_in_destination = transform(image_size_in_source, transformationMatrix)
+    source_vertices = match.source_vertices
+    destination_vertices = match.transform_coordinates(match.source_vertices)
 
     if unit == 'um':
-        source = MiSeq_pixels_to_um(source)
+        source = Fluo_pixels_to_um(source)
+        source_in_destination = MiSeq_pixels_to_um(source_in_destination)
         destination = MiSeq_pixels_to_um(destination)
-        image_size_in_destination = MiSeq_pixels_to_um(image_size_in_destination)
+        destination_in_source = Fluo_pixels_to_um(destination_in_source)
+
+        source_vertices = Fluo_pixels_to_um(source_vertices)
+        destination_vertices = MiSeq_pixels_to_um(destination_vertices)
 
     # fig = plt.figure(figsize = (8,4))
     # ax1, ax2 = fig.subplots(1, 2)
@@ -41,7 +40,7 @@ def plot_sequencing_match(match, write_path, name, unit = 'um', ax1pos = None, a
     # ax1 = grid[0]
     # ax2 = grid[1]
 
-    ax1.scatter(source[:,0],source[:,1],c='#40A535',marker = 'x')
+    ax1.scatter(source_in_destination[:,0],source_in_destination[:,1],c='#40A535',marker = 'x')
     ax1.scatter(destination[:,0],destination[:,1], marker = '.', facecolors = 'k', edgecolors='k')
     ax1.set_facecolor('white')
     ax1.set_aspect('equal')
@@ -68,14 +67,9 @@ def plot_sequencing_match(match, write_path, name, unit = 'um', ax1pos = None, a
 
         ax1.ticklabel_format(axis='both', style='sci', scilimits=(0,4), useOffset=None, useLocale=None, useMathText=True)
 
-
-    p = patches.Rectangle(
-        #(left, bottom), width, height,
-        (image_size_in_destination[0,0],image_size_in_destination[0,1]),
-        image_size_in_destination[1,0]-image_size_in_destination[0,0],
-        image_size_in_destination[1,1]-image_size_in_destination[0,1],
-        linewidth=2,edgecolor='#40A535',facecolor='none', fill='false'
-        )
+    p = patches.Polygon(destination_vertices,
+                        linewidth=2, edgecolor='#40A535', facecolor='none', fill='false'
+                        )
 
     ax1.add_patch(p)
 
@@ -87,12 +81,14 @@ def plot_sequencing_match(match, write_path, name, unit = 'um', ax1pos = None, a
 
 
     ax2.scatter(source[:,0],source[:,1],c='#40A535',marker = 'x')
-    ax2.scatter(destination[:,0],destination[:,1], marker = '.', facecolors = 'k', edgecolors='k')
+    ax2.scatter(destination_in_source[:,0],destination_in_source[:,1], marker = '.', facecolors = 'k', edgecolors='k')
     ax2.set_facecolor('white')
     ax2.set_aspect('equal')
 
-    ax2.set_xlim([image_size_in_destination[1,0],image_size_in_destination[0,0]])
-    ax2.set_ylim([image_size_in_destination[0,1], image_size_in_destination[1,1]])
+    image_size = np.array([np.min(source_vertices, axis=0),np.max(source_vertices, axis=0)])
+
+    ax2.set_xlim([image_size[0,0], image_size[1,0]])
+    ax2.set_ylim([image_size[0,1], image_size[1,1]])
 
     ax2.set_xlabel('x')
     ax2.set_ylabel('y')
@@ -100,49 +96,27 @@ def plot_sequencing_match(match, write_path, name, unit = 'um', ax1pos = None, a
     ax2.ticklabel_format(axis='both', style='sci', scilimits=(5,6), useOffset=None, useLocale=None, useMathText=True)
 
     if unit == 'um':
-        ax2.set_xlim([image_size_in_destination[1,0],image_size_in_destination[0,0]])
-        ax2.set_ylim([image_size_in_destination[0,1],image_size_in_destination[1,1]])
+        # ax2.set_xlim([image_size[0, 0], image_size[1, 0]])
+        # ax2.set_ylim([image_size[0, 1], image_size[1, 1]])
         ax2.set_xlabel('x (\u03BCm)')
         ax2.set_ylabel('y (\u03BCm)')
 
         ax2.ticklabel_format(axis='both', style='sci', scilimits=(0,4), useOffset=None, useLocale=None, useMathText=True)
 
-    if ax1pos is not None:
-        ax1.set_position(ax1pos)
-        ax2.set_position(ax2pos)
+    # if ax1pos is not None:
+    #     ax1.set_position(ax1pos)
+    #     ax2.set_position(ax2pos)
 
     for spine in ax2.spines.values():
         spine.set_edgecolor('#40A535')
 
-    #plt.tight_layout()
+    def connect_vertices_in_axis(verticesA, verticesB, axisA, axisB, **kwargs):
+        for vertexA, vertexB in zip(verticesA, verticesB):
+            con = ConnectionPatch(xyA=vertexA, xyB=vertexB, coordsA="data", coordsB="data",
+                                  axesA=axisA, axesB=axisB, **kwargs)
+            axisB.add_artist(con)
 
-    # fig.savefig('zoomInScatter.pdf', bbox_inches='tight', transparent=True)
-    # fig.savefig('zoomInScatter.png', bbox_inches='tight')
-
-
-    con = ConnectionPatch(xyA=(image_size_in_destination[0,0],image_size_in_destination[0,1]),
-                          xyB=(image_size_in_destination[0,0],image_size_in_destination[0,1]),
-                          coordsA="data", coordsB="data",
-                          axesA=ax1, axesB=ax2, color="k")
-    ax1.add_artist(con)
-
-    con = ConnectionPatch(xyA=(image_size_in_destination[0,0],image_size_in_destination[1,1]),
-                          xyB=(image_size_in_destination[0,0],image_size_in_destination[1,1]),
-                          coordsA="data", coordsB="data",
-                          axesA=ax1, axesB=ax2, color="k")
-    ax1.add_artist(con)
-
-    con = ConnectionPatch(xyA=(image_size_in_destination[1,0],image_size_in_destination[0,1]),
-                          xyB=(image_size_in_destination[1,0],image_size_in_destination[0,1]),
-                          coordsA="data", coordsB="data",
-                          axesA=ax1, axesB=ax2, color="k")
-    ax1.add_artist(con)
-
-    con = ConnectionPatch(xyA=(image_size_in_destination[1,0],image_size_in_destination[1,1]),
-                          xyB=(image_size_in_destination[1,0],image_size_in_destination[1,1]),
-                          coordsA="data", coordsB="data",
-                          axesA=ax1, axesB=ax2, color="k")
-    ax1.add_artist(con)
+    connect_vertices_in_axis(source_vertices, destination_vertices, ax2, ax1)
 
     for artist in ax1.artists:
         artist.set_linestyle((0,(5,5)))
@@ -151,8 +125,9 @@ def plot_sequencing_match(match, write_path, name, unit = 'um', ax1pos = None, a
 
     plt.show()
 
-    n = name.replace('\\', '_')
-    fig.savefig(write_path.joinpath(n + '.pdf'), bbox_inches='tight')
-    fig.savefig(write_path.joinpath(n + '.png'), bbox_inches='tight', dpi=1000)
+    if save:
+        n = name.replace('\\', '_')
+        fig.savefig(write_path.joinpath(n + '.pdf'), bbox_inches='tight')
+        fig.savefig(write_path.joinpath(n + '.png'), bbox_inches='tight', dpi=1000)
 
     return ax1, ax2

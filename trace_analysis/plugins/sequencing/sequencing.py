@@ -211,6 +211,7 @@ class File:
             match.source = self.coordinates
             match.initial_transformation = initial_transformation
             match.transformation = match.transformation @ initial_transformation.params
+            match.source_vertices = coordinate_vertices_file
             match.calculate_inverse_transformation()
             # TODO: Base this on some better criteria
             #match.nearest_neighbour_match(nearest_neighbour_match_distance_threshold)
@@ -239,7 +240,18 @@ class File:
         #name = f'Tile: {self.sequencing_tile.name}, File: {str(self.relativeFilePath)}'
         name = self.name + '_sequencing_mapping'
         print(name)
-        plot_sequencing_match(self.sequencing_match, self.absoluteFilePath.parent, name, unit='um')
+
+        # TODO: Put this somewhere, where it makes sense.
+        def MiSeq_pixels_to_um(pixels):
+            return 958 / 2800 * (pixels - 1000) / 10
+
+        # TODO: Put this somewhere, where it makes sense.
+        # TODO: Make this more general, get this value from tif metadata
+        def Fluo_pixels_to_um(pixels):
+            return pixels * 0.125
+
+        plot_sequencing_match(self.sequencing_match, self.absoluteFilePath.parent, name,
+                              'um', MiSeq_pixels_to_um, Fluo_pixels_to_um)
 
     # This is probably not the way to go
     # def give_molecules_closest_sequence(self):
