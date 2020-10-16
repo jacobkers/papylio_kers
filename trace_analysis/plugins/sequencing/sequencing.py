@@ -197,7 +197,8 @@ class File:
         initial_transformation = AffineTransform(**initial_transformation)
 
         # TODO: make the following line more general and remove bounds dependence in geometric hashing
-        coordinate_vertices_file = initial_transformation(self.movie.channel_vertices('a'))
+        source_vertices = self.movie.channel_vertices('a')
+        coordinate_vertices_file = initial_transformation(source_vertices)
 
         #self.geometric_hash_data = geometric_hash(initial_transform(self.coordinates), maximum_distance_file, tuple_size)
 
@@ -211,7 +212,7 @@ class File:
             match.source = self.coordinates
             match.initial_transformation = initial_transformation
             match.transformation = match.transformation @ initial_transformation.params
-            match.source_vertices = coordinate_vertices_file
+            match.source_vertices = source_vertices
             match.calculate_inverse_transformation()
             # TODO: Base this on some better criteria
             #match.nearest_neighbour_match(nearest_neighbour_match_distance_threshold)
