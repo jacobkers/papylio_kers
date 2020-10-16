@@ -70,7 +70,7 @@ class TifMovie(Movie):
 #        res = super().__repr__() + '\n' + res
 #        return res
 #
-    def read_header(self):
+    def _read_header(self):
         # im = self.read_frame(0)
         # width, height = im.shape
         with tifffile.TiffFile(self.filepath) as tif:
@@ -152,7 +152,7 @@ class TifMovie(Movie):
     
 
 
-    def read_frame(self, frame_number):
+    def _read_frame(self, frame_number):
         # t = time.time()
 
         with tifffile.TiffFile(self.filepath) as tif:

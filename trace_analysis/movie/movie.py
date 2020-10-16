@@ -39,6 +39,7 @@ class Movie:
                          ['red', 'r', 'acceptor', 'a']]
         self._channel_grid = np.array([2,1]) # (x,y)
         self._number_of_channels = 2
+        self.rot90 = 0
 
 
         if not self.filepath.suffix == '.sifx':
@@ -127,7 +128,17 @@ class Movie:
             raise ValueError('Number of channels should be at least 1')
 
     def read_header(self):
-        self.width_pixels, self.height_pixels, self.number_of_frames, self.movie_file_object = read_header(self.filepath)
+        # self.width_pixels, self.height_pixels, self.number_of_frames, self.movie_file_object = read_header(self.filepath)
+        self._read_header()
+        if not (self.rot90 % 2 == 0):
+            width = self.width
+            height = self.height
+            self.width = height
+            self.height = width
+
+    def read_frame(self, frame_number):
+        im = self._read_frame(frame_number)
+        return np.rot90(im, self.rot90)
 
     def get_channel(self, image=None, channel='d'):
         if image is None: image = self.average_image

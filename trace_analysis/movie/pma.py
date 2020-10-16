@@ -70,12 +70,12 @@ class PmaMovie(Movie):
 #        res = super().__repr__() + '\n' + res
 #        return res
 #
-    def read_header(self):
+    def _read_header(self):
         statinfo = os.stat(self.filepath)       
                
         with self.filepath.open('rb') as fid:
             self.width = np.fromfile(fid, np.int16,count=1)[0].astype(int)
-            self.height =  np.fromfile(fid, np.int16,count=1)[0].astype(int)
+            self.height = np.fromfile(fid, np.int16,count=1)[0].astype(int)
         
         self.number_of_frames = int((statinfo.st_size-4)/(self.width*self.height))
         
@@ -147,7 +147,7 @@ class PmaMovie(Movie):
 #        self.m_offset = self.filesize - self.datasize - 8
     
        
-    def read_frame(self, frame_number,ii=0):
+    def _read_frame(self, frame_number,ii=0):
         with self.filepath.open('rb') as fid:
             np.fromfile(fid, np.uint16,count=1)
             np.fromfile(fid, np.uint16,count=1)
@@ -165,7 +165,7 @@ class PmaMovie(Movie):
     #            msb = np.core.records.fromfile(fid, 'int8', offset=4+ 2*pageNb*(hdim*vdim), shape=(hdim,vdim)) # for first image
     #            lsb = np.core.records.fromfile(fid, 'int8', offset=4+ (1+2*pageNb)*(hdim*vdim), shape=(hdim,vdim)) # for first image
                 im=256*msb+lsb;
-        
+
         if 0: # for testing match real data
             plt.imshow(im)
             tifffile.imwrite(self.writepath.joinPath(f'{self.name}_fr{frame_number}.tif') , im ,  photometric='minisblack')
