@@ -80,19 +80,38 @@ class Mapping2:
                     transformation_type=self.transformation_type)
         else: print('Method not found')
 
-    def nearest_neighbour_match(self, distance_threshold = 1):
-        destination_from_source = self.transform_coordinates(self.source)
+    def nearest_neighbour_match(self, distance_threshold=1, transformation_type=None):
+        if not transformation_type:
+            transformation_type = self.transformation_type
+
+        # TODO: Probably this can be partly merged with the icp function
+
+        source = self.source
+        destination_from_source = self.transform_coordinates(source)
         destination = self.destination
         distances, source_indices, destination_indices = nearest_neighbor_pair(destination_from_source,destination)
 
-        destination_from_source = np.hstack([destination_from_source, np.ones((len(destination_from_source), 1))])
+        source = np.hstack([source, np.ones((len(source), 1))])
         destination = np.hstack([destination, np.ones((len(destination), 1))])
 
-        T, res, rank, s = np.linalg.lstsq(destination_from_source[source_indices[distances<distance_threshold]],
-                                          destination[destination_indices[distances<distance_threshold]], rcond=None)
-        transformation = T.T
+        source_points_for_matching = source[source_indices[distances < distance_threshold]]
+        destination_points_for_matching = destination[destination_indices[distances<distance_threshold]]
 
-        self.transformation = transformation @ self.transformation
+        if transformation_type=='linear':
+            T, res, rank, s = np.linalg.lstsq(source_points_for_matching, destination_points_for_matching, rcond=None)
+            # transformation = T.T
+            #
+            # self.transformation = transformation @ self.transformation
+            self.transformation = T.T
+            self.calculate_inverse_transformation()
+
+        elif transformation_type=='nonlinear':
+            kx, ky = polywarp(destination_points_for_matching[:, 0:2], source_points_for_matching[:, 0:2])
+            kx_inv, ky_inv = polywarp(source_points_for_matching[:, 0:2], destination_points_for_matching[:, 0:2])
+            self.transformation = (kx, ky)
+            self.transformation_inverse = (kx_inv, ky_inv)
+
+        self.transformation_type = transformation_type
 
         # new_destination_from_source = transform(destination_from_source[:,0:2], transformationMatrix=transformation)
         #
