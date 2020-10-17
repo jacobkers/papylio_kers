@@ -208,7 +208,7 @@ class File:
                                          hash_table_distance_threshold, alpha, test_radius, K_threshold,
                                          magnification_range, rotation_range)
         if match:
-            # self.sequencing_tile = self.experiment.sequencing_data_for_mapping.tiles[match.destination_index]
+            match.tile = self.experiment.sequencing_data_for_mapping.tiles[match.destination_index]
             match.source = self.coordinates
             match.initial_transformation = initial_transformation
             match.transformation = match.transformation @ initial_transformation.params
@@ -225,10 +225,10 @@ class File:
         coordinate_bounds_file = self.movie.channel_boundaries('a')
         coordinate_bounds_tile = self.sequencing_match.transform_coordinates(coordinate_bounds_file)
 
-        tile = self.experiment.sequencing_data_for_mapping.tiles[self.sequencing_match.destination_index]
+        self.sequencing_tile = self.experiment.sequencing_data_for_mapping.tiles[self.sequencing_match.destination_index]
 
         self.sequencing_data = \
-            self.experiment.sequencing_data.get_selection(tile=tile.number,
+            self.experiment.sequencing_data.get_selection(tile=self.sequencing_tile.number,
                                                           x=coordinate_bounds_tile[:, 0],
                                                           y=coordinate_bounds_tile[:, 1])
 
@@ -239,8 +239,10 @@ class File:
     def plot_sequencing_match(self):
         #plot_sequencing_match(self.sequencing_match)
         #name = f'Tile: {self.sequencing_tile.name}, File: {str(self.relativeFilePath)}'
-        name = self.name + '_sequencing_mapping'
-        print(name)
+        filename = self.name + '_sequencing_mapping'
+        print(filename)
+
+        title = f'File: {self.relativePath.joinpath(self.name)} - Tile: {self.sequencing_match.tile}'
 
         # TODO: Put this somewhere, where it makes sense.
         def MiSeq_pixels_to_um(pixels):
@@ -251,7 +253,7 @@ class File:
         def Fluo_pixels_to_um(pixels):
             return pixels * 0.125
 
-        plot_sequencing_match(self.sequencing_match, self.absoluteFilePath.parent, name,
+        plot_sequencing_match(self.sequencing_match, self.absoluteFilePath.parent, title, filename,
                               'um', MiSeq_pixels_to_um, Fluo_pixels_to_um)
 
     # This is probably not the way to go

@@ -117,6 +117,7 @@ def geometric_hash(point_sets, maximum_distance=100, tuple_size=4):
     # TODO: Add minimum_distance and implement
     # TODO: Make invariant to mirroring
     # TODO: Make usable with multiple point-sets in a single hash table
+    # TODO: Implement names of point_sets, possibly through a dictionary and adding a attribute to each KDtree
 
     if type(point_sets) is not list:
         point_sets = [point_sets]

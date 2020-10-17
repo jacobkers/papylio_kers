@@ -5,7 +5,7 @@ import matplotlib.patches as patches
 from matplotlib.patches import ConnectionPatch
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-def plot_sequencing_match(match, write_path, name, unit = 'um', MiSeq_pixels_to_um = None, Fluo_pixels_to_um = None, save=True):
+def plot_sequencing_match(match, write_path, title, filename, unit = 'um', MiSeq_pixels_to_um = None, Fluo_pixels_to_um = None, save=True):
     source = match.source
     source_in_destination = match.transform_coordinates(source)
     destination = match.destination
@@ -27,7 +27,7 @@ def plot_sequencing_match(match, write_path, name, unit = 'um', MiSeq_pixels_to_
     # ax1, ax2 = fig.subplots(1, 2)
 
     fig, ax1 = plt.subplots(figsize = (8,4))
-    fig.subplots_adjust(0.05,0.05,0.95,0.95)
+    fig.subplots_adjust(0.05,0.05,0.95,0.93)
 
     divider = make_axes_locatable(ax1)
     ax2 = divider.append_axes('right', size='60%', pad=0.5)
@@ -123,10 +123,12 @@ def plot_sequencing_match(match, write_path, name, unit = 'um', MiSeq_pixels_to_
         artist.set_linewidth(0.5)
         artist.set_edgecolor('grey')
 
+    fig.suptitle(title, fontsize='medium')
+
     plt.show()
 
     if save:
-        n = name.replace('\\', '_')
+        n = filename.replace('\\', '_')
         fig.savefig(write_path.joinpath(n + '.pdf'), bbox_inches='tight')
         fig.savefig(write_path.joinpath(n + '.png'), bbox_inches='tight', dpi=1000)
 
