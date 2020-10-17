@@ -48,21 +48,21 @@ class Movie:
 #        else:
             self.writepath = self.filepath.parent
             self.name = self.filepath.with_suffix('').name
-        
+
         self.read_header()
-        
+
         #self.set_background_and_transformation() # Carlos: isn't this double, you call set_background twice, Margreet: this is the bg of the image, not the tetra_image. Same formulas though
-        
+
         #Ivo: This is a good idea I think, but I think we should put this option in the method that produces the pks file.
         #self.pks_fn=kwargs.get('pks_fn',filepath) # default pks_fn=filepath, but you could give in a different name; ImageCollection(name, name, pks_fn='   ')
-        
+
         #Ivo: same here
         #self.choice_channel=kwargs.get('choice_channel','d') #default 'd', 'd' for donor, 'a' for acceptor, 'da' for the sum
-        
+
         #Ivo: what are these?
         #self.generic_map=kwargs.get('generic',0)
         #self.ii=np.array(range(1024*1024))
-    
+
         #Ivo: Commented this because I would like to be able to instantiate the object without doing this initially
         #self.mapping = Mapping(tetra_fn,generic=self.generic_map)
 #        (self.background,
@@ -73,7 +73,7 @@ class Movie:
 #         self.Gauss,
 #         self.ptsG2) = self.set_background_and_transformation()
 #        self.show_selected_spots()
- 
+
 #    @cached_property
 #    def read_one_page(self):
 #        return read_one_page ##normally this funciton needs two inputs, why not here?
@@ -84,7 +84,7 @@ class Movie:
 
     def __repr__(self):
         return(f'{self.__class__.__name__}({str(self.filepath)})')
-        
+
     @property
     def average_image(self):
         if self._average_image is None: self.make_average_image(write=True)
@@ -246,7 +246,7 @@ class Movie:
             pass
 
         for i in range(self.number_of_frames):
-            
+
             #frame = self.get_image(ii).image
             #frame = read_one_page(self.filepath, pageNb=i, A = self.movie_file_object)
             frame = self.read_frame(frame_number = i)
@@ -254,66 +254,118 @@ class Movie:
             #naam=r'M:\tnw\bn\cmj\Shared\margreet\Cy3 G50\ModifiedData\Python'+'{:03d}'.format(ii)+'.tif'
             TIFF.imwrite(tif_filepath, np.uint16(frame), append=True)
 
-    def make_average_image(self, number_of_frames=20, write=False):
-#        frame_list = [(read_one_page(self.filepath, pageNb=i, A=self.movie_file_object)).astype(float) 
-#                        for i in range(np.min([self.number_of_frames, number_of_frames]))]
-#         frame_list = [(self.read_frame(frame_number=i)).astype(float)
-#                         for i in range(np.min([self.number_of_frames, number_of_frames]))]
-#         frame_array = np.dstack(frame_list)
-#         frame_array_mean = np.mean(frame_array, axis=2).astype(int)
+    def make_projection_image(self, type='average', start_frame=0, number_of_frames=20, write=False):
+        """ Construct a projection image
+        Determine a projection image for a number_of_frames starting at start_frame.
+        i.e. [start_frame, start_frame + number_of_frames)
 
+        Parameters
+        ----------
+        type : str
+            'average' for average image
+            'maximum' for maximum projection image
+        start_frame : int
+            Frame to start with
+        number_of_frames : int
+            Number of frames to average over
+        write : bool
+            If true, a tif file will be saved in writepath
+
+        Returns
+        -------
+        np.ndarray
+            2d image array with the projected image
+        """
         # Check and specify number of frames
         if number_of_frames == 'all':
             number_of_frames = self.number_of_frames
-        elif self.number_of_frames < number_of_frames:
-            # Is it not better to warn and then just to use all the frames there are? [IS: 11-08-2020]
+        elif (self.number_of_frames - start_frame) < number_of_frames:
             print('Number of frames entered exceeds size movie')
-            # return []
-            number_of_frames = self.number_of_frames
-        print('Calculating average image of ' + str(number_of_frames) + ' frames')
+            number_of_frames = (self.number_of_frames - start_frame)
 
         # Calculate sum of frames and find mean
-        frame_array_sum = np.zeros((self.height, self.width))
-        for i in range(number_of_frames):
-            print(i)
-            frame = self.read_frame(frame_number=i).astype(float)
-            frame_array_sum = frame_array_sum + frame
-        frame_array_mean = (frame_array_sum / number_of_frames).astype(int)
-        self._average_image = frame_array_mean
+        image = np.zeros((self.height, self.width))
 
-        # Write image to file
-        if write:
-            tif_filepath = self.writepath.joinpath(self.name+'_ave.tif')
-            if self.bitdepth == 16: TIFF.imwrite(tif_filepath, np.uint16(frame_array_mean))
-            elif self.bitdepth == 8: TIFF.imwrite(tif_filepath, np.uint8(frame_array_mean))
-  
-        return frame_array_mean
+        if type == 'average':
+            for i in range(start_frame, start_frame+number_of_frames):
+                frame = self.read_frame(frame_number=i).astype(float)
+                image = image + frame
+            image = (image / number_of_frames).astype(int)
+            self._average_image = image
+            if write:
+                self.write_image(image, '_ave.tif')
+        elif type =='maximum':
+            for i in range(start_frame, start_frame+number_of_frames):
+                frame = self.read_frame(frame_number=i)
+                image = np.maximum(image, frame)
+            self._maximum_projection_image = image
+            if write:
+                self.write_image(image, '_.tif')
 
-    def make_maximum_projection(self, number_of_frames=20, write=False):
-        # Check and specify number of frames
-        if number_of_frames == 'all':
-            number_of_frames = self.number_of_frames
-        elif self.number_of_frames < number_of_frames:
-            print('Number of frames entered exceeds size movie')
-            # return []
-            number_of_frames = self.number_of_frames
-        print('Calculating maximum projection image of ' + str(number_of_frames) + ' frames')
+        return image
 
-        # Calculate maximum of projection and each frame
-        maximum_projection_image = np.zeros((self.height, self.width))
-        for i in range(number_of_frames):
-            print(i)
-            frame = self.read_frame(frame_number=i)
-            maximum_projection_image = np.maximum(maximum_projection_image, frame)
-        self._maximum_projection_image = maximum_projection_image
+    def make_average_image(self, start_frame=0, number_of_frames=20, write=False):
+        """ Construct an average image
+        Determine average image for a number_of_frames starting at start_frame.
+        i.e. [start_frame, start_frame + number_of_frames)
 
-        # Write image to file
-        if write:
-            tif_filepath = self.writepath.joinpath(self.name+'_max.tif')
-            if self.bitdepth == 16: TIFF.imwrite(tif_filepath, np.uint16(maximum_projection_image))
-            elif self.bitdepth == 8: TIFF.imwrite(tif_filepath, np.uint8(maximum_projection_image))
+        Parameters
+        ----------
+        start_frame : int
+            Frame to start with
+        number_of_frames : int
+            Number of frames to average over
+        write : bool
+            If true, the a tif file will be saved in the writepath
 
-        return maximum_projection_image
+        Returns
+        -------
+        np.ndarray
+            2d image array with the average image
+
+        """
+        return self.make_projection_image('average', start_frame, number_of_frames, write)
+
+    def make_maximum_projection(self, start_frame=0, number_of_frames=20, write=False):
+        """ Construct a maximum projection image
+        Determine maximum projection image for a number_of_frames starting at start_frame.
+        i.e. [start_frame, start_frame + number_of_frames)
+
+        Parameters
+        ----------
+        start_frame : int
+            Frame to start with
+        number_of_frames : int
+            Number of frames to average over
+        write : bool
+            If true, the a tif file will be saved in the writepath
+
+        Returns
+        -------
+        np.ndarray
+            2d image array with the maximum projection image
+        """
+
+        return self.make_projection_image('maximum', start_frame, number_of_frames, write)
+
+    def write_image(self, image, extension):
+        """Write an image to the tif file format
+
+        Parameters
+        ----------
+        image : np.ndarray
+            2d image array
+        extension : str
+            String to add after the filename
+        """
+        if '.tif' not in extension:
+            'Only tif export is supported (at the moment)'
+
+        tif_filepath = self.writepath.joinpath(self.name + 'extension').with_suffix('.tif')
+        if self.bitdepth == 16:
+            TIFF.imwrite(tif_filepath, np.uint16(image))
+        elif self.bitdepth == 8:
+            TIFF.imwrite(tif_filepath, np.uint8(image))
 
 # Moved to file, can probably be removed
     def show_average_image(self, mode='2d', figure=None):
@@ -330,15 +382,15 @@ class Movie:
             axis.plot_surface(X,Y,self.average_image, cmap=cm.coolwarm,
                                    linewidth=0, antialiased=False)
         #plt.show()
-    
-    
+
+
     def subtract_background(self, image, method = 'per_channel'):
         if method == 'rollingball':
             background = rollingball(image,self.width_pixels/10)[1] # this one is not used in pick_spots_akaze
             image_correct = image - background
-            image_correct[image_correct < 0] = 0       
+            image_correct[image_correct < 0] = 0
             threshold = get_threshold(image_correct)
-            return remove_background(image_correct,threshold)  
+            return remove_background(image_correct,threshold)
         elif method == 'per_channel': #maybe there is a better name
             sh=np.shape(image)
             threshold_donor = get_threshold(self.get_channel(image,'donor'))
@@ -347,7 +399,7 @@ class Movie:
             background[:,0:sh[0]//2]=threshold_donor
             background[:,sh[0]//2:]=threshold_acceptor
             return remove_background(image,background)
-        
+
         # note: optionally a fixed threshold can be set, like with IDL
         # note 2: do we need a different threshold for donor and acceptor?
 
