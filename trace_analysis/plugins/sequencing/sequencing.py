@@ -20,6 +20,8 @@ class Experiment:
     def generate_mapping_hashtable(self, mapping_sequence, number_of_allowed_mismatches,
                                    imaged_surface=None, maximum_distance_tile=None, tuple_size=None):
 
+        # TODO: Add timer to generate_mapping_hashtable and find_sequences methods, by making a decorator function. [IS: 10-08-2020]
+
         self.select_sequencing_data_for_mapping(mapping_sequence, number_of_allowed_mismatches)
 
         if imaged_surface in ['top', 1]:
