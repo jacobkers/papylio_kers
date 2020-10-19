@@ -210,7 +210,7 @@ class File:
                                          hash_table_distance_threshold, alpha, test_radius, K_threshold,
                                          magnification_range, rotation_range)
         if match:
-            match.tile = self.experiment.sequencing_data_for_mapping.tiles[match.destination_index]
+            match.tile = self.experiment.sequencing_data_for_mapping.tiles[match.destination_index].number
             match.source = self.coordinates
             match.initial_transformation = initial_transformation
             match.transformation = match.transformation @ initial_transformation.params
