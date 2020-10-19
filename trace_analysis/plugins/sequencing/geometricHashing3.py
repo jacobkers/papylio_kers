@@ -1,0 +1,162 @@
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.path as pth
+from pathlib import Path
+import itertools
+from scipy.spatial import cKDTree
+import random
+from trace_analysis.mapping.geometricHashing import mapToPoint
+from trace_analysis.plugins.sequencing.geometricHashing2 import crop_coordinates
+from trace_analysis.mapping.mapping import Mapping2
+from trace_analysis.plotting import scatter_coordinates
+from skimage.transform import AffineTransform
+import time
+
+
+
+class GeometricHashTable:
+    def __init__(self, destination, source_vertices=None, initial_source_transformation=AffineTransform(),
+                 number_of_source_bases=20, number_of_destination_bases='all'):
+        # self.tile = tile
+        # self.files = files # List of coordinate sets
+        # self.dataPath = Path(dataPath)
+
+        self.initial_source_transformation = initial_source_transformation
+
+        # self.mode = mode
+        # if mode == 'translation': self.hashTableRange = [-10000, 10000]
+        # else: self.hashTableRange = [-1,1]
+        # self.nBins = nBins
+
+        #
+        # self.number_of_source_bases = number_of_source_bases
+        # self.number_of_destination_bases = number_of_destination_bases
+
+        # self._hashTable = None
+        # self._matches = None
+        #
+        # self.rotationRange = rotationRange
+        # self.magnificationRange = magnificationRange
+        #
+
+
+        self.destination = destination
+        self.source_vertices = source_vertices
+
+        self.create_hashtable()
+
+    def create_hashtable(self):
+        destination_bases = self.destination
+
+        hash_table_entries_per_basis = [self.destination - basis for basis in destination_bases]
+
+        if self.source_vertices is not None:
+            # Make the area for which the hashtable is constructed twice the area of the source.
+            # The area is still centered on the original source area
+            center = np.mean(self.source_vertices, axis=0)
+            crop_vertices_in_source = (self.source_vertices - center) * 2 + center
+            crop_vertices_in_destination = self.initial_source_transformation(crop_vertices_in_source)
+            hash_table_entries_per_basis = [crop_coordinates(entry, crop_vertices_in_destination) for entry in hash_table_entries_per_basis]
+
+        self.destination_bases_index_bin_edges = np.cumsum([0]+[len(c) for i, c in enumerate(hash_table_entries_per_basis)])
+        # or self.destination_bases_start_indices
+        self.hash_table = cKDTree(np.vstack(hash_table_entries_per_basis))
+
+
+    # def geometric_hash(point_sets, maximum_distance=100, tuple_size=4):
+    #     # TODO: Add minimum_distance and implement
+    #     # TODO: Make invariant to mirroring
+    #     # TODO: Make usable with multiple point-sets in a single hash table
+    #     # TODO: Implement names of point_sets, possibly through a dictionary and adding a attribute to each KDtree
+    #
+    #     if type(point_sets) is not list:
+    #         point_sets = [point_sets]
+    #
+    #     point_set_KDTrees = [cKDTree(point_set) for point_set in point_sets]
+    #
+    #     hash_table = []
+    #     point_tuple_sets = []
+    #     for point_set_KDTree in point_set_KDTrees:
+    #         point_tuple_generator = generate_point_tuples(point_set_KDTree, maximum_distance, tuple_size)
+    #
+    #         point_tuples = []
+    #         for point_tuple, hash_code in geometric_hash_table(point_set_KDTree, point_tuple_generator, tuple_size):
+    #             point_tuples.append(point_tuple)
+    #             hash_table.append(hash_code)
+    #
+    #         point_tuple_sets.append(point_tuples)
+    #
+    #     hash_table_KDTree = cKDTree(np.array(hash_table))
+    #
+    #     return point_set_KDTrees, point_tuple_sets, hash_table_KDTree
+
+
+    def query(self, source):
+        best_destination_basis_for_source_basis = []
+        source_bases = source
+        for basis in source_bases:
+            hash_table_queries_in_source = source - basis
+            hash_table_queries_in_destination = self.initial_source_transformation(hash_table_queries_in_source)
+            found_destination_indices_per_query = self.hash_table.query_ball_point(hash_table_queries_in_destination, 15)
+            found_destination_indices = np.hstack(found_destination_indices_per_query)
+
+            count_per_destination_basis = np.histogram(found_destination_indices, bins=self.destination_bases_index_bin_edges)[0]
+            best_matching_destination_index = np.argmax(count_per_destination_basis)
+            max_count = np.max(count_per_destination_basis)
+            best_destination_basis_for_source_basis.append((best_matching_destination_index, max_count))
+
+        # base_transformed = self.initial_image_transformation(np.array([[0,0]]))
+
+        best_destination_basis_for_source_basis = \
+            np.hstack([np.atleast_2d(np.arange(len(best_destination_basis_for_source_basis))).T,
+                       best_destination_basis_for_source_basis])
+
+        best_destination_basis_for_source_basis = best_destination_basis_for_source_basis[np.argsort(best_destination_basis_for_source_basis[:, 2], )]
+
+        i=-1
+        best_matching_source_basis_index = best_destination_basis_for_source_basis[i,0]
+        best_matching_destination_basis_index = best_destination_basis_for_source_basis[i,1]
+
+        best_matching_source_basis_in_destination = self.initial_source_transformation(source[best_matching_source_basis_index])
+        translation = self.destination[best_matching_destination_basis_index] - best_matching_source_basis_in_destination
+
+        found_transformation = self.initial_source_transformation + AffineTransform(translation=translation)
+
+        # plt.figure()
+        # scatter_coordinates([self.destination, found_transformation(source)])
+
+
+
+        match = Mapping2(source=source, destination=self.destination, method='Geometric hashing',
+                         transformation_type='linear', initial_translation=None)
+        match.transformation = found_transformation.params
+        match.calculate_inverse_transformation()
+        # match.destination_index = destination_index
+        match.destination_index = 0
+        match.initial_transformation = self.initial_source_transformation
+        match.source_vertices = self.source_vertices
+
+        # match.hash_table_distance = distance
+        #match.hash_table_distances_checked = hash_table_distances_checked
+        #match.tuples_checked = tuples_checked
+        return match
+
+
+
+
+if __name__ == '__main__':
+    source = np.loadtxt(r'D:\SURFdrive\Promotie\Code\Python\traceAnalysis\trace_analysis\plugins\sequencing\source.txt')
+    destination =np.loadtxt(r'D:\SURFdrive\Promotie\Code\Python\traceAnalysis\trace_analysis\plugins\sequencing\destination.txt')
+
+    initial_magnification = np.array([ 3.67058194, -3.67058194])
+    initial_rotation = 0.6285672733195177 # degrees
+
+    initial_source_transformation = AffineTransform(matrix=None, scale=initial_magnification,
+                                                    rotation=initial_rotation/360*np.pi*2,
+                                                    shear=None, translation=None)
+    source_vertices = np.array([[256,   0], [512,   0], [512, 512], [256, 512]])
+
+    ht = GeometricHashTable(destination, source_vertices, initial_source_transformation=initial_source_transformation)
+
+    ht.query(source)
+

@@ -8,6 +8,7 @@ from trace_analysis.mapping.geometricHashing import SequencingDataMapping
 from trace_analysis.mapping.mapping import Mapping2
 from .fastqAnalysis import FastqData
 from .geometricHashing2 import geometric_hash, find_match_after_hashing
+from .geometricHashing3 import GeometricHashTable
 from .plotting import plot_sequencing_match
 from trace_analysis.mapping.icp import icp, nearest_neighbor_pair
 
@@ -32,6 +33,29 @@ class Experiment:
         tile_coordinate_sets = [tile.coordinates for tile in self.sequencing_data_for_mapping.tiles]
         # TODO: get maximum_distance_tile and tuple_size from configuration
         self.geometric_hash_data = geometric_hash(tile_coordinate_sets, maximum_distance_tile, tuple_size)
+
+    def generate_mapping_hashtable3(self, mapping_sequence, number_of_allowed_mismatches,
+                                    imaged_surface=None, maximum_distance_tile=None, tuple_size=None):
+
+        # TODO: Add timer to generate_mapping_hashtable and find_sequences methods, by making a decorator function. [IS: 10-08-2020]
+
+        self.select_sequencing_data_for_mapping(mapping_sequence, number_of_allowed_mismatches)
+
+        if imaged_surface in ['top', 1]:
+            self.sequencing_data_for_mapping = self.sequencing_data_for_mapping[self.sequencing_data_for_mapping.tile < 2000]
+        elif imaged_surface in ['bottom', 2]:
+            self.sequencing_data_for_mapping = self.sequencing_data_for_mapping[self.sequencing_data_for_mapping.tile > 2000]
+
+        tile_coordinate_sets = [tile.coordinates for tile in self.sequencing_data_for_mapping.tiles]
+
+        initial_magnification = np.array([3.67058194, -3.67058194])
+        initial_rotation = 0.6285672733195177  # degrees
+        initial_file_transformation = AffineTransform(matrix=None, scale=initial_magnification,
+                                                        rotation=initial_rotation/360*np.pi*2,
+                                                        shear=None, translation=None)
+        self.geometric_hashtable = GeometricHashTable(tile_coordinate_sets[0],
+                                                      source_vertices=self.files[0].movie.channel_vertices('r'),
+                                                      initial_source_transformation=initial_file_transformation)
 
     def generate_mapping_hashtable_from_coordinate_set(self, tile_coordinate_sets, maximum_distance_tile, tuple_size):
         self.geometric_hash_data = geometric_hash(tile_coordinate_sets, maximum_distance_tile, tuple_size)
@@ -216,6 +240,20 @@ class File:
             match.transformation = match.transformation @ initial_transformation.params
             match.source_vertices = source_vertices
             match.calculate_inverse_transformation()
+            # TODO: Base this on some better criteria
+            #match.nearest_neighbour_match(nearest_neighbour_match_distance_threshold)
+            self.sequencing_match = match
+            self.export_sequencing_match()
+            #self.get_all_sequences_from_sequencing_data()
+
+    def find_sequences3(self, nearest_neighbour_match_distance_threshold=25):
+
+        match = self.experiment.geometric_hashtable.query(self.coordinates)
+
+        if match:
+            match.destination_index = 0
+            match.tile = self.experiment.sequencing_data_for_mapping.tiles[match.destination_index].number
+
             # TODO: Base this on some better criteria
             #match.nearest_neighbour_match(nearest_neighbour_match_distance_threshold)
             self.sequencing_match = match
