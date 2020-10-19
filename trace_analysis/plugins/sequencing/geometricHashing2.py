@@ -196,6 +196,11 @@ def find_match_after_hashing(source, maximum_distance_source, tuple_size, source
                 match.tuples_checked = tuples_checked
                 return match
 
+def PolyArea(vertices):
+    x = vertices[:,0]
+    y = vertices[:,1]
+    return 0.5 * np.abs(np.dot(x, np.roll(y, 1)) - np.dot(y, np.roll(x, 1)))
+
 def tuple_match(source, destination_KDTree, source_vertices, source_tuple, destination_tuple,
                 alpha=0.1, test_radius=10, K_threshold=10e9, scaling_range=None, rotation_range=None):
     source_coordinate_tuple = source[list(source_tuple)]
@@ -228,8 +233,11 @@ def tuple_match(source, destination_KDTree, source_vertices, source_tuple, desti
     destination_cropped = crop_coordinates(destination_KDTree.data, source_vertices_transformed)
 
     #source_transformed_area = np.linalg.norm(source_vertices_transformed[0] - source_vertices_transformed[1])
-    source_transformed_area = np.abs(np.cross(source_vertices_transformed[1] - source_vertices_transformed[0],
-                                              source_vertices_transformed[3] - source_vertices_transformed[0]))
+    # source_transformed_area = np.abs(np.cross(source_vertices_transformed[1] - source_vertices_transformed[0],
+    #                                           source_vertices_transformed[3] - source_vertices_transformed[0]))
+
+    source_transformed_area = PolyArea(source_vertices_transformed)
+
     # pDB = 1 / source_transformed_area
     # pDB = 1 / len(destination_cropped)
     # pDB = 1
@@ -253,7 +261,12 @@ def tuple_match(source, destination_KDTree, source_vertices, source_tuple, desti
         sigma = test_radius
         # sigma = 10
         distance, index = destination_KDTree.query(coordinate)
-        pDF = alpha/source_transformed_area + (1-alpha)/(2*np.pi*sigma**2)*np.exp(-distance**2/(2*sigma**2))/len(destination_cropped)
+        # pDF = alpha/source_transformed_area + (1-alpha)/(2*np.pi*sigma**2)*np.exp(-distance**2/(2*sigma**2))/len(destination_cropped)
+        # 2d Gaussian
+        pDF = alpha / source_transformed_area + \
+              (1 - alpha) / (2 * np.pi * sigma ** 2) * \
+              np.exp(-(distance ** 2) / (2 * sigma ** 2)) / len(destination_cropped)
+
         # print(len(points_within_radius))
         # bayes_factor6.append(pDF/pDB)
         K = K * pDF/pDB
