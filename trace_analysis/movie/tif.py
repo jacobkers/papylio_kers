@@ -84,6 +84,15 @@ class TifMovie(Movie):
             self.bitdepth = tif_tags['BitsPerSample']
             ## hdim,vdim=tif.pages[0].shape
 
+            try:
+                self.pixel_size_x = tif.metaseries_metadata['PlaneInfo']['spatial-calibration-x']
+                self.pixel_size_y = tif.metaseries_metadata['PlaneInfo']['spatial-calibration-y']
+                self.pixel_size_unit = tif.metaseries_metadata['PlaneInfo']['spatial-calibration-units']
+                self.stage_position_x = tif.metaseries_metadata['PlaneInfo']['stage-position-x']
+                self.stage_position_y = tif.metaseries_metadata['PlaneInfo']['stage-position-y']
+            except AttributeError:
+                pass
+
 #
 #        f = open(self.filepath, 'rb')
 #
@@ -199,3 +208,5 @@ class TifMovie(Movie):
 
 if __name__ == "__main__":
     print('test')
+
+    movie = TifMovie(r'D:\PathTo\Movie.tif')
