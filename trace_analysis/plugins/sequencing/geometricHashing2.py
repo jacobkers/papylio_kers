@@ -196,7 +196,7 @@ def find_match_after_hashing(source, maximum_distance_source, tuple_size, source
                 match.tuples_checked = tuples_checked
                 return match
 
-def PolyArea(vertices):
+def polygon_area(vertices):
     x = vertices[:,0]
     y = vertices[:,1]
     return 0.5 * np.abs(np.dot(x, np.roll(y, 1)) - np.dot(y, np.roll(x, 1)))
@@ -236,7 +236,7 @@ def tuple_match(source, destination_KDTree, source_vertices, source_tuple, desti
     # source_transformed_area = np.abs(np.cross(source_vertices_transformed[1] - source_vertices_transformed[0],
     #                                           source_vertices_transformed[3] - source_vertices_transformed[0]))
 
-    source_transformed_area = PolyArea(source_vertices_transformed)
+    source_transformed_area = polygon_area(source_vertices_transformed)
 
     # pDB = 1 / source_transformed_area
     # pDB = 1 / len(destination_cropped)

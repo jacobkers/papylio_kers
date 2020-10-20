@@ -6,7 +6,7 @@ import itertools
 from scipy.spatial import cKDTree
 import random
 from trace_analysis.mapping.geometricHashing import mapToPoint
-from trace_analysis.plugins.sequencing.geometricHashing2 import crop_coordinates
+from trace_analysis.plugins.sequencing.geometricHashing2 import crop_coordinates, polygon_area
 from trace_analysis.mapping.mapping import Mapping2
 from trace_analysis.plotting import scatter_coordinates
 from skimage.transform import AffineTransform
@@ -41,6 +41,7 @@ class GeometricHashTable:
 
 
         self.destination = destination
+        self.destination_KDTree = cKDTree(destination)
         self.source_vertices = source_vertices
 
         self.create_hashtable()
@@ -91,13 +92,15 @@ class GeometricHashTable:
     #     return point_set_KDTrees, point_tuple_sets, hash_table_KDTree
 
 
-    def query(self, source):
+    def query(self, source, alpha=0.9, sigma=10, K_threshold=10e2):
         best_destination_basis_for_source_basis = []
         source_bases = source
         for basis in source_bases:
             hash_table_queries_in_source = source - basis
             hash_table_queries_in_destination = self.initial_source_transformation(hash_table_queries_in_source)
             found_destination_indices_per_query = self.hash_table.query_ball_point(hash_table_queries_in_destination, 15)
+            # hash_table_queries_in_destination = cKDTree(hash_table_queries_in_destination)
+            # hash_table_queries_in_destination = self.hash_table.query_ball_tree(hash_table_queries_in_destination, 15)
             found_destination_indices = np.hstack(found_destination_indices_per_query)
 
             count_per_destination_basis = np.histogram(found_destination_indices, bins=self.destination_bases_index_bin_edges)[0]
@@ -111,37 +114,67 @@ class GeometricHashTable:
             np.hstack([np.atleast_2d(np.arange(len(best_destination_basis_for_source_basis))).T,
                        best_destination_basis_for_source_basis])
 
-        best_destination_basis_for_source_basis = best_destination_basis_for_source_basis[np.argsort(best_destination_basis_for_source_basis[:, 2], )]
+        best_destination_basis_for_source_basis = best_destination_basis_for_source_basis[np.flip(np.argsort(best_destination_basis_for_source_basis[:, 2]))]
 
-        i=-1
-        best_matching_source_basis_index = best_destination_basis_for_source_basis[i,0]
-        best_matching_destination_basis_index = best_destination_basis_for_source_basis[i,1]
+        for source_basis_index, destination_basis_index, count in best_destination_basis_for_source_basis:
+        # i=-1
+        # best_matching_source_basis_index = best_destination_basis_for_source_basis[i,0]
+        # best_matching_destination_basis_index = best_destination_basis_for_source_basis[i,1]
 
-        best_matching_source_basis_in_destination = self.initial_source_transformation(source[best_matching_source_basis_index])
-        translation = self.destination[best_matching_destination_basis_index] - best_matching_source_basis_in_destination
+            source_basis_in_destination = self.initial_source_transformation(source[source_basis_index])
+            translation = self.destination[destination_basis_index] - source_basis_in_destination
 
-        found_transformation = self.initial_source_transformation + AffineTransform(translation=translation)
+            found_transformation = self.initial_source_transformation + AffineTransform(translation=translation)
 
-        # plt.figure()
-        # scatter_coordinates([self.destination, found_transformation(source)])
+            # plt.figure()
+            # scatter_coordinates([self.destination, found_transformation(source)])
+
+            if self.test_transformation(source, found_transformation, alpha, sigma, K_threshold):
+                match = Mapping2(source=source, destination=self.destination, method='Geometric hashing',
+                                 transformation_type='linear', initial_translation=None)
+                match.transformation = found_transformation.params
+                match.calculate_inverse_transformation()
+                # match.destination_index = destination_index
+                match.destination_index = 0
+                match.initial_transformation = self.initial_source_transformation
+                match.source_vertices = self.source_vertices
+
+                # match.hash_table_distance = distance
+                #match.hash_table_distances_checked = hash_table_distances_checked
+                #match.tuples_checked = tuples_checked
+                return match
+
+        else:
+            return None
 
 
 
-        match = Mapping2(source=source, destination=self.destination, method='Geometric hashing',
-                         transformation_type='linear', initial_translation=None)
-        match.transformation = found_transformation.params
-        match.calculate_inverse_transformation()
-        # match.destination_index = destination_index
-        match.destination_index = 0
-        match.initial_transformation = self.initial_source_transformation
-        match.source_vertices = self.source_vertices
 
-        # match.hash_table_distance = distance
-        #match.hash_table_distances_checked = hash_table_distances_checked
-        #match.tuples_checked = tuples_checked
-        return match
+    def test_transformation(self, source, found_transformation, alpha=0.9, sigma=10, K_threshold=10e2):
+        source_vertices_transformed = found_transformation(self.source_vertices)
+        destination_cropped = crop_coordinates(self.destination, source_vertices_transformed)
 
+        source_transformed_area = polygon_area(source_vertices_transformed)
 
+        pDB = 1 / source_transformed_area
+
+        K=1
+
+        # TODO: Remove basis points?
+        for coordinate in found_transformation(source):
+            distance, index = self.destination_KDTree.query(coordinate)
+
+            # 2d Gaussian
+            pDF = alpha / source_transformed_area + \
+                  (1 - alpha) / (2 * np.pi * sigma ** 2) * \
+                  np.exp(-(distance ** 2) / (2 * sigma ** 2)) / len(destination_cropped)
+
+            K = K * pDF/pDB
+            if K > K_threshold:
+                print("Found match")
+                return True
+
+        return False
 
 
 if __name__ == '__main__':
@@ -158,5 +191,5 @@ if __name__ == '__main__':
 
     ht = GeometricHashTable(destination, source_vertices, initial_source_transformation=initial_source_transformation)
 
-    ht.query(source)
+    match = ht.query(source)
 

@@ -246,9 +246,9 @@ class File:
             self.export_sequencing_match()
             #self.get_all_sequences_from_sequencing_data()
 
-    def find_sequences3(self, nearest_neighbour_match_distance_threshold=25):
+    def find_sequences3(self, alpha=0.9, sigma=10, K_threshold=10e2, nearest_neighbour_match_distance_threshold=25):
 
-        match = self.experiment.geometric_hashtable.query(self.coordinates)
+        match = self.experiment.geometric_hashtable.query(self.coordinates, alpha, sigma, K_threshold)
 
         if match:
             match.destination_index = 0
