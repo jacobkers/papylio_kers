@@ -29,8 +29,11 @@ def polywarp(xy_out,xy_in,degree=3):
         return
 
     if len(x_in) < (degree+1.)**2.:
-        print ("Error: length of arrays must be greater than (degree+1)^2")
-        return
+        # print ("Error: length of arrays must be greater than (degree+1)^2")
+        # return
+        new_degree = int(np.floor(np.sqrt(len(x_in))-1))
+        print(f'Too few datapoints for calculation with degree {degree}, reduced degree to {new_degree}')
+        degree = new_degree
 
     # ensure numpy arrays
     x_in = np.array(x_in)
