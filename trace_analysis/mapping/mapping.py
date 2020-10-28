@@ -80,6 +80,24 @@ class Mapping2:
                     transformation_type=self.transformation_type)
         else: print('Method not found')
 
+    def direct_match(self, transformation_type=None):
+        if not transformation_type:
+            transformation_type = self.transformation_type
+
+        self.transformation_type = transformation_type
+
+        if transformation_type=='linear':
+            source = np.hstack([self.source, np.ones((len(self.source), 1))])
+            destination = np.hstack([self.destination, np.ones((len(self.destination), 1))])
+            T, res, rank, s = np.linalg.lstsq(source, destination, rcond=None)
+            self.transformation = T.T
+            self.calculate_inverse_transformation()
+        elif transformation_type=='nonlinear':
+            kx, ky = polywarp(self.destination, self.source)
+            kx_inv, ky_inv = polywarp(self.source, self.destination)
+            self.transformation = (kx, ky)
+            self.transformation_inverse = (kx_inv, ky_inv)
+
     def nearest_neighbour_match(self, distance_threshold=1, transformation_type=None):
         if not transformation_type:
             transformation_type = self.transformation_type
