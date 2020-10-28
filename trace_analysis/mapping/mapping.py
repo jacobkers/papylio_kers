@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 import yaml
 import skimage.transform
+from skimage.transform import PolynomialTransform
 
 from trace_analysis.mapping.icp import icp, nearest_neighbor_pair
 
@@ -97,6 +98,11 @@ class Mapping2:
             kx_inv, ky_inv = polywarp(self.source, self.destination)
             self.transformation = (kx, ky)
             self.transformation_inverse = (kx_inv, ky_inv)
+        elif transformation_type=='polynomial':
+            self.transformation = PolynomialTransform()
+            self.transformation.estimate(self.source, self.destination)
+            self.transformation_inverse = PolynomialTransform()
+            self.transformation_inverse.estimate(self.destination, self.source)
 
     def nearest_neighbour_match(self, distance_threshold=1, transformation_type=None):
         if not transformation_type:
@@ -115,7 +121,7 @@ class Mapping2:
         source_points_for_matching = source[source_indices[distances < distance_threshold]]
         destination_points_for_matching = destination[destination_indices[distances<distance_threshold]]
 
-        if transformation_type=='linear':
+        if transformation_type == 'linear':
             T, res, rank, s = np.linalg.lstsq(source_points_for_matching, destination_points_for_matching, rcond=None)
             # transformation = T.T
             #
@@ -123,11 +129,17 @@ class Mapping2:
             self.transformation = T.T
             self.calculate_inverse_transformation()
 
-        elif transformation_type=='nonlinear':
+        elif transformation_type == 'nonlinear':
             kx, ky = polywarp(destination_points_for_matching[:, 0:2], source_points_for_matching[:, 0:2])
             kx_inv, ky_inv = polywarp(source_points_for_matching[:, 0:2], destination_points_for_matching[:, 0:2])
             self.transformation = (kx, ky)
             self.transformation_inverse = (kx_inv, ky_inv)
+
+        elif transformation_type == 'polynomial':
+            self.transformation = PolynomialTransform()
+            self.transformation.estimate(source_points_for_matching[:, 0:2], destination_points_for_matching[:, 0:2])
+            self.transformation_inverse = PolynomialTransform()
+            self.transformation_inverse.estimate(destination_points_for_matching[:, 0:2], source_points_for_matching[:, 0:2])
 
         self.transformation_type = transformation_type
 
@@ -176,6 +188,8 @@ class Mapping2:
             return transform(coordinates[:, :2], current_transformation)
         elif self.transformation_type == 'nonlinear':
             return polywarp_apply(current_transformation[0], current_transformation[1], coordinates)
+        elif self.transformation_type == 'polynomial':
+            return current_transformation(coordinates)
 
     def save(self, filepath, filetype='yaml'):
         filepath = Path(filepath)
