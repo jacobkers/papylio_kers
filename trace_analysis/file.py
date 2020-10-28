@@ -696,6 +696,7 @@ class File(A):
 
         transformation_type = configuration['transformation_type']
         print(transformation_type)
+        method = configuration['method']
 
         donor_image = self.movie.get_channel(image=image, channel='d')
         acceptor_image = self.movie.get_channel(image=image, channel='a')
@@ -747,8 +748,10 @@ class File(A):
 
         self.mapping = Mapping2(source=donor_coordinates,
                                 destination=acceptor_coordinates,
+                                method=method,
                                 transformation_type=transformation_type,
-                                initial_translation=initial_translation)
+                                initial_transformation=initial_translation)
+        self.mapping.perform_mapping()
         self.mapping.file = self
         self.is_mapping_file = True
 

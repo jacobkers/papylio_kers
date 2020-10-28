@@ -18,7 +18,7 @@ from trace_analysis.image_adapt.polywarp import polywarp, polywarp_apply #requir
 
 class Mapping2:
     def __init__(self, source = None, destination = None, method = None,
-                 transformation_type = None, initial_translation = None, load = None):
+                 transformation_type = None, initial_transformation = None, load = None):
 
         self.source_name = 'source'
         self.source = source #source=donor=left side image
@@ -26,7 +26,7 @@ class Mapping2:
         self.destination = destination #destination=acceptor=right side image
         self.method = method
         self.transformation_type = transformation_type
-        self.initial_translation = initial_translation
+        self.initial_transformation = initial_transformation
         self.transformation = None
         self.transformation_inverse = None
 
@@ -76,7 +76,7 @@ class Mapping2:
         print(self.transformation_type)
         if self.method == 'icp': #icp should be default
             self.transformation, distances, iterations, self.transformation_inverse = \
-                icp(self.source, self.destination, initial_translation=self.initial_translation,
+                icp(self.source, self.destination, initial_transformation=self.initial_transformation,
                     transformation_type=self.transformation_type)
         else: print('Method not found')
 
