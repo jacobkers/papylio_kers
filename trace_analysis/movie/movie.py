@@ -300,7 +300,7 @@ class Movie:
                 image = np.maximum(image, frame)
             self._maximum_projection_image = image
             if write:
-                self.write_image(image, '_.tif')
+                self.write_image(image, '_max.tif')
 
         return image
 
@@ -361,7 +361,7 @@ class Movie:
         if '.tif' not in extension:
             'Only tif export is supported (at the moment)'
 
-        tif_filepath = self.writepath.joinpath(self.name + 'extension').with_suffix('.tif')
+        tif_filepath = self.writepath.joinpath(self.name + extension).with_suffix('.tif')
         if self.bitdepth == 16:
             TIFF.imwrite(tif_filepath, np.uint16(image))
         elif self.bitdepth == 8:
