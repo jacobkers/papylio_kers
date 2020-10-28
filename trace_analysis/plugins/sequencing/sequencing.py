@@ -35,7 +35,7 @@ class Experiment:
         self.geometric_hash_data = geometric_hash(tile_coordinate_sets, maximum_distance_tile, tuple_size)
 
     def generate_mapping_hashtable3(self, mapping_sequence, number_of_allowed_mismatches,
-                                    imaged_surface=None, maximum_distance_tile=None, tuple_size=None):
+                                    imaged_surface=None, initial_file_transformation=None, maximum_distance_tile=None, tuple_size=None):
 
         # TODO: Add timer to generate_mapping_hashtable and find_sequences methods, by making a decorator function. [IS: 10-08-2020]
 
@@ -48,12 +48,12 @@ class Experiment:
 
         tile_coordinate_sets = [tile.coordinates for tile in self.sequencing_data_for_mapping.tiles]
 
-        initial_magnification = np.array([3.67058194, -3.67058194])
-        initial_rotation = 0.6285672733195177  # degrees
-        initial_file_transformation = AffineTransform(matrix=None, scale=initial_magnification,
-                                                        rotation=initial_rotation/360*np.pi*2,
-                                                        shear=None, translation=None)
-        self.geometric_hashtable = GeometricHashTable(tile_coordinate_sets[0],
+        # initial_magnification = np.array([3.67058194, -3.67058194])
+        # initial_rotation = 0.6285672733195177  # degrees
+        # initial_file_transformation = AffineTransform(matrix=None, scale=initial_magnification,
+        #                                                 rotation=initial_rotation/360*np.pi*2,
+        #                                                 shear=None, translation=None)
+        self.geometric_hashtable = GeometricHashTable(tile_coordinate_sets,
                                                       source_vertices=self.files[0].movie.channel_vertices('r'),
                                                       initial_source_transformation=initial_file_transformation)
 
@@ -246,12 +246,12 @@ class File:
             self.export_sequencing_match()
             #self.get_all_sequences_from_sequencing_data()
 
-    def find_sequences3(self, alpha=0.9, sigma=10, K_threshold=10e2, nearest_neighbour_match_distance_threshold=25):
+    def find_sequences3(self, distance=15, alpha=0.9, sigma=10, K_threshold=10e2, nearest_neighbour_match_distance_threshold=25):
 
-        match = self.experiment.geometric_hashtable.query(self.coordinates, alpha, sigma, K_threshold)
+        match = self.experiment.geometric_hashtable.query(self.coordinates, distance, alpha, sigma, K_threshold)
 
         if match:
-            match.destination_index = 0
+            # match.destination_index = 0
             match.tile = self.experiment.sequencing_data_for_mapping.tiles[match.destination_index].number
 
             # TODO: Base this on some better criteria
@@ -265,10 +265,10 @@ class File:
         coordinate_bounds_file = self.movie.channel_boundaries('a')
         coordinate_bounds_tile = self.sequencing_match.transform_coordinates(coordinate_bounds_file)
 
-        self.sequencing_tile = self.experiment.sequencing_data_for_mapping.tiles[self.sequencing_match.destination_index]
+        sequencing_tile = self.experiment.sequencing_data_for_mapping.tiles[self.sequencing_match.destination_index]
 
         self.sequencing_data = \
-            self.experiment.sequencing_data.get_selection(tile=self.sequencing_tile.number,
+            self.experiment.sequencing_data.get_selection(tile=sequencing_tile.number,
                                                           x=coordinate_bounds_tile[:, 0],
                                                           y=coordinate_bounds_tile[:, 1])
 
