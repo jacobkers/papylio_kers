@@ -11,8 +11,12 @@ from skimage.transform import AffineTransform
 import time
 
 
-def crop_coordinates(coordinates, vertices):
-    return coordinates[pth.Path(vertices).contains_points(coordinates)]
+def crop_coordinates(coordinates, vertices, return_indices=False):
+    indices = pth.Path(vertices).contains_points(coordinates)
+    if not return_indices:
+        return coordinates[indices]
+    else:
+        return indices, coordinates[indices]
 
     # bounds.sort(axis=0)
     # selection = (coordinates[:, 0] > bounds[0, 0]) & (coordinates[:, 0] < bounds[1, 0]) & \
