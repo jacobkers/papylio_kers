@@ -122,6 +122,11 @@ class Mapping2:
         # axis.scatter(destination_from_source[source_indices, 0], destination_from_source[source_indices, 1], c='g')
         # axis.scatter(new_destination_from_source[source_indices, 0], new_destination_from_source[source_indices, 1], c='b')
 
+    def number_of_matched_points(self, distance_threshold):
+        distances, source_indices, destination_indices = nearest_neighbor_pair(self.transform_source_to_destination,
+                                                                               self.destination)
+        return np.sum(distances<distance_threshold)
+
     def show_mapping_transformation(self, figure=None):
         if not figure: figure = plt.figure()
 
