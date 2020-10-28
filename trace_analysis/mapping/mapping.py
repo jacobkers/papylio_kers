@@ -60,7 +60,7 @@ class Mapping2:
 
     @property
     def reflection(self):
-        return ~(np.sign(self.transformation[0, 0]) == np.sign(self.transformation[1, 1]))
+        return np.array([np.sign(self.transformation[0, 0]), np.sign(self.transformation[1, 1])])
 
     @property
     def transform_source_to_destination(self): 
