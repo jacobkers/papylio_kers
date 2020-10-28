@@ -130,6 +130,6 @@ def plot_sequencing_match(match, write_path, title, filename, unit = 'um', MiSeq
     if save:
         n = filename.replace('\\', '_')
         fig.savefig(write_path.joinpath(n + '.pdf'), bbox_inches='tight')
-        fig.savefig(write_path.joinpath(n + '.png'), bbox_inches='tight', dpi=1000)
+        fig.savefig(write_path.joinpath(n + '.png'), bbox_inches='tight', dpi=250)
 
     return ax1, ax2
