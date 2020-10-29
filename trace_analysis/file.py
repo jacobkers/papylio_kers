@@ -599,7 +599,11 @@ class File(A):
         channel = configuration['channel']  # Default was 'all'
         gaussian_width = configuration['gaussian_width']  # Default was 11
 
-        self.traces = extract_traces(self.movie, self.coordinates, channel=channel, gauss_width = gaussian_width)
+        traces = extract_traces(self.movie, self.coordinates, channel=channel, gauss_width = gaussian_width)
+        number_of_molecules = len(traces) // self.number_of_channels
+        traces = traces.reshape((number_of_molecules, self.number_of_channels, self.movie.number_of_frames)).swapaxes(0, 1)
+
+        self.traces = traces
         self.export_traces_file()
         if '.traces' not in self.extensions: self.extensions.append('.traces')
 

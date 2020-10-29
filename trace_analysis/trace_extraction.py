@@ -103,7 +103,4 @@ def extract_traces(movie, coordinates, channel='all', gauss_width=4):
 
     # if os.path.isfile(trace_fn):
 
-    number_of_molecules = len(traces) // movie.number_of_channels
-    traces = traces.reshape((number_of_molecules, movie.number_of_channels, movie.number_of_frames)).swapaxes(0, 1)
-
     return traces
