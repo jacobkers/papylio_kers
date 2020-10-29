@@ -192,10 +192,10 @@ class Movie:
             channel_number = self.get_channel_number(channel)
 
             channel_width = self.width // self.channel_grid[0]
-            horizontal_boundaries = [0, channel_width] + channel_width * (channel_number % self.channel_grid[0])
+            horizontal_boundaries = np.array([0, channel_width]) + channel_width * (channel_number % self.channel_grid[0])
 
             channel_height = self.height // self.channel_grid[1]
-            vertical_boundaries = [0, channel_height] + channel_height * (channel_number // self.channel_grid[0])
+            vertical_boundaries = np.array([0, channel_height]) + channel_height * (channel_number // self.channel_grid[0])
 
         return np.vstack([horizontal_boundaries, vertical_boundaries]).T
 
