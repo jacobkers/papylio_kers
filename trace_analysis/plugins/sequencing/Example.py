@@ -31,7 +31,7 @@ from trace_analysis.plotting import scatter_coordinates
 # Import experiment
 # IMPORTANT: uses only a single colour
 experiment_path = r'Path_to_experiment_folder'
-exp = ta.Experiment(experiment_path, colours=['r'])
+exp = ta.Experiment(experiment_path, channels=['r'])
 
 # Find coordinates for the files that have no molecules yet
 # (remove the if statement if you want all files to be reanalyzed)

@@ -79,9 +79,9 @@ class Molecule:
 
         axis_I.set_title(f'Molecule {self.index} /{len(self.file.molecules)}')
         if Ioff == []:
-            Ioff = [0]*len(self.file.experiment.colours)
-        for i, colour in enumerate(self.file.experiment.colours):
-            axis_I.plot(self.file.time, self.I(i, Ioff=Ioff[i]), colour)
+            Ioff = [0]*self.file.number_of_channels
+        for i, channel in enumerate(self.file.experiment.channels):
+            axis_I.plot(self.file.time, self.I(i, Ioff=Ioff[i]), channel)
 
         if len(self.file.experiment.pairs) > 0:
             axis_E = figure.add_subplot(212, sharex=axis_I)

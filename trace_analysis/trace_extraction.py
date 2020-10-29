@@ -63,8 +63,8 @@ def extract_traces(movie, coordinates, channel='all', gauss_width=4):
     #      with open(traces_fn, 'r') as infile:
     #          Nframes = np.fromfile(infile, dtype = np.int32, count = 1).item()
     #          Ntraces = np.fromfile(infile, dtype = np.int16, count = 1).item()
-    #          rawData = np.fromfile(infile, dtype = np.int16, count = self.number_of_colours*Nframes * Ntraces)
-    #      orderedData = np.reshape(rawData.ravel(), (self.number_of_colours, Ntraces//self.number_of_colours, Nframes), order = 'F')
+    #          rawData = np.fromfile(infile, dtype = np.int16, count = self.number_of_channels*Nframes * Ntraces)
+    #      orderedData = np.reshape(rawData.ravel(), (self.number_of_channels, Ntraces//self.number_of_channels, Nframes), order = 'F')
     #      donor=orderedData[0,:,:]
     #      acceptor=orderedData[1,:,:]
     #      donor=np.transpose(donor)
@@ -103,7 +103,7 @@ def extract_traces(movie, coordinates, channel='all', gauss_width=4):
 
     # if os.path.isfile(trace_fn):
 
-    number_of_molecules = len(traces) // movie.number_of_colours
-    traces = traces.reshape((number_of_molecules, movie.number_of_colours, movie.number_of_frames)).swapaxes(0, 1)
+    number_of_molecules = len(traces) // movie.number_of_channels
+    traces = traces.reshape((number_of_molecules, movie.number_of_channels, movie.number_of_frames)).swapaxes(0, 1)
 
     return traces

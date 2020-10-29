@@ -33,7 +33,6 @@ class Movie:
         self._average_image = None
         self._maximum_projection_image = None
         self.is_mapping_movie = False
-        self.number_of_colours = 2
 
         self.channels = [['green', 'g', 'donor', 'd'],
                          ['red', 'r', 'acceptor', 'a']]

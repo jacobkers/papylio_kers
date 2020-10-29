@@ -129,8 +129,8 @@ class File(A):
             raise ValueError('Requested number of molecules differs from existing number of molecules')
 
     @property
-    def number_of_colours(self):
-        return self.experiment.Ncolours
+    def number_of_channels(self):
+        return self.experiment.number_of_channels
 
     @property
     def selectedMolecules(self):
@@ -174,13 +174,13 @@ class File(A):
         #     return None
 
     @coordinates.setter
-    def coordinates(self, coordinates, number_of_colours = None):
-        if number_of_colours is None:
-            number_of_colours = self.number_of_colours
-        self.number_of_molecules = np.shape(coordinates)[0]//number_of_colours
+    def coordinates(self, coordinates, number_of_channels = None):
+        if number_of_channels is None:
+            number_of_channels = self.number_of_channels
+        self.number_of_molecules = np.shape(coordinates)[0]//number_of_channels
 
         for i, molecule in enumerate(self.molecules):
-            molecule.coordinates = coordinates[(i * number_of_colours):((i + 1) * number_of_colours), :]
+            molecule.coordinates = coordinates[(i * number_of_channels):((i + 1) * number_of_channels), :]
 
     def coordinates_from_channel(self, channel):
         # if not self._pks_file:
@@ -207,7 +207,7 @@ class File(A):
     def traces(self, traces):
         for i, molecule in enumerate(self.molecules):
             molecule.intensity = traces[:, i, :] # 3d array of traces
-            # molecule.intensity = traces[(i * self.number_of_colours):((i + 1) * self.number_of_colours), :] # 2d array of traces
+            # molecule.intensity = traces[(i * self.number_of_channels):((i + 1) * self.number_of_channels), :] # 2d array of traces
         self.number_of_frames = traces.shape[2]
 
     def findAndAddExtensions(self):
@@ -245,19 +245,19 @@ class File(A):
     def import_sifx_file(self):
         imageFilePath = self.absoluteFilePath.joinpath('Spooled files.sifx')
         self.movie = SifxMovie(imageFilePath)
-        self.movie.number_of_colours = self.experiment.Ncolours
+        self.movie.number_of_channels = self.experiment.number_of_channels
         self.number_of_frames = self.movie.number_of_frames
 
     def import_pma_file(self):
         imageFilePath = self.absoluteFilePath.with_suffix('.pma')
         self.movie = PmaMovie(imageFilePath)
-        self.movie.number_of_colours = self.experiment.Ncolours
+        self.movie.number_of_channels = self.experiment.number_of_channels
         self.number_of_frames = self.movie.number_of_frames
 
     def import_tif_file(self):
         imageFilePath = self.absoluteFilePath.with_suffix('.tif')
         self.movie = TifMovie(imageFilePath)
-        self.movie.number_of_colours = self.experiment.Ncolours
+        self.movie.number_of_channels = self.experiment.number_of_channels
         self.number_of_frames = self.movie.number_of_frames
 
     def import_average_tif_file(self):
@@ -547,10 +547,10 @@ class File(A):
         with traces_filepath.open('r') as traces_file:
             self.number_of_frames = np.fromfile(traces_file, dtype=np.int32, count=1).item()
             number_of_traces = np.fromfile(traces_file, dtype=np.int16, count=1).item()
-            self.number_of_molecules = number_of_traces // self.number_of_colours
+            self.number_of_molecules = number_of_traces // self.number_of_channels
             rawData = np.fromfile(traces_file, dtype=np.int16, count=self.number_of_frames * number_of_traces)
-        self.traces = np.reshape(rawData.ravel(), (self.number_of_colours, self.number_of_molecules, self.number_of_frames), order='F')  # 3d array of traces
-        #self.traces = np.reshape(rawData.ravel(), (self.number_of_colours * self.number_of_molecules, self.number_of_frames), order='F') # 2d array of traces
+        self.traces = np.reshape(rawData.ravel(), (self.number_of_channels, self.number_of_molecules, self.number_of_frames), order='F')  # 3d array of traces
+        #self.traces = np.reshape(rawData.ravel(), (self.number_of_channels * self.number_of_molecules, self.number_of_frames), order='F') # 2d array of traces
 
     def import_excel_file(self, filename=None):
         if filename is None:
@@ -609,8 +609,8 @@ class File(A):
             np.array([self.traces.shape[2]], dtype=np.int32).tofile(traces_file)
             np.array([self.traces.shape[0]*self.traces.shape[1]], dtype=np.int16).tofile(traces_file)
             # time_tr = np.zeros((self.number_of_frames, 2 * self.pts_number))
-            # Ncolours=2
-            # for jj in range(2*self.pts_number//Ncolours):
+            # number_of_channels=2
+            # for jj in range(2*self.pts_number//number_of_channels):
             #     time_tr[:,jj*2] = donor[:,jj]
             #     time_tr[:,jj*2+1]=  acceptor[:,jj]
             np.array(self.traces.T, dtype=np.int16).tofile(traces_file)
@@ -826,8 +826,8 @@ class File(A):
                 annotation = axis.annotate("", xy=(0, 1.03), xycoords=axis.transAxes) # x in data units, y in axes fraction
                 annotation.set_visible(False)
 
-                indices = np.repeat(np.arange(0, self.number_of_molecules), self.number_of_colours)
-                sequences = np.repeat(self.sequences, self.number_of_colours)
+                indices = np.repeat(np.arange(0, self.number_of_molecules), self.number_of_channels)
+                sequences = np.repeat(self.sequences, self.number_of_channels)
 
                 def update_annotation(ind):
                     if hasattr(self, 'sequences'):
