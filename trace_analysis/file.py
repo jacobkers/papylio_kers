@@ -245,19 +245,19 @@ class File(A):
     def import_sifx_file(self):
         imageFilePath = self.absoluteFilePath.joinpath('Spooled files.sifx')
         self.movie = SifxMovie(imageFilePath)
-        self.movie.number_of_channels = self.experiment.number_of_channels
+        # self.movie.number_of_channels = self.experiment.number_of_channels
         self.number_of_frames = self.movie.number_of_frames
 
     def import_pma_file(self):
         imageFilePath = self.absoluteFilePath.with_suffix('.pma')
         self.movie = PmaMovie(imageFilePath)
-        self.movie.number_of_channels = self.experiment.number_of_channels
+        # self.movie.number_of_channels = self.experiment.number_of_channels
         self.number_of_frames = self.movie.number_of_frames
 
     def import_tif_file(self):
         imageFilePath = self.absoluteFilePath.with_suffix('.tif')
         self.movie = TifMovie(imageFilePath)
-        self.movie.number_of_channels = self.experiment.number_of_channels
+        # self.movie.number_of_channels = self.experiment.number_of_channels
         self.number_of_frames = self.movie.number_of_frames
 
     def import_average_tif_file(self):
@@ -510,8 +510,9 @@ class File(A):
 
             # Map coordinates to main channel in movie
             # TODO: make this usable for any number of channels
-            coordinate_sets[i] = transform(coordinate_sets[i], translation=self.movie.channel_boundaries(channels[i])[:, 0])
-            if channels[i] in ['a', 'acceptor']:
+            coordinate_sets[i] = transform(coordinate_sets[i], translation=self.movie.channel_boundaries(channels[i])[0])
+            # if channels[i] in ['a', 'acceptor']:
+            if i > 0: #i.e. if channel is not main channel
                 coordinate_sets[i] = self.mapping.transform_coordinates(coordinate_sets[i],
                                                                         direction='destination2source')
 
@@ -525,10 +526,15 @@ class File(A):
             #  by finding the points close to each other
             coordinates = combine_coordinate_sets(coordinate_sets, method='and')  # the old detect_FRET_pairs
 
-        # TODO: make this usable for any number of channels
-        donor_coordinates = coordinates
-        acceptor_coordinates = self.mapping.transform_coordinates(coordinates, direction='source2destination')
-        coordinates = np.hstack([donor_coordinates, acceptor_coordinates]).reshape((-1, 2))
+        # TODO: make this usable for more than two channels
+        coordinates_in_main_channel = coordinates
+        coordinates_list = [coordinates]
+        for channel in channels[1:]:
+            if self.number_of_channels > 2:
+                raise NotImplementedError()
+            coordinates_in_other_channel = self.mapping.transform_coordinates(coordinates_in_main_channel, direction='source2destination')
+            coordinates_list.append(coordinates_in_other_channel)
+        coordinates = np.hstack(coordinates_list).reshape((-1, 2))
 
         # --- finally, we set the coordinates of the molecules ---
         self.molecules = [] # Should we put this here?
