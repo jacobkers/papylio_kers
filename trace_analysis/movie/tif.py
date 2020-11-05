@@ -85,14 +85,15 @@ class TifMovie(Movie):
             ## hdim,vdim=tif.pages[0].shape
 
             try:
-                pixel_size_x = tif.metaseries_metadata['PlaneInfo']['spatial-calibration-x']
-                pixel_size_y = tif.metaseries_metadata['PlaneInfo']['spatial-calibration-y']
-                self.pixel_size = np.array([pixel_size_x, pixel_size_y])
-                self.pixel_size_unit = tif.metaseries_metadata['PlaneInfo']['spatial-calibration-units']
-                stage_position_x = tif.metaseries_metadata['PlaneInfo']['stage-position-x']
-                stage_position_y = tif.metaseries_metadata['PlaneInfo']['stage-position-y']
-                self.stage_coordinates = np.array([[stage_position_x, stage_position_y]])
-                self.stage_coordinates_in_pixels = self.stage_coordinates / self.pixel_size
+                if tif.metaseries_metadata:
+                    pixel_size_x = tif.metaseries_metadata['PlaneInfo']['spatial-calibration-x']
+                    pixel_size_y = tif.metaseries_metadata['PlaneInfo']['spatial-calibration-y']
+                    self.pixel_size = np.array([pixel_size_x, pixel_size_y])
+                    self.pixel_size_unit = tif.metaseries_metadata['PlaneInfo']['spatial-calibration-units']
+                    stage_position_x = tif.metaseries_metadata['PlaneInfo']['stage-position-x']
+                    stage_position_y = tif.metaseries_metadata['PlaneInfo']['stage-position-y']
+                    self.stage_coordinates = np.array([[stage_position_x, stage_position_y]])
+                    self.stage_coordinates_in_pixels = self.stage_coordinates / self.pixel_size
 
             except AttributeError:
                 pass
