@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
-
+from scipy.spatial import cKDTree
 
 def coordinates_within_margin(coordinates,  image = None, bounds = None, margin=10):
     if coordinates.size == 0: return np.array([])
@@ -83,6 +83,125 @@ def coordinates_after_gaussian_fit(coordinates, image, gaussian_width = 9):
        #     # MD: leave this print out? 
        #    print('RuntimeError: No 2dGaussian fit possible')
     return np.array(new_coordinates)
+
+
+def merge_nearby_coordinates(coordinates, distance_threshold=2, plot=False):
+    """Merge nearby coordinates to a single coordinate
+
+    Coordinates are stored in a KD-tree.
+    Each pair of points with a distance smaller than the distance threshold is obtained
+    Pairs are chained to obtain groups of points
+    For each group find the center coordinate and use that as a new coordinate
+    (do this only if each member of the group is within the distance threshold from the center coordinate).
+    Add individual points to the new coordinate list, i.e. points that do not have other points within the distance threshold.
+
+    Parameters
+    ----------
+    coordinates : numpy.ndarray of ints or floats OR set of tuples
+        Array with each row a set of coordinates
+    distance_threshold : int or float
+        Points closer than this distance are considered belonging to the same molecule.
+    plot : bool
+        If True shows a scatter plot of the coordinates and the new coordinates on top. (Only for 2D coordinates)
+
+    Returns
+    -------
+    new_coordinates : numpy.ndarray of floats
+        Coordinate array after merging nearby coordinates
+
+    """
+
+    # Convert to numpy array in case the coordinates are given as a set of tuples
+    coordinates = array_from_set_of_tuples(coordinates)
+
+    # Put coordinates in KD-tree for fast nearest-neighbour finding
+    coordinates_KDTree = cKDTree(coordinates)
+
+    # Determine pairs of points closer than the distance_threshold
+    close_pairs = coordinates_KDTree.query_pairs(r=distance_threshold)
+    close_pairs = [set(pair) for pair in close_pairs] # Convert to list of sets
+
+    # Chain the pairs to obtain groups (or clusters) of points
+    groups_of_points = combine_overlapping_sets(close_pairs)
+
+    # Calculate the new coordinates by taking the center of all the neighbouring points.
+    # A threshold for the total group is applied, i.e. all points must lie within the distance_threshold
+    # from the center coordinate.
+    new_coordinates = []
+    for group in groups_of_points:
+        group_coordinates = coordinates[list(group)]
+        center_coordinate = np.mean(group_coordinates, axis=0)
+        distances_to_center = np.sqrt(np.sum((group_coordinates-center_coordinate)**2, axis=1))
+        if not (np.max(distances_to_center) > distance_threshold): # This could be another threshold
+            new_coordinates.append(center_coordinate)
+
+    # Obtain individual points, i.e. those that do not have another point within the distance_threshold.
+    # This is done by taking the difference from all points and the ones that are present in any of the groups.
+    all_points_in_groups = set(point for group in groups_of_points for point in group)
+    all_points = set(range(len(coordinates)))
+    individual_points = all_points.difference(all_points_in_groups)
+
+    # Add individual points to new_coordinates list
+    for point in individual_points:
+        new_coordinates.append(coordinates[point])
+
+    # Convert to numpy array
+    new_coordinates = np.array(new_coordinates)
+
+    if plot:
+        axis = plt.figure().gca()
+        axis.scatter(coordinates[:,0],coordinates[:,1])
+        axis.scatter(new_coordinates[:,0],new_coordinates[:,1])
+
+    return new_coordinates
+
+
+def combine_overlapping_sets(old_list_of_sets):
+    """ Combine sets that have overlap
+
+    Go through each set, if it has overlap with one of the sets in the new list of sets, then combine it with this set
+    If there is no overlap, append the set to the new list of sets.
+    Perform this function recursively until the new_list_of_sets does not change anymore.
+
+    Parameters
+    ----------
+    old_list_of_sets : list of sets
+        List of sets of which overlapping ones should be combined
+
+    Returns
+    -------
+    new_list_of_sets : list of sets
+        Combined list of sets
+
+    """
+
+    # test_set1 = [set((1,2)),set((3,4)),set((5,2)),set((5,6)),set((4,10))]
+    # test_set2 = [set((1,2)),set((3,4)),set((2,3)),set((5,6)),set((4,10))]
+
+    new_list_of_sets = []
+    for old_set in old_list_of_sets:
+        append = True
+        for new_set in new_list_of_sets:
+            if not (old_set.isdisjoint(new_set)):
+                new_set.update(old_set)
+                append = False
+        if append:
+            new_list_of_sets.append(old_set.copy())
+
+    if not (new_list_of_sets == old_list_of_sets):
+        new_list_of_sets = combine_overlapping_sets(new_list_of_sets)
+
+    return new_list_of_sets
+
+
+def set_of_tuples_from_array(array):
+    return set([tuple(a) for a in array])
+
+
+def array_from_set_of_tuples(set_of_tuples):
+    return np.array([t for t in set_of_tuples])
+
+
 
 if __name__ == '__main__':
     from trace_analysis import Experiment

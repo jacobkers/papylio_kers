@@ -4,8 +4,13 @@ show_movie:
     image: average_image
     annotate: False
 find_coordinates:
-    channel: d
-    image: average_image
+    channels:
+        - donor
+    projection_image_type: average # average or maximum
+    method: by_channel # by_channel or overlay
+    window_size: 20
+    use_sliding_window: False
+    minimal_point_separation: 2
     peak_finding:
         method: local-maximum
         minimum_intensity_difference: 10
@@ -21,6 +26,7 @@ find_coordinates:
             fraction_of_peak_max: 0.25
 mapping:
     transformation_type: nonlinear
+    initial_translation: 'width/2' # Or e.g. [1024,0]
     peak_finding:
         donor:
             method: local-maximum

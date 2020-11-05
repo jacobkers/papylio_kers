@@ -85,25 +85,49 @@ def plot(dwells, name, dist='offtime', trace='red', binsize='auto', scale='log',
 
     try:
         bsize = float(binsize)
-        bin_edges = np.arange(min(dwells), max(dwells) + bsize, bsize)
+        if scale == 'Log-Log':
+            bin_edges = 10**(np.arange(np.log10(min(dwells)), np.log10(max(dwells)) + bsize, bsize))
+        else:
+            bin_edges = np.arange(min(dwells), max(dwells) + bsize, bsize)
     except ValueError:
         if binsize == 'Auto':
             binsize = 'auto'
         bin_edges = binsize
     values, bins = np.histogram(dwells, bins=bin_edges, density=True)
-    centers = (bins[1:] + bins[:-1]) / 2.0
-    fig = plt.figure(f'Histogram {trace} {dist}s {name}', figsize=(4,3), dpi=200)
+
+    # Determine position of bins
+    if scale == 'Log-Log':
+        centers = (bins[1:] * bins[:-1])**0.5  # geometric average of bin edges
+    else:
+        centers = (bins[1:] + bins[:-1]) / 2.0
+
+    # combine bins until they contain at least one data point (for y-log plots)
+    if scale in ['Log', 'Log-Log']:
+        izeros = np.where(values == 0)[0]
+        print('izeros', izeros)
+        j = 0
+        while j < len(izeros):
+            i = j
+            j += 1
+            while j < len(izeros) and izeros[j] - izeros[j-1] == 1:
+                j += 1
+            # print('jstart ', izeros[i])
+            # print('jend ', izeros[i]+(j-i))
+            # print('values ', values[izeros[i]:(izeros[i]+j-i+1)])
+            # print('mean value', np.sum(values[izeros[i]:(izeros[i]+j-i+1)])/(j-i+1))
+            values[izeros[i]:(izeros[i]+j-i+1)] = np.sum(values[izeros[i]:(izeros[i]+j-i+1)])/(j-i+1)
+
+    fig = plt.figure(f'Histogram {trace} {dist}s {name}', figsize=(4, 3), dpi=200)
 
     if color == 'from_trace':
         if dist == 'offtime':
-            color = 'r'*(trace=='red') + 'g'*(trace=='green') + \
-                    'b'*(trace=='FRET') + 'sandybrown'*(trace=='total')
+            color = 'r'*(trace == 'red') + 'g'*(trace == 'green') + \
+                    'b'*(trace == 'FRET') + 'sandybrown'*(trace == 'total')
         if dist == 'ontime':
-            color = 'firebrick'*(trace=='red') + 'olive'*(trace=='green') + \
-                    'darkviolet'*(trace=='FRET') + 'saddlebrown'*(trace=='total')
+            color = 'firebrick'*(trace == 'red') + 'olive'*(trace == 'green') + \
+                    'darkviolet'*(trace == ' FRET') + 'saddlebrown'*(trace == 'total')
     label = f'{dist} pdf, N={dwells.size}'
     if style == 'dots':
-
         plt.plot(centers, values, '.', color=color, label=label)
     if style == 'bars':
         plt.bar(centers, values, color=color, label=label,
@@ -119,8 +143,10 @@ def plot(dwells, name, dist='offtime', trace='red', binsize='auto', scale='log',
             print(f'plotting 1Exp fit')
             time, fit = common_PDF.Exp1(tau,
                                         Tmax=centers[-1]+(bins[1]-bins[0])/2)
-            label = f'tau={tau:.1f} $\pm$ {error:.1f}'
-            plt.plot(time, fit, color='r', label=f'1expfit, Ncut={int(Ncut)} \n {label}')
+            label = f'\n tau={tau:.1f}'
+            if error != 0:
+                label += f'$\pm$ {error:.1f}'
+#            plt.plot(time, fit, color='r', label=f'1expFit, Ncut={int(Ncut)} \n {label}')
 
         elif fit_result.model[0] == '2Exp':
             p, errp = fit_result.value[0], fit_result.error[0]
@@ -130,8 +156,27 @@ def plot(dwells, name, dist='offtime', trace='red', binsize='auto', scale='log',
             print(fit_result)
             print(f'errors: ', errp, err1, err2)
             time, fit = common_PDF.Exp2(p, tau1, tau2, Tmax=centers[-1])
-            label = f'p={p:.2f}, tau1={tau1:.1f}, tau2={int(tau2)}'
-            plt.plot(time, fit, color='r', label=f'2expfit, Ncut={int(Ncut)} \n {label}')
+            label = f'\n p={p:.2f}, tau1={tau1:.1f}, tau2={int(tau2)}'
+#            plt.plot(time, fit, color='r', label=f'2expFit, Ncut={int(Ncut)} \n {label}')
+
+        elif fit_result.model[0] == '3Exp':
+            p1, errp1 = fit_result.value[0], fit_result.error[0]
+            p2, errp2 = fit_result.value[1], fit_result.error[1]
+            tau1, err1 = fit_result.value[2], fit_result.error[2]
+            tau2, err2 = fit_result.value[3], fit_result.error[3]
+            tau3, err3 = fit_result.value[4], fit_result.error[4]
+            Ncut = fit_result.Ncut[0]
+            print(fit_result)
+            print(f'errors: ', errp1, errp2, err1, err2, err3)
+            time, fit = common_PDF.Exp3(p1, p2, tau1, tau2, tau3,
+                                        Tmax=centers[-1])
+            label = f'\n p1={p1:.2f}, p2={p2:.2f}, tau1={tau1:.1f}, tau2={int(tau2)}, tau3={int(tau3)}'
+#            plt.plot(time, fit, color='r', label=f'3expFit, Ncut={int(Ncut)} \n {label}')
+
+        if fit_result.Ncut[0] > 0:
+            label = f', Ncut={int(Ncut)}' + label
+
+        plt.plot(time, fit, color='k', label=f'{fit_result.model[0]}fit{label}')
 
     if scale in ['Log', 'Log-Log']:
         plt.yscale('log')

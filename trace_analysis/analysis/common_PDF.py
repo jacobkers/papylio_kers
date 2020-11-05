@@ -18,3 +18,10 @@ def Exp2(p1, tau1, tau2, Tmax=1000):
     exp = p1/tau1*np.exp(-time/tau1)+(1-p1)/tau2*np.exp(-time/tau2)
 
     return time, exp
+
+def Exp3(p1, p2, tau1, tau2, tau3, Tmax=1000):
+    time = np.linspace(0, Tmax, 1000)
+    exp = p1/tau1*np.exp(-time/tau1)+p2/tau2*np.exp(-time/tau2) + \
+        + (1-p1-p2)/tau3*np.exp(-time/tau3)
+
+    return time, exp

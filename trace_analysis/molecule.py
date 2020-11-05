@@ -34,6 +34,7 @@ class Molecule:
     def E(self, Imin=0, Iroff=0, Igoff=0, alpha=0):
         red = np.copy(self.I(1, Ioff=Iroff))
         green = self.I(0, Ioff=Igoff)
+        np.putmask(green, green < 0, 0) # green < 0 is taken as 0
         np.putmask(red, red < Imin, 0)  # the mask makes all elements of acceptor that are below the Imin zero, for E caclulation
         E =  (red - alpha*green) / (green + red - alpha*green)
         E = np.nan_to_num(E)  # correct for divide with zero = None values
