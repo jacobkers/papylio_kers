@@ -86,13 +86,16 @@ class Mapping2:
         return self.transform_coordinates(self.source)
 
     def perform_mapping(self):
+        """Map the source points onto the destination points using one of the mapping methods
+        """
+
         print(self.transformation_type)
-        if self.method == 'icp': #icp should be default
-            # TODO: Let icp pass and return AffineTransformation or PolynomialTransformation
-            self.transformation, distances, iterations, self.transformation_inverse = \
-                icp(self.source, self.destination, initial_transformation=self.initial_transformation,
-                    transformation_type=self.transformation_type)
-            self.transformation = AffineTransform(self.transformation)
+        if self.method in ['icp', 'iterative_closest_point']: #icp should be default
+            self.iterative_closest_point()
+        elif self.method in ['direct']:
+            self.direct_match()
+        elif self.method in ['nearest_neighbor_match']:
+            self.nearest_neighbour_match()
         else: print('Method not found')
 
     def direct_match(self, transformation_type=None):
@@ -165,6 +168,13 @@ class Mapping2:
         # axis.scatter(self.destination[destination_indices, 0], self.destination[destination_indices, 1], c='r')
         # axis.scatter(destination_from_source[source_indices, 0], destination_from_source[source_indices, 1], c='g')
         # axis.scatter(new_destination_from_source[source_indices, 0], new_destination_from_source[source_indices, 1], c='b')
+
+    def iterative_closest_point(self):
+        # TODO: Let icp pass and return AffineTransformation or PolynomialTransformation
+        self.transformation, distances, iterations, self.transformation_inverse = \
+            icp(self.source, self.destination, initial_transformation=self.initial_transformation,
+                transformation_type=self.transformation_type)
+        self.transformation = AffineTransform(self.transformation)
 
     def number_of_matched_points(self, distance_threshold):
         distances, source_indices, destination_indices = nearest_neighbor_pair(self.transform_source_to_destination,
