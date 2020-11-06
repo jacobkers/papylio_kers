@@ -57,23 +57,29 @@ class Mapping2:
                     self.transformation = transformation
                     self.transformation_inverse = transformation_inverse
 
-    @property
-    def translation(self):
-        return self.transformation[0:2,2]
+    def __getattr__(self, item):
+        if hasattr(self.transformation, item):
+            return(getattr(self.transformation, item))
+        else:
+            super().__getattribute__(item)
 
-    @property
-    def magnification(self):
-        return np.linalg.norm(self.transformation[:,0:2],axis=0)
-
-    @property
-    def rotation(self):
-        # rotation_matrix = self.transformation[0:2, 0:2]/self.magnification[0]
-        # return np.arctan2(rotation_matrix[0,1]-rotation_matrix[1,0],rotation_matrix[0,0]+rotation_matrix[1,1])/(2*np.pi)*360
-        return np.arctan2(self.transformation[0, 1], self.transformation[0, 0]) / (2 * np.pi) * 360
-
-    @property
-    def reflection(self):
-        return np.array([np.sign(self.transformation[0, 0]), np.sign(self.transformation[1, 1])])
+    # @property
+    # def translation(self):
+    #     return self.transformation[0:2,2]
+    #
+    # @property
+    # def magnification(self):
+    #     return np.linalg.norm(self.transformation[:,0:2],axis=0)
+    #
+    # @property
+    # def rotation(self):
+    #     # rotation_matrix = self.transformation[0:2, 0:2]/self.magnification[0]
+    #     # return np.arctan2(rotation_matrix[0,1]-rotation_matrix[1,0],rotation_matrix[0,0]+rotation_matrix[1,1])/(2*np.pi)*360
+    #     return np.arctan2(self.transformation[0, 1], self.transformation[0, 0]) / (2 * np.pi) * 360
+    #
+    # @property
+    # def reflection(self):
+    #     return np.array([np.sign(self.transformation[0, 0]), np.sign(self.transformation[1, 1])])
 
     @property
     def transform_source_to_destination(self): 
@@ -174,13 +180,7 @@ class Mapping2:
 
         if show_source:
             axis.scatter(self.source[:, 0], self.source[:, 1], facecolors='forestgreen', edgecolors='none', marker='.')
-
-        # axis.scatter(destination_from_source[:, 0], destination_from_source[:, 1],
-        #              facecolors='limegreen', edgecolors='limegreen', linewidth=3)
-        #axis.scatter(destination_from_source[:, 0], destination_from_source[:, 1], facecolors='none', edgecolors='r', linewidth=1, marker='o')
-
         axis.scatter(self.destination[:, 0], self.destination[:, 1], facecolors='none', edgecolors='forestgreen', linewidth=1, marker='o')
-
         axis.scatter(destination_from_source[:, 0], destination_from_source[:, 1], facecolors='r', edgecolors='none', marker='.')
 
     def transform_coordinates(self, coordinates, inverse=False, direction=None):
@@ -257,3 +257,5 @@ if __name__ == "__main__":
     # # Pt,Qt = translate([100,200])
     # new_coordinates = polywarp_apply(Pt, Qt, coordinates)
     # plt.scatter(new_coordinates[:, 0], new_coordinates[:, 1], facecolors='none', edgecolors='r')
+
+    mapping.test
