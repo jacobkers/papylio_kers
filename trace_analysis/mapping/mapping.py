@@ -10,12 +10,14 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 import yaml
 import skimage.transform
-from skimage.transform import PolynomialTransform
+from skimage.transform import AffineTransform, PolynomialTransform
 
 from trace_analysis.mapping.icp import icp, nearest_neighbor_pair
 
 from trace_analysis.coordinate_transformations import transform
 from trace_analysis.image_adapt.polywarp import polywarp, polywarp_apply #required for nonlinear
+
+
 
 class Mapping2:
     def __init__(self, source = None, destination = None, method = None,
@@ -44,6 +46,16 @@ class Mapping2:
                         if type(value) == list:
                             value = np.array(value)
                         setattr(self, key, value)
+                if self.transformation_type == 'linear':
+                    self.transformation = AffineTransform(self.transformation)
+                    self.transformation_inverse = AffineTransform(self.transformation_inverse)
+                elif self.transformation_type == 'polynomial':
+                    transformation = PolynomialTransform()
+                    transformation.params = self.transformation
+                    transformation_inverse = PolynomialTransform()
+                    transformation_inverse.params = self.transformation_inverse
+                    self.transformation = transformation
+                    self.transformation_inverse = transformation_inverse
 
     @property
     def translation(self):
@@ -67,18 +79,14 @@ class Mapping2:
     def transform_source_to_destination(self): 
         return self.transform_coordinates(self.source)
 
-    def calculate_inverse_transformation(self):
-        if self.transformation_type == 'linear':
-            self.transformation_inverse = np.linalg.inv(self.transformation)
-        else:
-            raise RuntimeError('Inverse transformation cannot be determined. Transformation type must be linear')
-
     def perform_mapping(self):
         print(self.transformation_type)
         if self.method == 'icp': #icp should be default
+            # TODO: Let icp pass and return AffineTransformation or PolynomialTransformation
             self.transformation, distances, iterations, self.transformation_inverse = \
                 icp(self.source, self.destination, initial_transformation=self.initial_transformation,
                     transformation_type=self.transformation_type)
+            self.transformation = AffineTransform(self.transformation)
         else: print('Method not found')
 
     def direct_match(self, transformation_type=None):
@@ -91,8 +99,8 @@ class Mapping2:
             source = np.hstack([self.source, np.ones((len(self.source), 1))])
             destination = np.hstack([self.destination, np.ones((len(self.destination), 1))])
             T, res, rank, s = np.linalg.lstsq(source, destination, rcond=None)
-            self.transformation = T.T
-            self.calculate_inverse_transformation()
+            self.transformation = AffineTransform(T.T)
+            self.transformation_inverse = AffineTransform(self.transformation._inv_matrix)
         elif transformation_type=='nonlinear':
             kx, ky = polywarp(self.destination, self.source)
             kx_inv, ky_inv = polywarp(self.source, self.destination)
@@ -126,8 +134,8 @@ class Mapping2:
             # transformation = T.T
             #
             # self.transformation = transformation @ self.transformation
-            self.transformation = T.T
-            self.calculate_inverse_transformation()
+            self.transformation = AffineTransform(T.T)
+            self.transformation_inverse = AffineTransform(self.transformation._inv_matrix)
 
         elif transformation_type == 'nonlinear':
             kx, ky = polywarp(destination_points_for_matching[:, 0:2], source_points_for_matching[:, 0:2])
@@ -157,16 +165,23 @@ class Mapping2:
                                                                                self.destination)
         return np.sum(distances<distance_threshold)
 
-    def show_mapping_transformation(self, figure=None):
+    def show_mapping_transformation(self, figure=None, show_source=False):
         if not figure: figure = plt.figure()
 
         destination_from_source = self.transform_coordinates(self.source)
 
         axis = figure.gca()
 
-        axis.scatter(self.source[:, 0], self.source[:, 1], c='g')
-        axis.scatter(self.destination[:, 0], self.destination[:, 1], c='r')
-        axis.scatter(destination_from_source[:, 0], destination_from_source[:, 1], c='y')
+        if show_source:
+            axis.scatter(self.source[:, 0], self.source[:, 1], facecolors='forestgreen', edgecolors='none', marker='.')
+
+        # axis.scatter(destination_from_source[:, 0], destination_from_source[:, 1],
+        #              facecolors='limegreen', edgecolors='limegreen', linewidth=3)
+        #axis.scatter(destination_from_source[:, 0], destination_from_source[:, 1], facecolors='none', edgecolors='r', linewidth=1, marker='o')
+
+        axis.scatter(self.destination[:, 0], self.destination[:, 1], facecolors='none', edgecolors='forestgreen', linewidth=1, marker='o')
+
+        axis.scatter(destination_from_source[:, 0], destination_from_source[:, 1], facecolors='r', edgecolors='none', marker='.')
 
     def transform_coordinates(self, coordinates, inverse=False, direction=None):
         if direction is not None:
@@ -182,14 +197,12 @@ class Mapping2:
         else:
             current_transformation = self.transformation_inverse
 
-        if self.transformation_type == 'linear':
+        if (self.transformation_type == 'linear') or (self.transformation_type == 'polynomial'):
             # Maybe we should rename transform to linear_transform [IS 05-03-2020]
             # transform(pointSet, transformationMatrix=None, **kwargs):
-            return transform(coordinates[:, :2], current_transformation)
+            return current_transformation(coordinates)
         elif self.transformation_type == 'nonlinear':
             return polywarp_apply(current_transformation[0], current_transformation[1], coordinates)
-        elif self.transformation_type == 'polynomial':
-            return current_transformation(coordinates)
 
     def save(self, filepath, filetype='yaml'):
         filepath = Path(filepath)
@@ -219,3 +232,28 @@ class Mapping2:
 # kx, ky, distances, i = icp_nonrigid(donor,acceptor, tolerance=0.00000001, max_iterations=50)
 # acceptor_calculated = polywarp_apply(kx, ky, donor)
 
+if __name__ == "__main__":
+    import matplotlib.pyplot as plt
+    number_of_points = 40
+
+    np.random.seed(32)
+    transformation = AffineTransform(translation=[100,200], rotation=2/360*2*np.pi, scale=[1.1,1.1])
+    source = np.random.rand(number_of_points, 2) * 1000
+    destination = transformation(source)[5:]
+    source = source[:35]
+
+
+    mapping = Mapping2(source, destination, transformation_type='linear')
+    mapping.method = 'icp'
+    mapping.perform_mapping()
+
+
+
+    mapping.show_mapping_transformation()
+
+    # plt.figure()
+    # plt.scatter(coordinates[:, 0], coordinates[:, 1], c='green')
+    # plt.scatter(coordinates[:, 0]+100, coordinates[:, 1]+200, c='orange')
+    # # Pt,Qt = translate([100,200])
+    # new_coordinates = polywarp_apply(Pt, Qt, coordinates)
+    # plt.scatter(new_coordinates[:, 0], new_coordinates[:, 1], facecolors='none', edgecolors='r')
