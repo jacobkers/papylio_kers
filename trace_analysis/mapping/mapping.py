@@ -13,15 +13,58 @@ import skimage.transform
 from skimage.transform import AffineTransform, PolynomialTransform
 
 from trace_analysis.mapping.icp import icp, nearest_neighbor_pair
-
-from trace_analysis.coordinate_transformations import transform
 from trace_analysis.image_adapt.polywarp import polywarp, polywarp_apply #required for nonlinear
 
 
 
 class Mapping2:
-    def __init__(self, source = None, destination = None, method = None,
-                 transformation_type = None, initial_transformation = None, load = None):
+    """Mapping class to find, improve, store and use the mapping between a source point set and a destination point set
+
+    Attributes
+    ----------
+
+    source_name : str
+        Name of the source point set
+    source : Nx2 numpy.ndarray
+        Coordinates of the source point set
+    destination_name : str
+        Name of the destination point set
+    destination : Nx2 numpy.ndarray
+        Coordinates of the destination point set
+    method : str
+        Method for finding the transformation between source and destination. Options: 'direct', 'nearest_neighbour'
+        and 'iterative_closest_point'
+    transformation_type : str
+        Type of transformation used, linear or polynomial
+    initial_transformation : AffineTransform or PolynomialTransform
+        Initial transformation to perform as a starting point for the mapping algorithms
+    transformation : skimage.transform.AffineTransform or skimage.transform.PolynomialTransform
+        Transformation from source point set to destination point set
+    transformation_inverse : skimage.transform.AffineTransform or skimage.transform.PolynomialTransform
+        Inverse transformation, i.e. from destination point set to source point set
+
+    """
+
+    def __init__(self, source=None, destination=None, method=None,
+                 transformation_type=None, initial_transformation=None, load=None):
+        """Set passed object attributes
+
+        Parameters
+        ----------
+        source : Nx2 numpy.ndarray
+            Source coordinates
+        destination : Nx2 numpy.ndarray
+            Destination coordinates
+        method : str
+            Method for finding the transformation between source and destination. Options: 'direct', 'nearest_neighbour'
+            and 'iterative_closest_point'
+        transformation_type : str
+            Type of transformation used, linear or polynomial
+        initial_transformation : AffineTransform or PolynomialTransform
+            Initial transformation to perform as a starting point for the mapping algorithms
+        load : str or pathlib.Path
+            Path to file that has to be loaded
+        """
 
         self.source_name = 'source'
         self.source = source #source=donor=left side image
@@ -82,24 +125,48 @@ class Mapping2:
     #     return np.array([np.sign(self.transformation[0, 0]), np.sign(self.transformation[1, 1])])
 
     @property
-    def transform_source_to_destination(self): 
+    def source_to_destination(self):
+        """Nx2 numpy.ndarray : Source coordinates transformed to the destination axis"""
+
         return self.transform_coordinates(self.source)
 
-    def perform_mapping(self):
-        """Map the source points onto the destination points using one of the mapping methods
+    def perform_mapping(self, method=None):
+        """Find transformation from source to destination points using one of the mapping methods
+
+        Parameters
+        ----------
+        method : str
+            Mapping method, if not specified the object method is used.
+
         """
 
-        print(self.transformation_type)
-        if self.method in ['icp', 'iterative_closest_point']: #icp should be default
+        if method is None:
+            method = self.method
+
+        if method in ['icp', 'iterative_closest_point']: #icp should be default
             self.iterative_closest_point()
-        elif self.method in ['direct']:
+        elif method in ['direct']:
             self.direct_match()
-        elif self.method in ['nearest_neighbor_match']:
+        elif method in ['nn', 'nearest_neighbour']:
             self.nearest_neighbour_match()
-        else: print('Method not found')
+        else:
+            raise ValueError('Method not found')
+
+        self.method = method
 
     def direct_match(self, transformation_type=None):
-        if not transformation_type:
+        """Find transformation from source to destination points by matching based on the point order
+
+        Note: the number and the order of source points should be equal to the number and the order of destination points.
+
+        Parameters
+        ----------
+        transformation_type : str
+            Type of transformation used, either linear or polynomial can be chosen.
+            If not specified the object transformation_type is used.
+
+        """
+        if transformation_type is None:
             transformation_type = self.transformation_type
 
         self.transformation_type = transformation_type
@@ -122,6 +189,27 @@ class Mapping2:
             self.transformation_inverse.estimate(self.destination, self.source)
 
     def nearest_neighbour_match(self, distance_threshold=1, transformation_type=None):
+        """Find transformation from source to destination points by matching nearest neighbours
+
+        Two-way nearest neighbours are detectected, i.e. the source point should be the nearest neighbour of the
+        destination point and vice versa. Only nearest neighbours closer than the distance threshold are used to find
+        the transformation.
+
+        Note
+        ----
+        The current transformation is first applied and then the nearest neighbour match is performed, basically to
+        improve the current transformation.
+
+        Parameters
+        ----------
+        distance_threshold : float
+            Distance threshold for nearest neighbour match, i.e. nearest neighbours with a distance larger than the
+            distance threshold are not used.
+        transformation_type : str
+            Type of transformation used, either linear or polynomial can be chosen.
+            If not specified the object transformation_type is used.
+
+        """
         if not transformation_type:
             transformation_type = self.transformation_type
 
@@ -169,20 +257,68 @@ class Mapping2:
         # axis.scatter(destination_from_source[source_indices, 0], destination_from_source[source_indices, 1], c='g')
         # axis.scatter(new_destination_from_source[source_indices, 0], new_destination_from_source[source_indices, 1], c='b')
 
-    def iterative_closest_point(self):
+    def iterative_closest_point(self, **kwargs):
+        """Find transformation from source to destination points using an iterative closest point algorithm
+
+        In the iterative closest point algorithm, the two-way nearest neigbhours are found and these are used to
+        find the most optimal transformation. Subsequently the source is transformed according to this
+        transformation. This process is repeated until the changes detected are below a tolerance level.
+
+        The iterative closest point algorithm can be used in situations when deviations between the two point sets
+        are relatively small.
+
+        Parameters
+        ----------
+        max_iterations : int
+            Maximum number of iterations to perform
+        tolerance : float
+            If the mean distance between the two point sets is below this tolerance, then the convergence is assumed.
+        use_cutoff : bool or int
+            If an int is passed, then the value will be used as a distance threshold for nearest neighbour detection.
+            If use_cutoff is set to True, then the median + std of the distances will be used as threshold.
+
+        """
+
         # TODO: Let icp pass and return AffineTransformation or PolynomialTransformation
         self.transformation, distances, iterations, self.transformation_inverse = \
             icp(self.source, self.destination, initial_transformation=self.initial_transformation,
-                transformation_type=self.transformation_type)
+                transformation_type=self.transformation_type, **kwargs)
         self.transformation = AffineTransform(self.transformation)
 
     def number_of_matched_points(self, distance_threshold):
+        """Number of matched points determined by finding the two-way nearest neigbours that are closer than a distance
+        threshold.
+
+        Parameters
+        ----------
+        distance_threshold : float
+            Distance threshold for nearest neighbour match, i.e. nearest neighbours with a distance larger than the
+            distance threshold are not counted.
+
+        Returns
+        -------
+        int
+            Number of matched points
+
+        """
         distances, source_indices, destination_indices = nearest_neighbor_pair(self.transform_source_to_destination,
                                                                                self.destination)
         return np.sum(distances<distance_threshold)
 
     def show_mapping_transformation(self, figure=None, show_source=False):
-        if not figure: figure = plt.figure()
+        """Show a point scatter of the source transformed to the destination points and the destination.
+
+        Parameters
+        ----------
+        figure : matplotlib.figure.Figure
+            If figure is passed then the scatter plot will be made in the currently active axis.
+            If no figure is passed a new figure will be made.
+        show_source : bool
+            If True then the source points are also displayed
+
+        """
+        if not figure:
+            figure = plt.figure()
 
         destination_from_source = self.transform_coordinates(self.source)
 
@@ -193,7 +329,29 @@ class Mapping2:
         axis.scatter(self.destination[:, 0], self.destination[:, 1], facecolors='none', edgecolors='forestgreen', linewidth=1, marker='o')
         axis.scatter(destination_from_source[:, 0], destination_from_source[:, 1], facecolors='r', edgecolors='none', marker='.')
 
+        axis.set_aspect('equal')
+        axis.set_xlabel('x')
+        axis.set_ylabel('y')
+
     def transform_coordinates(self, coordinates, inverse=False, direction=None):
+        """Transform coordinates using the transformation
+
+        Parameters
+        ----------
+        coordinates : Nx2 numpy.ndarray
+            Coordinates to be transformed
+        inverse : bool
+            If True then the inverse transformation will be used (i.e. from destination to source)
+        direction : str
+            Another way of specifying the direction of the transformation, choose '<source_name>2<destination_name>' or
+            '<destination_name>2<source_name>'
+
+        Returns
+        -------
+        Nx2 numpy.ndarray
+            Transformed coordinates
+
+        """
         if direction is not None:
             if direction == self.source_name + '2' + self.destination_name:
                 inverse = False
@@ -215,6 +373,17 @@ class Mapping2:
             return polywarp_apply(current_transformation[0], current_transformation[1], coordinates)
 
     def save(self, filepath, filetype='yaml'):
+        """Save the current mapping in a file, so that it can be opened later.
+
+        Parameters
+        ----------
+        filepath : str or pathlib.Path
+            Path to file (including filename)
+        filetype : str
+            Choose classic to export a .coeff file for a linear transformation
+            Choose yml to export all object attributes in a yml text file
+
+        """
         filepath = Path(filepath)
         if filetype == 'classic':
             if self.transformation_type == 'linear':
@@ -243,7 +412,6 @@ class Mapping2:
 # acceptor_calculated = polywarp_apply(kx, ky, donor)
 
 if __name__ == "__main__":
-    import matplotlib.pyplot as plt
     number_of_points = 40
 
     np.random.seed(32)
@@ -252,20 +420,8 @@ if __name__ == "__main__":
     destination = transformation(source)[5:]
     source = source[:35]
 
-
     mapping = Mapping2(source, destination, transformation_type='linear')
     mapping.method = 'icp'
     mapping.perform_mapping()
 
-
-
-    mapping.show_mapping_transformation()
-
-    # plt.figure()
-    # plt.scatter(coordinates[:, 0], coordinates[:, 1], c='green')
-    # plt.scatter(coordinates[:, 0]+100, coordinates[:, 1]+200, c='orange')
-    # # Pt,Qt = translate([100,200])
-    # new_coordinates = polywarp_apply(Pt, Qt, coordinates)
-    # plt.scatter(new_coordinates[:, 0], new_coordinates[:, 1], facecolors='none', edgecolors='r')
-
-    mapping.test
+    mapping.show_mapping_transformation(show_source=True)
