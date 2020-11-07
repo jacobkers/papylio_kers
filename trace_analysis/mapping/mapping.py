@@ -15,8 +15,6 @@ from skimage.transform import AffineTransform, PolynomialTransform
 from trace_analysis.mapping.icp import icp, nearest_neighbor_pair
 from trace_analysis.image_adapt.polywarp import polywarp, polywarp_apply #required for nonlinear
 
-
-
 class Mapping2:
     """Mapping class to find, improve, store and use the mapping between a source point set and a destination point set
 
@@ -333,6 +331,32 @@ class Mapping2:
         axis.set_xlabel('x')
         axis.set_ylabel('y')
 
+    def get_transformation_direction(self, direction=None):
+        """ Get inverse parameter based on direction
+
+        Parameters
+        ----------
+        direction : str
+            Another way of specifying the direction of the transformation, choose '<source_name>2<destination_name>' or
+            '<destination_name>2<source_name>'
+
+        Returns
+        -------
+        inverse : bool
+            Specifier for the use of the forward or inverse transformation
+
+        """
+
+        if direction is not None:
+            if direction == self.source_name + '2' + self.destination_name:
+                inverse = False
+            elif direction == self.destination_name + '2' + self.source_name:
+                inverse = True
+            else:
+                raise ValueError('Wrong direction')
+
+        return inverse
+
     def transform_coordinates(self, coordinates, inverse=False, direction=None):
         """Transform coordinates using the transformation
 
@@ -353,12 +377,7 @@ class Mapping2:
 
         """
         if direction is not None:
-            if direction == self.source_name + '2' + self.destination_name:
-                inverse = False
-            elif direction == self.destination_name + '2' + self.source_name:
-                inverse = True
-            else:
-                raise ValueError('Wrong direction')
+            inverse = self.get_transformation_direction(direction)
 
         if not inverse:
             current_transformation = self.transformation
@@ -371,6 +390,40 @@ class Mapping2:
             return current_transformation(coordinates)
         elif self.transformation_type == 'nonlinear':
             return polywarp_apply(current_transformation[0], current_transformation[1], coordinates)
+
+    def transform_image(self, image, inverse=False, direction=None):
+        """Transform image using the transformation
+
+            Parameters
+            ----------
+            image : NxM numpy.ndarray
+                Image to be transformed
+            inverse : bool
+                If True then the inverse transformation will be used (i.e. from destination to source)
+            direction : str
+                Another way of specifying the direction of the transformation, choose '<source_name>2<destination_name>' or
+                '<destination_name>2<source_name>'
+
+            Returns
+            -------
+            NxM numpy.ndarray
+                Transformed image
+
+            """
+
+        if direction is not None:
+            inverse = self.get_transformation_direction(direction)
+
+        # Note that this is the opposite direction of transformation
+        if inverse:
+            current_transformation = self.transformation
+        else:
+            current_transformation = self.transformation_inverse
+
+        if (self.transformation_type == 'linear') or (self.transformation_type == 'polynomial'):
+            return skimage.transform.warp(image, current_transformation, preserve_range=True)
+        else:
+            raise NotImplementedError
 
     def save(self, filepath, filetype='yaml'):
         """Save the current mapping in a file, so that it can be opened later.
@@ -406,22 +459,31 @@ class Mapping2:
                 yaml.dump(attributes, yml_file, sort_keys=False)
 
 
-# from trace_analysis.icp_nonrigid import icp_nonrigid
-# from trace_analysis.image_adapt.polywarp import polywarp_apply
-# kx, ky, distances, i = icp_nonrigid(donor,acceptor, tolerance=0.00000001, max_iterations=50)
-# acceptor_calculated = polywarp_apply(kx, ky, donor)
-
 if __name__ == "__main__":
+    # Create test point set (with some missing points)
     number_of_points = 40
-
     np.random.seed(32)
-    transformation = AffineTransform(translation=[100,200], rotation=2/360*2*np.pi, scale=[1.1,1.1])
     source = np.random.rand(number_of_points, 2) * 1000
+    transformation = AffineTransform(translation=[50,25], rotation=2/360*2*np.pi, scale=[1.1,1.1])
     destination = transformation(source)[5:]
     source = source[:35]
 
+    # Make a mapping object, perform the mapping and show the transformation
     mapping = Mapping2(source, destination, transformation_type='linear')
     mapping.method = 'icp'
     mapping.perform_mapping()
-
     mapping.show_mapping_transformation(show_source=True)
+
+    # Create a test image
+    image = np.zeros((250,250))
+    image[100:110,:]=1
+    image[:,100:110]=1
+
+    # Transform the image
+    image_transformed = mapping.transform_image(image)
+
+    # Show the original and transformed image
+    plt.figure()
+    plt.imshow(image)
+    plt.figure()
+    plt.imshow(image_transformed)
