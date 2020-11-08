@@ -86,3 +86,28 @@ def polywarp_apply(P,Q,pts1):
      dst[:,0]=[np.sum([P[ii,jj]*pts1[kk,0]**ii * pts1[kk,1]**jj for ii in range(deg+1) for jj in range(deg+1)]) for kk in range(len(pts1))]
      dst[:,1]=[np.sum([Q[ii,jj]*pts1[kk,0]**ii * pts1[kk,1]**jj for ii in range(deg+1) for jj in range(deg+1)]) for kk in range(len(pts1))]
      return(dst)
+
+
+def translate(displacement, degree=3):
+    kx = np.zeros((degree+1, degree+1))
+    ky = np.zeros((degree+1, degree+1))
+    kx[0,0] = displacement[0]
+    kx[1,0] = 1
+    ky[0,0] = displacement[1]
+    ky[0,1] = 1
+    return kx, ky
+
+if __name__ == '__main__':
+    import matplotlib.pyplot as plt
+    Npoints = 40
+
+    np.random.seed(32)
+    coordinates = np.random.rand(Npoints, 2) * 1000
+
+    plt.figure()
+    plt.scatter(coordinates[:, 0], coordinates[:, 1], c='green')
+    plt.scatter(coordinates[:, 0]+100, coordinates[:, 1]+200, c='orange')
+    Pt,Qt = translate([100,200])
+    new_coordinates = polywarp_apply(Pt, Qt, coordinates)
+    plt.scatter(new_coordinates[:, 0], new_coordinates[:, 1], facecolors='none', edgecolors='r')
+

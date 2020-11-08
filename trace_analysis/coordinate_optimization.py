@@ -36,8 +36,8 @@ def coordinates_without_intensity_at_radius(coordinates, image, radius, cutoff, 
         #        np.all(coordinate < (np.array(image.shape)-radius-1)):
 
         cropped_peak = crop(image, coordinate, radius*2+1)
-        if np.all((cropped_peak * circle_matrix) <
-                  (cutoff + fraction_of_peak_max * np.max(cropped_peak))):
+        #if np.all((cropped_peak * circle_matrix) < (cutoff + fraction_of_peak_max * np.max(cropped_peak))): #OLd version!
+        if np.all((cropped_peak * circle_matrix) < (cutoff + fraction_of_peak_max * (np.max(cropped_peak)-cutoff))):
             new_coordinates.append(coordinate)
 
     return np.array(new_coordinates)
@@ -57,13 +57,13 @@ def fit_twoD_gaussian(Z):
     xdata = np.vstack((X.ravel(), Y.ravel()))
 
     p0 = [20,20,0,0,1,1]
-    popt, pcov = curve_fit(twoD_gaussian, xdata, Z.ravel(), p0)
+    popt, pcov = curve_fit(twoD_gaussian, xdata, Z.ravel(), p0) #input: function, xdata, ydata,p0
+      
     # The offset can potentially be used for background subtraction
     return popt
 
 def coordinates_after_gaussian_fit(coordinates, image, gaussian_width = 9):
     new_coordinates = []
-
     coordinates = coordinates_within_margin(coordinates, image=image, margin=gaussian_width//2+1)
 
     for i, coordinate in enumerate(coordinates):
@@ -71,12 +71,15 @@ def coordinates_after_gaussian_fit(coordinates, image, gaussian_width = 9):
         #if np.all(coordinate > gaussian_width//2+1) and \
         #        np.all(coordinate < np.array(image.shape)-gaussian_width//2-1):
         cropped_peak = crop(image, coordinate, gaussian_width)
-
         try:
             coefficients = fit_twoD_gaussian(cropped_peak)
-            new_coordinates.append(coordinate + coefficients[2:4])
+            #new_coordinates.append(coordinate + coefficients[2:4])
+            new_coordinate = coordinate + coefficients[2:4]
+            if np.sum(np.abs(coefficients[2:4]))<gaussian_width*2:
+                new_coordinates.append(new_coordinate)
+            # else: #MD do nothing, you don't want to include fits with a center far outside the cropped image
         except RuntimeError:
-            print('No fit possible')
+            pass
     return np.array(new_coordinates)
 
 

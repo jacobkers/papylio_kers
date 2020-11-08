@@ -13,16 +13,12 @@ import matplotlib.pyplot as plt
 
 def get_threshold(image_stack, show=0):
     ydata=(np.sort(image_stack.ravel()))
+    ydata_original=ydata
     xdata=np.array(range(0,len(ydata)))
     # scale the data to make x and y evenly important
     ymaxALL=float(max(ydata))
     xmaxALL=float(max(xdata))
     ydata=ydata*xmaxALL/ymaxALL #don't forget this is scaled
-
-    if show:
-        plt.figure(1)
-        plt.plot(xdata,ydata)
-        plt.show()
 
     # fit a line through the lowest half of x
     xd=xdata[:int(np.floor(len(xdata)/2))]
@@ -58,11 +54,11 @@ def get_threshold(image_stack, show=0):
     x_found=np.argwhere(min(rr)==rr)
     x_found=x_found[0,0]
     if show:
+        plt.figure()
         fig2=plt.subplot(1,2,2)
         fig2.plot(xdata,rr*ymaxALL/xmaxALL)
         #fig2.title("{:s}".format(x_found))
 
-        plt.figure(1)
         fig1=plt.subplot(1,2,1)
         fig1.plot(xdata,ydata*ymaxALL/xmaxALL,'b')
         fig1.plot(xdata[:x_cross],y_fit_start[:x_cross]*ymaxALL/xmaxALL,'g')
@@ -70,6 +66,8 @@ def get_threshold(image_stack, show=0):
         fig1.plot(x_cross,y_cross*ymaxALL/xmaxALL,'kx')
 
         fig1.plot(x_found,ydata[x_found]*ymaxALL/xmaxALL,'mo')
+        
+        fig1.plot(xdata[:-1], ydata_original[1:]-ydata_original[:-1])
         plt.show()
         
     thr = ydata[x_found]*ymaxALL/xmaxALL

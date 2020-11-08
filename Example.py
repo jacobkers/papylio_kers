@@ -4,7 +4,7 @@ from matplotlib import pyplot as plt
 
 from trace_analysis import Experiment
 from trace_analysis import InteractivePlot
-
+from trace_analysis.image_adapt.autoconfig import autoconfig_AND_perform_mapping, autoconfig
 
 # Define path to data, replace by your own directory
 mainPath = r'D:\pathToDataFolder'
@@ -19,11 +19,14 @@ print(exp.files)
 mapping_file_index = -1
 mapping_file = exp.files[mapping_file_index]
 
+# autoconfig_AND_perform_mapping(mapping_file_index, mainPath)
+
 mapping_file.perform_mapping()
 mapping_file.use_mapping_for_all_files()
 
 # Run for all files
 for file in exp.files:
+    # autoconfig(exp, file, opt='find_coordinates')
     # Do not run for the mapping file
     if file.is_mapping_file: continue
 

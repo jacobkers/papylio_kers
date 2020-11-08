@@ -47,14 +47,14 @@ def extract_trace_values_from_image(image, coordinates, twoD_gaussians):  # extr
                       (coordinate[0] - half_size_Gaussian): (coordinate[0] + half_size_Gaussian + 1)
                       ]
 
-        weighed_intensities = intensities * twoD_gaussians[i]
-        trace_values[i] = np.sum(weighed_intensities)
-
+        weighted_intensities = intensities * twoD_gaussians[i]
+        trace_values[i] = np.sum(weighted_intensities)
+        #trace_values[i]=np.sum(intensities) # MD testing
     return trace_values
 
 
 def extract_traces(movie, coordinates, channel='all', gauss_width=4):
-    # reutnr donor and acceptor for the full data set
+    # return donor and acceptor for the full data set
     #     root, name = os.path.split(self.filepath)
     #     traces_fn=os.path.join(root,name[:-4]+'-P.traces')
 

@@ -14,6 +14,7 @@ from trace_analysis.molecule import Molecule
 from trace_analysis.movie.sifx import SifxMovie
 from trace_analysis.movie.pma import PmaMovie
 from trace_analysis.movie.tif import TifMovie
+from trace_analysis.movie.nd2 import ND2Movie
 from trace_analysis.plotting import histogram
 from trace_analysis.mapping.mapping import Mapping2
 from trace_analysis.peak_finding import find_peaks
@@ -78,7 +79,10 @@ class File:
             for molecule in range(0, number_of_molecules):
                 self.addMolecule()
         elif number_of_molecules != self.number_of_molecules:
-            raise ValueError('Requested number of molecules differs from existing number of molecules')
+            raise ValueError(f'Requested number of molecules ({number_of_molecules}) differs from existing number of '
+                             f'molecules ({self.number_of_molecules}) in {self}. \n'
+                             f'If you are sure you want to proceed, empty the molecules list file.molecules = [], or '
+                             f'possibly delete old pks or traces files')
 
     @property
     def number_of_colours(self):
@@ -176,7 +180,9 @@ class File:
         # print(extension)
         importFunctions = { '.sifx': self.import_sifx_file,
                             '.pma': self.import_pma_file,
+                            '.nd2': self.import_nd2_file,
                             '.tif': self.import_tif_file,
+                            
                             '_ave.tif': self.import_average_tif_file,
                             '_max.tif': self.import_maximum_projection_tif_file,
                             '.coeff': self.import_coeff_file,
@@ -213,6 +219,11 @@ class File:
     def import_tif_file(self):
         imageFilePath = self.absoluteFilePath.with_suffix('.tif')
         self.movie = TifMovie(imageFilePath)
+        self.number_of_frames = self.movie.number_of_frames
+        
+    def import_nd2_file(self):
+        imageFilePath = self.absoluteFilePath.with_suffix('.nd2')
+        self.movie = ND2Movie(imageFilePath)
         self.number_of_frames = self.movie.number_of_frames
 
     def import_average_tif_file(self):
@@ -334,7 +345,6 @@ class File:
 
 
 
-
         configurations to be set by user:
         (within the find_coordinates section of the configuration file)
         --------------------------------
@@ -345,8 +355,6 @@ class File:
 
         method:  choose 'average_image' or 'maximum_projection_image' to
                          set type of image used to find peak intensities.
-
-
 
         uncertainty_pixels: set number of pixels within which two peak intensities
                             should be considered to correspond to the same molecule
@@ -367,7 +375,6 @@ class File:
         if not configuration:
             self.experiment.import_config_file()
             configuration = self.experiment.configuration['find_coordinates']
-
 
         # --- Get settings from configuration file ----
         channels = configuration['channels']
@@ -422,7 +429,7 @@ class File:
                 # TODO: Make this work for nonlinear mapping
                 image_transformation = translate([-self.movie.width / 2, 0]) @ self.mapping.transformation
                 acceptor_image_transformed = ski.transform.warp(acceptor_image, image_transformation,
-                                                                preserve_range=True)
+                                                                preserve_range=True) # Transform can be a PolynomialTransform
                 # MD: problem: this is a linear transform, while yo u might have found a nonlinear transform; is nonlinear transform of image available?
                 channel_images = [(donor_image + acceptor_image_transformed) / 2]
                 channels = ['d']
@@ -696,6 +703,8 @@ class File:
                                                       bounds=self.movie.channel_boundaries('d'), margin=margin)
         acceptor_coordinates = coordinates_within_margin(coordinates,
                                                          bounds=self.movie.channel_boundaries('a'), margin=margin)
+
+        self.coordinates = np.hstack([donor_coordinates, acceptor_coordinates]).reshape((-1, 2))
 
         if ('initial_translation' in configuration) and (configuration['initial_translation'] == 'width/2'):
             initial_translation = translate([image.shape[0] // 2, 0])
