@@ -8,9 +8,7 @@ Created on Fri Aug 23 13:55:53 2019
 import numpy as np
 import matplotlib.pyplot as plt
 
-
 from trace_analysis.mapping.icp import icp
-
 from trace_analysis.coordinate_transformations import transform
 from trace_analysis.image_adapt.polywarp import polywarp, polywarp_apply #required for nonlinear
 
@@ -57,20 +55,24 @@ class Mapping2:
         axis.scatter(self.destination[:, 0], self.destination[:, 1], c='r')
         axis.scatter(destination_from_source[:, 0], destination_from_source[:, 1], c='y')
 
-    def transform_coordinates(self, coordinates, direction='source2destination'):
-        print(self.transformation, self.method)
-        if self.method == 'icp':
-#            return icp_apply_transform(coordinates, direction, self.transformation,self.transformation_inverse, self.transformation_type)
-            coords_transformed= coordinates.copy()
-        
-            if self.transformation_type == 'linear': #$$$$$$$$$$$$$$$$$
-                if direction == 'source2destination': return transform(coords_transformed[:,:2], self.transformation)
-                elif direction == 'destination2source' : return transform(coords_transformed[:,:2], self.transformation_inverse)
-        
-            elif self.transformation_type == 'nonlinear':
-                    if direction == 'source2destination' : return polywarp_apply(self.transformation[0],self.transformation[1],coords_transformed)
-                    elif direction == 'destination2source' : return polywarp_apply(self.transformation_inverse[0],self.transformation_inverse[1],coords_transformed)
-            
-            return coords_transformed[:,:1]
-        else: print('transform_coordinates only works for icp')
+    def transform_coordinates(self, coordinates, inverse=False, direction=None):
+        if direction is not None:
+            if direction == self.source_name + '2' + self.destination_name:
+                inverse = False
+            elif direction == self.destination_name + '2' + self.source_name:
+                inverse = True
+            else:
+                raise ValueError('Wrong direction')
+
+        if not inverse:
+            current_transformation = self.transformation
+        else:
+            current_transformation = self.transformation_inverse
+
+        if self.transformation_type == 'linear':
+            # Maybe we should rename transform to linear_transform [IS 05-03-2020]
+            # transform(pointSet, transformationMatrix=None, **kwargs):
+            return transform(coordinates[:, :2], current_transformation)
+        elif self.transformation_type == 'nonlinear':
+            return polywarp_apply(current_transformation[0], current_transformation[1], coordinates)
 
