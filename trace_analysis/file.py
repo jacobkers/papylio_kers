@@ -79,8 +79,10 @@ class File:
             for molecule in range(0, number_of_molecules):
                 self.addMolecule()
         elif number_of_molecules != self.number_of_molecules:
-            print (self.name, number_of_molecules, self.number_of_molecules)
-            raise ValueError('Requested number of molecules differs from existing number of molecules, perhaps delete old pks file?')
+            raise ValueError(f'Requested number of molecules ({number_of_molecules}) differs from existing number of '
+                             f'molecules ({self.number_of_molecules}) in {self}. \n'
+                             f'If you are sure you want to proceed, empty the molecules list file.molecules = [], or '
+                             f'possibly delete old pks or traces files')
 
     @property
     def number_of_colours(self):
@@ -235,11 +237,14 @@ class File:
     def import_coeff_file(self):
         if self.mapping is None: # the following only works for 'linear'transformation_type
             file_content=np.genfromtxt(str(self.relativeFilePath) + '.coeff')
-            if len(file_content)==12:  [coefficients, coefficients_inverse] = np.split(file_content,2)
-            elif len(file_content)==6: coefficients = file_content
-            else: raise TypeError('Error in importing coeff file, wrong number of lines')
-            
-            self.mapping = Mapping2(transformation_type='linear', method='icp')
+            if len(file_content)==12:
+                [coefficients, coefficients_inverse] = np.split(file_content,2)
+            elif len(file_content)==6:
+                coefficients = file_content
+            else:
+                raise TypeError('Error in importing coeff file, wrong number of lines')
+
+            self.mapping = Mapping2(transformation_type='linear')
             self.mapping.transformation = np.zeros((3,3))
             self.mapping.transformation[2,2] = 1
             self.mapping.transformation[[0,0,0,1,1,1],[2,0,1,2,0,1]] = coefficients
@@ -277,7 +282,7 @@ class File:
         P = coefficients[:len(coefficients) // 2].reshape((degree + 1, degree + 1))
         Q = coefficients[len(coefficients) // 2 : len(coefficients)].reshape((degree + 1, degree + 1))
 
-        self.mapping = Mapping2(transformation_type='nonlinear', method='icp')
+        self.mapping = Mapping2(transformation_type='nonlinear')
         self.mapping.transformation = (P,Q) #{'P': P, 'Q': Q}
         #self.mapping.file = self
 
@@ -669,8 +674,7 @@ class File:
         acceptor_coordinates = transform(acceptor_coordinates, translation=[image.shape[0]//2, 0])
         print(acceptor_coordinates.shape, donor_coordinates.shape)
         coordinates = np.append(donor_coordinates, acceptor_coordinates, axis=0)
-        print('coords 2 optimization')
-        self.coordinates=coordinates ##MD: required for testing
+
         # coordinate_optimization_functions = \
         #     {'coordinates_within_margin': coordinates_within_margin,
         #      'coordinates_after_gaussian_fit': coordinates_after_gaussian_fit,
@@ -699,6 +703,8 @@ class File:
                                                       bounds=self.movie.channel_boundaries('d'), margin=margin)
         acceptor_coordinates = coordinates_within_margin(coordinates,
                                                          bounds=self.movie.channel_boundaries('a'), margin=margin)
+
+        self.coordinates = np.hstack([donor_coordinates, acceptor_coordinates]).reshape((-1, 2))
 
         if ('initial_translation' in configuration) and (configuration['initial_translation'] == 'width/2'):
             initial_translation = translate([image.shape[0] // 2, 0])

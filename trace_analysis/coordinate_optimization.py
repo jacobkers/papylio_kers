@@ -74,14 +74,12 @@ def coordinates_after_gaussian_fit(coordinates, image, gaussian_width = 9):
         try:
             coefficients = fit_twoD_gaussian(cropped_peak)
             #new_coordinates.append(coordinate + coefficients[2:4])
-            tmp=coordinate + coefficients[2:4]
+            new_coordinate = coordinate + coefficients[2:4]
             if np.sum(np.abs(coefficients[2:4]))<gaussian_width*2:
-                new_coordinates.append(tmp)
+                new_coordinates.append(new_coordinate)
             # else: #MD do nothing, you don't want to include fits with a center far outside the cropped image
         except RuntimeError:
             pass
-       #     # MD: leave this print out? 
-       #    print('RuntimeError: No 2dGaussian fit possible')
     return np.array(new_coordinates)
 
 

@@ -76,7 +76,8 @@ class PmaMovie(Movie):
         with self.filepath.open('rb') as fid:
             self.width = np.fromfile(fid, np.int16,count=1)[0].astype(int)
             self.height =  np.fromfile(fid, np.int16,count=1)[0].astype(int)
-       
+
+        # Is this necessary for just one pma file? Then I think we should not include this. [IS 08-11-2020]
         if self.width==0: #required for hel21.pma from Sung Hyun
             self.width=512;
             self.height=512;

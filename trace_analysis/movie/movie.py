@@ -68,9 +68,7 @@ class Movie:
 
     def get_channel(self, image = None, channel = 'd'):
         if image is None: image = self.average_image
-        plt.imshow(image)
         sh = np.shape(image)
-        print(sh)
         if channel in ['d', 'donor']:
             return image[:,:sh[0]//2]
         elif channel in ['a','acceptor']:
