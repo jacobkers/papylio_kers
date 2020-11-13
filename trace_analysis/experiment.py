@@ -5,10 +5,10 @@ Created on Fri Sep 14 15:24:46 2018
 @author: ivoseverins
 """
 # Use the following lines on Mac
-from sys import platform
-if platform == "darwin":
-    from matplotlib import use
-    use('WXAgg')
+# from sys import platform
+# if platform == "darwin":
+#     from matplotlib import use
+#     use('WXAgg')
 
 import os # Miscellaneous operating system interfaces - to be able to switch from Mac to Windows
 from pathlib import Path # For efficient path manipulation
