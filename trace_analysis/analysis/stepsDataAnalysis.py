@@ -113,7 +113,7 @@ if __name__ == '__main__':
     p = Path(__file__).parents[2]
     sys.path.insert(0, str(p))
 
-    from trace_analysis import Experiment
+    from trace_analysis.experiment import Experiment
 
     start = time.time()
     mainPath='F:/Google Drive/PhD/Programming - Data Analysis/traceanalysis/traces'

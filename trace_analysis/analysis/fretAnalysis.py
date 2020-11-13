@@ -13,7 +13,7 @@ if __name__ == '__main__':
 
 import numpy as np
 import pandas as pd
-from trace_analysis import Experiment
+from trace_analysis.experiment import Experiment
 
 import matplotlib.pyplot as plt
 import seaborn as sns

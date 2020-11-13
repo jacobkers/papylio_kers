@@ -16,7 +16,7 @@ if __name__ == '__main__':
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from trace_analysis import Experiment, plotting
+from trace_analysis.experiment import Experiment
 import seaborn as sns
 sns.set(style="ticks")
 sns.set_color_codes()

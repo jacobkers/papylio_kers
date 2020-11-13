@@ -12,7 +12,7 @@ if __name__ == '__main__':
 
 import numpy as np
 
-from trace_analysis import Experiment
+from trace_analysis.experiment import Experiment
 import pandas as pd
 import os
 import itertools

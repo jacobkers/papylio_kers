@@ -23,9 +23,9 @@ logger.setLevel(logging.INFO)
 FTPADDR = "some ftp address"
 
 # steps in GUI:
-from trace_analysis import Experiment
-from trace_analysis import InteractivePlot
-from trace_analysis import Movie
+from trace_analysis.experiment import Experiment
+from trace_analysis.analysis.interactiveAnalysis import InteractivePlot
+from trace_analysis.movie.movie import Movie
 from trace_analysis.image_adapt.find_threshold import get_threshold
 from skimage import measure
 
