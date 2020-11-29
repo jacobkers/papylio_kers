@@ -33,29 +33,8 @@ import warnings
 #from threshold_analysis_v2 import stepfinder
 #import pickle
 
-# plugin_manager = PluginManager()
-#
-# class Experiment(*plugin_manager.get_class_plugins('Experiment')):
-
-# @plugins
-# class Experiment(metaclass=PluginMetaClass):
-
 @plugins
 class Experiment:
-    # plugins = []
-    # _plugin_mixin_class = None
-    #
-    # @classmethod
-    # def add_plugin(cls, plugin_class):
-    #     cls.plugins.append(plugin_class)
-    #     cls._plugin_mixin_class = type(cls.__name__, (cls,) + tuple(cls.plugins), {})
-    #
-    # def __new__(cls, *args, **kwargs):
-    #     if not cls._plugin_mixin_class:
-    #         return super().__new__(cls)
-    #     else:
-    #         return super().__new__(cls._plugin_mixin_class)
-
     """ Main experiment class
 
     Class containing all the files in an experiment.

@@ -5,27 +5,8 @@ from trace_analysis.analysis.autoThreshold import stepfinder
 # from trace_analysis.plugin_manager import PluginMetaClass
 from trace_analysis.plugin_manager import plugins
 
-# plugin_manager = PluginManager()
-#
-# class Molecule(*plugin_manager.get_class_plugins('Molecule')):
-# class Molecule(metaclass=PluginMetaClass):
-
 @plugins
 class Molecule:
-    # plugins = []
-    # _plugin_mixin_class = None
-    # 
-    # @classmethod
-    # def add_plugin(cls, plugin_class):
-    #     cls.plugins.append(plugin_class)
-    #     cls._plugin_mixin_class = type(cls.__name__, (cls,) + tuple(cls.plugins), {})
-    #
-    # def __new__(cls, *args, **kwargs):
-    #     if not cls._plugin_mixin_class:
-    #         return super().__new__(cls)
-    #     else:
-    #         return super().__new__(cls._plugin_mixin_class)
-
     def __init__(self, file):
         self.file = file
         self.index = None

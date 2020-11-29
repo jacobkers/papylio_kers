@@ -29,19 +29,9 @@ from trace_analysis.coordinate_transformations import translate, transform # MD:
 # from trace_analysis.plugin_manager import PluginManager
 # from trace_analysis.plugin_manager import PluginMetaClass
 from trace_analysis.plugin_manager import plugins
-#
-# plugin_manager = PluginManager()
-#
-# class File(*plugin_manager.get_class_plugins('File')):
-#
-class A:
-    def __init__(self):
-        print('Ainit')
-
-#class File(A, metaclass=PluginMetaClass):
 
 @plugins
-class File(A):
+class File:
     # plugins = []
     # _plugin_mixin_class = None
     #
