@@ -260,9 +260,16 @@ class File:
             self.export_sequencing_match()
             #self.get_all_sequences_from_sequencing_data()
 
-    def get_all_sequences_from_sequencing_data(self):
+    def get_all_sequences_from_sequencing_data(self, margin=10, mapped_to_channel='a'):
         # raise Warning('Only works on acceptor channel for now')
-        coordinate_bounds_file = self.movie.channel_boundaries('a')
+        coordinate_bounds_file = self.movie.channel_boundaries(mapped_to_channel)
+        coordinate_bounds_file[0] += margin
+        coordinate_bounds_file[1] -= margin
+        # if self.number_of_channels>1:
+        #     for channel in self.movie.channels:
+        #         if mapped_to_channel not in channel:
+        #             coordinate_bounds_file2 = self.movie.channel_boundaries(channel[0])
+
         coordinate_bounds_tile = self.sequencing_match.transform_coordinates(coordinate_bounds_file)
 
         sequencing_tile = self.experiment.sequencing_data_for_mapping.tiles[self.sequencing_match.destination_index]
