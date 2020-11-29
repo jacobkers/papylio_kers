@@ -27,8 +27,26 @@ from trace_analysis.trace_extraction import extract_traces
 from trace_analysis.coordinate_transformations import translate, transform # MD: we don't want to use this anymore I think, it is only linear
                                                                            # IS: We do! But we just need to make them usable with the nonlinear mapping
 
+# from trace_analysis.plugin_manager import PluginManager
+# from trace_analysis.plugin_manager import PluginMetaClass
+from trace_analysis.plugin_manager import plugins
 
+@plugins
 class File:
+    # plugins = []
+    # _plugin_mixin_class = None
+    #
+    # @classmethod
+    # def add_plugin(cls, plugin_class):
+    #     cls.plugins.append(plugin_class)
+    #     cls._plugin_mixin_class = type(cls.__name__, (cls,) + tuple(cls.plugins), {})
+    #
+    # def __new__(cls, *args, **kwargs):
+    #     if not cls._plugin_mixin_class:
+    #         return super().__new__(cls)
+    #     else:
+    #         return super().__new__(cls._plugin_mixin_class)
+
     def __init__(self, relativeFilePath, experiment):
         relativeFilePath = Path(relativeFilePath)
         self.experiment = experiment
@@ -54,8 +72,31 @@ class File:
         self._average_image = None
         self._maximum_projection_image = None
 
-        if self.experiment.import_all is True:
-            self.findAndAddExtensions()
+        # I think it will be easier if we have import functions for specific data instead of specific files.
+        # For example. the sifx, pma and tif files can better be handled in the Movie class. Here we then just have a method import_movie.
+        # [IS 10-08-2020]
+        # TODO: Make an import_movie method and move the specific file type handling to the movie class (probably this should also include the log file)
+        # TODO: Make an import_mapping method and move the specific mapping type handling (.map, .coeff) to the mapping class.
+
+        self.importFunctions = {'.sifx': self.import_sifx_file,
+                                '.pma': self.import_pma_file,
+                                '.nd2': self.import_nd2_file,
+                                '.tif': self.import_tif_file,
+                                '_ave.tif': self.import_average_tif_file,
+                                '_max.tif': self.import_maximum_projection_tif_file,
+                                '.coeff': self.import_coeff_file,
+                                '.map': self.import_map_file,
+                                '.pks': self.import_pks_file,
+                                '.traces': self.import_traces_file,
+                                '.log': self.import_log_file,
+                                '_steps_data.xlsx': self.import_excel_file,
+                                '_selected_molecules.txt': self.import_selected
+                                }
+
+        super().__init__()
+
+        # if self.experiment.import_all is True:
+        #     self.findAndAddExtensions()
 
 
     def __repr__(self):
@@ -85,8 +126,8 @@ class File:
                              f'possibly delete old pks or traces files')
 
     @property
-    def number_of_colours(self):
-        return self.experiment.Ncolours
+    def number_of_channels(self):
+        return self.experiment.number_of_channels
 
     @property
     def selectedMolecules(self):
@@ -116,20 +157,27 @@ class File:
         #     _pks_file = PksFile(self.absoluteFilePath.with_suffix('.pks'))
 
         #return np.concatenate([[molecule.coordinates[0, :] for molecule in self.molecules]])
-        coordinates = [molecule.coordinates for molecule in self.molecules]
-        if coordinates:
-            return np.concatenate(coordinates)
+
+        if len(self.molecules) > 0:
+            return np.concatenate([molecule.coordinates for molecule in self.molecules])
         else:
-            return None
+            return np.array([])
+
+        # Probably the active one is better.
+        # coordinates = [molecule.coordinates for molecule in self.molecules]
+        # if coordinates:
+        #     return np.concatenate(coordinates)
+        # else:
+        #     return None
 
     @coordinates.setter
-    def coordinates(self, coordinates, number_of_colours = None):
-        if number_of_colours is None:
-            number_of_colours = self.number_of_colours
-        self.number_of_molecules = np.shape(coordinates)[0]//number_of_colours
+    def coordinates(self, coordinates, number_of_channels = None):
+        if number_of_channels is None:
+            number_of_channels = self.number_of_channels
+        self.number_of_molecules = np.shape(coordinates)[0]//number_of_channels
 
         for i, molecule in enumerate(self.molecules):
-            molecule.coordinates = coordinates[(i * number_of_colours):((i + 1) * number_of_colours), :]
+            molecule.coordinates = coordinates[(i * number_of_channels):((i + 1) * number_of_channels), :]
 
     def coordinates_from_channel(self, channel):
         # if not self._pks_file:
@@ -156,7 +204,7 @@ class File:
     def traces(self, traces):
         for i, molecule in enumerate(self.molecules):
             molecule.intensity = traces[:, i, :] # 3d array of traces
-            # molecule.intensity = traces[(i * self.number_of_colours):((i + 1) * self.number_of_colours), :] # 2d array of traces
+            # molecule.intensity = traces[(i * self.number_of_channels):((i + 1) * self.number_of_channels), :] # 2d array of traces
         self.number_of_frames = traces.shape[2]
 
     def findAndAddExtensions(self):
@@ -174,28 +222,13 @@ class File:
 
         # print(f.relative_to(self.experiment.mainPath))
 
-        # if extension not in self.extensions:
+        # if extension not in self.extensions: # better to use sets here
         #     self.extensions.append(extension)
 
         # print(extension)
-        importFunctions = { '.sifx': self.import_sifx_file,
-                            '.pma': self.import_pma_file,
-                            '.nd2': self.import_nd2_file,
-                            '.tif': self.import_tif_file,
-                            
-                            '_ave.tif': self.import_average_tif_file,
-                            '_max.tif': self.import_maximum_projection_tif_file,
-                            '.coeff': self.import_coeff_file,
-                            '.map': self.import_map_file,
-                            '.pks': self.import_pks_file,
-                            '.traces': self.import_traces_file,
-                            '.log' : self.import_log_file,
-                            '_steps_data.xlsx': self.import_excel_file,
-                            '_selected_molecules.txt': self.import_selected
-                            }
 
-        importFunctions.get(extension, self.noneFunction)()
-        if extension in importFunctions.keys(): self.extensions.append(extension)
+        self.importFunctions.get(extension, self.noneFunction)()
+        if extension in self.importFunctions.keys(): self.extensions.append(extension)
 
     def noneFunction(self):
         return
@@ -209,16 +242,19 @@ class File:
     def import_sifx_file(self):
         imageFilePath = self.absoluteFilePath.joinpath('Spooled files.sifx')
         self.movie = SifxMovie(imageFilePath)
+        # self.movie.number_of_channels = self.experiment.number_of_channels
         self.number_of_frames = self.movie.number_of_frames
 
     def import_pma_file(self):
         imageFilePath = self.absoluteFilePath.with_suffix('.pma')
         self.movie = PmaMovie(imageFilePath)
+        # self.movie.number_of_channels = self.experiment.number_of_channels
         self.number_of_frames = self.movie.number_of_frames
 
     def import_tif_file(self):
         imageFilePath = self.absoluteFilePath.with_suffix('.tif')
         self.movie = TifMovie(imageFilePath)
+        # self.movie.number_of_channels = self.experiment.number_of_channels
         self.number_of_frames = self.movie.number_of_frames
         
     def import_nd2_file(self):
@@ -245,16 +281,19 @@ class File:
                 raise TypeError('Error in importing coeff file, wrong number of lines')
 
             self.mapping = Mapping2(transformation_type='linear')
-            self.mapping.transformation = np.zeros((3,3))
-            self.mapping.transformation[2,2] = 1
-            self.mapping.transformation[[0,0,0,1,1,1],[2,0,1,2,0,1]] = coefficients
+
+            transformation = np.zeros((3,3))
+            transformation[2,2] = 1
+            transformation[[0,0,0,1,1,1],[2,0,1,2,0,1]] = coefficients
+            self.mapping.transformation = transformation
 
             if len(file_content)==6:
                 self.mapping.transformation_inverse=np.linalg.inv(self.mapping.transformation)
             else:
-                self.mapping.transformation_inverse = np.zeros((3,3))
-                self.mapping.transformation_inverse[2,2] = 1
-                self.mapping.transformation_inverse[[0,0,0,1,1,1],[2,0,1,2,0,1]] = coefficients_inverse
+                transformation_inverse = np.zeros((3,3))
+                transformation_inverse[2,2] = 1
+                transformation_inverse[[0,0,0,1,1,1],[2,0,1,2,0,1]] = coefficients_inverse
+                self.mapping.transformation_inverse = transformation_inverse
 
             self.mapping.file = self
 
@@ -471,8 +510,9 @@ class File:
 
             # Map coordinates to main channel in movie
             # TODO: make this usable for any number of channels
-            coordinate_sets[i] = transform(coordinate_sets[i], translation=self.movie.channel_boundaries(channels[i])[:, 0])
-            if channels[i] in ['a', 'acceptor']:
+            coordinate_sets[i] = transform(coordinate_sets[i], translation=self.movie.channel_boundaries(channels[i])[0])
+            # if channels[i] in ['a', 'acceptor']:
+            if i > 0: #i.e. if channel is not main channel
                 coordinate_sets[i] = self.mapping.transform_coordinates(coordinate_sets[i],
                                                                         direction='destination2source')
 
@@ -486,10 +526,15 @@ class File:
             #  by finding the points close to each other
             coordinates = combine_coordinate_sets(coordinate_sets, method='and')  # the old detect_FRET_pairs
 
-        # TODO: make this usable for any number of channels
-        donor_coordinates = coordinates
-        acceptor_coordinates = self.mapping.transform_coordinates(coordinates, direction='source2destination')
-        coordinates = np.hstack([donor_coordinates, acceptor_coordinates]).reshape((-1, 2))
+        # TODO: make this usable for more than two channels
+        coordinates_in_main_channel = coordinates
+        coordinates_list = [coordinates]
+        for channel in channels[1:]:
+            if self.number_of_channels > 2:
+                raise NotImplementedError()
+            coordinates_in_other_channel = self.mapping.transform_coordinates(coordinates_in_main_channel, direction='source2destination')
+            coordinates_list.append(coordinates_in_other_channel)
+        coordinates = np.hstack(coordinates_list).reshape((-1, 2))
 
         # --- finally, we set the coordinates of the molecules ---
         self.molecules = [] # Should we put this here?
@@ -508,11 +553,10 @@ class File:
         with traces_filepath.open('r') as traces_file:
             self.number_of_frames = np.fromfile(traces_file, dtype=np.int32, count=1).item()
             number_of_traces = np.fromfile(traces_file, dtype=np.int16, count=1).item()
-            self.number_of_molecules = number_of_traces // self.number_of_colours
+            self.number_of_molecules = number_of_traces // self.number_of_channels
             rawData = np.fromfile(traces_file, dtype=np.int16, count=self.number_of_frames * number_of_traces)
-        self.traces = np.reshape(rawData.ravel(), (self.number_of_colours, self.number_of_molecules, self.number_of_frames), order='F')  # 3d array of traces
-        #self.traces = np.reshape(rawData.ravel(), (self.number_of_colours * self.number_of_molecules, self.number_of_frames), order='F') # 2d array of traces
-
+        self.traces = np.reshape(rawData.ravel(), (self.number_of_channels, self.number_of_molecules, self.number_of_frames), order='F')  # 3d array of traces
+        #self.traces = np.reshape(rawData.ravel(), (self.number_of_channels * self.number_of_molecules, self.number_of_frames), order='F') # 2d array of traces
 
     def import_excel_file(self, filename=None):
         if filename is None:
@@ -551,8 +595,6 @@ class File:
         for i in list(selected):
             self.molecules[i-1].isSelected = True
 
-
-
     def extract_traces(self, configuration = None):
         # Refresh configuration
         self.experiment.import_config_file()
@@ -563,7 +605,11 @@ class File:
         channel = configuration['channel']  # Default was 'all'
         gaussian_width = configuration['gaussian_width']  # Default was 11
 
-        self.traces = extract_traces(self.movie, self.coordinates, channel=channel, gauss_width = gaussian_width)
+        traces = extract_traces(self.movie, self.coordinates, channel=channel, gauss_width = gaussian_width)
+        number_of_molecules = len(traces) // self.number_of_channels
+        traces = traces.reshape((number_of_molecules, self.number_of_channels, self.movie.number_of_frames)).swapaxes(0, 1)
+
+        self.traces = traces
         self.export_traces_file()
         if '.traces' not in self.extensions: self.extensions.append('.traces')
 
@@ -573,8 +619,8 @@ class File:
             np.array([self.traces.shape[2]], dtype=np.int32).tofile(traces_file)
             np.array([self.traces.shape[0]*self.traces.shape[1]], dtype=np.int16).tofile(traces_file)
             # time_tr = np.zeros((self.number_of_frames, 2 * self.pts_number))
-            # Ncolours=2
-            # for jj in range(2*self.pts_number//Ncolours):
+            # number_of_channels=2
+            # for jj in range(2*self.pts_number//number_of_channels):
             #     time_tr[:,jj*2] = donor[:,jj]
             #     time_tr[:,jj*2+1]=  acceptor[:,jj]
             np.array(self.traces.T, dtype=np.int16).tofile(traces_file)
@@ -660,6 +706,7 @@ class File:
 
         transformation_type = configuration['transformation_type']
         print(transformation_type)
+        method = configuration['method']
 
         donor_image = self.movie.get_channel(image=image, channel='d')
         acceptor_image = self.movie.get_channel(image=image, channel='a')
@@ -713,8 +760,10 @@ class File:
 
         self.mapping = Mapping2(source=donor_coordinates,
                                 destination=acceptor_coordinates,
+                                method=method,
                                 transformation_type=transformation_type,
-                                initial_translation=initial_translation)
+                                initial_transformation=initial_translation)
+        self.mapping.perform_mapping()
         self.mapping.file = self
         self.is_mapping_file = True
 
@@ -769,7 +818,6 @@ class File:
             axis.plot_surface(X,Y,image, cmap=cm.coolwarm,
                                    linewidth=0, antialiased=False)
 
-
     def show_average_image(self, mode='2d', figure=None):
         self.show_image(image_type='average_image', mode=mode, figure=figure)
 
@@ -779,15 +827,42 @@ class File:
 
         if not figure: figure = plt.figure()
 
-
-        annotate = self.experiment.configuration['show_movie']['annotate']
         if annotate is None:
             annotate = self.experiment.configuration['show_movie']['annotate']
 
         if self.coordinates is not None:
             axis = figure.gca()
-            axis.scatter(self.coordinates[:,0],self.coordinates[:,1], facecolors='none', edgecolors='yellow', **kwargs)
+            sc_coordinates = axis.scatter(self.coordinates[:, 0], self.coordinates[:, 1], facecolors='none', edgecolors='red', **kwargs)
+
             if annotate:
-                for molecule in self.molecules:
-                    for i in np.arange(self.number_of_colours):
-                        axis.annotate(molecule.index, molecule.coordinates[i], color='white')
+                annotation = axis.annotate("", xy=(0, 1.03), xycoords=axis.transAxes) # x in data units, y in axes fraction
+                annotation.set_visible(False)
+
+                indices = np.repeat(np.arange(0, self.number_of_molecules), self.number_of_channels)
+                sequences = np.repeat(self.sequences, self.number_of_channels)
+
+                def update_annotation(ind):
+                    if hasattr(self, 'sequences'):
+                        text = "Molecule number: {} \nSequence: {}".format(" ".join([str(indices[ind["ind"][0]])]),
+                                               " ".join([str(sequences[ind["ind"][0]].decode('UTF-8'))]))
+                    else:
+                        text = "Molecule number: {}".format(" ".join([str(indices[ind["ind"][0]])]))
+
+                    annotation.set_text(text)
+
+                def hover(event):
+                    vis = annotation.get_visible()
+                    if event.inaxes == axis:
+                        cont, ind = sc_coordinates.contains(event)
+                        if cont:
+                            update_annotation(ind)
+                            annotation.set_visible(True)
+                            figure.canvas.draw_idle()
+                        else:
+                            if vis:
+                                annotation.set_visible(False)
+                                figure.canvas.draw_idle()
+
+                figure.canvas.mpl_connect("motion_notify_event", hover)
+
+            plt.show()

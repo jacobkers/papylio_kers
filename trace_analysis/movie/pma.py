@@ -70,7 +70,7 @@ class PmaMovie(Movie):
 #        res = super().__repr__() + '\n' + res
 #        return res
 #
-    def read_header(self):
+    def _read_header(self):
         statinfo = os.stat(self.filepath)       
                
         with self.filepath.open('rb') as fid:
@@ -81,6 +81,7 @@ class PmaMovie(Movie):
         if self.width==0: #required for hel21.pma from Sung Hyun
             self.width=512;
             self.height=512;
+
         self.number_of_frames = int((statinfo.st_size-4)/(self.width*self.height))
         
         
@@ -151,7 +152,7 @@ class PmaMovie(Movie):
 #        self.m_offset = self.filesize - self.datasize - 8
     
        
-    def read_frame(self, frame_number):
+    def _read_frame(self, frame_number):
         with self.filepath.open('rb') as fid:
             np.fromfile(fid, np.uint16,count=1)
             np.fromfile(fid, np.uint16,count=1)
@@ -164,7 +165,7 @@ class PmaMovie(Movie):
                 msb=np.reshape(np.fromfile(fid,np.uint8,count=(self.width*self.height)),(self.width,self.height))
                 lsb=np.reshape(np.fromfile(fid,np.uint8,count=(self.width*self.height)),(self.width,self.height))
                 im=256*msb+lsb;
-        
+
         if 0: # for testing match real data
             plt.imshow(im)
             tifffile.imwrite(self.writepath.joinPath(f'{self.name}_fr{frame_number}.tif') , im ,  photometric='minisblack')

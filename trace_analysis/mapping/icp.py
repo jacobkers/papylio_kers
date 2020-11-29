@@ -1,5 +1,8 @@
 import numpy as np
+import matplotlib.pyplot as plt
 from sklearn.neighbors import NearestNeighbors
+
+from trace_analysis.plotting import scatter_coordinates, show_point_connections
 from trace_analysis.image_adapt.polywarp import polywarp, polywarp_apply #required for nonlinear
 import cv2 #required for nonlinear 
 from trace_analysis.coordinate_transformations import transform, translate
@@ -48,18 +51,15 @@ def best_fit_transform(A, B):
 
     return T, R, t
 
-
-
+# Do we use this somewhere? I guess it can be removed, as it doesn't return anything. [IS: 29-11-2020]
 def least_squares_fit(src, dst):
     T, res, rank, s = np.linalg.lstsq(src, dst, rcond=None)
     plt.figure()
     plt.scatter(src[:,0],src[:,1], color = 'b')
     plt.scatter(dst[:,0],dst[:,1], color = 'r')
 
-   #### src_transformed = ((T) @ (src.T)).T
-    plt.scatter(src_transformed[:, 0], src_transformed[:, 1], color = 'g')
-
-
+   # src_transformed = ((T) @ (src.T)).T
+   # plt.scatter(src_transformed[:, 0], src_transformed[:, 1], color = 'g')
 
 def nearest_neighbor(src, dst):
     '''
@@ -89,20 +89,7 @@ def nearest_neighbor_pair(pointset1, pointset2):
     return distances1[i2], i1, i2
 
 
-def scatter_coordinates(pointsets, marker=['+','x'], c=['g','r']):
-    if type(pointsets)==np.ndarray:
-        plt.scatter(pointsets[:,0], pointsets[:,1], marker=marker[0], c=c[0])
-    if type(pointsets)==list:
-        if len(pointsets)==2:
-            for ii in range(len(pointsets)): plt.scatter(pointsets[ii][:,0], pointsets[ii][:,1], marker=marker[ii], c=c[ii])
-        else: 
-            for ii in range(len(pointsets)): plt.scatter(pointsets[ii][:,0], pointsets[ii][:,1])
-
-def show_point_connections(pointset1,pointset2):
-    for coordinate1, coordinate2 in zip(pointset1, pointset2):
-        plt.plot([coordinate1[0],coordinate2[0]],[coordinate1[1],coordinate2[1]], color='gray')
-
-def icp(source, destination, max_iterations=20, tolerance=0.001, initial_translation=None, transformation_type = 'linear'):
+def icp(source, destination, max_iterations=20, tolerance=0.001, use_cutoff=False, initial_transformation=None, transformation_type = 'linear'):
     '''
     The Iterative Closest Point method: finds best-fit transform that maps points A on to points B
     Input:
@@ -126,13 +113,13 @@ def icp(source, destination, max_iterations=20, tolerance=0.001, initial_transla
     scatter_coordinates([source_moving_to_destination, destination])
 
     #transformation_final = np.identity(3)
-    if initial_translation is None:
+    if initial_transformation is None:
         # Initial translation to overlap both point-sets
-        initial_translation = np.identity(3)
-        initial_translation[0:2,2] = (np.mean(destination, axis=0) - np.mean(source, axis=0))[0:2] # need to be set back to mapping2
+        initial_transformation = np.identity(3)
+        initial_transformation[0:2,2] = (np.mean(destination, axis=0) - np.mean(source, axis=0))[0:2] # need to be set back to mapping2
         # Possibly add initial rotation and reflection as well, see best_fit_transform?  
     '''destination_moved2source is the destination, moved to source location'''
-    source_moving_to_destination = (initial_translation @ source_moving_to_destination.T).T
+    source_moving_to_destination = (initial_transformation @ source_moving_to_destination.T).T
     #transformation_final = transformation_final @ initial_translation
 
     prev_error = 0
@@ -144,23 +131,24 @@ def icp(source, destination, max_iterations=20, tolerance=0.001, initial_transla
         distances, source_indices, destination_indices = \
             nearest_neighbor_pair(source_moving_to_destination[:, :2], destination[:, :2])
 
-        # following three lines are good for nonlinear, expected to be also beneficial for linear
-        # with cutoff you remove the entries with outlier distances
-        cutoff = np.median(distances)+np.std(distances) #changed
-        source_indices = source_indices[distances<cutoff]
-        destination_indices = destination_indices[distances<cutoff]   
+        if use_cutoff:
+            # With cutoff you remove the entries with outlier distances
+            if type(use_cutoff) is not bool:
+                cutoff = use_cutoff
+            else:
+                cutoff = np.median(distances) + np.std(distances)  # changed
+            print(cutoff)
+            source_indices = source_indices[distances < cutoff]
+            destination_indices = destination_indices[distances < cutoff]
 
         if transformation_type=='nonlinear':
-            if  len(source_indices)<16 | len(destination_indices)<16: 
-                print('Not enough points found for non linear mapping')
             kx, ky = polywarp(destination[destination_indices,0:2], source_moving_to_destination[source_indices,0:2])
-
-
+            # these are the values needed to transform source into destination_moved2source
             source_moving_to_destination = polywarp_apply(kx, ky, source_moving_to_destination)
 
         elif transformation_type=='linear':
-			# compute the transformation between the current source and nearest destination points
-			#T,_,_ = best_fit_transform(src[:m,:].T, dst[:m,indices].T)
+            # compute the transformation between the current source and nearest destination points
+            #T,_,_ = best_fit_transform(src[:m,:].T, dst[:m,indices].T)
             T, res, rank, s = np.linalg.lstsq(source_moving_to_destination[source_indices], destination[destination_indices], rcond=None)
             transformation = T.T
             source_moving_to_destination = (transformation @ source_moving_to_destination.T).T
@@ -195,15 +183,12 @@ def icp(source, destination, max_iterations=20, tolerance=0.001, initial_transla
     elif transformation_type=='linear': # replace with transform 
         T, res, rank, s = np.linalg.lstsq(source[source_indices], destination[destination_indices], rcond=None)
         transformation = T.T
-        transformation_inverse= np.linalg.inv(transformation)
+        transformation_inverse = np.linalg.inv(transformation)
 
     return transformation, distances, i, transformation_inverse
 
 
-
-
-
-if __name__ == '__main__': ## MD: what is this??
+if __name__ == '__main__':
     Npoints = 40
 
     np.random.seed(32)

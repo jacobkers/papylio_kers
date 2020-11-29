@@ -70,7 +70,7 @@ class TifMovie(Movie):
 #        res = super().__repr__() + '\n' + res
 #        return res
 #
-    def read_header(self):
+    def _read_header(self):
         # im = self.read_frame(0)
         # width, height = im.shape
         with tifffile.TiffFile(self.filepath) as tif:
@@ -83,6 +83,20 @@ class TifMovie(Movie):
             self.number_of_frames = len(tif.pages)
             self.bitdepth = tif_tags['BitsPerSample']
             ## hdim,vdim=tif.pages[0].shape
+
+            try:
+                if tif.metaseries_metadata:
+                    pixel_size_x = tif.metaseries_metadata['PlaneInfo']['spatial-calibration-x']
+                    pixel_size_y = tif.metaseries_metadata['PlaneInfo']['spatial-calibration-y']
+                    self.pixel_size = np.array([pixel_size_x, pixel_size_y])
+                    self.pixel_size_unit = tif.metaseries_metadata['PlaneInfo']['spatial-calibration-units']
+                    stage_position_x = tif.metaseries_metadata['PlaneInfo']['stage-position-x']
+                    stage_position_y = tif.metaseries_metadata['PlaneInfo']['stage-position-y']
+                    self.stage_coordinates = np.array([[stage_position_x, stage_position_y]])
+                    self.stage_coordinates_in_pixels = self.stage_coordinates / self.pixel_size
+
+            except AttributeError:
+                pass
 
 #
 #        f = open(self.filepath, 'rb')
@@ -152,7 +166,7 @@ class TifMovie(Movie):
     
 
 
-    def read_frame(self, frame_number):
+    def _read_frame(self, frame_number):
         # t = time.time()
 
         with tifffile.TiffFile(self.filepath) as tif:
@@ -199,3 +213,5 @@ class TifMovie(Movie):
 
 if __name__ == "__main__":
     print('test')
+
+    movie = TifMovie(r'D:\PathTo\Movie.tif')

@@ -43,8 +43,8 @@ def extract_trace_values_from_image(image, coordinates, twoD_gaussians):  # extr
 
     for i, coordinate in enumerate(coordinates):
         # First crop around spot, then do multiplication
-        intensities = image[(coordinate[1] - half_size_Gaussian): (coordinate[1] + half_size_Gaussian + 1),
-                      (coordinate[0] - half_size_Gaussian): (coordinate[0] + half_size_Gaussian + 1)
+        intensities = image[(coordinate[1] - half_size_Gaussian):(coordinate[1] + half_size_Gaussian + 1),
+                      (coordinate[0] - half_size_Gaussian):(coordinate[0] + half_size_Gaussian + 1)
                       ]
 
         weighted_intensities = intensities * twoD_gaussians[i]
@@ -63,8 +63,8 @@ def extract_traces(movie, coordinates, channel='all', gauss_width=4):
     #      with open(traces_fn, 'r') as infile:
     #          Nframes = np.fromfile(infile, dtype = np.int32, count = 1).item()
     #          Ntraces = np.fromfile(infile, dtype = np.int16, count = 1).item()
-    #          rawData = np.fromfile(infile, dtype = np.int16, count = self.number_of_colours*Nframes * Ntraces)
-    #      orderedData = np.reshape(rawData.ravel(), (self.number_of_colours, Ntraces//self.number_of_colours, Nframes), order = 'F')
+    #          rawData = np.fromfile(infile, dtype = np.int16, count = self.number_of_channels*Nframes * Ntraces)
+    #      orderedData = np.reshape(rawData.ravel(), (self.number_of_channels, Ntraces//self.number_of_channels, Nframes), order = 'F')
     #      donor=orderedData[0,:,:]
     #      acceptor=orderedData[1,:,:]
     #      donor=np.transpose(donor)
@@ -102,8 +102,5 @@ def extract_traces(movie, coordinates, channel='all', gauss_width=4):
     # root, name = os.path.split(self.filepath)
 
     # if os.path.isfile(trace_fn):
-
-    number_of_molecules = len(traces) // movie.number_of_colours
-    traces = traces.reshape((number_of_molecules, movie.number_of_colours, movie.number_of_frames)).swapaxes(0, 1)
 
     return traces

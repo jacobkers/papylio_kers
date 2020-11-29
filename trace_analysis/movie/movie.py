@@ -33,18 +33,23 @@ class Movie:
         self._average_image = None
         self._maximum_projection_image = None
         self.is_mapping_movie = False
-        self.number_of_colours = 2
+
+        self.channels = [['green', 'g', 'donor', 'd'],
+                         ['red', 'r', 'acceptor', 'a']]
+        self._channel_grid = np.array([2,1]) # (x,y)
+        self._number_of_channels = 2
+        self.rot90 = 0
+
 
         if not self.filepath.suffix == '.sifx':
             self.writepath = self.filepath.parent
             self.name = self.filepath.with_suffix('').name
-        
+
         self.read_header()
-        
 
     def __repr__(self):
         return(f'{self.__class__.__name__}({str(self.filepath)})')
-        
+
     @property
     def average_image(self):
         if self._average_image is None: self.make_average_image(write=True)
@@ -55,32 +60,146 @@ class Movie:
         if self._maximum_projection_image is None: self.make_maximum_projection(write=True)
         return self._maximum_projection_image
 
-#    def read_header(self):
-#        self.movie.read_header()
-#        self.width_pixels= self.movie.width_pixels
-#        self.height_pixels=self.movie.height_pixels
-#        self.number_of_frames=self.movie.number_of_frames
-#        
-#    def read_frame(self, frame_number):
-#        frame=self.movie.read_frame(frame_number)
-#        return frame
+    @property
+    def channel_grid(self):
+        """ numpy.array : number of channels in the horizontal and vertical dimension
 
+        Setting the channel_grid variable will assume equally spaced channels
+        """
+        return self._channel_grid
 
-    def get_channel(self, image = None, channel = 'd'):
+    @channel_grid.setter
+    def channel_grid(self, channel_grid):
+        channel_grid = np.array(channel_grid)
+        # Possibly support multiple cameras by adding a third dimension
+        if len(channel_grid) == 2 and np.all(np.array(channel_grid)>0):
+            self._channel_grid = channel_grid
+            self._number_of_channels = np.product(channel_grid)
+
+    @property
+    def number_of_channels(self):
+        """ int : number of channels in the movie
+
+        Setting the number of channels will divide the image horizontally in equally spaced channels.
+        """
+        return self._number_of_channels
+
+    @number_of_channels.setter
+    def number_of_channels(self, number_of_channels):
+        if number_of_channels > 0:
+            self._number_of_channels = number_of_channels
+            self._channel_grid = (number_of_channels,1)
+        else:
+            raise ValueError('Number of channels should be at least 1')
+
+    def read_header(self):
+        # self.width_pixels, self.height_pixels, self.number_of_frames, self.movie_file_object = read_header(self.filepath)
+        self._read_header()
+        if not (self.rot90 % 2 == 0):
+            width = self.width
+            height = self.height
+            self.width = height
+            self.height = width
+
+    def read_frame(self, frame_number):
+        frame = self._read_frame(frame_number)
+        return np.rot90(frame, self.rot90)
+
+    def get_channel(self, image=None, channel='d'):
         if image is None: image = self.average_image
-        sh = np.shape(image)
-        if channel in ['d', 'donor']:
-            return image[:,:sh[0]//2]
-        elif channel in ['a','acceptor']:
-            return image[:,sh[0]//2:]
-        elif channel in ['all', '']:
-            return image
+        channel_boundaries = self.channel_boundaries(channel)
+        #
+        #
+        #     return image
+        # else
+        return image[channel_boundaries[0, 1]:channel_boundaries[1, 1],
+                     channel_boundaries[0, 0]:channel_boundaries[1, 0]]
+
+    def get_channel_number(self, channel):
+        """Get the channel number belonging to a specific channel (name)
+        If
+
+        Parameters
+        ----------
+        channel : str or int
+            The name or number of a channel
+
+        Returns
+        -------
+        i: int
+            The index of the channel to which the channel name belongs
+
+        """
+        if isinstance(channel, int):
+            # We should probably integrate this into the for loop
+            if channel < self._number_of_channels:
+                return channel
+        for i, channel_names in enumerate(self.channels):
+            if channel in channel_names:
+                return i
 
     def channel_boundaries(self, channel):
-        if channel in ['d', 'donor']:
-            return np.array([[0, self.width // 2],[0,self.height]])
-        elif channel in ['a', 'acceptor']:
-            return np.array([[self.width // 2, self.width], [0, self.height]])
+        """Get the x and y boundaries of the channel within the movie
+
+        Parameters
+        ----------
+        channel : str
+            Name of a channel or 'all'
+
+        Returns
+        -------
+        channel_boundaries : np.array
+            Formatted as two coordinates, with the lowest and highest x and y values respectively
+        """
+        if channel == 'all':
+            horizontal_boundaries = [0, self.width]
+            vertical_boundaries = [0, self.height]
+        else:
+            channel_number = self.get_channel_number(channel)
+
+            channel_width = self.width // self.channel_grid[0]
+            horizontal_boundaries = np.array([0, channel_width]) + channel_width * (channel_number % self.channel_grid[0])
+
+            channel_height = self.height // self.channel_grid[1]
+            vertical_boundaries = np.array([0, channel_height]) + channel_height * (channel_number // self.channel_grid[0])
+
+        return np.vstack([horizontal_boundaries, vertical_boundaries]).T
+
+        # if channel is 'd':
+        #     return np.array([[0, self.width // 2],[0,self.height]])
+        # elif channel is 'a':
+        #     return np.array([[self.width // 2, self.width], [0, self.height]])
+
+    def channel_vertices(self, channel):
+        """Get the vertices of the channel within the movie
+
+        Parameters
+        ----------
+        channel : str
+            Name of a channel or 'all'
+
+        Returns
+        -------
+        channel_vertices : np.array
+            Four coordinates giving the four corners of the channel
+            Coordinates form a closed shape
+        """
+        if channel == 'all':
+            channel_width = self.width
+            channel_height = self.height
+            channel_origin = [0, 0]
+        else:
+            channel_number = self.get_channel_number(channel)
+            channel_width = self.width // self.channel_grid[0]
+            channel_height = self.height // self.channel_grid[1]
+            channel_origin = [channel_width * (channel_number % self.channel_grid[0]),
+                              channel_height * (channel_number // self.channel_grid[0])]
+
+        channel_vertices = np.array([channel_origin,]*4)
+        channel_vertices[[1,2],0] += channel_width
+        channel_vertices[[2,3],1] += channel_height
+
+        return channel_vertices
 
     def saveas_tif(self):
         tif_filepath = self.writepath.joinpath(self.name+'.tif')
@@ -92,7 +211,7 @@ class Movie:
             pass
 
         for i in range(self.number_of_frames):
-            
+
             #frame = self.get_image(ii).image
             #frame = read_one_page(self.filepath, pageNb=i, A = self.movie_file_object)
             frame = self.read_frame(frame_number = i)
@@ -146,7 +265,7 @@ class Movie:
                 image = np.maximum(image, frame)
             self._maximum_projection_image = image
             if write:
-                self.write_image(image, '_.tif')
+                self.write_image(image, '_max.tif')
 
         return image
 
@@ -207,7 +326,7 @@ class Movie:
         if '.tif' not in extension:
             'Only tif export is supported (at the moment)'
 
-        tif_filepath = self.writepath.joinpath(self.name + 'extension').with_suffix('.tif')
+        tif_filepath = self.writepath.joinpath(self.name + extension).with_suffix('.tif')
         if self.bitdepth == 16:
             TIFF.imwrite(tif_filepath, np.uint16(image))
         elif self.bitdepth == 8:
@@ -228,15 +347,15 @@ class Movie:
             axis.plot_surface(X,Y,self.average_image, cmap=cm.coolwarm,
                                    linewidth=0, antialiased=False)
         #plt.show()
-    
-    
+
+
     def subtract_background(self, image, method = 'per_channel'):
         if method == 'rollingball':
             background = rollingball(image,self.width_pixels/10)[1] # this one is not used in pick_spots_akaze
             image_correct = image - background
-            image_correct[image_correct < 0] = 0       
+            image_correct[image_correct < 0] = 0
             threshold = get_threshold(image_correct)
-            return remove_background(image_correct,threshold)  
+            return remove_background(image_correct,threshold)
         elif method == 'per_channel': #maybe there is a better name
             sh=np.shape(image)
             threshold_donor = get_threshold(self.get_channel(image,'donor'))
@@ -245,12 +364,10 @@ class Movie:
             background[:,0:sh[0]//2]=threshold_donor
             background[:,sh[0]//2:]=threshold_acceptor
             return remove_background(image,background)
-        
+
         # note: optionally a fixed threshold can be set, like with IDL
         # note 2: do we need a different threshold for donor and acceptor?
 
-
-    
     def show_coordinates(self, image, coordinates, figure=None, **kwargs):
         if not figure: figure = plt.gcf() # Or possibly e.g. plt.figure('Movie')
 #        sorted_intensities = np.sort(image)

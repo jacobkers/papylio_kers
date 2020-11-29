@@ -19,6 +19,9 @@ import matplotlib.pyplot as plt #Provides a MATLAB-like plotting framework
 from trace_analysis.file import File
 from trace_analysis.molecule import Molecule
 from trace_analysis.plotting import histogram
+# from trace_analysis.plugin_manager import PluginManager
+# from trace_analysis.plugin_manager import PluginMetaClass
+from trace_analysis.plugin_manager import plugins
 
 import re # Regular expressions
 import warnings
@@ -30,14 +33,14 @@ import warnings
 #from threshold_analysis_v2 import stepfinder
 #import pickle
 
-
+@plugins
 class Experiment:
     """ Main experiment class
 
     Class containing all the files in an experiment.
     In fact it can contain any collection of files.
 
-    .. warning:: Only works with one or two colours.
+    .. warning:: Only works with one or two channels.
 
     Attributes
     ----------
@@ -52,7 +55,7 @@ class Experiment:
         If false, then files are detected, but not imported.
     """
 
-    def __init__(self, mainPath, colours=['g','r'], import_all=True):
+    def __init__(self, mainPath, channels=['g','r'], import_all=True):
         """Init method for the Experiment class
 
         Loads config file if it locates one in the main directory, otherwise it exports the default config file to the main directory.
@@ -62,20 +65,21 @@ class Experiment:
         ----------
         mainPath : str
             Absolute path to the main experiment folder
-        colours : list of str
-            Colours used in the experiment
+        channels : list of str
+            Channels used in the experiment
         import_all : bool
             If true, then all files in the main folder are automatically imported. \n
             If false, then files are detected, but not imported.
         """
+
         self.name = os.path.basename(mainPath)
         self.mainPath = Path(mainPath).absolute()
         self.files = list()
         self.import_all = import_all
 
-        self._colours = np.atleast_1d(np.array(colours))
-        self._Ncolours = len(colours)
-        self._pairs = [[c1, c2] for i1, c1 in enumerate(colours) for i2, c2 in enumerate(colours) if i2 > i1]
+        self._channels = np.atleast_1d(np.array(channels))
+        self._number_of_channels = len(channels)
+        self._pairs = [[c1, c2] for i1, c1 in enumerate(channels) for i2, c2 in enumerate(channels) if i2 > i1]
 
         # Load custom config file or otherwise load the default config file
         if self.mainPath.joinpath('config.yml').is_file():
@@ -97,27 +101,27 @@ class Experiment:
         return (f'{self.__class__.__name__}({self.name})')
 
     @property
-    def colours(self):
-        """list of str : Colours used in the experiment.
+    def channels(self):
+        """list of str : Channels used in the experiment.
 
-        Setting the colours will automatically update pairs.
+        Setting the channels will automatically update pairs.
         """
-        return self._colours
+        return self._channels
 
-    @colours.setter
-    def colours(self, colours):
-        self._colours = np.atleast_1d(np.array(colours))
-        self._Ncolours = len(colours)
-        self._pairs = [[c1, c2] for i1, c1 in enumerate(colours) for i2, c2 in enumerate(colours) if i2 > i1]
+    @channels.setter
+    def channels(self, channels):
+        self._channels = np.atleast_1d(np.array(channels))
+        self._number_of_channels = len(channels)
+        self._pairs = [[c1, c2] for i1, c1 in enumerate(channels) for i2, c2 in enumerate(channels) if i2 > i1]
 
     @property
-    def Ncolours(self):
-        """int : Number of colours used in the experiment (read-only)"""
-        return self._Ncolours
+    def number_of_channels(self):
+        """int : Number of channels used in the experiment (read-only)"""
+        return self._number_of_channels
 
     @property
     def pairs(self):
-        """list of list of str : List of colour pairs"""
+        """list of list of str : List of channel pairs"""
         return self._pairs
 
     @property
@@ -274,7 +278,3 @@ class Experiment:
         for molecule in self.molecules:
             molecule.plot()
             input("Press enter to continue")
-
-
-
-

@@ -66,7 +66,7 @@ class SifxMovie(Movie):
         res = super().__repr__() + '\n' + res
         return res
 
-    def read_header(self):
+    def _read_header(self):
         f = open(self.filepath, 'rb')
         headerlen = 32
     #    spool = 0
@@ -167,7 +167,7 @@ class SifxMovie(Movie):
         self.m_offset = self.filesize - self.datasize - 8
     
        
-    def read_frame(self, frame_number):
+    def _read_frame(self, frame_number):
         if (self.xbin == 2) and (self.ybin == 2):
              count=self.height*self.width*4
              #name should follow from A.filelist

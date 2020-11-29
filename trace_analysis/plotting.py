@@ -1,7 +1,11 @@
 import numpy as np #scientific computing with Python
 import matplotlib.pyplot as plt
+from trace_analysis.coordinate_transformations import transform
+import matplotlib.patches as patches
+from matplotlib.collections import PatchCollection
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-from trace_analysis.molecule import Molecule
+# from trace_analysis.molecule import Molecule
 
 def histogram(molecules, axis=None, bins=100, parameter='E', molecule_averaging=False, makeFit=False, collection_name='', **kwargs):
     if not molecules: return None
@@ -68,3 +72,12 @@ def fit_hist(data, axis):
     # plt.plot(bin_centers,func(bin_centers, 10000,0.18,0.1,5000,0.5,0.2))
 
 # uniqueFileNames = list(set([re.search('hel[0-9]*',fileName).group() for fileName in fileNames]))
+
+def scatter_coordinates(pointsets):
+    for pointset in pointsets:
+        plt.scatter(pointset[:,0], pointset[:,1])
+
+def show_point_connections(pointset1,pointset2):
+    for coordinate1, coordinate2 in zip(pointset1, pointset2):
+        plt.plot([coordinate1[0],coordinate2[0]],[coordinate1[1],coordinate2[1]], color='r')
+
