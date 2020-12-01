@@ -751,7 +751,9 @@ class File:
         acceptor_coordinates = coordinates_within_margin(coordinates,
                                                          bounds=self.movie.channel_boundaries('a'), margin=margin)
 
-        self.coordinates = np.hstack([donor_coordinates, acceptor_coordinates]).reshape((-1, 2))
+        # TODO: put overlapping coordinates in file.coordinates for mapping file
+        # Possibly do this with mapping.nearest_neighbour match
+        # self.coordinates = np.hstack([donor_coordinates, acceptor_coordinates]).reshape((-1, 2))
 
         if ('initial_translation' in configuration) and (configuration['initial_translation'] == 'width/2'):
             initial_translation = translate([image.shape[0] // 2, 0])
