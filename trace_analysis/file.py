@@ -10,6 +10,7 @@ import pandas as pd
 import matplotlib.pyplot as plt #Provides a MATLAB-like plotting framework
 import skimage.io as io
 import skimage as ski
+import warnings
 from trace_analysis.molecule import Molecule
 from trace_analysis.movie.sifx import SifxMovie
 from trace_analysis.movie.pma import PmaMovie
@@ -298,14 +299,11 @@ class File:
             self.mapping.file = self
 
     def export_coeff_file(self):
-        if self.mapping.transformation_type == 'linear':
-            coeff_filepath = self.absoluteFilePath.with_suffix('.coeff')
-            coefficients = self.mapping.transformation[[0, 0, 0, 1, 1, 1], [2, 0, 1, 2, 0, 1]]
-           # np.savetxt(coeff_filepath, coefficients, fmt='%13.6g') # Same format used as in IDL code
-            coefficients_inverse = self.mapping.transformation_inverse[[0, 0, 0, 1, 1, 1], [2, 0, 1, 2, 0, 1]]
-            np.savetxt(coeff_filepath,  np.concatenate((coefficients,coefficients_inverse)), fmt='%13.6g') # Same format used as in IDL code
-        else:
-            raise TypeError('Mapping is not of type linear')
+        warnings.warn('The export_coeff_file method will be depricated, use export_mapping instead')
+        self.export_mapping(filetype='classic')
+
+    def export_mapping(self, filetype='yml'):
+        self.mapping.save(self.absoluteFilePath, filetype)
 
     def import_map_file(self):
         #coefficients = np.genfromtxt(self.relativeFilePath.with_suffix('.map'))
@@ -769,10 +767,7 @@ class File:
         self.mapping.file = self
         self.is_mapping_file = True
 
-        if self.mapping.transformation_type == 'linear':
-            self.export_coeff_file()
-        elif self.mapping.transformation_type == 'nonlinear':
-            self.export_map_file()
+        self.export_mapping(filetype='classic')
 
     def copy_coordinates_to_selected_files(self):
         for file in self.experiment.selectedFiles:
