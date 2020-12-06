@@ -281,7 +281,29 @@ class Mapping2:
         self.transformation, distances, iterations, self.transformation_inverse = \
             icp(self.source, self.destination, initial_transformation=self.initial_transformation,
                 transformation_type=self.transformation_type, **kwargs)
-        self.transformation = AffineTransform(self.transformation)
+        if self.transformation_type == 'linear':
+            self.transformation = AffineTransform(self.transformation)
+            self.transformation_inverse = AffineTransform(self.transformation_inverse)
+        elif self.transformation_type == 'nonlinear':
+            def polywarp_to_polynomial_transform(polywarp_output):
+
+                order = polywarp_output[0].shape[0]
+
+                polynomial_transform_params_list = []
+
+                for polywarp_matrix in polywarp_output:
+                    polynomial_transform_params_list.append(
+                        [polywarp_matrix[j - i, i] if ((j - i) < order) and (i < order) else 0 for j in
+                         range(order * 2 - 1) for
+                         i in range(j + 1)]
+                    )
+
+                polynomial_transform_params = np.vstack(polynomial_transform_params_list)
+
+                return PolynomialTransform(params=polynomial_transform_params)
+
+            self.transformation = polywarp_to_polynomial_transform(self.transformation)
+            self.transformation_inverse = polywarp_to_polynomial_transform(self.transformation_inverse)
 
     def number_of_matched_points(self, distance_threshold):
         """Number of matched points determined by finding the two-way nearest neigbours that are closer than a distance
