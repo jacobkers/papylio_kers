@@ -441,8 +441,11 @@ class Mapping2:
         if filetype == 'classic':
             if self.transformation_type == 'linear':
                 coeff_filepath = filepath.with_suffix('.coeff')
-                coefficients = self.mapping.transformation[[0, 0, 0, 1, 1, 1], [2, 0, 1, 2, 0, 1]]
-                np.savetxt(coeff_filepath, coefficients, fmt='%13.6g') # Same format used as in IDL code
+                coefficients = self.transformation.params[[0, 0, 0, 1, 1, 1], [2, 0, 1, 2, 0, 1]]
+                # np.savetxt(coeff_filepath, coefficients, fmt='%13.6g') # Same format used as in IDL code
+                coefficients_inverse = self.transformation_inverse.params[[0, 0, 0, 1, 1, 1], [2, 0, 1, 2, 0, 1]]
+                np.savetxt(coeff_filepath, np.concatenate((coefficients, coefficients_inverse)),
+                           fmt='%13.6g')  # Same format used as in IDL code
             else:
                 raise TypeError('Mapping is not of type linear')
         elif filetype in ['yml', 'yaml']:
