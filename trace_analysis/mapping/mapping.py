@@ -14,6 +14,7 @@ from skimage.transform import AffineTransform, PolynomialTransform
 
 from trace_analysis.mapping.icp import icp, nearest_neighbor_pair
 from trace_analysis.image_adapt.polywarp import polywarp, polywarp_apply #required for nonlinear
+from trace_analysis.mapping.polywarp import PolywarpTransform
 
 class Mapping2:
     """Mapping class to find, improve, store and use the mapping between a source point set and a destination point set
@@ -285,25 +286,25 @@ class Mapping2:
             self.transformation = AffineTransform(self.transformation)
             self.transformation_inverse = AffineTransform(self.transformation_inverse)
         elif self.transformation_type == 'nonlinear':
-            def polywarp_to_polynomial_transform(polywarp_output):
+            # def polywarp_to_polynomial_transform(polywarp_output):
+            #
+            #     order = polywarp_output[0].shape[0]
+            #
+            #     polynomial_transform_params_list = []
+            #
+            #     for polywarp_matrix in polywarp_output:
+            #         polynomial_transform_params_list.append(
+            #             [polywarp_matrix[j - i, i] if ((j - i) < order) and (i < order) else 0 for j in
+            #              range(order * 2 - 1) for
+            #              i in range(j + 1)]
+            #         )
+            #
+            #     polynomial_transform_params = np.vstack(polynomial_transform_params_list)
+            #
+            #     return PolynomialTransform(params=polynomial_transform_params)
 
-                order = polywarp_output[0].shape[0]
-
-                polynomial_transform_params_list = []
-
-                for polywarp_matrix in polywarp_output:
-                    polynomial_transform_params_list.append(
-                        [polywarp_matrix[j - i, i] if ((j - i) < order) and (i < order) else 0 for j in
-                         range(order * 2 - 1) for
-                         i in range(j + 1)]
-                    )
-
-                polynomial_transform_params = np.vstack(polynomial_transform_params_list)
-
-                return PolynomialTransform(params=polynomial_transform_params)
-
-            self.transformation = polywarp_to_polynomial_transform(self.transformation)
-            self.transformation_inverse = polywarp_to_polynomial_transform(self.transformation_inverse)
+            self.transformation = PolywarpTransform(self.transformation)
+            self.transformation_inverse = PolywarpTransform(self.transformation_inverse)
 
     def number_of_matched_points(self, distance_threshold):
         """Number of matched points determined by finding the two-way nearest neigbours that are closer than a distance
