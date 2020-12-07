@@ -44,6 +44,10 @@ class Mapping2:
 
     """
 
+    transformation_types = {'linear': AffineTransform,
+                            'nonlinear': PolywarpTransform,
+                            'polynomial': PolynomialTransform}
+
     def __init__(self, source=None, destination=None, method=None,
                  transformation_type=None, initial_transformation=None, load=None):
         """Set passed object attributes
@@ -88,16 +92,8 @@ class Mapping2:
                         if type(value) == list:
                             value = np.array(value)
                         setattr(self, key, value)
-                #TODO: Following if else statement can be simplified
-                if self.transformation_type == 'linear':
-                    self.transformation = AffineTransform(self.transformation)
-                    self.transformation_inverse = AffineTransform(self.transformation_inverse)
-                elif self.transformation_type == 'nonlinear':
-                    self.transformation = PolywarpTransform(self.transformation)
-                    self.transformation_inverse = PolywarpTransform(self.transformation_inverse)
-                elif self.transformation_type == 'polynomial':
-                    self.transformation = PolynomialTransform(self.transformation)
-                    self.transformation_inverse = PolynomialTransform(self.transformation_inverse)
+                self.transformation = self.transformation_types[self.transformation_type](self.transformation)
+                self.transformation_inverse = self.transformation_types[self.transformation_type](self.transformation_inverse)
 
     def __getattr__(self, item):
         if hasattr(self.transformation, item):
@@ -477,13 +473,16 @@ class Mapping2:
 
         elif filetype in ['yml', 'yaml']:
             attributes = self.__dict__.copy()
-            for key, value in attributes.items():
+            for key in list(attributes.keys()):
+                value = attributes[key]
                 if type(value) in [str, int, float]:
                     continue
-                if isinstance(value, skimage.transform._geometric.GeometricTransform):
-                    value = value.params
-                if type(value).__module__ == np.__name__:
+                elif isinstance(value, skimage.transform._geometric.GeometricTransform):
+                    attributes[key] = value.params.tolist()
+                elif type(value).__module__ == np.__name__:
                     attributes[key] = value.tolist()
+                else:
+                    attributes.pop(key)
 
             with filepath.with_suffix('.yml').open('w') as yml_file:
                 yaml.dump(attributes, yml_file, sort_keys=False)
