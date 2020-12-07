@@ -92,6 +92,14 @@ class Mapping2:
                 if self.transformation_type == 'linear':
                     self.transformation = AffineTransform(self.transformation)
                     self.transformation_inverse = AffineTransform(self.transformation_inverse)
+                #TODO: make the full class using PolywarpTransform before uncommenting this
+                # elif self.transformation_type == 'nonlinear':
+                #     transformation = PolywarpTransform()
+                #     transformation.params = self.transformation
+                #     transformation_inverse = PolywarpTransform()
+                #     transformation_inverse.params = self.transformation_inverse
+                #     self.transformation = transformation
+                #     self.transformation_inverse = transformation_inverse
                 elif self.transformation_type == 'polynomial':
                     transformation = PolynomialTransform()
                     transformation.params = self.transformation
@@ -178,10 +186,10 @@ class Mapping2:
             self.transformation = AffineTransform(T.T)
             self.transformation_inverse = AffineTransform(self.transformation._inv_matrix)
         elif transformation_type=='nonlinear':
-            kx, ky = polywarp(self.destination, self.source)
-            kx_inv, ky_inv = polywarp(self.source, self.destination)
-            self.transformation = (kx, ky)
-            self.transformation_inverse = (kx_inv, ky_inv)
+            self.transformation = PolywarpTransform()
+            self.transformation.estimate(self.source, self.destination, order=3)
+            self.transformation_inverse = PolywarpTransform()
+            self.transformation_inverse.estimate(self.destination, self.source, order=3)
         elif transformation_type=='polynomial':
             self.transformation = PolynomialTransform()
             self.transformation.estimate(self.source, self.destination)
@@ -235,16 +243,17 @@ class Mapping2:
             self.transformation_inverse = AffineTransform(self.transformation._inv_matrix)
 
         elif transformation_type == 'nonlinear':
-            kx, ky = polywarp(destination_points_for_matching[:, 0:2], source_points_for_matching[:, 0:2])
-            kx_inv, ky_inv = polywarp(source_points_for_matching[:, 0:2], destination_points_for_matching[:, 0:2])
-            self.transformation = (kx, ky)
-            self.transformation_inverse = (kx_inv, ky_inv)
-
+            self.transformation = PolywarpTransform()
+            self.transformation.estimate(source_points_for_matching[:, 0:2], destination_points_for_matching[:, 0:2],
+                                         order=3)
+            self.transformation_inverse = PolywarpTransform()
+            self.transformation_inverse.estimate(destination_points_for_matching[:, 0:2],
+                                                 source_points_for_matching[:, 0:2], order=3)
         elif transformation_type == 'polynomial':
             self.transformation = PolynomialTransform()
-            self.transformation.estimate(source_points_for_matching[:, 0:2], destination_points_for_matching[:, 0:2])
+            self.transformation.estimate(source_points_for_matching[:, 0:2], destination_points_for_matching[:, 0:2], order=3)
             self.transformation_inverse = PolynomialTransform()
-            self.transformation_inverse.estimate(destination_points_for_matching[:, 0:2], source_points_for_matching[:, 0:2])
+            self.transformation_inverse.estimate(destination_points_for_matching[:, 0:2], source_points_for_matching[:, 0:2], order=3)
 
         self.transformation_type = transformation_type
 
@@ -408,12 +417,7 @@ class Mapping2:
         else:
             current_transformation = self.transformation_inverse
 
-        if (self.transformation_type == 'linear') or (self.transformation_type == 'polynomial'):
-            # Maybe we should rename transform to linear_transform [IS 05-03-2020]
-            # transform(pointSet, transformationMatrix=None, **kwargs):
-            return current_transformation(coordinates)
-        elif self.transformation_type == 'nonlinear':
-            return polywarp_apply(current_transformation[0], current_transformation[1], coordinates)
+        return current_transformation(coordinates)
 
     def transform_image(self, image, inverse=False, direction=None):
         """Transform image using the transformation
@@ -444,10 +448,7 @@ class Mapping2:
         else:
             current_transformation = self.transformation_inverse
 
-        if (self.transformation_type == 'linear') or (self.transformation_type == 'polynomial'):
-            return skimage.transform.warp(image, current_transformation, preserve_range=True)
-        else:
-            raise NotImplementedError
+        return skimage.transform.warp(image, current_transformation, preserve_range=True)
 
     def save(self, filepath, filetype='yaml'):
         """Save the current mapping in a file, so that it can be opened later.
