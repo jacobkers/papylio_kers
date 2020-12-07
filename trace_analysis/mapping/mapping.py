@@ -92,21 +92,12 @@ class Mapping2:
                 if self.transformation_type == 'linear':
                     self.transformation = AffineTransform(self.transformation)
                     self.transformation_inverse = AffineTransform(self.transformation_inverse)
-                #TODO: make the full class using PolywarpTransform before uncommenting this
-                # elif self.transformation_type == 'nonlinear':
-                #     transformation = PolywarpTransform()
-                #     transformation.params = self.transformation
-                #     transformation_inverse = PolywarpTransform()
-                #     transformation_inverse.params = self.transformation_inverse
-                #     self.transformation = transformation
-                #     self.transformation_inverse = transformation_inverse
+                elif self.transformation_type == 'nonlinear':
+                    self.transformation = PolywarpTransform(self.transformation)
+                    self.transformation_inverse = PolywarpTransform(self.transformation_inverse)
                 elif self.transformation_type == 'polynomial':
-                    transformation = PolynomialTransform()
-                    transformation.params = self.transformation
-                    transformation_inverse = PolynomialTransform()
-                    transformation_inverse.params = self.transformation_inverse
-                    self.transformation = transformation
-                    self.transformation_inverse = transformation_inverse
+                    self.transformation = PolynomialTransform(self.transformation)
+                    self.transformation_inverse = PolynomialTransform(self.transformation_inverse)
 
     def __getattr__(self, item):
         if hasattr(self.transformation, item):
