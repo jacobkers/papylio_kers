@@ -346,14 +346,8 @@ class File:
         self.mapping.file = self
 
     def export_map_file(self):
-        #saving kx,ky, still need to see how to read it in again
-        map_filepath = self.absoluteFilePath.with_suffix('.map')
-        PandQ = self.mapping.transformation
-        coefficients = np.concatenate((PandQ[0].flatten(),PandQ[1].flatten()),axis=None)
-        #np.savetxt(map_filepath, coefficients, fmt='%13.6g') # Same format used as in IDL code
-        PiandQi = self.mapping.transformation_inverse
-        coefficients_inverse = np.concatenate((PiandQi[0].flatten(),PiandQi[1].flatten()),axis=None)
-        np.savetxt(map_filepath, np.concatenate((coefficients,coefficients_inverse)), fmt='%13.6g') # Same format used as in IDL code
+        warnings.warn('The export_map_file method will be depricated, use export_mapping instead')
+        self.export_mapping(filetype='classic')
 
     def import_pks_file(self):
         # Background value stored in pks file is not imported yet

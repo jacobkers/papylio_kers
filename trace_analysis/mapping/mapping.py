@@ -88,6 +88,7 @@ class Mapping2:
                         if type(value) == list:
                             value = np.array(value)
                         setattr(self, key, value)
+                #TODO: Following if else statement can be simplified
                 if self.transformation_type == 'linear':
                     self.transformation = AffineTransform(self.transformation)
                     self.transformation_inverse = AffineTransform(self.transformation_inverse)
@@ -469,8 +470,19 @@ class Mapping2:
                 coefficients_inverse = self.transformation_inverse.params[[0, 0, 0, 1, 1, 1], [2, 0, 1, 2, 0, 1]]
                 np.savetxt(coeff_filepath, np.concatenate((coefficients, coefficients_inverse)),
                            fmt='%13.6g')  # Same format used as in IDL code
+            elif self.transformation_type == 'nonlinear':
+                # saving kx,ky, still need to see how to read it in again
+                map_filepath = filepath.with_suffix('.map')
+                PandQ = self.transformation.params
+                coefficients = np.concatenate((PandQ[0].flatten(), PandQ[1].flatten()), axis=None)
+                # np.savetxt(map_filepath, coefficients, fmt='%13.6g') # Same format used as in IDL code
+                PiandQi = self.transformation_inverse.params
+                coefficients_inverse = np.concatenate((PiandQi[0].flatten(), PiandQi[1].flatten()), axis=None)
+                np.savetxt(map_filepath, np.concatenate((coefficients, coefficients_inverse)),
+                           fmt='%13.6g')  # Same format used as in IDL code
             else:
-                raise TypeError('Mapping is not of type linear')
+                raise TypeError('Mapping is not of type linear or nonlinear')
+
         elif filetype in ['yml', 'yaml']:
             attributes = self.__dict__.copy()
             for key, value in attributes.items():
