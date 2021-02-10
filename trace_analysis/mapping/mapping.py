@@ -186,7 +186,7 @@ class Mapping2:
     def nearest_neighbour_match(self, distance_threshold=1, transformation_type=None):
         """Find transformation from source to destination points by matching nearest neighbours
 
-        Two-way nearest neighbours are detectected, i.e. the source point should be the nearest neighbour of the
+        Two-way nearest neighbours are detected, i.e. the source point should be the nearest neighbour of the
         destination point and vice versa. Only nearest neighbours closer than the distance threshold are used to find
         the transformation.
 
@@ -343,13 +343,17 @@ class Mapping2:
         axis = figure.gca()
 
         if show_source:
-            axis.scatter(self.source[:, 0], self.source[:, 1], facecolors='forestgreen', edgecolors='none', marker='.')
-        axis.scatter(self.destination[:, 0], self.destination[:, 1], facecolors='none', edgecolors='forestgreen', linewidth=1, marker='o')
-        axis.scatter(destination_from_source[:, 0], destination_from_source[:, 1], facecolors='r', edgecolors='none', marker='.')
+            axis.scatter(self.source[:, 0], self.source[:, 1], facecolors='forestgreen', edgecolors='none', marker='.',
+                         label=self.source_name)
+        axis.scatter(self.destination[:, 0], self.destination[:, 1], facecolors='r', edgecolors='none', marker='.',
+                     label=self.destination_name)
+        axis.scatter(destination_from_source[:, 0], destination_from_source[:, 1], facecolors='none',
+                     edgecolors='forestgreen', linewidth=1, marker='o', label=f'{self.source_name} transformed')
 
         axis.set_aspect('equal')
         axis.set_xlabel('x')
         axis.set_ylabel('y')
+        axis.legend()
 
     def get_transformation_direction(self, direction=None):
         """ Get inverse parameter based on direction
