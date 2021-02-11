@@ -256,7 +256,7 @@ class Mapping2:
     def iterative_closest_point(self, **kwargs):
         """Find transformation from source to destination points using an iterative closest point algorithm
 
-        In the iterative closest point algorithm, the two-way nearest neigbhours are found and these are used to
+        In the iterative closest point algorithm, the two-way nearest neigbhbours are found and these are used to
         find the most optimal transformation. Subsequently the source is transformed according to this
         transformation. This process is repeated until the changes detected are below a tolerance level.
 
@@ -265,43 +265,15 @@ class Mapping2:
 
         Parameters
         ----------
-        max_iterations : int
-            Maximum number of iterations to perform
-        tolerance : float
-            If the mean distance between the two point sets is below this tolerance, then the convergence is assumed.
-        use_cutoff : bool or int
-            If an int is passed, then the value will be used as a distance threshold for nearest neighbour detection.
-            If use_cutoff is set to True, then the median + std of the distances will be used as threshold.
+        **kwargs
+            Keyword arguments passed to icp.
 
         """
 
-        # TODO: Let icp pass and return AffineTransformation or PolynomialTransformation
-        self.transformation, distances, iterations, self.transformation_inverse = \
-            icp(self.source, self.destination, initial_transformation=self.initial_transformation,
-                transformation_type=self.transformation_type, **kwargs)
-        if self.transformation_type == 'linear':
-            self.transformation = AffineTransform(self.transformation)
-            self.transformation_inverse = AffineTransform(self.transformation_inverse)
-        elif self.transformation_type == 'nonlinear':
-            # def polywarp_to_polynomial_transform(polywarp_output):
-            #
-            #     order = polywarp_output[0].shape[0]
-            #
-            #     polynomial_transform_params_list = []
-            #
-            #     for polywarp_matrix in polywarp_output:
-            #         polynomial_transform_params_list.append(
-            #             [polywarp_matrix[j - i, i] if ((j - i) < order) and (i < order) else 0 for j in
-            #              range(order * 2 - 1) for
-            #              i in range(j + 1)]
-            #         )
-            #
-            #     polynomial_transform_params = np.vstack(polynomial_transform_params_list)
-            #
-            #     return PolynomialTransform(params=polynomial_transform_params)
+        #TODO: Possibly add that this function uses the self.initial_transformation and/or self.transformation_type
 
-            self.transformation = PolywarpTransform(self.transformation)
-            self.transformation_inverse = PolywarpTransform(self.transformation_inverse)
+        self.transformation, self.transformation_inverse, distances, number_of_iterations = \
+            icp(self.source, self.destination, **kwargs)
 
     def number_of_matched_points(self, distance_threshold):
         """Number of matched points determined by finding the two-way nearest neigbours that are closer than a distance
