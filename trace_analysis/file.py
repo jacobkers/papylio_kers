@@ -333,7 +333,7 @@ class File:
 
             # Can't we make this independent of the image?
             grid_coordinates = np.array([(a,b) for a in np.arange(0, grid_range//2, 5) for b in np.arange(0, grid_range, 5)])
-            from trace_analysis.image_adapt.polywarp import polywarp, polywarp_apply
+            from trace_analysis.mapping.polywarp import polywarp, polywarp_apply
             transformed_grid_coordinates = polywarp_apply(P, Q, grid_coordinates)
             # plt.scatter(grid_coordinates[:, 0], grid_coordinates[:, 1], marker='.')
             # plt.scatter(transformed_grid_coordinates[:,0], transformed_grid_coordinates[:,1], marker='.')

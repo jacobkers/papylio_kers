@@ -16,7 +16,7 @@ import cv2
 from trace_analysis.image_adapt.find_threshold import remove_background, get_threshold
 from trace_analysis.autopick.pick_spots_akaze_ALL import load_map, load_coeff
 
-from trace_analysis.image_adapt.polywarp import polywarp_apply
+from trace_analysis.mapping.polywarp import polywarp_apply
 from trace_analysis.image_adapt.distance_calculation import dist_calc
 import copy
 

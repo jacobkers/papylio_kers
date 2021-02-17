@@ -13,7 +13,6 @@ import skimage.transform
 from skimage.transform import AffineTransform, PolynomialTransform
 
 from trace_analysis.mapping.icp import icp, nearest_neighbor_pair
-from trace_analysis.image_adapt.polywarp import polywarp, polywarp_apply #required for nonlinear
 from trace_analysis.mapping.polywarp import PolywarpTransform
 
 class Mapping2:

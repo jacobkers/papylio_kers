@@ -28,7 +28,7 @@ import numpy as np
 import bisect #This module provides support for maintaining a list in sorted order without having to sort the list after each insertion.
 from trace_analysis.image_adapt.find_threshold import remove_background, get_threshold
 import os
-from trace_analysis.image_adapt.polywarp import polywarp, polywarp_apply
+from trace_analysis.mapping.polywarp import polywarp, polywarp_apply
 from trace_analysis.image_adapt.distance_calculation import dist_calc
 #import image_adapt
 

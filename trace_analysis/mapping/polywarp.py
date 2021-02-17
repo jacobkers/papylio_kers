@@ -1,8 +1,6 @@
 import numpy as np
 from skimage.transform._geometric import GeometricTransform
 
-from trace_analysis.image_adapt.polywarp import polywarp, polywarp_apply #required for nonlinear
-
 # If you can think of a better name ... PolynomialTransform2 possibly
 class PolywarpTransform(GeometricTransform):
     # TODO: Update docstrings
@@ -116,7 +114,6 @@ class PolywarpTransform(GeometricTransform):
         # self.params = params.reshape((2, u // 2))
         #
         # return True
-        # TODO: Get polywarp function to this file
         self.params = polywarp(dst, src, degree=order)
 
         return True
@@ -149,8 +146,6 @@ class PolywarpTransform(GeometricTransform):
         #         dst[:, 1] += self.params[1, pidx] * x ** (j - i) * y ** i
         #         pidx += 1
 
-        # TODO: Get polywarp function to this file
-
         dst = polywarp_apply(self.params[0], self.params[1], coords)
 
         return dst
@@ -161,3 +156,114 @@ class PolywarpTransform(GeometricTransform):
             'transformation. Instead, estimate the inverse transformation '
             'parameters by exchanging source and destination coordinates,'
             'then apply the forward transformation.')
+
+
+
+# Original code source: Trey Wenger - August 2015
+# Implementation of IDL's polar.pro
+# Shamelessly copied, well tested against IDL procedure
+
+def polywarp(xy_out, xy_in, degree=3):
+    """
+    TODO: Update docstring and function style
+    originally polywarp(Xout,Yout,Xin,Yin,degree=3)
+    Fit a function of the form
+    Xout = sum over i and j from 0 to degree of: kx[i,j] * Xin^j * Yin^i
+    Yout = sum over i and j from 0 to degree of: ky[i,j] * Xin^j * Yin^i
+    Return kx, ky
+    len(xo) must be greater than or equal to (degree+1)^2
+    """
+    x_out = xy_out[:, 0]
+    y_out = xy_out[:, 1]
+    x_in = xy_in[:, 0]
+    y_in = xy_in[:, 1]
+
+    if len(x_in) != len(y_in) or len(x_in) != len(x_out) or len(x_in) != len(y_out):
+        print("Error: length of xo, yo, xi, and yi must be the same")
+        return
+
+    if len(x_in) < (degree + 1.) ** 2.:
+        # print ("Error: length of arrays must be greater than (degree+1)^2")
+        # return
+        new_degree = int(np.floor(np.sqrt(len(x_in)) - 1))
+        print(f'Too few datapoints for calculation with degree {degree}, reduced degree to {new_degree}')
+        degree = new_degree
+
+    # ensure numpy arrays
+    x_in = np.array(x_in)
+    y_in = np.array(y_in)
+    x_out = np.array(x_out)
+    y_out = np.array(y_out)
+
+    # set up some useful variables
+    degree2 = (degree + 1) ** 2
+    x = np.array([x_out, y_out])
+    u = np.array([x_in, y_in])
+    ut = np.zeros([len(x_in), degree2])
+    u2i = np.zeros(degree + 1)
+
+    for i in range(len(x_in)):
+        u2i[0] = 1.
+        zz = u[1, i]
+        for j in range(1, degree + 1):
+            u2i[j] = u2i[j - 1] * zz
+
+        # print ("u2i",u2i)
+
+        ut[i, 0:degree + 1] = u2i
+
+        for j in range(1, degree + 1):
+            ut[i, j * (degree + 1):j * (degree + 1) + degree + 1] = u2i * u[0, i] ** j
+    # print ("ut",ut)
+
+    uu = ut.T
+    #  print( "uu",uu)
+    kk = np.dot(np.linalg.inv(np.dot(uu, ut)), uu).T
+    # print( "kk",kk)
+    # print( "x[0,:]",x[0,:])
+    kx = np.dot(kk.T, x[0, :]).reshape(degree + 1, degree + 1)
+    # print ("kx",kx)
+    ky = np.dot(kk.T, x[1, :]).reshape(degree + 1, degree + 1)
+    # print ("ky",ky)
+
+    return kx, ky
+
+
+def polywarp_apply(P, Q, pts1):
+    # TODO: Add docstring and function style
+    deg = len(P) - 1
+    dst = np.ones(np.shape(pts1))
+    dst[:, 0] = [
+        np.sum([P[ii, jj] * pts1[kk, 0] ** ii * pts1[kk, 1] ** jj for ii in range(deg + 1) for jj in range(deg + 1)])
+        for kk in range(len(pts1))]
+    dst[:, 1] = [
+        np.sum([Q[ii, jj] * pts1[kk, 0] ** ii * pts1[kk, 1] ** jj for ii in range(deg + 1) for jj in range(deg + 1)])
+        for kk in range(len(pts1))]
+    return (dst)
+
+
+def translate(displacement, degree=3):
+    kx = np.zeros((degree + 1, degree + 1))
+    ky = np.zeros((degree + 1, degree + 1))
+    kx[0, 0] = displacement[0]
+    kx[1, 0] = 1
+    ky[0, 0] = displacement[1]
+    ky[0, 1] = 1
+    return kx, ky
+
+
+if __name__ == '__main__':
+    import matplotlib.pyplot as plt
+
+    Npoints = 40
+
+    np.random.seed(32)
+    coordinates = np.random.rand(Npoints, 2) * 1000
+
+    plt.figure()
+    plt.scatter(coordinates[:, 0], coordinates[:, 1], c='green')
+    plt.scatter(coordinates[:, 0] + 100, coordinates[:, 1] + 200, c='orange')
+    Pt, Qt = translate([100, 200])
+    new_coordinates = polywarp_apply(Pt, Qt, coordinates)
+    plt.scatter(new_coordinates[:, 0], new_coordinates[:, 1], facecolors='none', edgecolors='r')
+

@@ -23,7 +23,6 @@ from trace_analysis.image_adapt.find_threshold import remove_background, get_thr
 #from trace_analysis.image_adapt.Mapping import Mapping
 from trace_analysis.image_adapt.Image import Image
 
-from trace_analysis.image_adapt.polywarp import polywarp, polywarp_apply
 #from cached_property import cached_property
 from trace_analysis.mapping.mapping import Mapping2
 
