@@ -81,7 +81,7 @@ def nearest_neighbor_pair(pointset1, pointset2):
     return distances1[i2], i1, i2
 
 
-def direct_match(source, destination, transform=AffineTransform, return_inverse=False, return_error=False, **kwargs):
+def direct_match(source, destination, transform=AffineTransform, return_inverse=False, **kwargs):
     transformation = transform()
     transformation.estimate(source, destination, **kwargs)
 
@@ -143,11 +143,14 @@ def icp(source, destination, max_iterations=20, tolerance=0.001, distance_thresh
     tolerance : float
         If difference in mean squared error between two iterations is smaller than the tolerance,
         the algorithm finishes.
-    cutoff : float or None
-        If set only nearest-neighbours with distances smaller than the cutoff will be used for estimating the
-        transformation.
-        If set to 'auto' the cutoff value will be calculated each iteration by taking the sum of the median and
-        the standard deviation of the distances between the nearest neighbours.
+    distance_threshold : float or None
+        If set only nearest-neighbours with distances smaller than the distance_threshold will be used for estimating
+        the transformation.
+        If set to 'auto' the distance_threshold value will be calculated each iteration by taking the sum of the median
+        and the standard deviation of the distances between the nearest neighbours.
+    distance_threshold_final : float or None
+        Distance threshold applied in the final match.
+        If set to None, then the regular distance threshold will be used.
     initial_transformation : skimage.transform._geometric.GeometricTransform
         Initial transformation to apply to the source before start of iterations.
         If no initial_transformation is given then an initial transformation is calculated so that the centers of
@@ -155,10 +158,12 @@ def icp(source, destination, max_iterations=20, tolerance=0.001, distance_thresh
     transform : type
         Transform type used during iteration.
         Note: the class is passed, not the instance.
-    transform_final : type
+    transform_final : type or None
         Transform type used during for final estimation.
         If no value is given for transform_final then transform will be used.
         Note: the class is passed, not the instance.
+    show_plot : bool
+        If True an interactive plot will open that shows the pointsets in the different iterations.
     kwargs
         Additional keyword arguments are passed to the kwargs are passed to the transform.estimate.
         This should be used when using PolynomialTransform and the order value needs to be changed from the default value.
@@ -169,8 +174,8 @@ def icp(source, destination, max_iterations=20, tolerance=0.001, distance_thresh
         Obtained transformation
     transformation_final_inverse : skimage.transform._geometric.GeometricTransform
         Obtained inverse transformation.
-    distances
-        Distances between nearest neighbour points used for calculating final transformation.
+    error
+        Mean squared error of the neirest-neighbour pairs used for estimating the transformation.
     i : int
         Number of performed iterations
 
@@ -181,54 +186,30 @@ def icp(source, destination, max_iterations=20, tolerance=0.001, distance_thresh
     if distance_threshold_final is None:
         distance_threshold_final = distance_threshold
 
-    # if cutoff == 'auto':
-    #     auto_cutoff = True
-    # else:
-    #     auto_cutoff = False
-
     # Initialize plotting object
     plot = icp_plot()
     plot.append_data(source, destination, title='Start')
-
-    source_moving_to_destination = source.copy()
 
     if initial_transformation is None:
         # Initial translation to overlap both point-sets
         initial_transformation = AffineTransform(translation=(np.mean(destination, axis=0) - np.mean(source, axis=0)))
     current_transformation = initial_transformation
 
-    # source_moving_to_destination = initial_transformation(source_moving_to_destination)
-
-    plot.append_data(source_moving_to_destination, destination, title='Initial transformation')
+    plot.append_data(current_transformation(source), destination, title='Initial transformation')
 
     previous_error = 0
 
     for i in range(max_iterations):
-        # Find the nearest neighbors between the current source and destination points
-        # distances, source_indices, destination_indices = \
-        #     nearest_neighbor_pair(source_moving_to_destination, destination)
-        #
-        # if auto_cutoff:
-        #     cutoff = np.median(distances) + np.std(distances)
-        #
-        # if type(cutoff) in (float, int):
-        #     source_indices = source_indices[distances < cutoff]
-        #     destination_indices = destination_indices[distances < cutoff]
-        #
-        # transformation_step = transform()
-        # transformation_step.estimate(source_moving_to_destination[source_indices], destination[destination_indices], **kwargs)
-
         current_transformation, _, source_indices, destination_indices, error = \
             nearest_neighbour_match(source, destination, transform, current_transformation,
                                     distance_threshold, return_inverse=False, **kwargs)
 
-        # source_moving_to_destination = transformation_step(source_moving_to_destination)
         if show_plot:
-            plot.append_data(current_transformation(source), destination, source_indices, destination_indices,
+            plot.append_data(current_transformation(source), destination, source_indices, destination_indices, error,
                              title=f'Iteration {i}')
 
-        # mean_squared_error = np.sqrt(np.mean(distances**2))
         print(f'Iteration: {i} \t Mean squared error: {error} \t Number of pairs: {len(source_indices)}')
+
         if np.abs(previous_error - error) < tolerance:
             break
         previous_error = error
@@ -238,20 +219,10 @@ def icp(source, destination, max_iterations=20, tolerance=0.001, distance_thresh
         nearest_neighbour_match(source, destination, transform_final, current_transformation, distance_threshold_final,
                                 return_inverse=True, **kwargs)
 
-    # transformation_final = transform_final()
-    # transformation_final.estimate(source[source_indices], destination[destination_indices], **kwargs)
-    #
-    # transformation_final_inverse = transform_final()
-    # transformation_final_inverse.estimate(destination[destination_indices], source[source_indices], **kwargs)
-
-    # Final error calculation
-    # distances, _, _ = \
-    #     nearest_neighbor_pair(transformation_final(source[source_indices]), destination[destination_indices])
-    # mean_squared_error = np.sqrt(np.mean(distances ** 2))
     print(f'Final \t\t Mean squared error: {error} \t Number of pairs: {len(source_indices)}')
 
     if show_plot:
-        plot.append_data(transformation_final(source), destination, source_indices, destination_indices,
+        plot.append_data(transformation_final(source), destination, source_indices, destination_indices, error,
                          title=f'Final')
         plot.plot()
 
@@ -264,9 +235,9 @@ class icp_plot:
         self.xlim = [0,512]
         self.ylim = [0,512]
 
-    def append_data(self, source, destination, source_indices=None, destination_indices=None,
+    def append_data(self, source, destination, source_indices=None, destination_indices=None, error=None,
                     title=None):
-        self.data.append((source, destination, source_indices, destination_indices, title))
+        self.data.append((source, destination, source_indices, destination_indices, error, title))
 
     def set_step(self, step_index):
         step_index = int(step_index)
@@ -293,13 +264,13 @@ class icp_plot:
         self.set_step(len(self.data)-1)
 
 def plot_icp_step(source, destination, source_indices=None, destination_indices=None,
-                  title=None, axis=None):
+                  error=None, title=None, axis=None):
     if not axis:
         axis = plt.gca()
     if (source_indices is not None) and (destination_indices is not None):
         show_point_connections(source[source_indices], destination[destination_indices], axis)
     scatter_coordinates([destination, source], axis)
-    axis.set_title(title)
+    axis.set_title(f'{title}\nMean squared error: {error}')
 
 
 if __name__ == '__main__':
