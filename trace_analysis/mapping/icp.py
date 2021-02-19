@@ -101,6 +101,8 @@ def nearest_neighbour_match(source, destination, transform=AffineTransform, init
 
     if initial_transformation:
         source_after_initial_transformation = initial_transformation(source)
+    else:
+        source_after_initial_transformation = source
 
     if distance_threshold == 'auto':
         auto_distance_threshold = True
