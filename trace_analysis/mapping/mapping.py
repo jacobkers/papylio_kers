@@ -48,7 +48,8 @@ class Mapping2:
                             'polynomial': PolynomialTransform}
 
     def __init__(self, source=None, destination=None, method=None,
-                 transformation_type=None, initial_transformation=None, load=None):
+                 transformation_type=None, initial_transformation=None,
+                 source_name='source', destination_name='destination', load=None):
         """Set passed object attributes
 
         Parameters
@@ -69,9 +70,9 @@ class Mapping2:
             Path to file that has to be loaded
         """
 
-        self.source_name = 'source'
+        self.source_name = source_name
         self.source = source #source=donor=left side image
-        self.destination_name = 'destination'
+        self.destination_name = destination_name
         self.destination = destination #destination=acceptor=right side image
         self.method = method
         self.transformation_type = transformation_type
@@ -306,10 +307,10 @@ class Mapping2:
         if show_source:
             axis.scatter(self.source[:, 0], self.source[:, 1], facecolors='forestgreen', edgecolors='none', marker='.',
                          label=self.source_name)
-        axis.scatter(self.destination[:, 0], self.destination[:, 1], facecolors='r', edgecolors='none', marker='.',
-                     label=self.destination_name)
         axis.scatter(destination_from_source[:, 0], destination_from_source[:, 1], facecolors='none',
                      edgecolors='forestgreen', linewidth=1, marker='o', label=f'{self.source_name} transformed')
+        axis.scatter(self.destination[:, 0], self.destination[:, 1], facecolors='r', edgecolors='none', marker='.',
+                     label=self.destination_name)
 
         axis.set_aspect('equal')
         axis.set_xlabel('x')

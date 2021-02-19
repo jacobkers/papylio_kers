@@ -756,7 +756,9 @@ class File:
         additional_mapping_parameters = {key: configuration[key]
                                          for key in (configuration.keys() and {'distance_threshold'})}
 
-        self.mapping = Mapping2(source=donor_coordinates,
+        self.mapping = Mapping2(source_name='Donor',
+                                source=donor_coordinates,
+                                destination_name='Acceptor',
                                 destination=acceptor_coordinates,
                                 method=method,
                                 transformation_type=transformation_type,
