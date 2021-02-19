@@ -12,7 +12,7 @@ import yaml
 import skimage.transform
 from skimage.transform import AffineTransform, PolynomialTransform
 
-from trace_analysis.mapping.icp import icp, nearest_neighbor_pair
+from trace_analysis.mapping.icp import icp, nearest_neighbor_pair, nearest_neighbour_match, direct_match
 from trace_analysis.mapping.polywarp import PolywarpTransform
 
 class Mapping2:
@@ -62,8 +62,9 @@ class Mapping2:
             and 'iterative_closest_point'
         transformation_type : str
             Type of transformation used, linear or polynomial
-        initial_transformation : AffineTransform or PolynomialTransform
-            Initial transformation to perform as a starting point for the mapping algorithms
+        initial_transformation : skimage.transform._geometric.GeometricTransform or dict
+            Initial transformation used as starting point by the perform_mapping method.
+            Can be given as dictionary specifying translation, scale, rotation and shear.
         load : str or pathlib.Path
             Path to file that has to be loaded
         """
@@ -98,6 +99,7 @@ class Mapping2:
                 self.transformation = self.transform(self.transformation)
                 self.transformation_inverse = self.transform(self.transformation_inverse)
 
+    # Function to make attributes from transformation available from the Mapping2 class
     def __getattr__(self, item):
         if hasattr(self.transformation, item):
             return(getattr(self.transformation, item))
@@ -137,6 +139,8 @@ class Mapping2:
     def perform_mapping(self, method=None, **kwargs):
         """Find transformation from source to destination points using one of the mapping methods
 
+        The starting point for the mapping is the initial_transformation attribute.
+
         Parameters
         ----------
         method : str
@@ -147,6 +151,8 @@ class Mapping2:
 
         if method is None:
             method = self.method
+
+        self.transformation = self.initial_transformation
 
         if method in ['icp', 'iterative_closest_point']: #icp should be default
             self.iterative_closest_point(**kwargs)
@@ -161,7 +167,7 @@ class Mapping2:
 
         self.show_mapping_transformation()
 
-    def direct_match(self, transformation_type=None):
+    def direct_match(self, transformation_type=None, **kwargs):
         """Find transformation from source to destination points by matching based on the point order
 
         Note: the number and the order of source points should be equal to the number and the order of destination points.
@@ -171,31 +177,20 @@ class Mapping2:
         transformation_type : str
             Type of transformation used, either linear or polynomial can be chosen.
             If not specified the object transformation_type is used.
+        **kwargs
+            Keyword arguments passed to the direct match function.
 
         """
-        if transformation_type is None:
-            transformation_type = self.transformation_type
+        if transformation_type is not None:
+            self.transformation_type = transformation_type
 
-        self.transformation_type = transformation_type
+        self.transformation, self.transformation_inverse, error = \
+            direct_match(self.source, self.destination, transform=self.transform, return_inverse=True, **kwargs)
 
-        if transformation_type=='linear':
-            source = np.hstack([self.source, np.ones((len(self.source), 1))])
-            destination = np.hstack([self.destination, np.ones((len(self.destination), 1))])
-            T, res, rank, s = np.linalg.lstsq(source, destination, rcond=None)
-            self.transformation = AffineTransform(T.T)
-            self.transformation_inverse = AffineTransform(self.transformation._inv_matrix)
-        elif transformation_type=='nonlinear':
-            self.transformation = PolywarpTransform()
-            self.transformation.estimate(self.source, self.destination, order=3)
-            self.transformation_inverse = PolywarpTransform()
-            self.transformation_inverse.estimate(self.destination, self.source, order=3)
-        elif transformation_type=='polynomial':
-            self.transformation = PolynomialTransform()
-            self.transformation.estimate(self.source, self.destination)
-            self.transformation_inverse = PolynomialTransform()
-            self.transformation_inverse.estimate(self.destination, self.source)
+        print(f'Direct match\n'
+              f'Mean-squared error: {error}')
 
-    def nearest_neighbour_match(self, distance_threshold=1, transformation_type=None):
+    def nearest_neighbour_match(self, distance_threshold=None, transformation_type=None, **kwargs):
         """Find transformation from source to destination points by matching nearest neighbours
 
         Two-way nearest neighbours are detected, i.e. the source point should be the nearest neighbour of the
@@ -204,8 +199,11 @@ class Mapping2:
 
         Note
         ----
-        The current transformation is first applied and then the nearest neighbour match is performed, basically to
-        improve the current transformation.
+        The current transformation is used as starting point for the algorithm.
+
+        Note
+        ----
+        The printed error is based on the points selected for matching.
 
         Parameters
         ----------
@@ -215,55 +213,20 @@ class Mapping2:
         transformation_type : str
             Type of transformation used, either linear or polynomial can be chosen.
             If not specified the object transformation_type is used.
+        **kwargs
+            Keyword arguments passed to the nearest-neighbour match function.
 
         """
-        if not transformation_type:
-            transformation_type = self.transformation_type
+        if transformation_type is not None:
+            self.transformation_type = transformation_type
 
-        # TODO: Probably this can be partly merged with the icp function
+        self.transformation, self.transformation_inverse, _, _, error = \
+            nearest_neighbour_match(self.source, self.destination, transform=self.transform,
+                                    initial_transformation=self.transformation, distance_threshold=distance_threshold,
+                                    return_inverse=True, **kwargs)
 
-        source = self.source
-        destination_from_source = self.transform_coordinates(source)
-        destination = self.destination
-        distances, source_indices, destination_indices = nearest_neighbor_pair(destination_from_source,destination)
-
-        source = np.hstack([source, np.ones((len(source), 1))])
-        destination = np.hstack([destination, np.ones((len(destination), 1))])
-
-        source_points_for_matching = source[source_indices[distances < distance_threshold]]
-        destination_points_for_matching = destination[destination_indices[distances<distance_threshold]]
-
-        if transformation_type == 'linear':
-            T, res, rank, s = np.linalg.lstsq(source_points_for_matching, destination_points_for_matching, rcond=None)
-            # transformation = T.T
-            #
-            # self.transformation = transformation @ self.transformation
-            self.transformation = AffineTransform(T.T)
-            self.transformation_inverse = AffineTransform(self.transformation._inv_matrix)
-
-        elif transformation_type == 'nonlinear':
-            self.transformation = PolywarpTransform()
-            self.transformation.estimate(source_points_for_matching[:, 0:2], destination_points_for_matching[:, 0:2],
-                                         order=3)
-            self.transformation_inverse = PolywarpTransform()
-            self.transformation_inverse.estimate(destination_points_for_matching[:, 0:2],
-                                                 source_points_for_matching[:, 0:2], order=3)
-        elif transformation_type == 'polynomial':
-            self.transformation = PolynomialTransform()
-            self.transformation.estimate(source_points_for_matching[:, 0:2], destination_points_for_matching[:, 0:2], order=3)
-            self.transformation_inverse = PolynomialTransform()
-            self.transformation_inverse.estimate(destination_points_for_matching[:, 0:2], source_points_for_matching[:, 0:2], order=3)
-
-        self.transformation_type = transformation_type
-
-        # new_destination_from_source = transform(destination_from_source[:,0:2], transformationMatrix=transformation)
-        #
-        # figure = plt.figure()
-        # axis = figure.gca()
-        # #axis.scatter(self.source[source_indices, 0], self.source[:, 1], c='g')
-        # axis.scatter(self.destination[destination_indices, 0], self.destination[destination_indices, 1], c='r')
-        # axis.scatter(destination_from_source[source_indices, 0], destination_from_source[source_indices, 1], c='g')
-        # axis.scatter(new_destination_from_source[source_indices, 0], new_destination_from_source[source_indices, 1], c='b')
+        print(f'Nearest-neighbour match\n'
+              f'Mean-squared error: {error}')
 
     def iterative_closest_point(self, distance_threshold=None, **kwargs):
         """Find transformation from source to destination points using an iterative closest point algorithm
@@ -274,6 +237,14 @@ class Mapping2:
 
         The iterative closest point algorithm can be used in situations when deviations between the two point sets
         are relatively small.
+
+        Note
+        ----
+        The current transformation is used as starting point for the algorithm.
+
+        Note
+        ----
+        The printed error is based on the points selected for matching.
 
         Parameters
         ----------
@@ -287,7 +258,11 @@ class Mapping2:
 
         self.transformation, self.transformation_inverse, error, number_of_iterations = \
             icp(self.source, self.destination, distance_threshold_final=distance_threshold,
-                initial_transformation=self.initial_transformation, transform_final=self.transform, **kwargs)
+                initial_transformation=self.transformation, transform_final=self.transform, **kwargs)
+
+        print(f'Iterative closest point match\n'
+              f'Mean-squared error: {error}\n'
+              f'Number of iterations: {number_of_iterations}')
 
     def number_of_matched_points(self, distance_threshold):
         """Number of matched points determined by finding the two-way nearest neigbours that are closer than a distance
@@ -341,7 +316,7 @@ class Mapping2:
         axis.set_ylabel('y')
         axis.legend()
 
-    def get_transformation_direction(self, direction=None):
+    def get_transformation_direction(self, direction):
         """ Get inverse parameter based on direction
 
         Parameters
@@ -357,13 +332,12 @@ class Mapping2:
 
         """
 
-        if direction is not None:
-            if direction == self.source_name + '2' + self.destination_name:
-                inverse = False
-            elif direction == self.destination_name + '2' + self.source_name:
-                inverse = True
-            else:
-                raise ValueError('Wrong direction')
+        if direction == self.source_name + '2' + self.destination_name:
+            inverse = False
+        elif direction == self.destination_name + '2' + self.source_name:
+            inverse = True
+        else:
+            raise ValueError('Wrong direction')
 
         return inverse
 
@@ -480,12 +454,23 @@ class Mapping2:
 
 if __name__ == "__main__":
     # Create test point set (with some missing points)
-    number_of_points = 40
-    np.random.seed(32)
-    source = np.random.rand(number_of_points, 2) * 1000
-    transformation = AffineTransform(translation=[50,25], rotation=2/360*2*np.pi, scale=[1.1,1.1])
-    destination = transformation(source)[5:]
-    source = source[:35]
+    from trace_analysis.plugins.sequencing.point_set_simulation import simulate_mapping_test_point_set
+
+    # Simulate soure and destination point sets
+    number_of_source_points = 40
+    transformation = AffineTransform(translation=[256, 0], rotation=5 / 360 * 2 * np.pi, scale=[0.98, 0.98])
+    source_bounds = ([0, 0], [256, 512])
+    source_crop_bounds = None
+    fraction_missing_source = 0
+    fraction_missing_destination = 0
+    maximum_error_source = 2
+    maximum_error_destination = 2
+    shuffle = True
+
+    source, destination = simulate_mapping_test_point_set(number_of_source_points, transformation,
+                                                          source_bounds, source_crop_bounds,
+                                                          fraction_missing_source, fraction_missing_destination,
+                                                          maximum_error_source, maximum_error_destination, shuffle)
 
     # Make a mapping object, perform the mapping and show the transformation
     mapping = Mapping2(source, destination, transformation_type='linear')
@@ -494,7 +479,7 @@ if __name__ == "__main__":
     mapping.show_mapping_transformation(show_source=True)
 
     # Create a test image
-    image = np.zeros((250,250))
+    image = np.zeros((512,512))
     image[100:110,:]=1
     image[:,100:110]=1
 
