@@ -81,8 +81,55 @@ def nearest_neighbor_pair(pointset1, pointset2):
     return distances1[i2], i1, i2
 
 
-def icp(source, destination, max_iterations=20, tolerance=0.001, cutoff=None, initial_transformation=None,
-        transform=AffineTransform, transform_final=None, **kwargs):
+def direct_match(source, destination, transform=AffineTransform, return_inverse=False, return_error=False, **kwargs):
+    transformation = transform()
+    transformation.estimate(source, destination, **kwargs)
+
+    if return_inverse:
+        transformation_inverse = transform()
+        transformation_inverse.estimate(destination, source, **kwargs)
+    else:
+        transformation_inverse = None
+
+    error = mean_squared_error(source, destination, transformation)
+
+    return transformation, transformation_inverse, error
+
+
+def nearest_neighbour_match(source, destination, transform=AffineTransform, initial_transformation=None,
+                            cutoff=None, return_inverse=False, **kwargs):
+
+    if initial_transformation:
+        source_after_initial_transformation = initial_transformation(source)
+
+    if cutoff == 'auto':
+        auto_cutoff = True
+    else:
+        auto_cutoff = False
+
+    distances, source_indices, destination_indices = \
+        nearest_neighbor_pair(source_after_initial_transformation, destination)
+
+    if auto_cutoff:
+        cutoff = np.median(distances) + np.std(distances)
+
+    if type(cutoff) in (float, int):
+        source_indices = source_indices[distances < cutoff]
+        destination_indices = destination_indices[distances < cutoff]
+
+    transformation, transformation_inverse, error = direct_match(source[source_indices], destination[destination_indices],
+                                                                 transform, return_inverse=return_inverse, **kwargs)
+
+    return transformation, transformation_inverse, source_indices, destination_indices, error
+
+
+def mean_squared_error(source, destination, transformation):
+    distances = np.linalg.norm(destination - transformation(source), axis=1)
+    return np.mean(distances**2)
+
+
+def icp(source, destination, max_iterations=20, tolerance=0.001, cutoff=None, cutoff_final=None,
+        initial_transformation=None, transform=AffineTransform, transform_final=None, show_plot=False, **kwargs):
     """Iterative closest point algorithm for mapping a source point set on a destination point set.
 
     Parameters
@@ -131,11 +178,13 @@ def icp(source, destination, max_iterations=20, tolerance=0.001, cutoff=None, in
 
     if transform_final is None:
         transform_final=transform
+    if cutoff_final is None:
+        cutoff_final = cutoff
 
-    if cutoff == 'auto':
-        auto_cutoff = True
-    else:
-        auto_cutoff = False
+    # if cutoff == 'auto':
+    #     auto_cutoff = True
+    # else:
+    #     auto_cutoff = False
 
     # Initialize plotting object
     plot = icp_plot()
@@ -146,8 +195,9 @@ def icp(source, destination, max_iterations=20, tolerance=0.001, cutoff=None, in
     if initial_transformation is None:
         # Initial translation to overlap both point-sets
         initial_transformation = AffineTransform(translation=(np.mean(destination, axis=0) - np.mean(source, axis=0)))
+    current_transformation = initial_transformation
 
-    source_moving_to_destination = initial_transformation(source_moving_to_destination)
+    # source_moving_to_destination = initial_transformation(source_moving_to_destination)
 
     plot.append_data(source_moving_to_destination, destination, title='Initial transformation')
 
@@ -155,47 +205,57 @@ def icp(source, destination, max_iterations=20, tolerance=0.001, cutoff=None, in
 
     for i in range(max_iterations):
         # Find the nearest neighbors between the current source and destination points
-        distances, source_indices, destination_indices = \
-            nearest_neighbor_pair(source_moving_to_destination, destination)
+        # distances, source_indices, destination_indices = \
+        #     nearest_neighbor_pair(source_moving_to_destination, destination)
+        #
+        # if auto_cutoff:
+        #     cutoff = np.median(distances) + np.std(distances)
+        #
+        # if type(cutoff) in (float, int):
+        #     source_indices = source_indices[distances < cutoff]
+        #     destination_indices = destination_indices[distances < cutoff]
+        #
+        # transformation_step = transform()
+        # transformation_step.estimate(source_moving_to_destination[source_indices], destination[destination_indices], **kwargs)
 
-        if auto_cutoff:
-            cutoff = np.median(distances) + np.std(distances)
+        current_transformation, _, source_indices, destination_indices, error = \
+            nearest_neighbour_match(source, destination, transform, current_transformation,
+                                    cutoff, return_inverse=False, **kwargs)
 
-        if type(cutoff) in (float, int):
-            source_indices = source_indices[distances < cutoff]
-            destination_indices = destination_indices[distances < cutoff]
+        # source_moving_to_destination = transformation_step(source_moving_to_destination)
+        if show_plot:
+            plot.append_data(current_transformation(source), destination, source_indices, destination_indices,
+                             title=f'Iteration {i}')
 
-        transformation_step = transform()
-        transformation_step.estimate(source_moving_to_destination[source_indices], destination[destination_indices], **kwargs)
-        source_moving_to_destination = transformation_step(source_moving_to_destination)
-
-        plot.append_data(source_moving_to_destination, destination, source_indices, destination_indices,
-                         title=f'Step {i}')
-
-        mean_squared_error = np.sqrt(np.mean(distances**2))
-        print(f'Iteration: {i} \t Mean squared error: {mean_squared_error} \t Number of pairs: {len(distances)}')
-        if np.abs(previous_error - mean_squared_error) < tolerance:
+        # mean_squared_error = np.sqrt(np.mean(distances**2))
+        print(f'Iteration: {i} \t Mean squared error: {error} \t Number of pairs: {len(source_indices)}')
+        if np.abs(previous_error - error) < tolerance:
             break
-        previous_error = mean_squared_error
+        previous_error = error
 
     # Perform final transformation, possibly with a different transformation type
-    transformation_final = transform_final()
-    transformation_final.estimate(source[source_indices], destination[destination_indices], **kwargs)
+    transformation_final, transformation_final_inverse, source_indices, destination_indices, error = \
+        nearest_neighbour_match(source, destination, transform_final, current_transformation, cutoff_final,
+                                return_inverse=True, **kwargs)
 
-    transformation_final_inverse = transform_final()
-    transformation_final_inverse.estimate(destination[destination_indices], source[source_indices], **kwargs)
+    # transformation_final = transform_final()
+    # transformation_final.estimate(source[source_indices], destination[destination_indices], **kwargs)
+    #
+    # transformation_final_inverse = transform_final()
+    # transformation_final_inverse.estimate(destination[destination_indices], source[source_indices], **kwargs)
 
     # Final error calculation
-    distances, _, _ = \
-        nearest_neighbor_pair(transformation_final(source[source_indices]), destination[destination_indices])
-    mean_squared_error = np.sqrt(np.mean(distances ** 2))
-    print(f'Final \t\t Mean squared error: {mean_squared_error} \t Number of pairs: {len(distances)}')
+    # distances, _, _ = \
+    #     nearest_neighbor_pair(transformation_final(source[source_indices]), destination[destination_indices])
+    # mean_squared_error = np.sqrt(np.mean(distances ** 2))
+    print(f'Final \t\t Mean squared error: {error} \t Number of pairs: {len(source_indices)}')
 
-    plot.append_data(transformation_final(source), destination, source_indices, destination_indices,
-                     title=f'Final')
-    plot.plot()
+    if show_plot:
+        plot.append_data(transformation_final(source), destination, source_indices, destination_indices,
+                         title=f'Final')
+        plot.plot()
 
-    return transformation_final, transformation_final_inverse, distances, i
+    return transformation_final, transformation_final_inverse, error, i
 
 
 class icp_plot:
@@ -265,11 +325,11 @@ if __name__ == '__main__':
     max_iterations = 20
     tolerance = 0.0000001
     cutoff = None
+    cutoff_final = 10
     initial_transformation = None
     transform = AffineTransform
-    transform_final = AffineTransform
+    transform_final = PolywarpTransform
 
     transformation, transformation_inverse, distances, i = icp(source, destination, max_iterations, tolerance,
-                                                               cutoff, initial_transformation,
-                                                               transform, transform_final)
-
+                                                               cutoff, cutoff_final, initial_transformation,
+                                                               transform, transform_final, show_plot=True)

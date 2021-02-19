@@ -35,7 +35,9 @@ class PolywarpTransform(GeometricTransform):
             raise ValueError("invalid shape of transformation parameters")
         self.params = params
 
-    def estimate(self, src, dst, order=2):
+        # TODO: Make order a class value, so it can be set on initialisation.
+
+    def estimate(self, src, dst, order=3):
         """Estimate the transformation from a set of corresponding points.
 
         You can determine the over-, well- and under-determined parameters
