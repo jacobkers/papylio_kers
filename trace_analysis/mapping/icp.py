@@ -97,25 +97,25 @@ def direct_match(source, destination, transform=AffineTransform, return_inverse=
 
 
 def nearest_neighbour_match(source, destination, transform=AffineTransform, initial_transformation=None,
-                            cutoff=None, return_inverse=False, **kwargs):
+                            distance_threshold=None, return_inverse=False, **kwargs):
 
     if initial_transformation:
         source_after_initial_transformation = initial_transformation(source)
 
-    if cutoff == 'auto':
-        auto_cutoff = True
+    if distance_threshold == 'auto':
+        auto_distance_threshold = True
     else:
-        auto_cutoff = False
+        auto_distance_threshold = False
 
     distances, source_indices, destination_indices = \
         nearest_neighbor_pair(source_after_initial_transformation, destination)
 
-    if auto_cutoff:
-        cutoff = np.median(distances) + np.std(distances)
+    if auto_distance_threshold:
+        distance_threshold = np.median(distances) + np.std(distances)
 
-    if type(cutoff) in (float, int):
-        source_indices = source_indices[distances < cutoff]
-        destination_indices = destination_indices[distances < cutoff]
+    if type(distance_threshold) in (float, int):
+        source_indices = source_indices[distances < distance_threshold]
+        destination_indices = destination_indices[distances < distance_threshold]
 
     transformation, transformation_inverse, error = direct_match(source[source_indices], destination[destination_indices],
                                                                  transform, return_inverse=return_inverse, **kwargs)
@@ -128,7 +128,7 @@ def mean_squared_error(source, destination, transformation):
     return np.mean(distances**2)
 
 
-def icp(source, destination, max_iterations=20, tolerance=0.001, cutoff=None, cutoff_final=None,
+def icp(source, destination, max_iterations=20, tolerance=0.001, distance_threshold=None, distance_threshold_final=None,
         initial_transformation=None, transform=AffineTransform, transform_final=None, show_plot=False, **kwargs):
     """Iterative closest point algorithm for mapping a source point set on a destination point set.
 
@@ -178,8 +178,8 @@ def icp(source, destination, max_iterations=20, tolerance=0.001, cutoff=None, cu
 
     if transform_final is None:
         transform_final=transform
-    if cutoff_final is None:
-        cutoff_final = cutoff
+    if distance_threshold_final is None:
+        distance_threshold_final = distance_threshold
 
     # if cutoff == 'auto':
     #     auto_cutoff = True
@@ -220,7 +220,7 @@ def icp(source, destination, max_iterations=20, tolerance=0.001, cutoff=None, cu
 
         current_transformation, _, source_indices, destination_indices, error = \
             nearest_neighbour_match(source, destination, transform, current_transformation,
-                                    cutoff, return_inverse=False, **kwargs)
+                                    distance_threshold, return_inverse=False, **kwargs)
 
         # source_moving_to_destination = transformation_step(source_moving_to_destination)
         if show_plot:
@@ -235,7 +235,7 @@ def icp(source, destination, max_iterations=20, tolerance=0.001, cutoff=None, cu
 
     # Perform final transformation, possibly with a different transformation type
     transformation_final, transformation_final_inverse, source_indices, destination_indices, error = \
-        nearest_neighbour_match(source, destination, transform_final, current_transformation, cutoff_final,
+        nearest_neighbour_match(source, destination, transform_final, current_transformation, distance_threshold_final,
                                 return_inverse=True, **kwargs)
 
     # transformation_final = transform_final()
