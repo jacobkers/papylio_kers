@@ -74,7 +74,11 @@ class Mapping2:
         self.destination = destination #destination=acceptor=right side image
         self.method = method
         self.transformation_type = transformation_type
+
+        if type(initial_transformation) is dict:
+            initial_transformation = AffineTransform(**initial_transformation)
         self.initial_transformation = initial_transformation
+
         self.transformation = None
         self.transformation_inverse = None
 
@@ -91,8 +95,8 @@ class Mapping2:
                         if type(value) == list:
                             value = np.array(value)
                         setattr(self, key, value)
-                self.transformation = self.transformation_types[self.transformation_type](self.transformation)
-                self.transformation_inverse = self.transformation_types[self.transformation_type](self.transformation_inverse)
+                self.transformation = self.transform(self.transformation)
+                self.transformation_inverse = self.transform(self.transformation_inverse)
 
     def __getattr__(self, item):
         if hasattr(self.transformation, item):
@@ -124,29 +128,38 @@ class Mapping2:
 
         return self.transform_coordinates(self.source)
 
-    def perform_mapping(self, method=None):
+    @property
+    def transform(self):
+        """type : Transform class based on the set transformation_type"""
+
+        return self.transformation_types[self.transformation_type]
+
+    def perform_mapping(self, method=None, **kwargs):
         """Find transformation from source to destination points using one of the mapping methods
 
         Parameters
         ----------
         method : str
             Mapping method, if not specified the object method is used.
-
+        **kwargs
+            Keyword arguments passed to mapping methods.
         """
 
         if method is None:
             method = self.method
 
         if method in ['icp', 'iterative_closest_point']: #icp should be default
-            self.iterative_closest_point()
+            self.iterative_closest_point(**kwargs)
         elif method in ['direct']:
             self.direct_match()
         elif method in ['nn', 'nearest_neighbour']:
-            self.nearest_neighbour_match()
+            self.nearest_neighbour_match(**kwargs)
         else:
             raise ValueError('Method not found')
 
         self.method = method
+
+        self.show_mapping_transformation()
 
     def direct_match(self, transformation_type=None):
         """Find transformation from source to destination points by matching based on the point order
@@ -197,8 +210,8 @@ class Mapping2:
         Parameters
         ----------
         distance_threshold : float
-            Distance threshold for nearest neighbour match, i.e. nearest neighbours with a distance larger than the
-            distance threshold are not used.
+            Distance threshold for nearest neighbour match, i.e. only nearest neighbours with a distance smaller than
+            the distance threshold are used.
         transformation_type : str
             Type of transformation used, either linear or polynomial can be chosen.
             If not specified the object transformation_type is used.
@@ -252,7 +265,7 @@ class Mapping2:
         # axis.scatter(destination_from_source[source_indices, 0], destination_from_source[source_indices, 1], c='g')
         # axis.scatter(new_destination_from_source[source_indices, 0], new_destination_from_source[source_indices, 1], c='b')
 
-    def iterative_closest_point(self, **kwargs):
+    def iterative_closest_point(self, distance_threshold=None, **kwargs):
         """Find transformation from source to destination points using an iterative closest point algorithm
 
         In the iterative closest point algorithm, the two-way nearest neigbhbours are found and these are used to
@@ -264,15 +277,17 @@ class Mapping2:
 
         Parameters
         ----------
+        distance_threshold : int or float
+            Distance threshold applied to select nearest-neighbours in the final round of icp,
+            i.e. nearest-neighbours with di.
         **kwargs
             Keyword arguments passed to icp.
 
         """
 
-        #TODO: Possibly add that this function uses the self.initial_transformation and/or self.transformation_type
-
-        self.transformation, self.transformation_inverse, distances, number_of_iterations = \
-            icp(self.source, self.destination, **kwargs)
+        self.transformation, self.transformation_inverse, error, number_of_iterations = \
+            icp(self.source, self.destination, distance_threshold_final=distance_threshold,
+                initial_transformation=self.initial_transformation, transform_final=self.transform, **kwargs)
 
     def number_of_matched_points(self, distance_threshold):
         """Number of matched points determined by finding the two-way nearest neigbours that are closer than a distance
@@ -281,8 +296,8 @@ class Mapping2:
         Parameters
         ----------
         distance_threshold : float
-            Distance threshold for nearest neighbour match, i.e. nearest neighbours with a distance larger than the
-            distance threshold are not counted.
+            Distance threshold for nearest neighbour match, i.e. only nearest neighbours with a distance smaller than
+            the distance threshold are used.
 
         Returns
         -------

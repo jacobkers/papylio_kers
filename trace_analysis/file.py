@@ -748,16 +748,20 @@ class File:
         # self.coordinates = np.hstack([donor_coordinates, acceptor_coordinates]).reshape((-1, 2))
 
         if ('initial_translation' in configuration) and (configuration['initial_translation'] == 'width/2'):
-            initial_translation = translate([image.shape[0] // 2, 0])
+            initial_transformation = {'translation': [image.shape[0] // 2, 0]}
         else:
-            initial_translation = translate(configuration['initial_translation'])
+            initial_transformation = {'translation': configuration['initial_translation']}
+
+        # Obtain specific mapping parameters from configuration file
+        additional_mapping_parameters = {key: configuration[key]
+                                         for key in (configuration.keys() and {'distance_threshold'})}
 
         self.mapping = Mapping2(source=donor_coordinates,
                                 destination=acceptor_coordinates,
                                 method=method,
                                 transformation_type=transformation_type,
-                                initial_transformation=initial_translation)
-        self.mapping.perform_mapping()
+                                initial_transformation=initial_transformation)
+        self.mapping.perform_mapping(**additional_mapping_parameters)
         self.mapping.file = self
         self.is_mapping_file = True
 
