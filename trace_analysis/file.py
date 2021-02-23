@@ -83,6 +83,9 @@ class File:
                                 '.pma': self.import_pma_file,
                                 '.nd2': self.import_nd2_file,
                                 '.tif': self.import_tif_file,
+                                '.tiff': self.import_tif_file,
+                                '.TIF': self.import_tif_file,
+                                '.TIFF': self.import_tif_file,
                                 '_ave.tif': self.import_average_tif_file,
                                 '_max.tif': self.import_maximum_projection_tif_file,
                                 '.coeff': self.import_coeff_file,
@@ -253,6 +256,7 @@ class File:
         self.number_of_frames = self.movie.number_of_frames
 
     def import_tif_file(self):
+        #TODO: Pass all image files to the Movie class and let the Movie class decide what to do
         imageFilePath = self.absoluteFilePath.with_suffix('.tif')
         self.movie = TifMovie(imageFilePath)
         # self.movie.number_of_channels = self.experiment.number_of_channels
