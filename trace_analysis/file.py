@@ -453,7 +453,7 @@ class File:
                 # coordinates_per_channel = dict([(channel, set()) for channel in channels])
                 channel_images = [self.movie.get_channel(image=image, channel=channel) for channel in channels]
 
-            if method == 'overlay_channels':
+            elif method == 'overlay_channels':
                 # Possibly we can move making the overlayed image to the Movie class.
                 # TODO: make this usable for any number of channels
                 donor_image = self.movie.get_channel(image=image, channel='d')
@@ -506,11 +506,11 @@ class File:
 
             # Map coordinates to main channel in movie
             # TODO: make this usable for any number of channels
-            coordinate_sets[i] = transform(coordinate_sets[i], translation=self.movie.channel_boundaries(channels[i])[0])
+            coordinate_sets[i] = coordinate_sets[i]+self.movie.channel_boundaries(channels[i])[0]
             # if channels[i] in ['a', 'acceptor']:
             if i > 0: #i.e. if channel is not main channel
                 coordinate_sets[i] = self.mapping.transform_coordinates(coordinate_sets[i],
-                                                                        direction='destination2source')
+                                                                        direction='Acceptor2Donor')
 
         # TODO: make this usable for any number of channels
         if len(coordinate_sets) == 1:
@@ -525,10 +525,10 @@ class File:
         # TODO: make this usable for more than two channels
         coordinates_in_main_channel = coordinates
         coordinates_list = [coordinates]
-        for channel in channels[1:]:
+        for i in range(self.number_of_channels)[1:]:
             if self.number_of_channels > 2:
                 raise NotImplementedError()
-            coordinates_in_other_channel = self.mapping.transform_coordinates(coordinates_in_main_channel, direction='source2destination')
+            coordinates_in_other_channel = self.mapping.transform_coordinates(coordinates_in_main_channel, direction='Donor2Acceptor')
             coordinates_list.append(coordinates_in_other_channel)
         coordinates = np.hstack(coordinates_list).reshape((-1, 2))
 

@@ -103,7 +103,7 @@ class Mapping2:
     # Function to make attributes from transformation available from the Mapping2 class
     def __getattr__(self, item):
         if hasattr(self.transformation, item):
-            return(getattr(self.transformation, item))
+            return getattr(self.transformation, item)
         else:
             super().__getattribute__(item)
 
