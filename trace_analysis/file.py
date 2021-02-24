@@ -276,6 +276,7 @@ class File:
         self._maximum_projection_image = io.imread(maxTifFilePath, as_gray=True)
 
     def import_coeff_file(self):
+        from skimage.transform import AffineTransform
         if self.mapping is None: # the following only works for 'linear'transformation_type
             file_content=np.genfromtxt(str(self.relativeFilePath) + '.coeff')
             if len(file_content)==12:
@@ -290,7 +291,7 @@ class File:
             transformation = np.zeros((3,3))
             transformation[2,2] = 1
             transformation[[0,0,0,1,1,1],[2,0,1,2,0,1]] = coefficients
-            self.mapping.transformation = transformation
+            self.mapping.transformation = AffineTransform(matrix=transformation)
 
             if len(file_content)==6:
                 self.mapping.transformation_inverse=np.linalg.inv(self.mapping.transformation)
@@ -298,9 +299,11 @@ class File:
                 transformation_inverse = np.zeros((3,3))
                 transformation_inverse[2,2] = 1
                 transformation_inverse[[0,0,0,1,1,1],[2,0,1,2,0,1]] = coefficients_inverse
-                self.mapping.transformation_inverse = transformation_inverse
+                self.mapping.transformation_inverse = AffineTransform(matrix=transformation_inverse)
 
             self.mapping.file = self
+            self.mapping.source_name = 'Donor'
+            self.mapping.destination_name = 'Acceptor'
 
     def export_coeff_file(self):
         warnings.warn('The export_coeff_file method will be depricated, use export_mapping instead')
@@ -310,6 +313,7 @@ class File:
         self.mapping.save(self.absoluteFilePath, filetype)
 
     def import_map_file(self):
+        from trace_analysis.mapping.polywarp import PolywarpTransform
         #coefficients = np.genfromtxt(self.relativeFilePath.with_suffix('.map'))
         file_content=np.genfromtxt(self.relativeFilePath.with_suffix('.map'))
         if len(file_content) == 64:
@@ -324,7 +328,7 @@ class File:
         Q = coefficients[len(coefficients) // 2 : len(coefficients)].reshape((degree + 1, degree + 1))
 
         self.mapping = Mapping2(transformation_type='nonlinear')
-        self.mapping.transformation = (P,Q) #{'P': P, 'Q': Q}
+        self.mapping.transformation = PolywarpTransform(params=(P,Q)) #{'P': P, 'Q': Q}
         #self.mapping.file = self
 
         if len(file_content)==64:
@@ -346,8 +350,10 @@ class File:
             # plt.scatter(transformed_grid_coordinates2[:, 0], transformed_grid_coordinates2[:, 1], marker='.')
             # plt.scatter(grid_coordinates[:, 0], grid_coordinates[:, 1], marker='.', facecolors='none', edgecolors='r')
        # self.mapping = Mapping2(transformation_type='nonlinear')
-        self.mapping.transformation_inverse = (Pi, Qi) # {'P': Pi, 'Q': Qi}
+        self.mapping.transformation_inverse = PolywarpTransform(params=(Pi,Qi)) # {'P': Pi, 'Q': Qi}
         self.mapping.file = self
+        self.mapping.source_name = 'Donor'
+        self.mapping.destination_name = 'Acceptor'
 
     def export_map_file(self):
         warnings.warn('The export_map_file method will be depricated, use export_mapping instead')

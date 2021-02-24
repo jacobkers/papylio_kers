@@ -333,9 +333,9 @@ class Mapping2:
 
         """
 
-        if direction == self.source_name + '2' + self.destination_name:
+        if direction in [self.source_name + '2' + self.destination_name, 'source2destination']:
             inverse = False
-        elif direction == self.destination_name + '2' + self.source_name:
+        elif direction in [self.destination_name + '2' + self.source_name, 'destination2source']:
             inverse = True
         else:
             raise ValueError('Wrong direction')
