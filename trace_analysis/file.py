@@ -63,7 +63,7 @@ class File:
         self.log_details = None  # a string with the contents of the log file
         self.number_of_frames = None
 
-        self.background = np.array([0, 0])
+   #     self.background = np.array([0, 0])
 
         self.isSelected = False
         self.is_mapping_file = False
