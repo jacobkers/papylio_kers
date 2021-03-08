@@ -12,6 +12,7 @@ class Molecule:
         self.index = None
         self._coordinates = None
         self.intensity = None
+        self.background=0
 
         self.isSelected = False
 
@@ -26,6 +27,9 @@ class Molecule:
     def coordinates(self, coordinates):
         self._coordinates = np.atleast_2d(coordinates)
 
+    def background(self, background):
+        self.background=background
+        
     @property  # this is just for the stepfinder to be called through Molecule. Maybe not needed
     def find_steps(self):
         return stepfinder
