@@ -12,7 +12,7 @@ class Molecule:
         self.index = None
         self._coordinates = None
         self.intensity = None
-        self.background=0
+        self.background=None
 
         self.isSelected = False
 
@@ -28,14 +28,14 @@ class Molecule:
         self._coordinates = np.atleast_2d(coordinates)
 
     def background(self, background):
-        self.background=background
+        self.background=background # should be dependent on emission channel as well
         
     @property  # this is just for the stepfinder to be called through Molecule. Maybe not needed
     def find_steps(self):
         return stepfinder
 
     def I(self, emission, Ioff=0):
-        return self.intensity[emission, :] - Ioff - self.file.background[emission]
+        return self.intensity[emission, :] - Ioff - self.background[emission]
 
     def E(self, Imin=0, Iroff=0, Igoff=0, alpha=0):
         red = np.copy(self.I(1, Ioff=Iroff))

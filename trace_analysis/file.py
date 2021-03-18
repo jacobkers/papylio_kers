@@ -27,7 +27,7 @@ from trace_analysis.coordinate_optimization import  coordinates_within_margin, \
 from trace_analysis.trace_extraction import extract_traces
 from trace_analysis.coordinate_transformations import translate, transform # MD: we don't want to use this anymore I think, it is only linear
                                                                            # IS: We do! But we just need to make them usable with the nonlinear mapping
-
+from trace_analysis.background_subtraction import extract_background
 # from trace_analysis.plugin_manager import PluginManager
 # from trace_analysis.plugin_manager import PluginMetaClass
 from trace_analysis.plugin_manager import plugins
@@ -207,8 +207,10 @@ class File:
 
     @traces.setter
     def traces(self, traces):
+        background=extract_background(self, method='ROI_min',  *args) # 
         for i, molecule in enumerate(self.molecules):
             molecule.intensity = traces[:, i, :] # 3d array of traces
+            molecule.background= background[molecule.coordinates[i].astype(int)]
             # molecule.intensity = traces[(i * self.number_of_channels):((i + 1) * self.number_of_channels), :] # 2d array of traces
         self.number_of_frames = traces.shape[2]
 
@@ -764,8 +766,13 @@ class File:
         if ('initial_translation' in configuration) and (configuration['initial_translation'] == 'width/2'):
             initial_transformation = {'translation': [image.shape[0] // 2, 0]}
         else:
-            initial_transformation = {'translation': configuration['initial_translation']}
-
+            if configuration['initial_translation'][0]=='[': # remove brackets
+                arr = [float(x) for x in configuration['initial_translation'][1:-1].split(' ')]
+                initial_transformation = {'translation': arr}
+            else:
+                arr = [float(x) for x in configuration['initial_translation'].split(' ')]
+                initial_transformation = {'translation': configuration['initial_translation']}
+        
         # Obtain specific mapping parameters from configuration file
         additional_mapping_parameters = {key: configuration[key]
                                          for key in (configuration.keys() and {'distance_threshold'})}

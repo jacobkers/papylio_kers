@@ -2,7 +2,14 @@
 """
 Created on Mon Mar  8 16:10:42 2021
 
-@author: mwdoc
+input = file, method, *args
+methods+args:
+    Channel_mean
+    Channel_median
+    ROI_min, args= filter_neighbourhood_size ** DEFAULT
+    ROI_median, args= filter_neighbourhood_size
+    Surrounding_mean, filter=radius
+    Surrounding_median, filter=radius
 """
 
 import numpy as np
