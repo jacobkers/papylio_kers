@@ -194,7 +194,7 @@ class File:
 
     #in analogy with coordinates, also background:
     @property
-    def backgroud(self):
+    def background(self):
         if len(self.molecules) > 0:
             return np.concatenate([molecule.background for molecule in self.molecules])
         else:
