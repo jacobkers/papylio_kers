@@ -62,9 +62,7 @@ class File:
 
         self.log_details = None  # a string with the contents of the log file
         self.number_of_frames = None
-
-   #     self.background = np.array([0, 0])
-
+     
         self.isSelected = False
         self.is_mapping_file = False
 
@@ -194,6 +192,29 @@ class File:
 
         return np.vstack([molecule.coordinates[channel] for molecule in self.molecules])
 
+    #in analogy with coordinates, also background:
+    @property
+    def backgroud(self):
+        if len(self.molecules) > 0:
+            return np.concatenate([molecule.background for molecule in self.molecules])
+        else:
+            return np.array([])
+
+    @background.setter
+    def background(self, background, number_of_channels = None):
+        if number_of_channels is None:
+            number_of_channels = self.number_of_channels
+        self.number_of_molecules = np.shape(background)[0]//number_of_channels
+
+        for i, molecule in enumerate(self.molecules):
+            molecule.background = background[(i * number_of_channels):((i + 1) * number_of_channels)]
+
+    def background_from_channel(self, channel):
+        if type(channel) is str:
+            channel = {'d': 0, 'a': 1, 'g':0, 'r':1}[channel]
+
+        return np.vstack([molecule.background[channel] for molecule in self.molecules])
+    
     @property
     def time(self):  # the time axis of the experiment, if not found in log it will be asked as input
         if self.exposure_time is None:
@@ -207,13 +228,11 @@ class File:
 
     @traces.setter
     def traces(self, traces):
-        background=extract_background(self, method='ROI_min',  *args) # 
         for i, molecule in enumerate(self.molecules):
             molecule.intensity = traces[:, i, :] # 3d array of traces
-            molecule.background= background[molecule.coordinates[i].astype(int)]
             # molecule.intensity = traces[(i * self.number_of_channels):((i + 1) * self.number_of_channels), :] # 2d array of traces
         self.number_of_frames = traces.shape[2]
-
+        
     def findAndAddExtensions(self):
         foundFiles = [file.name for file in self.experiment.mainPath.joinpath(self.relativePath).glob(self.name + '*')]
         foundExtensions = [file[len(self.name):] for file in foundFiles]
@@ -367,9 +386,12 @@ class File:
 
     def import_pks_file(self):
         # Background value stored in pks file is not imported yet
-        coordinates = np.genfromtxt(str(self.relativeFilePath) + '.pks')
-        coordinates = np.atleast_2d(coordinates)[:,1:3]
-
+        data = np.genfromtxt(str(self.relativeFilePath) + '.pks')
+        coordinates = np.atleast_2d(data)[:,1:3]
+        try: 
+            self.background=np.atleast_2d(data)[:,3]
+        except: 
+            self.background=np.zeros(len(data))
         self.coordinates = coordinates
 
     def find_coordinates(self, configuration=None):
@@ -544,9 +566,15 @@ class File:
             coordinates_list.append(coordinates_in_other_channel)
         coordinates = np.hstack(coordinates_list).reshape((-1, 2))
 
+        # should also have incorporated check coordinatesDA_within_margin from MD_check_boundaries
         # --- finally, we set the coordinates of the molecules ---
         self.molecules = [] # Should we put this here?
         self.coordinates = coordinates
+        #might not be the best place, tried extract_traces=not good
+        self.background=extract_background(self, method='ROI_min') # 
+        print(np.shape(self.background))
+        for i, molecule in enumerate(self.molecules):
+            molecule.background= [self.background[i*2-1],self.background[i*2]]
         self.export_pks_file()
 
     def export_pks_file(self):
@@ -554,8 +582,9 @@ class File:
         with pks_filepath.open('w') as pks_file:
             for i, coordinate in enumerate(self.coordinates):
                 # outfile.write(' {0:4.0f} {1:4.4f} {2:4.4f} {3:4.4f} {4:4.4f} \n'.format(i, coordinate[0], coordinate[1], 0, 0, width4=4, width6=6))
-                pks_file.write('{0:4.0f} {1:4.4f} {2:4.4f} \n'.format(i + 1, coordinate[0], coordinate[1]))
-
+               # pks_file.write('{0:4.0f} {1:4.4f} {2:4.4f} \n'.format(i + 1, coordinate[0], coordinate[1]))
+                pks_file.write('{0:4.0f} {1:4.4f} {2:4.4f} {3:4.4f}\n'.format(i + 1, coordinate[0], coordinate[1], self.background[i]))
+                
     def import_traces_file(self):
         traces_filepath = self.absoluteFilePath.with_suffix('.traces')
         with traces_filepath.open('r') as traces_file:
@@ -620,6 +649,7 @@ class File:
         self.traces = traces
         self.export_traces_file()
         if '.traces' not in self.extensions: self.extensions.append('.traces')
+        
 
     def export_traces_file(self):
         traces_filepath = self.absoluteFilePath.with_suffix('.traces')

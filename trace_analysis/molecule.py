@@ -12,7 +12,7 @@ class Molecule:
         self.index = None
         self._coordinates = None
         self.intensity = None
-        self.background=None
+        self._background=None
 
         self.isSelected = False
 
@@ -22,7 +22,11 @@ class Molecule:
     @property
     def coordinates(self):
         return self._coordinates
-
+    
+    @property
+    def background(self):
+        return self._background
+    
     @coordinates.setter
     def coordinates(self, coordinates):
         self._coordinates = np.atleast_2d(coordinates)
@@ -35,7 +39,7 @@ class Molecule:
         return stepfinder
 
     def I(self, emission, Ioff=0):
-        return self.intensity[emission, :] - Ioff - self.background[emission]
+        return self.intensity[emission, :] - Ioff - self.background[emission] * 20.943412108582283 #this number comes from sum(make_gaussian) in trace_extraction
 
     def E(self, Imin=0, Iroff=0, Igoff=0, alpha=0):
         red = np.copy(self.I(1, Ioff=Iroff))
