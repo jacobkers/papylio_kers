@@ -144,7 +144,7 @@ def simulate_mapping_test_point_set(number_of_source_points, transformation, sou
 
     """
     source = simulate_point_set(number_of_source_points, source_bounds)
-    if source_crop_bounds:
+    if source_crop_bounds is not None:
         source_crop_bounds = np.array(source_crop_bounds)
         destination = crop_point_set(source, source_crop_bounds)
     else:
