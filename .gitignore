@@ -6,6 +6,7 @@ __pycache__
 __pycache__/*.pyc
 .idea/
 twoColourExampleData/
+Example_data/
 traces/
 trace_analysis/analysis/SAfitting/data/
 Start_analysis.py
