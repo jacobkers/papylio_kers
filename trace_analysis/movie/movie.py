@@ -331,6 +331,10 @@ class Movie:
         elif self.bitdepth == 8:
             TIFF.imwrite(tif_filepath, np.uint8(image))
 
+    def show(self):
+        return MoviePlotter(self)
+
+
 # Moved to file, can probably be removed
     def show_average_image(self, mode='2d', figure=None):
         if not figure: figure = plt.figure() # Or possibly e.g. plt.figure('Movie')
@@ -546,4 +550,34 @@ class Movie:
             #     time_tr[:,jj*2+1]=  acceptor[:,jj]
             np.array(traces.T, dtype=np.int16).tofile(traces_file)
 
+
+class MoviePlotter:
+# Adapted from Matplotlib Image Slices Viewer
+    def __init__(self, movie):
+        fig, ax = plt.subplots(1, 1)
+        fig.canvas.mpl_connect('scroll_event', self.on_scroll)
+        plt.show()
+
+        self.ax = ax
+        ax.set_title('use scroll wheel to navigate images')
+
+        self.movie = movie
+        self.slices, rows, cols = (movie.number_of_frames, movie.height, movie.width)
+        self.ind = self.slices//2
+
+        self.im = ax.imshow(self.movie.read_frame(self.ind))
+        self.update()
+
+    def on_scroll(self, event):
+        print("%s %s" % (event.button, event.step))
+        if event.button == 'up':
+            self.ind = (self.ind + 1) % self.slices
+        else:
+            self.ind = (self.ind - 1) % self.slices
+        self.update()
+
+    def update(self):
+        self.im.set_data(self.movie.read_frame(self.ind))
+        self.ax.set_ylabel('slice %s' % self.ind)
+        self.im.axes.figure.canvas.draw()
 
