@@ -21,9 +21,12 @@ class BinaryMovie(Movie):
         self.height = 250
         self.number_of_frames = 200
         self.dtype = np.dtype(np.uint16)
-        self.alternating_laser_excitation = [1, 0]
+        self.illumination = [1, 0]
+        self.channels = [1, 0]
 
         self.read_header()
+
+        self.create_frame_info() # Possibly move to Movie later on
 
     @property
     def pixels_per_frame(self):

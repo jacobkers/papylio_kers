@@ -12,6 +12,8 @@ warning blackboax number: (size+fwhm) gauss for extracting donor&acceptor
 import os
 import time
 from pathlib import Path
+
+import pandas as pd
 import tifffile as TIFF
 import numpy as np
 import matplotlib.pyplot as plt
@@ -26,17 +28,21 @@ from trace_analysis.image_adapt.Image import Image
 # from cached_property import cached_property
 from trace_analysis.mapping.mapping import Mapping2
 
+
 class Movie:
     def __init__(self, filepath):  # , **kwargs):
         self.filepath = Path(filepath)
+        # self.filepaths = [Path(filepath) for filepath in filepaths]
         self._average_image = None
         self._maximum_projection_image = None
         self.is_mapping_movie = False
 
-        self.channels = [['green', 'g', 'donor', 'd'],
-                         ['red', 'r', 'acceptor', 'a']]
+        self.channel_names = [['green', 'g', 'donor', 'd'],
+                              ['red', 'r', 'acceptor', 'a']]
         self._channel_grid = np.array([2, 1])  # (x,y)
         self._number_of_channels = 2
+        self.illumination = [0]
+        self.channels = [0] #[[[0,1]]] # First level: frames, second level: y within frame, third level: x within frame
         self.rot90 = 0
 
         if not self.filepath.suffix == '.sifx':
@@ -44,6 +50,8 @@ class Movie:
             self.name = self.filepath.with_suffix('').name
 
         self.read_header()
+
+        # self.create_frame_info()
 
     def __repr__(self):
         return (f'{self.__class__.__name__}({str(self.filepath)})')
@@ -90,6 +98,23 @@ class Movie:
         else:
             raise ValueError('Number of channels should be at least 1')
 
+    def create_frame_info(self):
+        # files = [0]
+        frames = range(self.number_of_frames)
+
+        index = pd.Index(data=frames, name='frame')
+        self.frame_info = pd.DataFrame(index=index, columns=['time', 'illumination', 'channel'])
+        # self.frame_info['file'] = len(self.frame_info) * [list(range(2))]
+        # self.frame_info = self.frame_info.explode('file')
+        self.frame_info['time'] = self.frame_info.index.to_frame()['frame'].values
+        self.frame_info['illumination'] = self.illumination * (self.number_of_frames // len(self.illumination))
+        self.frame_info['channel'] = self.channels * (self.number_of_frames // len(self.channels))
+
+        self.frame_info = self.frame_info.explode('channel').explode('channel')
+
+        categorical_columns = ['illumination', 'channel']
+        self.frame_info[categorical_columns] = self.frame_info[categorical_columns].astype('category')
+
     def read_header(self):
         # self.width_pixels, self.height_pixels, self.number_of_frames, self.movie_file_object = read_header(self.filepath)
         self._read_header()
@@ -132,7 +157,7 @@ class Movie:
             # We should probably integrate this into the for loop
             if channel < self._number_of_channels:
                 return channel
-        for i, channel_names in enumerate(self.channels):
+        for i, channel_names in enumerate(self.channel_names):
             if channel in channel_names:
                 return i
 
