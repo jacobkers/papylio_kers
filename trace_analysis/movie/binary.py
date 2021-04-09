@@ -34,11 +34,11 @@ class BinaryMovie(Movie):
 
     @property
     def bitdepth(self):
-        return self.dtype.itemsize
+        return self.dtype.itemsize*8 # 8 bits in a byte
 
     @property
     def bytes_per_frame(self):
-        return self.bitdepth * self.pixels_per_frame
+        return self.dtype.itemsize * self.pixels_per_frame
 
     def _read_header(self):
         pass
@@ -80,5 +80,6 @@ if __name__ == "__main__":
     movie = BinaryMovie(r'.\Example_data\Binary\movie.bin')
     test = movie.read_frames(2,10)
     plt.imshow(test[0])
+    movie.make_projection_images()
 
 

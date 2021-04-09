@@ -452,7 +452,7 @@ class File:
         for window_start_frame in window_start_frames:
 
             # --- allowed to apply sliding window to either the max projection OR the averages ----
-            image = self.movie.make_projection_image(type=projection_image_type, start_frame=window_start_frame,
+            image = self.movie.make_projection_image(projection_type=projection_image_type, start_frame=window_start_frame,
                                                      number_of_frames=window_size)
 
             # Do we need a separate image?

@@ -243,14 +243,15 @@ class Movie:
             # naam=r'M:\tnw\bn\cmj\Shared\margreet\Cy3 G50\ModifiedData\Python'+'{:03d}'.format(ii)+'.tif'
             TIFF.imwrite(tif_filepath, np.uint16(frame), append=True)
 
-    def make_projection_image(self, type='average', start_frame=0, number_of_frames=20, write=False):
+    def make_projection_image(self, projection_type='average', start_frame=0, number_of_frames=20, illumination=None,
+                              channel=None, write=False):
         """ Construct a projection image
         Determine a projection image for a number_of_frames starting at start_frame.
         i.e. [start_frame, start_frame + number_of_frames)
 
         Parameters
         ----------
-        type : str
+        projection_type : str
             'average' for average image
             'maximum' for maximum projection image
         start_frame : int
@@ -265,33 +266,54 @@ class Movie:
         np.ndarray
             2d image array with the projected image
         """
+
+        frames = self.frame_info
+        frames = frames.loc[start_frame:]
+        filename_addition = ''
+        if illumination is not None:
+            frames = frames.query(f'illumination=={illumination}')
+            filename_addition += f'_i{illumination}'
+        if channel is not None:
+            frames = frames.query(f'channel=={channel}')
+            filename_addition += f'_c{channel}'
+
+        frame_indices = frames.index.unique().values
+
         # Check and specify number of frames
         if number_of_frames == 'all':
-            number_of_frames = self.number_of_frames
-        elif (self.number_of_frames - start_frame) < number_of_frames:
-            print('Number of frames entered exceeds size movie')
-            number_of_frames = (self.number_of_frames - start_frame)
+            pass
+        elif type(number_of_frames) is int:
+            if number_of_frames > len(frame_indices):
+                print(f'Number of frames entered exceeds available frames, used {len(frame_indices)} instead of {number_of_frames} frames')
+            frame_indices = frame_indices[:number_of_frames]
+        else:
+            raise ValueError('Incorrect value for number_of_frames')
 
         # Calculate sum of frames and find mean
         image = np.zeros((self.height, self.width))
+        number_of_frames = len(frame_indices)
 
-        if type == 'average':
-            for i in range(start_frame, start_frame + number_of_frames):
-                frame = self.read_frame(frame_number=i).astype(float)
+        if projection_type == 'average':
+            for frame_index in frame_indices:
+                frame = self.read_frame(frame_number=frame_index).astype(float)
                 image = image + frame
             image = (image / number_of_frames).astype(int)
             self._average_image = image
             if write:
-                self.write_image(image, '_ave.tif')
-        elif type == 'maximum':
-            for i in range(start_frame, start_frame + number_of_frames):
-                frame = self.read_frame(frame_number=i)
+                self.write_image(image, '_ave'+f'_{number_of_frames}fr'+filename_addition+'.tif')
+        elif projection_type == 'maximum':
+            for frame_index in frame_indices:
+                frame = self.read_frame(frame_number=frame_index)
                 image = np.maximum(image, frame)
             self._maximum_projection_image = image
             if write:
-                self.write_image(image, '_max.tif')
+                self.write_image(image, '_max'+f'_{number_of_frames}fr'+filename_addition+'.tif')
 
         return image
+
+    def make_projection_images(self, projection_type='average', start_frame=0, number_of_frames=20):
+        for illumination, channel in self.frame_info[['illumination','channel']].drop_duplicates().values:
+            self.make_projection_image(projection_type, start_frame, number_of_frames, illumination, channel, write=True)
 
     def make_average_image(self, start_frame=0, number_of_frames=20, write=False):
         """ Construct an average image
