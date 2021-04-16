@@ -17,6 +17,7 @@ import pandas as pd
 import tifffile as TIFF
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.colors import ListedColormap
 
 # from trace_analysis.image_adapt.load_file import read_one_page#_pma, read_one_page_tif
 # from trace_analysis.image_adapt.load_file import read_header
@@ -45,6 +46,9 @@ class Movie:
         self.channels = [0] #[[[0,1]]] # First level: frames, second level: y within frame, third level: x within frame
         self.rot90 = 0
 
+        self.data_type = np.dtype(np.uint16)
+        self.intensity_range = (np.iinfo(self.data_type).min, np.iinfo(self.data_type).max)
+
         if not self.filepath.suffix == '.sifx':
             self.writepath = self.filepath.parent
             self.name = self.filepath.with_suffix('').name
@@ -55,6 +59,18 @@ class Movie:
 
     def __repr__(self):
         return (f'{self.__class__.__name__}({str(self.filepath)})')
+
+    @property
+    def pixels_per_frame(self):
+        return self.width*self.height
+
+    @property
+    def bitdepth(self):
+        return self.data_type.itemsize*8 # 8 bits in a byte
+
+    @property
+    def bytes_per_frame(self):
+        return self.data_type.itemsize * self.pixels_per_frame
 
     @property
     def average_image(self):
@@ -270,16 +286,20 @@ class Movie:
         frames = self.frame_info
         frames = frames.loc[start_frame:]
         filename_addition = ''
+
         if illumination is not None:
             frames = frames.query(f'illumination=={illumination}')
             filename_addition += f'_i{illumination}'
         if channel is not None:
             frames = frames.query(f'channel=={channel}')
             filename_addition += f'_c{channel}'
+            channel_colour = list({'green', 'red', 'blue'}.intersection(self.channel_names[channel]))[0]
+            colour_map = make_colour_map(channel_colour)
+        else:
+            colour_map = make_colour_map('grey')
 
+        # Determine frame indices to be used
         frame_indices = frames.index.unique().values
-
-        # Check and specify number of frames
         if number_of_frames == 'all':
             pass
         elif type(number_of_frames) is int:
@@ -297,17 +317,20 @@ class Movie:
             for frame_index in frame_indices:
                 frame = self.read_frame(frame_number=frame_index).astype(float)
                 image = image + frame
-            image = (image / number_of_frames).astype(int)
+            image = (image / number_of_frames).astype(self.data_type)
             self._average_image = image
-            if write:
-                self.write_image(image, '_ave'+f'_{number_of_frames}fr'+filename_addition+'.tif')
         elif projection_type == 'maximum':
             for frame_index in frame_indices:
                 frame = self.read_frame(frame_number=frame_index)
                 image = np.maximum(image, frame)
             self._maximum_projection_image = image
-            if write:
-                self.write_image(image, '_max'+f'_{number_of_frames}fr'+filename_addition+'.tif')
+
+        if write:
+            filename = self.name + '_'+projection_type[:3]+f'_{number_of_frames}fr'+filename_addition
+            filepath = self.writepath.joinpath(filename)
+            TIFF.imwrite(filepath.with_suffix('.tif'), image)
+            # plt.imsave(filepath.with_suffix('.tif'), image, format='tif', cmap=colour_map, vmin=self.intensity_range[0], vmax=self.intensity_range[1])
+            plt.imsave(filepath.with_suffix('.png'), image, cmap=colour_map, vmin=self.intensity_range[0], vmax=self.intensity_range[1])
 
         return image
 
@@ -359,24 +382,25 @@ class Movie:
 
         return self.make_projection_image('maximum', start_frame, number_of_frames, write)
 
-    def write_image(self, image, extension):
-        """Write an image to the tif file format
-
-        Parameters
-        ----------
-        image : np.ndarray
-            2d image array
-        extension : str
-            String to add after the filename
-        """
-        if '.tif' not in extension:
-            'Only tif export is supported (at the moment)'
-
-        tif_filepath = self.writepath.joinpath(self.name + extension).with_suffix('.tif')
-        if self.bitdepth == 16:
-            TIFF.imwrite(tif_filepath, np.uint16(image))
-        elif self.bitdepth == 8:
-            TIFF.imwrite(tif_filepath, np.uint8(image))
+    # Can likely be removed, as it is replace by plt.imsave
+    # def write_image(self, image, extension):
+    #     """Write an image to the tif file format
+    #
+    #     Parameters
+    #     ----------
+    #     image : np.ndarray
+    #         2d image array
+    #     extension : str
+    #         String to add after the filename
+    #     """
+    #     if '.tif' not in extension:
+    #         'Only tif export is supported (at the moment)'
+    #
+    #     tif_filepath = self.writepath.joinpath(self.name + extension).with_suffix('.tif')
+    #     if self.bitdepth == 16:
+    #         TIFF.imwrite(tif_filepath, np.uint16(image))
+    #     elif self.bitdepth == 8:
+    #         TIFF.imwrite(tif_filepath, np.uint8(image))
 
     def show(self):
         return MoviePlotter(self)
@@ -622,3 +646,20 @@ class MoviePlotter:
         self.im.set_data(self.movie.read_frame(self.ind))
         self.ax.set_ylabel('slice %s' % self.ind)
         self.im.axes.figure.canvas.draw()
+
+
+def make_colour_map(colour, N=256):
+    values = np.zeros((N, 3))
+    if colour is 'grey':
+        values[:, 0] = values[:, 1] = values[:, 2] = np.linspace(0, 1, N)
+    elif colour is 'red':
+        values[:, 0] = np.linspace(0, 1, N)
+    elif colour is 'green':
+        values[:, 1] = np.linspace(0, 1, N)
+    elif colour is 'blue':
+        values[:, 2] = np.linspace(0, 1, N)
+    else:
+        values[:, 0] = values[:, 1] = values[:, 2] = np.linspace(0, 1, N)
+
+    return ListedColormap(values)
+

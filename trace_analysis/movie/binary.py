@@ -20,25 +20,12 @@ class BinaryMovie(Movie):
         self.width = 250
         self.height = 250
         self.number_of_frames = 200
-        self.dtype = np.dtype(np.uint16)
         self.illumination = [1, 0]
         self.channels = [1, 0]
 
         self.read_header()
 
         self.create_frame_info() # Possibly move to Movie later on
-
-    @property
-    def pixels_per_frame(self):
-        return self.width*self.height
-
-    @property
-    def bitdepth(self):
-        return self.dtype.itemsize*8 # 8 bits in a byte
-
-    @property
-    def bytes_per_frame(self):
-        return self.dtype.itemsize * self.pixels_per_frame
 
     def _read_header(self):
         pass
@@ -69,9 +56,9 @@ class BinaryMovie(Movie):
 
         start_byte = start_frame * self.bytes_per_frame
 
-        with self.filepath.open('rb') as bin:
-            bin.seek(start_byte)
-            data = np.fromfile(bin, dtype=self.dtype, count=self.pixels_per_frame*number_of_frames)
+        with self.filepath.open('rb') as bin_file:
+            bin_file.seek(start_byte)
+            data = np.fromfile(bin_file, dtype=self.data_type, count=self.pixels_per_frame*number_of_frames)
             image = data.reshape((number_of_frames, self.width, self.height))
 
         return image
