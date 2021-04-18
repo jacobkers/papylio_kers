@@ -20,8 +20,8 @@ class BinaryMovie(Movie):
         self.width = 250
         self.height = 250
         self.number_of_frames = 200
-        self.illumination = [1, 0]
-        self.channels = [1, 0]
+        self.illumination_arrangement = np.array([1, 0])
+        self.channel_arrangement = np.array([[[1]], [[0]]])
 
         self.read_header()
 
@@ -64,7 +64,7 @@ class BinaryMovie(Movie):
         return image
 
 if __name__ == "__main__":
-    movie = BinaryMovie(r'.\Example_data\Binary\movie.bin')
+    movie = BinaryMovie(r'.\Example_data\binary\movie.bin')
     test = movie.read_frames(2,10)
     plt.imshow(test[0])
     movie.make_projection_images()

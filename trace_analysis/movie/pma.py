@@ -23,9 +23,15 @@ class PmaMovie(Movie):
         
         self.writepath = self.filepath.parent
         self.name = self.filepath.with_suffix('').name
-        
+
+        self.channel_arrangement = np.array([[[0,1]]])
+
         #determine 8 bits or 16 bits
-        self.bitdepth = 16 if (self.filepath.name[-7:-4]=='_16') else 8
+        if (self.filepath.name[-7:-4]=='_16'):
+            self.data_type = np.dtype(np.uint16)
+        else:
+            self.data_type = np.dtype(np.uint8)
+
 
         self.threshold = {  'view':             (0,200),
                             'point-selection':  (45,25)
@@ -33,6 +39,9 @@ class PmaMovie(Movie):
 
 
         self.read_header()
+
+        self.create_frame_info()  # Possibly move to Movie later on
+
 #        self.find_filelist()
 #
 #    def find_filelist(self):
@@ -75,7 +84,7 @@ class PmaMovie(Movie):
                
         with self.filepath.open('rb') as fid:
             self.width = np.fromfile(fid, np.int16,count=1)[0].astype(int)
-            self.height =  np.fromfile(fid, np.int16,count=1)[0].astype(int)
+            self.height = np.fromfile(fid, np.int16,count=1)[0].astype(int)
 
         # Is this necessary for just one pma file? Then I think we should not include this. [IS 08-11-2020]
         if self.width==0: #required for hel21.pma from Sung Hyun
@@ -171,3 +180,10 @@ class PmaMovie(Movie):
             tifffile.imwrite(self.writepath.joinPath(f'{self.name}_fr{frame_number}.tif') , im ,  photometric='minisblack')
     
         return im # still need to convert im
+
+
+if __name__ == "__main__":
+    movie = PmaMovie(r'.\Example_data\pma\movie.pma')
+    movie.intensity_range = (0, 120)
+    movie.make_projection_images()
+    print(movie.channels[0].location)
