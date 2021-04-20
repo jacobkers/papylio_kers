@@ -17,11 +17,15 @@ class Movie:
         self._maximum_projection_image = None
         self.is_mapping_movie = False
 
+        self.illuminations = [Illumination(self, 'green', 'g')]
+        self.illumination_arrangement = np.array([0])
+
         self.channels = [Channel(self, 'green', 'g', other_names=['donor', 'd']),
                          Channel(self, 'red', 'r', other_names=['acceptor', 'a'])]
 
-        self.illumination_arrangement = np.array([0])
-        self.channel_arrangement = np.array([[[0]]]) #[[[0,1]]] # First level: frames, second level: y within frame, third level: x within frame
+
+        self.channel_arrangement = np.array([[[0, 1]]]) #[[[0,1]]] # First level: frames, second level: y within frame, third level: x within frame
+
         self.rot90 = 0
 
         self._data_type = np.dtype(np.uint16)
@@ -74,6 +78,13 @@ class Movie:
     #     if len(channel_grid) == 2 and np.all(np.array(channel_grid) > 0):
     #         self._channel_grid = channel_grid
     #         self._number_of_channels = np.product(channel_grid)
+    @property
+    def number_of_illuminations(self):
+        """ int : number of channels in the movie
+
+        Setting the number of channels will divide the image horizontally in equally spaced channels.
+        """
+        return len(self.illuminations)
 
     @property
     def number_of_channels(self):
@@ -205,7 +216,8 @@ class Movie:
 
         if illumination is not None:
             frames = frames.query(f'illumination=={illumination}')
-            filename_addition += f'_i{illumination}'
+            if self.number_of_illuminations > 1:
+                filename_addition += f'_i{illumination}'
         if channel is not None:
             if not isinstance(channel, Channel):
                 channel = self.get_channel_from_name(channel)
@@ -362,6 +374,9 @@ class Channel:
             channel_colour = list({'green', 'red', 'blue'}.intersection(self.names))[0]
             self.colour_map = make_colour_map(channel_colour)
 
+    def __repr__(self):
+        return (f'{self.__class__.__name__}({self.name})')
+
     @property
     def names(self):
         return [self.index, self.name, self.short_name] + self.other_names
@@ -418,6 +433,27 @@ class Channel:
     def crop_image(self, image):
         return image[self.boundaries[0, 1]:self.boundaries[1, 1],
                      self.boundaries[0, 0]:self.boundaries[1, 0]]
+
+class Illumination:
+    def __init__(self, movie, name, short_name, other_names=None):
+        self.movie = movie
+        self.name = name
+        self.short_name = short_name
+        self.other_names = other_names
+
+    def __repr__(self):
+        return (f'{self.__class__.__name__}({self.name})')
+
+    @property
+    def names(self):
+        return [self.index, self.name, self.short_name] + self.other_names
+
+    @property
+    def index(self):
+        try:
+            return self.movie.illuminations.index(self)
+        except:
+            pass
 
 class MoviePlotter:
     # Adapted from Matplotlib Image Slices Viewer
