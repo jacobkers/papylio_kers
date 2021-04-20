@@ -91,3 +91,16 @@ def show_point_connections(pointset1, pointset2, axis=None):
         axis = plt.gca()
     axis.add_collection(line_segments)
     # axis.autoscale()
+
+def show_image_3d(image, figure=None):
+    if not figure:
+        figure = plt.figure()
+
+    from matplotlib import cm
+    axis = figure.gca(projection='3d')
+    X = np.arange(image.shape[1])
+    Y = np.arange(image.shape[0])
+    X, Y = np.meshgrid(X, Y)
+    axis.plot_surface(X, Y, image, cmap=cm.coolwarm,
+                      linewidth=0, antialiased=False)
+
