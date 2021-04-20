@@ -1,14 +1,4 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Thu Aug 15 14:41:47 2019
-
-@author: Ivo Severins, Margreet Doctor, https://github.com/lightingghost/sifreader/blob/master/sifreader/sifreader.py
-"""
-
-from pathlib import Path
-import os, sys
-   
-
+import os
 import time
 import numpy as np
 import matplotlib.pyplot as plt
@@ -18,18 +8,20 @@ from trace_analysis.movie.movie import Movie
 
 
 class SifxMovie(Movie):
+    # Based on https://github.com/lightingghost/sifreader/blob/master/sifreader/sifreader.py
     def __init__(self, arg, *args, **kwargs):
         super().__init__(arg, *args, **kwargs)
         
         self.folderpath = self.filepath.parent
         self.writepath = self.filepath.parent.parent
         self.name = self.filepath.parent.name
-        self.bitdepth = 16
+        self.data_type = np.dtype(np.uint16) # Can we not get this from the header?
         self.read_header()
         self.find_filelist()
         self.threshold = {  'view':             (0,200),
                             'point-selection':  (45,25)
                             }
+        self.create_frame_info()  # Possibly move to Movie later on
 
     def find_filelist(self):
         self.filelist=[p.relative_to(self.filepath.parent) for p in self.filepath.parent.glob('*spool.dat')]
@@ -202,4 +194,10 @@ class SifxMovie(Movie):
             plt.imshow(im)
             tifffile.imwrite(self.writepath.joinPath(f'{self.name}_fr{frame_number}.tif') , im ,  photometric='minisblack')
         
-        return im   
+        return im
+
+
+if __name__ == "__main__":
+    movie = SifxMovie(r'.\Example_data\sifx\movie\Spooled files.sifx')
+    movie.intensity_range = (90, 175)
+    movie.make_projection_images()
