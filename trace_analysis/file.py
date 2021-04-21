@@ -430,6 +430,9 @@ class File:
         window_size = configuration['window_size']
         use_sliding_window = bool(configuration['use_sliding_window'])
 
+        # Reset current molecules
+        self.molecules = []  # Should we put this here?
+
         # --- make the windows
         # (if no sliding windows, just a single window is made to make it compatible with next bit of code) ----
         if use_sliding_window:
@@ -501,6 +504,11 @@ class File:
 
                 coordinate_sets[i].update(channel_coordinates)
 
+        # Check whether points are found
+        for coordinate_set in coordinate_sets:
+            if len(coordinate_set) == 0:
+                return
+
         # --- correct for photon shot noise / stage drift ---
         # Not sure whether to put this in front of combine_coordinate_sets/detect_FRET_pairs or behind [IS: 12-08-2020]
         # I think before, as you would do it either for each window, or for the combined windows.
@@ -519,6 +527,7 @@ class File:
             coordinate_sets[i] = coordinate_sets[i]+self.movie.channel_boundaries(channels[i])[0]
             # if channels[i] in ['a', 'acceptor']:
             if i > 0: #i.e. if channel is not main channel
+                # Maybe we can do this earlier, right after point detection, then we need only a single coordinate_set
                 coordinate_sets[i] = self.mapping.transform_coordinates(coordinate_sets[i],
                                                                         direction='Acceptor2Donor')
 
@@ -543,7 +552,6 @@ class File:
         coordinates = np.hstack(coordinates_list).reshape((-1, 2))
 
         # --- finally, we set the coordinates of the molecules ---
-        self.molecules = [] # Should we put this here?
         self.coordinates = coordinates
         self.export_pks_file()
 
