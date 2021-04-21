@@ -4,6 +4,7 @@ Created on Fri Aug 23 13:55:53 2019
 
 @author: ivoseverins
 """
+import json
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -91,13 +92,18 @@ class Mapping2:
 
         if load:
             filepath = Path(load)
-            if filepath.suffix in ['.yml','.yaml','.mapping']:
-                with filepath.open('r') as yml_file:
-                    attributes = yaml.load(yml_file, Loader=yaml.SafeLoader)
-                    for key, value in attributes.items():
-                        if type(value) == list:
-                            value = np.array(value)
-                        setattr(self, key, value)
+            if filepath.suffix in ['.yml','.yaml','.json','.mapping']:
+                if filepath.suffix in ['.json', '.mapping'] and filepath.open('r').read(1) == '{':
+                    with filepath.open('r') as json_file:
+                        attributes = json.load(json_file)
+                elif filepath.suffix in ['.yml', '.yaml', '.mapping']:
+                    with filepath.open('r') as yml_file:
+                        attributes = yaml.load(yml_file, Loader=yaml.CSafeLoader)
+
+                for key, value in attributes.items():
+                    if type(value) == list:
+                        value = np.array(value)
+                    setattr(self, key, value)
                 self.transformation = self.transform(self.transformation)
                 self.transformation_inverse = self.transform(self.transformation_inverse)
 
@@ -437,7 +443,7 @@ class Mapping2:
             else:
                 raise TypeError('Mapping is not of type linear or nonlinear')
 
-        elif filetype in ['yml', 'yaml']:
+        elif filetype in ['yml', 'yaml', 'json']:
             attributes = self.__dict__.copy()
             for key in list(attributes.keys()):
                 value = attributes[key]
@@ -449,9 +455,12 @@ class Mapping2:
                     attributes[key] = value.tolist()
                 else:
                     attributes.pop(key)
-
-            with filepath.with_suffix('.mapping').open('w') as yml_file:
-                yaml.dump(attributes, yml_file, sort_keys=False)
+            if filetype in ['yml','yaml']:
+                with filepath.with_suffix('.mapping').open('w') as yml_file:
+                    yaml.dump(attributes, yml_file, sort_keys=False)
+            elif filetype == 'json':
+                with filepath.with_suffix('.mapping').open('w') as json_file:
+                    json.dump(attributes, json_file, sort_keys=False)
 
 
 if __name__ == "__main__":
