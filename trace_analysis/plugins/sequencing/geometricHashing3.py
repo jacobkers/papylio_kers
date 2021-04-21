@@ -154,9 +154,9 @@ class GeometricHashTable:
                                         alpha, sigma, K_threshold):
                 match = Mapping2(source=source, destination=self.destinations[destination_index], method='Geometric hashing',
                                  transformation_type='linear', initial_transformation=None)
-                match.transformation = found_transformation.params
-                match.calculate_inverse_transformation()
-                # match.destination_index = destination_index
+                match.transformation = found_transformation
+                match.transformation_inverse = AffineTransform(matrix=found_transformation._inv_matrix)
+                # match.calculate_inverse_transformation()
                 match.destination_index = destination_index
                 match.initial_transformation = self.initial_source_transformation
                 match.source_vertices = self.source_vertices
