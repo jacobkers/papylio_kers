@@ -82,7 +82,9 @@ def nearest_neighbor_pair(pointset1, pointset2):
 
 def direct_match(source, destination, transform=AffineTransform, return_inverse=False, **kwargs):
     transformation = transform()
-    transformation.estimate(source, destination, **kwargs)
+    success = transformation.estimate(source, destination, **kwargs)
+    if not success:
+        raise RuntimeError('Direct match failed')
 
     if return_inverse:
         transformation_inverse = transform()
