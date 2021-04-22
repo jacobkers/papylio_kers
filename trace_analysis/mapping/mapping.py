@@ -292,7 +292,8 @@ class Mapping2:
                                                                                self.destination)
         return np.sum(distances<distance_threshold)
 
-    def show_mapping_transformation(self, figure=None, show_source=False):
+    def show_mapping_transformation(self, figure=None, show_source=False,
+                                    source_colour='forestgreen', destination_colour='r'):
         """Show a point scatter of the source transformed to the destination points and the destination.
 
         Parameters
@@ -312,11 +313,11 @@ class Mapping2:
         axis = figure.gca()
 
         if show_source:
-            axis.scatter(self.source[:, 0], self.source[:, 1], facecolors='forestgreen', edgecolors='none', marker='.',
+            axis.scatter(self.source[:, 0], self.source[:, 1], facecolors=source_colour, edgecolors='none', marker='.',
                          label=self.source_name)
         axis.scatter(destination_from_source[:, 0], destination_from_source[:, 1], facecolors='none',
-                     edgecolors='forestgreen', linewidth=1, marker='o', label=f'{self.source_name} transformed')
-        axis.scatter(self.destination[:, 0], self.destination[:, 1], facecolors='r', edgecolors='none', marker='.',
+                     edgecolors=source_colour, linewidth=1, marker='o', label=f'{self.source_name} transformed')
+        axis.scatter(self.destination[:, 0], self.destination[:, 1], facecolors=destination_colour, edgecolors='none', marker='.',
                      label=self.destination_name)
 
         axis.set_aspect('equal')
@@ -409,7 +410,7 @@ class Mapping2:
 
         return skimage.transform.warp(image, current_transformation, preserve_range=True)
 
-    def save(self, filepath, filetype='yaml'):
+    def save(self, filepath, filetype='json'):
         """Save the current mapping in a file, so that it can be opened later.
 
         Parameters
