@@ -51,7 +51,9 @@ class Mapping2:
 
     def __init__(self, source=None, destination=None, method=None,
                  transformation_type=None, initial_transformation=None,
-                 source_name='source', destination_name='destination', load=None):
+                 source_name='source', destination_name='destination',
+                 source_unit=None, destination_unit=None, name=None,
+                 load=None):
         """Set passed object attributes
 
         Parameters
@@ -71,10 +73,12 @@ class Mapping2:
         load : str or pathlib.Path
             Path to file that has to be loaded
         """
-
+        self.name = name
         self.source_name = source_name
         self.source = source #source=donor=left side image
+        self.source_unit = source_unit
         self.destination_name = destination_name
+        self.destination_unit = destination_unit
         self.destination = destination #destination=acceptor=right side image
         self.method = method
         self.transformation_type = transformation_type
@@ -293,7 +297,7 @@ class Mapping2:
         return np.sum(distances<distance_threshold)
 
     def show_mapping_transformation(self, figure=None, show_source=False,
-                                    source_colour='forestgreen', destination_colour='r'):
+                                    source_colour='forestgreen', destination_colour='r', save_path=None):
         """Show a point scatter of the source transformed to the destination points and the destination.
 
         Parameters
@@ -321,9 +325,19 @@ class Mapping2:
                      label=self.destination_name)
 
         axis.set_aspect('equal')
-        axis.set_xlabel('x')
-        axis.set_ylabel('y')
+
+        if self.destination_unit is not None:
+            unit_label = f' ({self.destination_unit})'
+        else:
+            unit_label = ''
+
+        axis.set_title(self.name)
+        axis.set_xlabel('x'+unit_label)
+        axis.set_ylabel('y'+unit_label)
         axis.legend()
+
+        if save_path is not None:
+            figure.savefig(save_path.joinpath(self.name+'.png'), bbox_inches='tight', dpi=250)
 
     def get_transformation_direction(self, direction):
         """ Get inverse parameter based on direction
