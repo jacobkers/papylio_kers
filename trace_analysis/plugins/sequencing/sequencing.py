@@ -9,7 +9,7 @@ from trace_analysis.mapping.mapping import Mapping2
 from .fastqAnalysis import FastqData
 from .geometricHashing2 import geometric_hash, find_match_after_hashing
 from .geometricHashing3 import GeometricHashTable
-from .plotting import plot_sequencing_match
+from .plotting import plot_sequencing_match, plot_matched_files_in_tile
 from trace_analysis.mapping.icp import icp, nearest_neighbor_pair
 
 
@@ -101,8 +101,57 @@ class Experiment:
     #     self.seqmap.bases_findMatch = configuration['bases_findMatch']
     #     self.seqmap.histogram_matches(export=True)
 
-    def sequencing_mapping_to_files(self, minimal_number_of_matching_points):
-        self.seqmap.give_matches_to_files(match_threshold=minimal_number_of_matching_points)
+    # def sequencing_mapping_to_files(self, minimal_number_of_matching_points):
+    #     self.seqmap.give_matches_to_files(match_threshold=minimal_number_of_matching_points)
+
+    def map_sequencing_and_stage_coordinates(self):
+        tiles = self.sequencing_data.tiles
+        self.stage_to_sequencing_mappings = []
+
+        for tile in tiles:
+            matched_files_in_tile = [file for file in self.files if file.sequencing_match and
+                                     file.sequencing_match.tile == tile.number]
+
+            if len(matched_files_in_tile) == 0:
+                self.stage_to_sequencing_mappings.append(None)
+                continue
+
+            stage_coordinates = np.array([file.movie.stage_coordinates[0] for file in matched_files_in_tile])
+            # stage_coordinates_in_pixels = np.array([file.movie.stage_coordinates_in_pixels[0] for file in matched_files_in_tile])
+            sequencing_coordinates = np.vstack(
+                [file.sequencing_match.transform_coordinates(np.array([[0, 0]])) for file in matched_files_in_tile])
+
+            stage_to_tile_mapping = \
+                Mapping2(stage_coordinates, sequencing_coordinates, transformation_type='linear',
+                         source_name='Stage coordinates', destination_name='Sequencing_coordinates',
+                         source_unit='μm', destination_unit='FASTQ',
+                         name=f'Stage to sequencing coordinates - tile {tile.number}')
+            stage_to_tile_mapping.direct_match('linear')
+            stage_to_tile_mapping.tile = tile.number
+
+            stage_to_tile_mapping.save(self.mainPath.joinpath(f'stage_to_tile_{tile.number}.mapping'))
+            self.stage_to_sequencing_mappings.append(stage_to_tile_mapping)
+
+    def show_stage_to_sequencing_mappings(self):
+        for mapping in self.stage_to_sequencing_mappings:
+            if mapping is not None:
+                mapping.show_mapping_transformation(source_colour='forestgreen', destination_colour='k',
+                                                    save_path=self.mainPath)
+
+    def tile_boundaries_in_stage_coordinates(self):
+        # TODO: Use real tile boundaries here
+        boundaries = []
+        for mapping in self.stage_to_sequencing_mappings:
+            if mapping:
+                boundaries.append(mapping.transform_coordinates([[0, 0], [30000, 30000]], inverse=True).T)
+            else:
+                boundaries.append(np.zeros((2,2)))
+        return np.sort(boundaries)
+
+    def show_sequencing_matches(self, show_file_coordinates=False):
+        selected_files = [file for file in self.files if file.sequencing_match is not None]
+        plot_matched_files_in_tile(selected_files, show_file_coordinates=show_file_coordinates,
+                                   save=True)
 
     # TODO: Put this improvement in file
     def sequencing_mapping_improvement(self):
@@ -166,7 +215,7 @@ class File:
         self.sequencing_match = None
 
         self.importFunctions['.fastq'] = self.import_sequencing_data
-        self.importFunctions['_sequencing_match.yml'] = self.import_sequencing_match
+        self.importFunctions['_sequencing_match.mapping'] = self.import_sequencing_match
 
         if self.experiment.import_all is True:
             self.findAndAddExtensions()
@@ -209,32 +258,36 @@ class File:
         self.sequences = self.sequencing_data.sequence
 
     def import_sequencing_match(self):
-        self.sequencing_match = Mapping2(load=self.absoluteFilePath.with_name(self.name+'_sequencing_match.yml'))
+        self.sequencing_match = Mapping2(load=self.absoluteFilePath.with_name(self.name+'_sequencing_match.mapping'))
 
     def export_sequencing_match(self):
-        self.sequencing_match.save(self.absoluteFilePath.with_name(self.name+'_sequencing_match.yml'))
+        self.sequencing_match.save(self.absoluteFilePath.with_name(self.name+'_sequencing_match.mapping'))
 
     def find_sequences(self, maximum_distance_file, tuple_size, initial_transformation={},
                        hash_table_distance_threshold=0.01,
                        alpha=0.1, test_radius=10, K_threshold=10e9,
                        magnification_range=None, rotation_range=None,
+                       channel=0,
                        nearest_neighbour_match_distance_threshold=25):
         # TODO: Make geometric hashing reflection invariant
         initial_transformation = AffineTransform(**initial_transformation)
 
         # TODO: make the following line more general and remove bounds dependence in geometric hashing
-        source_vertices = self.movie.channel_vertices('a')
+        source_vertices = self.movie.channel_vertices(channel)
         coordinate_vertices_file = initial_transformation(source_vertices)
 
         #self.geometric_hash_data = geometric_hash(initial_transform(self.coordinates), maximum_distance_file, tuple_size)
 
+        coordinates = self.coordinates_from_channel(channel)
+
         #match.destination_index = destination_index
-        match = find_match_after_hashing(initial_transformation(self.coordinates), maximum_distance_file, tuple_size, coordinate_vertices_file,
+        match = find_match_after_hashing(initial_transformation(coordinates), maximum_distance_file, tuple_size, coordinate_vertices_file,
                                          *self.experiment.geometric_hash_data,
                                          hash_table_distance_threshold, alpha, test_radius, K_threshold,
                                          magnification_range, rotation_range)
         if match:
             match.tile = self.experiment.sequencing_data_for_mapping.tiles[match.destination_index].number
+            match.channel = channel
             match.source = self.coordinates
             match.initial_transformation = initial_transformation
             match.transformation = match.transformation @ initial_transformation.params
@@ -246,19 +299,55 @@ class File:
             self.export_sequencing_match()
             #self.get_all_sequences_from_sequencing_data()
 
-    def find_sequences3(self, distance=15, alpha=0.9, sigma=10, K_threshold=10e2, nearest_neighbour_match_distance_threshold=25):
+    def find_sequences3(self, distance=15, alpha=0.9, sigma=10, K_threshold=10e2, channel=0,
+                        nearest_neighbour_match_distance_threshold=25):
 
-        match = self.experiment.geometric_hashtable.query(self.coordinates, distance, alpha, sigma, K_threshold)
+        coordinates = self.coordinates_from_channel(channel)
+
+        match = self.experiment.geometric_hashtable.query(coordinates, distance, alpha, sigma, K_threshold)
 
         if match:
             # match.destination_index = 0
             match.tile = self.experiment.sequencing_data_for_mapping.tiles[match.destination_index].number
+            match.channel = channel
 
             # TODO: Base this on some better criteria
             #match.nearest_neighbour_match(nearest_neighbour_match_distance_threshold)
             self.sequencing_match = match
             self.export_sequencing_match()
             #self.get_all_sequences_from_sequencing_data()
+
+    def find_sequences_using_stage_coordinates(self, channel=0, show=False, save=True):
+        boundaries = self.experiment.tile_boundaries_in_stage_coordinates()
+        tile_selection = np.array([self.movie.stage_coordinates > boundaries[:, :, 0],
+                                   self.movie.stage_coordinates < boundaries[:, :, 1]])
+        tile_index = np.where(np.all(tile_selection, axis=(0, 2)))[0][0]
+
+        source_vertices = self.movie.channel_vertices(channel)
+        source_vertices_in_stage_coordinates = \
+            self.movie.stage_coordinates + np.flip(source_vertices * self.movie.pixel_size, axis=1)
+
+
+        source_vertices_in_sequencing_coordinates = \
+            self.experiment.stage_to_sequencing_mappings[tile_index]\
+                .transform_coordinates(source_vertices_in_stage_coordinates)
+
+        match = Mapping2(source_vertices, source_vertices_in_sequencing_coordinates, transformation_type='linear')
+        match.direct_match()
+        match.source_vertices = source_vertices
+        match.tile = self.experiment.sequencing_data_for_mapping.tiles[tile_index].number
+        match.channel = channel
+
+        match.source = self.coordinates_from_channel(channel)
+        match.destination = self.experiment.sequencing_data_for_mapping.tiles[tile_index].coordinates
+
+        self.sequencing_match = match
+        if show:
+            self.plot_sequencing_match()
+        if save:
+            self.export_sequencing_match()
+
+
 
     def get_all_sequences_from_sequencing_data(self, margin=10, mapped_to_channel='a'):
         # raise Warning('Only works on acceptor channel for now')
