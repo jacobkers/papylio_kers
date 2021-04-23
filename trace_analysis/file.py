@@ -525,8 +525,8 @@ class File:
             # Map coordinates to main channel in movie
             # TODO: make this usable for any number of channels
             coordinate_sets[i] = coordinate_sets[i]+self.movie.channel_boundaries(channels[i])[0]
-            # if channels[i] in ['a', 'acceptor']:
-            if i > 0: #i.e. if channel is not main channel
+            if channels[i] in ['a', 'acceptor']:
+            # if i > 0: #i.e. if channel is not main channel # this didn't work when selecting only the acceptor channel
                 # Maybe we can do this earlier, right after point detection, then we need only a single coordinate_set
                 coordinate_sets[i] = self.mapping.transform_coordinates(coordinate_sets[i],
                                                                         direction='Acceptor2Donor')
