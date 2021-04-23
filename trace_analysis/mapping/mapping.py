@@ -292,8 +292,9 @@ class Mapping2:
             Number of matched points
 
         """
-        distances, source_indices, destination_indices = nearest_neighbor_pair(self.transform_source_to_destination,
-                                                                               self.destination)
+        distances, source_indices, destination_indices = \
+            nearest_neighbor_pair(self.source_to_destination, self.destination)
+
         return np.sum(distances<distance_threshold)
 
     def show_mapping_transformation(self, figure=None, show_source=False,
