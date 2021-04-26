@@ -14,13 +14,14 @@ dependencies:
 - scikit-image=0.16.2
 - scikit-learn=0.22.2.post1
 - pyyaml=5.1.2
-- pandas=1.1.*
+- pandas=1.1
 - seaborn=0.10.1
 - openpyxl=3.0.1
 - sphinx=2.3.1
 - sphinx_rtd_theme=0.4.3
 - git=2.23.0
 - nd2reader=3.0
+- shapely=1.7
 - bioconda::logomaker=0.8
 - pip:
     - tifffile==2019.7.26

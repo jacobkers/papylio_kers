@@ -12,6 +12,8 @@ from pathlib import Path
 import yaml
 import skimage.transform
 from skimage.transform import AffineTransform, PolynomialTransform
+import matplotlib.path as pth
+from shapely.geometry import Polygon, MultiPoint
 
 from trace_analysis.mapping.icp import icp, nearest_neighbor_pair, nearest_neighbour_match, direct_match
 from trace_analysis.mapping.polywarp import PolywarpTransform
@@ -77,9 +79,11 @@ class Mapping2:
         self.source_name = source_name
         self.source = source #source=donor=left side image
         self.source_unit = source_unit
+        self.source_vertices = None # np.array(MultiPoint(self.source).envelope.exterior.xy).T[:-1]
         self.destination_name = destination_name
         self.destination_unit = destination_unit
         self.destination = destination #destination=acceptor=right side image
+        self.destination_vertices = None # np.array(MultiPoint(self.destination).envelope.exterior.xy).T[:-1]
         self.method = method
         self.transformation_type = transformation_type
 
@@ -107,7 +111,10 @@ class Mapping2:
                 for key, value in attributes.items():
                     if type(value) == list:
                         value = np.array(value)
-                    setattr(self, key, value)
+                    try:
+                        setattr(self, key, value)
+                    except AttributeError:
+                        pass
                 self.transformation = self.transform(self.transformation)
                 self.transformation_inverse = self.transform(self.transformation_inverse)
 
@@ -295,9 +302,9 @@ class Mapping2:
         distances, source_indices, destination_indices = \
             nearest_neighbor_pair(self.source_to_destination, self.destination)
 
-        return np.sum(distances<distance_threshold)
+        return np.sum(distances < distance_threshold)
 
-    def show_mapping_transformation(self, figure=None, show_source=False,
+    def show_mapping_transformation(self, figure=None, show_source=False, crop=None,
                                     source_colour='forestgreen', destination_colour='r', save_path=None):
         """Show a point scatter of the source transformed to the destination points and the destination.
 
@@ -313,16 +320,24 @@ class Mapping2:
         if not figure:
             figure = plt.figure()
 
-        destination_from_source = self.transform_coordinates(self.source)
+        if not crop:
+            source = self.source
+            destination = self.destination
+        else:
+            source = self.source_cropped
+            destination = self.destination_cropped
+
+
+        destination_from_source = self.transform_coordinates(source)
 
         axis = figure.gca()
 
         if show_source:
-            axis.scatter(self.source[:, 0], self.source[:, 1], facecolors=source_colour, edgecolors='none', marker='.',
+            axis.scatter(source[:, 0], source[:, 1], facecolors=source_colour, edgecolors='none', marker='.',
                          label=self.source_name)
         axis.scatter(destination_from_source[:, 0], destination_from_source[:, 1], facecolors='none',
                      edgecolors=source_colour, linewidth=1, marker='o', label=f'{self.source_name} transformed')
-        axis.scatter(self.destination[:, 0], self.destination[:, 1], facecolors=destination_colour, edgecolors='none', marker='.',
+        axis.scatter(destination[:, 0], destination[:, 1], facecolors=destination_colour, edgecolors='none', marker='.',
                      label=self.destination_name)
 
         axis.set_aspect('equal')
@@ -425,6 +440,52 @@ class Mapping2:
 
         return skimage.transform.warp(image, current_transformation, preserve_range=True)
 
+    @property
+    def source_vertices_in_destination(self):
+        if self.source_vertices is not None:
+            return self.transform_coordinates(self.source_vertices)
+        else:
+            raise AttributeError('Source vertices not set')
+
+    @property
+    def destination_vertices_in_source(self):
+        if self.destination_vertices is not None:
+            return self.transform_coordinates(self.destination_vertices, inverse=True)
+        else:
+            raise AttributeError('Destination vertices not set')
+
+    @property
+    def source_cropped(self):
+        crop_vertices_in_source = overlap_vertices(self.source_vertices, self.destination_vertices_in_source)
+        return crop_coordinates(self.source, crop_vertices_in_source)
+
+    @property
+    def destination_cropped(self):
+        crop_vertices_in_destination = overlap_vertices(self.source_vertices_in_destination, self.destination_vertices)
+        return crop_coordinates(self.destination, crop_vertices_in_destination)
+
+    def fraction_of_matched_points(self, distance_threshold):
+        number_of_matched_points = self.number_of_matched_points(distance_threshold)
+        fraction_source_matched = number_of_matched_points / self.source_cropped.shape[0]
+        fraction_destination_matched = number_of_matched_points / self.destination_cropped.shape[0]
+
+        return fraction_source_matched, fraction_destination_matched
+
+        # Possiblility to estimate area per point without source or destination vertices
+        # from scipy.spatial import ConvexHull, convex_hull_plot_2d
+        # hull = ConvexHull(points)
+        # number_of_vertices = n = hull.vertices.shape[0]
+        # number_of_points = hull.points.shape[0]
+        # corrected_number_of_points_in_hull = number_of_points-number_of_vertices/2-1
+        # area = hull.volume / corrected_number_of_points_in_hull * number_of_points
+        # # Number of vertices = nv
+        # # Sum of vertice angles = n*360
+        # # Sum of inner vertice angles = (nv-2)*180
+        # # Part of point area inside hull = (nv-2)*180/(nv*360)=(nv-2)/(2nv)
+        # # Points inside the hull = (nv-2)/(2nv)*nv+np-nv=nv/2-1+np-nv=np-nv/2-1
+
+        # Other method would be using voronoi diagrams, and calculating area of inner points
+
     def save(self, filepath, filetype='json'):
         """Save the current mapping in a file, so that it can be opened later.
 
@@ -477,6 +538,25 @@ class Mapping2:
             elif filetype == 'json':
                 with filepath.with_suffix('.mapping').open('w') as json_file:
                     json.dump(attributes, json_file, sort_keys=False)
+
+
+def overlap_vertices(vertices_A, vertices_B):
+    polygon_A = Polygon(vertices_A)
+    polygon_B = Polygon(vertices_B)
+    polygon_overlap = polygon_A.intersection(polygon_B)
+    return np.array(polygon_overlap.exterior.coords.xy).T[:-1]
+
+def crop_coordinates(coordinates, vertices, return_indices=False):
+    indices = pth.Path(vertices).contains_points(coordinates)
+    if not return_indices:
+        return coordinates[indices]
+    else:
+        return indices, coordinates[indices]
+
+    # bounds.sort(axis=0)
+    # selection = (coordinates[:, 0] > bounds[0, 0]) & (coordinates[:, 0] < bounds[1, 0]) & \
+    #             (coordinates[:, 1] > bounds[0, 1]) & (coordinates[:, 1] < bounds[1, 1])
+    # return coordinates[selection]
 
 
 if __name__ == "__main__":

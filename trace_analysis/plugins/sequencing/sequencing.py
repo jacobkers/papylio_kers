@@ -335,6 +335,7 @@ class File:
         match = Mapping2(source_vertices, source_vertices_in_sequencing_coordinates, transformation_type='linear')
         match.direct_match()
         match.source_vertices = source_vertices
+        match.destination_vertices = np.array([[1720, 1330], [29720, 1330], [29720, 29330], [1720, 29330]]) # Tile coordinate bounds MiSeq
         match.tile = self.experiment.sequencing_data_for_mapping.tiles[tile_index].number
         match.channel = channel
 
