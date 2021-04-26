@@ -1,7 +1,10 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import math
 from pathlib import Path
 from skimage.transform import AffineTransform
+import pandas as pd
+
 # from trace_analysis.experiment import Experiment
 # from trace_analysis.file import File
 from trace_analysis.mapping.geometricHashing import SequencingDataMapping
@@ -148,10 +151,37 @@ class Experiment:
                 boundaries.append(np.zeros((2,2)))
         return np.sort(boundaries)
 
+    @property
+    def files_with_sequencing_match(self):
+        return [file for file in self.files if file.sequencing_match is not None]
+
+    @property
+    def sequencing_matches(self):
+        return [file.sequencing_match for file in self.files if file.sequencing_match is not None]
+
     def show_sequencing_matches(self, show_file_coordinates=False):
-        selected_files = [file for file in self.files if file.sequencing_match is not None]
-        plot_matched_files_in_tile(selected_files, show_file_coordinates=show_file_coordinates,
+        plot_matched_files_in_tile(self.files_with_sequencing_match, show_file_coordinates=show_file_coordinates,
                                    save=True)
+
+    def sequencing_match_info_per_file(self, distance_threshold=25):
+        columns = pd.MultiIndex.from_product([['File coordinates', 'Sequencing coordinates'],
+                                              ['Matched', 'Total', 'Fraction']])
+        df = pd.DataFrame(columns=columns)
+
+        for file in self.files_with_sequencing_match:
+            df.loc[file.name, ('File coordinates', 'Total')] = file.sequencing_match.source_cropped.shape[0]
+            df.loc[file.name, ('Sequencing coordinates', 'Total')] = file.sequencing_match.destination_cropped.shape[0]
+            df.loc[file.name, (['File coordinates','Sequencing coordinates'], 'Matched')] = \
+                file.sequencing_match.number_of_matched_points(distance_threshold)
+            df.loc[file.name, (['File coordinates','Sequencing coordinates'], 'Fraction')] = \
+                file.sequencing_match.fraction_of_points_matched(distance_threshold)
+
+        return df
+
+    def sequencing_match_info_mean(self, distance_threshold=25):
+        df = self.sequencing_match_info_per_file(distance_threshold)
+        df = pd.DataFrame([df.mean(axis=0), df.std(axis=0)], index=['Mean', 'Std']).T
+        return df.apply(std_string, axis=1)
 
     # TODO: Put this improvement in file
     def sequencing_mapping_improvement(self):
@@ -440,3 +470,14 @@ class Molecule:
     @property
     def sequencing_data(self):
         return self.file.sequencing_data[self.index]
+
+
+def std_string(value_and_uncertainty):
+    value, uncertainty = value_and_uncertainty
+    exponent = math.floor(math.log10(uncertainty))
+    decimals = -exponent if exponent < 0 else 0
+    units = exponent if exponent > 0 else 1
+    return f'{np.round(value,-exponent):{units}.{decimals}f}±{np.round(uncertainty,-exponent):{units}.{decimals}f}'
+
+def mean_and_std_string(values):
+    return std_string(np.mean(values), np.std(values))

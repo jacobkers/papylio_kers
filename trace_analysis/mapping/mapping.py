@@ -464,7 +464,7 @@ class Mapping2:
         crop_vertices_in_destination = overlap_vertices(self.source_vertices_in_destination, self.destination_vertices)
         return crop_coordinates(self.destination, crop_vertices_in_destination)
 
-    def fraction_of_matched_points(self, distance_threshold):
+    def fraction_of_points_matched(self, distance_threshold):
         number_of_matched_points = self.number_of_matched_points(distance_threshold)
         fraction_source_matched = number_of_matched_points / self.source_cropped.shape[0]
         fraction_destination_matched = number_of_matched_points / self.destination_cropped.shape[0]
