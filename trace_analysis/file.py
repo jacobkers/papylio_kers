@@ -825,9 +825,8 @@ class File:
 
         axis.imshow(image)
 
-
-    def show_average_image(self, mode='2d', figure=None):
-        self.show_image(image_type='average_image', mode=mode, figure=figure)
+    def show_average_image(self, figure=None):
+        self.show_image(image_type='average_image', figure=figure)
 
     def show_coordinates(self, figure=None, annotate=None, **kwargs):
         # Refresh configuration
