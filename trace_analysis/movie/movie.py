@@ -264,11 +264,14 @@ class Movie:
         illumination_indices, channel_indices = \
             self.frame_info[['illumination','channel']].drop_duplicates().sort_values(by=['channel','illumination']).values.T
 
-        for illumination_index in np.unique(illumination_indices):
-            self.make_projection_image(projection_type, start_frame, number_of_frames, illumination_index, write=True)
+        # for illumination_index in np.unique(illumination_indices):
+        #     self.make_projection_image(projection_type, start_frame, number_of_frames, illumination_index, write=True)
 
         images = []
         for illumination_index, channel_index in zip(illumination_indices, channel_indices):
+            self.make_projection_image(projection_type, start_frame, number_of_frames,
+                                       illumination_index, channel_index, write=True)
+
             image = self.make_projection_image(projection_type, start_frame, number_of_frames,
                                                illumination_index, channel_index)
             image = (image - self.intensity_range[0]) / (self.intensity_range[1]-self.intensity_range[0])
@@ -333,10 +336,10 @@ class Movie:
             figure = plt.figure()
         axis = figure.gca()
 
-        if projection_type == 'average_image':
+        if projection_type == 'average':
             image = self.average_image
             axis.set_title('Average image')
-        elif projection_type == 'maximum_image':
+        elif projection_type == 'maximum':
             image = self.maximum_projection_image
             axis.set_title('Maximum projection')
 
