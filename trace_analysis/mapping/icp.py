@@ -88,7 +88,9 @@ def direct_match(source, destination, transform=AffineTransform, return_inverse=
 
     if return_inverse:
         transformation_inverse = transform()
-        transformation_inverse.estimate(destination, source, **kwargs)
+        success = transformation_inverse.estimate(destination, source, **kwargs)
+        if not success:
+            raise RuntimeError('Direct match failed')
     else:
         transformation_inverse = None
 
