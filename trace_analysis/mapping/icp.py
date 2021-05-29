@@ -80,6 +80,14 @@ def nearest_neighbor_pair(pointset1, pointset2):
     return distances1[i2], i1, i2
 
 
+def check_source_destination_float(function):
+    def wrapper(source, destination, **kwargs):
+        source = source.astype(float)
+        destination = destination.astype(float)
+        return function(source, destination, **kwargs)
+    return wrapper
+
+@check_source_destination_float
 def direct_match(source, destination, transform=AffineTransform, return_inverse=False, **kwargs):
     transformation = transform()
     success = transformation.estimate(source, destination, **kwargs)
@@ -97,7 +105,6 @@ def direct_match(source, destination, transform=AffineTransform, return_inverse=
     error = mean_squared_error(source, destination, transformation)
 
     return transformation, transformation_inverse, error
-
 
 def nearest_neighbour_match(source, destination, transform=AffineTransform, initial_transformation=None,
                             distance_threshold=None, return_inverse=False, **kwargs):
@@ -122,8 +129,9 @@ def nearest_neighbour_match(source, destination, transform=AffineTransform, init
         source_indices = source_indices[distances < distance_threshold]
         destination_indices = destination_indices[distances < distance_threshold]
 
-    transformation, transformation_inverse, error = direct_match(source[source_indices], destination[destination_indices],
-                                                                 transform, return_inverse=return_inverse, **kwargs)
+    transformation, transformation_inverse, error = \
+        direct_match(source[source_indices], destination[destination_indices],
+                     transform=transform, return_inverse=return_inverse, **kwargs)
 
     return transformation, transformation_inverse, source_indices, destination_indices, error
 
@@ -132,7 +140,7 @@ def mean_squared_error(source, destination, transformation):
     distances = np.linalg.norm(destination - transformation(source), axis=1)
     return np.mean(distances**2)
 
-
+@check_source_destination_float
 def icp(source, destination, max_iterations=20, tolerance=0.001, distance_threshold=None, distance_threshold_final=None,
         initial_transformation=None, transform=AffineTransform, transform_final=None, show_plot=False, **kwargs):
     """Iterative closest point algorithm for mapping a source point set on a destination point set.
