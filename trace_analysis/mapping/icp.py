@@ -80,14 +80,6 @@ def nearest_neighbor_pair(pointset1, pointset2):
     return distances1[i2], i1, i2
 
 
-def check_source_destination_float(function):
-    def wrapper(source, destination, **kwargs):
-        source = source.astype(float)
-        destination = destination.astype(float)
-        return function(source, destination, **kwargs)
-    return wrapper
-
-@check_source_destination_float
 def direct_match(source, destination, transform=AffineTransform, return_inverse=False, **kwargs):
     transformation = transform()
     success = transformation.estimate(source, destination, **kwargs)
@@ -95,6 +87,9 @@ def direct_match(source, destination, transform=AffineTransform, return_inverse=
         raise RuntimeError('Direct match failed')
 
     if return_inverse:
+        # Calculating the inverse transform separately usually results in slight deviation from the forward transform
+        # I am not yet sure whether this is a theoretical limitation or whether it is caused by the implementation or
+        # rounding errors during calculation
         transformation_inverse = transform()
         success = transformation_inverse.estimate(destination, source, **kwargs)
         if not success:
@@ -140,7 +135,7 @@ def mean_squared_error(source, destination, transformation):
     distances = np.linalg.norm(destination - transformation(source), axis=1)
     return np.mean(distances**2)
 
-@check_source_destination_float
+
 def icp(source, destination, max_iterations=20, tolerance=0.001, distance_threshold=None, distance_threshold_final=None,
         initial_transformation=None, transform=AffineTransform, transform_final=None, show_plot=False, **kwargs):
     """Iterative closest point algorithm for mapping a source point set on a destination point set.
