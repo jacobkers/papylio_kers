@@ -184,6 +184,27 @@ class File:
         for i, molecule in enumerate(self.molecules):
             molecule.coordinates = coordinates[(i * number_of_channels):((i + 1) * number_of_channels), :]
 
+    def set_coordinates_of_channel(self, coordinates, channel):
+        # TODO: make this usable for more than two channels
+        channel_index = self.movie.get_channel_number(channel)  # Or possibly make it self.channels
+        if channel_index == 0:
+            coordinates_in_main_channel = coordinates
+        elif channel_index == 1:
+            coordinates_in_main_channel = self.mapping.transform_coordinates(coordinates, inverse=True)
+        else:
+            raise NotImplementedError('File.set_coordinates_of_channel not implemented for more than two channels')
+
+        # for channel in self.channels or for mapping in self.mappings
+        coordinates_list = [coordinates_in_main_channel]
+        for i in range(1, self.number_of_channels):
+            if self.number_of_channels > 2:
+                raise NotImplementedError('File.set_coordinates_of_channel not implemented for more than two channels')
+            coordinates_in_other_channel = self.mapping.transform_coordinates(coordinates_in_main_channel, direction='Donor2Acceptor')
+            coordinates_list.append(coordinates_in_other_channel)
+        coordinates = np.hstack(coordinates_list).reshape((-1, 2))
+
+        self.coordinates = coordinates
+
     def coordinates_from_channel(self, channel):
         # if not self._pks_file:
         #     _pks_file = PksFile(self.absoluteFilePath.with_suffix('.pks'))
@@ -542,6 +563,7 @@ class File:
             coordinates = combine_coordinate_sets(coordinate_sets, method='and')  # the old detect_FRET_pairs
 
         # TODO: make this usable for more than two channels
+        # TODO: Use set_coordinates_of_channel
         coordinates_in_main_channel = coordinates
         coordinates_list = [coordinates]
         for i in range(self.number_of_channels)[1:]:
