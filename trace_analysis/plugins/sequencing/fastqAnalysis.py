@@ -15,6 +15,7 @@ from tabulate import tabulate
 from pathlib import Path
 import pandas as pd
 import logomaker
+import matplotlib.path as pth
 
 class FastqData:
     def __init__(self, path):
@@ -188,13 +189,17 @@ class FastqData:
         selection = np.zeros((self.sequence.shape[0], len(kwargs)), dtype=bool)
         for i, (key, value) in enumerate(kwargs.items()):
             if key == 'sequence':
-                selection[:,i] = np.all(self.sequence[:, 0:len(value)] == np.array(list(value), dtype = bytes), axis = 1)
-            if key in ['x','y']:
-                selection[:,i] = np.all(np.vstack([getattr(self, key) > np.min(value), getattr(self, key) < np.max(value)]), axis=0)
+                selection[:, i] = np.all(self.sequence[:, 0:len(value)] == np.array(list(value), dtype = bytes), axis = 1)
+            elif key in ['x', 'y']:
+                selection[:, i] = np.all(np.vstack([getattr(self, key) > np.min(value), getattr(self, key) < np.max(value)]), axis=0)
+            elif key == 'coordinates_within_vertices':
+                selection[:, i] = pth.Path(value).contains_points(self.coordinates)
+            elif key == 'boolean_selection':
+                selection[:, i] = value
             else:
-                selection[:,i] = getattr(self, key) == value
+                selection[:, i] = getattr(self, key) == value
 
-        return np.all(selection, axis = 1)
+        return np.all(selection, axis=1)
 
     def get_selection(self, **kwargs):
         selection = self.selection(**kwargs)
