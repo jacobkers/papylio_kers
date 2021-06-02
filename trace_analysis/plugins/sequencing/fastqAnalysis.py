@@ -39,7 +39,7 @@ class FastqData:
         x = list()
         y = list()
         sample = list()
-        
+
         sequence = list()
         quality = list()
         
@@ -69,6 +69,7 @@ class FastqData:
         
         file.close()
 
+        self.name = np.array(['']*len(sequence))
         self.instrument = np.array(instrument)
         self.run = np.array(run)
         self.flowcell = np.array(flowcell)
@@ -127,6 +128,7 @@ class FastqData:
 
     def __getitem__(self, item):
         new = copy.copy(self)
+        new.name = self.name[item]
         new.instrument = self.instrument[item]
         new.run = self.run[item]
         new.flowcell = self.flowcell[item]
@@ -143,6 +145,7 @@ class FastqData:
 
     def __add__(self, other):
         new = copy.copy(self)
+        new.name = np.append(new.name, other.name)
         new.instrument = np.append(new.instrument, other.instrument)
         new.run = np.append(new.run, other.run)
         new.flowcell = np.append(new.flowcell, other.flowcell)
@@ -168,7 +171,8 @@ class FastqData:
             selection = copy.deepcopy(self)
         else:
             selection = self
-        
+
+        selection.name = self.name[indices]
         selection.instrument = self.instrument[indices]
         selection.run = self.run[indices]
         selection.flowcell = self.flowcell[indices]
@@ -196,6 +200,12 @@ class FastqData:
                 selection[:, i] = pth.Path(value).contains_points(self.coordinates)
             elif key == 'boolean_selection':
                 selection[:, i] = value
+            elif key == 'in_name':
+                if not isinstance(value, list):
+                    value = [value]
+                selection[:, i] = [any(test_string in name for test_string in value)
+#                                    if name is not None else False
+                                   for name in self.name]
             else:
                 selection[:, i] = getattr(self, key) == value
 
@@ -363,6 +373,15 @@ class FastqData:
         print(table)
         self.write_to_text_file('Matches per tile with sequence: ' + sequence + '\n\n')
         self.write_to_text_file(table)
+
+    def classify(self, sequences_dict, criteria_dict):
+        df = self.number_of_mismatches_with_sequence_dict(sequences_dict)
+
+        selection = pd.DataFrame(index=df.index)
+        for sequence_name, criterion in criteria_dict.items():
+            selection.loc[df.query(criterion, engine='python').index, sequence_name] = True
+
+            self.name = selection.apply(lambda x: ', '.join(x.index[x == True]), axis=1).to_numpy()
 
     def get_tile_object(self, tile):
         x = self.x[self.selection(tile=tile)]
