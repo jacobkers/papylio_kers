@@ -215,6 +215,14 @@ class File:
 
         return np.vstack([molecule.coordinates[channel] for molecule in self.molecules])
 
+    def get_coordinates(self, selected=False):
+        if selected:
+            molecules = self.selectedMolecules
+        else:
+            molecules = self.molecules
+
+        return np.vstack([molecule.coordinates for molecule in molecules])
+
     @property
     def time(self):  # the time axis of the experiment, if not found in log it will be asked as input
         if self.exposure_time is None:
@@ -876,19 +884,31 @@ class File:
             axis = figure.gca()
             sc_coordinates = axis.scatter(self.coordinates[:, 0], self.coordinates[:, 1], facecolors='none', edgecolors='red', **kwargs)
 
+            if self.selectedMolecules:
+                selected_coordinates = self.get_coordinates(selected=True)
+                axis.scatter(selected_coordinates[:, 0], selected_coordinates[:, 1], facecolors='none', edgecolors='green', **kwargs)
+
             if annotate:
                 annotation = axis.annotate("", xy=(0, 1.03), xycoords=axis.transAxes) # x in data units, y in axes fraction
                 annotation.set_visible(False)
 
-                indices = np.repeat(np.arange(0, self.number_of_molecules), self.number_of_channels)
-                sequences = np.repeat(self.sequences, self.number_of_channels)
+                molecule_indices = np.repeat(np.arange(0, self.number_of_molecules), self.number_of_channels)
+                # sequence_indices = np.repeat(self.sequence_indices, self.number_of_channels)
 
                 def update_annotation(ind):
+                    print(ind)
+
+                    # text = "Molecule number: {} \nSequence: {}".format(" ".join([str(indices[ind["ind"][0]])]),
+                    #                        " ".join([str(sequences[ind["ind"][0]].decode('UTF-8'))]))
+                    plot_index = ind["ind"]
+                    molecule_index = molecule_indices[plot_index]
+                    text = f'Molecule number: {", ".join(map(str, molecule_index))}'
+
                     if hasattr(self, 'sequences'):
-                        text = "Molecule number: {} \nSequence: {}".format(" ".join([str(indices[ind["ind"][0]])]),
-                                               " ".join([str(sequences[ind["ind"][0]].decode('UTF-8'))]))
-                    else:
-                        text = "Molecule number: {}".format(" ".join([str(indices[ind["ind"][0]])]))
+                        sequence_names = [str(self.molecules[index].sequence_name) for index in molecule_index]
+                        sequences = [str(self.molecules[index].sequence) for index in molecule_index]
+                        text += f'\nSequence name: {", ".join(sequence_names)}'
+                        text += f'\nSequence: {", ".join(sequences)}'
 
                     annotation.set_text(text)
 
@@ -908,3 +928,10 @@ class File:
                 figure.canvas.mpl_connect("motion_notify_event", hover)
 
             plt.show()
+
+    def show_coordinates_in_image(self, figure=None):
+        if not figure:
+            figure = plt.figure()
+
+        self.show_average_image(figure=figure)
+        self.show_coordinates(figure=figure)
