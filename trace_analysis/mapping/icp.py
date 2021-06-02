@@ -70,14 +70,28 @@ def nearest_neighbor(src, dst):
     return distances.ravel(), indices.ravel()
 
 
-def nearest_neighbor_pair(pointset1, pointset2):
+def nearest_neighbor_pair(pointset1, pointset2, distance_threshold=None):
     distances2, indices2 = nearest_neighbor(pointset1, pointset2)
     distances1, indices1 = nearest_neighbor(pointset2, pointset1)
 
     i1 = indices1[indices2[indices1] == np.arange(len(indices1))]
     i2 = np.where(indices2[indices1] == np.arange(len(indices1)))[0]
+    distances = distances1[i2]
 
-    return distances1[i2], i1, i2
+    if distance_threshold == 'auto':
+        auto_distance_threshold = True
+    else:
+        auto_distance_threshold = False
+
+    if auto_distance_threshold:
+        distance_threshold = np.median(distances) + np.std(distances)
+
+    if type(distance_threshold) in (float, int):
+        i1 = i1[distances < distance_threshold]
+        i2 = i2[distances < distance_threshold]
+        distances = distances[distances < distance_threshold]
+
+    return distances, i1, i2
 
 
 def direct_match(source, destination, transform=AffineTransform, return_inverse=False, **kwargs):
@@ -109,20 +123,8 @@ def nearest_neighbour_match(source, destination, transform=AffineTransform, init
     else:
         source_after_initial_transformation = source
 
-    if distance_threshold == 'auto':
-        auto_distance_threshold = True
-    else:
-        auto_distance_threshold = False
-
     distances, source_indices, destination_indices = \
-        nearest_neighbor_pair(source_after_initial_transformation, destination)
-
-    if auto_distance_threshold:
-        distance_threshold = np.median(distances) + np.std(distances)
-
-    if type(distance_threshold) in (float, int):
-        source_indices = source_indices[distances < distance_threshold]
-        destination_indices = destination_indices[distances < distance_threshold]
+        nearest_neighbor_pair(source_after_initial_transformation, destination, distance_threshold)
 
     transformation, transformation_inverse, error = \
         direct_match(source[source_indices], destination[destination_indices],
