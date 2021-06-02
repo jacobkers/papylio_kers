@@ -1,5 +1,7 @@
+import copy
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.path as pth
 import math
 from pathlib import Path
 from skimage.transform import AffineTransform
@@ -8,7 +10,8 @@ import pandas as pd
 # from trace_analysis.experiment import Experiment
 # from trace_analysis.file import File
 from trace_analysis.mapping.geometricHashing import SequencingDataMapping
-from trace_analysis.mapping.mapping import Mapping2
+from trace_analysis.mapping.mapping import Mapping2, crop_coordinates_indices
+from trace_analysis.mapping.polynomial import PolynomialTransform
 from .fastqAnalysis import FastqData
 from .geometricHashing2 import geometric_hash, find_match_after_hashing
 from .geometricHashing3 import GeometricHashTable
@@ -243,6 +246,7 @@ class File:
 
         self.sequencing_data = None
         self.sequencing_match = None
+        self.sequencing_match_old = None
 
         self.importFunctions['.fastq'] = self.import_sequencing_data
         self.importFunctions['_sequencing_match.mapping'] = self.import_sequencing_match
@@ -257,10 +261,17 @@ class File:
         else:
             return np.array([])
 
-    @sequences.setter
-    def sequences(self, sequences):
-        for i, molecule in enumerate(self.molecules):
-            molecule.sequence = sequences[i]
+    # @sequences.setter
+    # def sequences(self, sequences):
+    #     for i, molecule in enumerate(self.molecules):
+    #         molecule.sequence = sequences[i]
+
+    @property
+    def sequence_indices(self):
+        if len(self.molecules) > 0:
+            return np.vstack([molecule.sequence_index for molecule in self.molecules])
+        else:
+            return np.array([])
 
     @property
     def sequencing_tile(self):
@@ -285,13 +296,15 @@ class File:
 
     def import_sequencing_data(self):
         self.sequencing_data = FastqData(self.absoluteFilePath.with_suffix('.fastq'))
-        self.sequences = self.sequencing_data.sequence
+        # self.sequences = self.sequencing_data.sequence
 
     def import_sequencing_match(self):
         self.sequencing_match = Mapping2(load=self.absoluteFilePath.with_name(self.name+'_sequencing_match.mapping'))
 
     def export_sequencing_match(self):
         self.sequencing_match.save(self.absoluteFilePath.with_name(self.name+'_sequencing_match.mapping'))
+        if self.sequencing_match_old is not None:
+            self.sequencing_match_old.save(self.absoluteFilePath.with_name(self.name + '_sequencing_match_old.mapping'))
 
     def find_sequences(self, maximum_distance_file, tuple_size, initial_transformation={},
                        hash_table_distance_threshold=0.01,
@@ -379,29 +392,65 @@ class File:
             self.export_sequencing_match()
 
 
+    def get_sequencing_data_for_file(self): #, margin=10):
 
-    def get_all_sequences_from_sequencing_data(self, margin=10, mapped_to_channel='a'):
-        # raise Warning('Only works on acceptor channel for now')
-        coordinate_bounds_file = self.movie.channel_boundaries(mapped_to_channel)
-        coordinate_bounds_file[0] += margin
-        coordinate_bounds_file[1] -= margin
-        # if self.number_of_channels>1:
-        #     for channel in self.movie.channels:
-        #         if mapped_to_channel not in channel:
-        #             coordinate_bounds_file2 = self.movie.channel_boundaries(channel[0])
+        # sequencing_coordinates_in_image = \
+        #     self.sequencing_match.transform_coordinates(self.experiment.sequencing_data.coordinates, inverse=True)
+        # coordinate_selection = \
+        #     pth.Path(self.sequencing_match.source_vertices).contains_points(sequencing_coordinates_in_image)
+        #
+        # self.sequencing_data = \
+        #     self.experiment.sequencing_data.get_selection(tile=self.sequencing_match.tile,
+        #                                                   boolean_selection=coordinate_selection)
 
-        coordinate_bounds_tile = self.sequencing_match.transform_coordinates(coordinate_bounds_file)
+        def interpolate(coordinates):
+            coordinates = np.vstack([coordinates, coordinates[0]])
+            return np.linspace(coordinates, np.roll(coordinates, -1, axis=0)).reshape(-1,2, order='F')
 
-        sequencing_tile = self.experiment.sequencing_data_for_mapping.tiles[self.sequencing_match.destination_index]
-
+        source_vertices_interpolated = interpolate(self.sequencing_match.source_vertices)
+        destination_vertices_interpolated = self.sequencing_match.transform_coordinates(source_vertices_interpolated)
         self.sequencing_data = \
-            self.experiment.sequencing_data.get_selection(tile=sequencing_tile.number,
-                                                          x=coordinate_bounds_tile[:, 0],
-                                                          y=coordinate_bounds_tile[:, 1])
+            self.experiment.sequencing_data.get_selection(tile=self.sequencing_match.tile,
+                                                          coordinates_within_vertices=destination_vertices_interpolated)
 
-        self.molecules = []
-        self.coordinates = self.sequencing_match.transform_coordinates(self.sequencing_data.coordinates, inverse=True)
         self.sequencing_data.export_fastq(self.relativeFilePath)
+
+    def optimize_sequencing_match_using_visible_sequences(self, visible_sequence_names='', distance_threshold=25,
+                                                          show=False, save=True, **kwargs):
+        self.sequencing_match_old = copy.deepcopy(self.sequencing_match)
+
+        sequencing_data = self.sequencing_data.get_selection(in_name=visible_sequence_names)
+
+        self.sequencing_match.source = self.coordinates_from_channel(self.sequencing_match.channel)
+        self.sequencing_match.destination = sequencing_data.coordinates
+        self.sequencing_match.nearest_neighbour_match(distance_threshold, **kwargs)
+
+        if show:
+            self.plot_sequencing_match()
+        if save:
+            self.export_sequencing_match()
+
+    def determine_sequences_at_current_coordinates(self, visible_sequence_names='', distance_threshold=None):
+        selection = self.sequencing_data.selection(in_name=visible_sequence_names)
+
+        sequence_coordinates_in_file = \
+            self.sequencing_match.transform_coordinates(self.sequencing_data.coordinates[selection], inverse=True)
+
+        distances, molecule_indices, sequence_indices = \
+            nearest_neighbor_pair(self.coordinates_from_channel(self.sequencing_match.channel),
+                                  sequence_coordinates_in_file,
+                                  distance_threshold=distance_threshold)
+
+        cum_selection = np.cumsum(selection)-1
+
+        for molecule_index, sequence_index, distance in zip(molecule_indices, sequence_indices, distances):
+            self.molecules[molecule_index].sequence_index = np.argmax(cum_selection == sequence_index)
+            self.molecules[molecule_index].distance_to_sequence = distance
+
+    def use_sequences_as_molecules(self):
+        self.molecules = []
+        file_coordinates = self.sequencing_match.transform_coordinates(self.sequencing_data.coordinates, inverse=True)
+        self.set_coordinates_of_channel(file_coordinates, channel=self.sequencing_match.channel)
 
     def plot_sequencing_match(self):
         #plot_sequencing_match(self.sequencing_match)
@@ -422,6 +471,10 @@ class File:
 
         plot_sequencing_match(self.sequencing_match, self.absoluteFilePath.parent, title, filename,
                               'um', MiSeq_pixels_to_um, Fluo_pixels_to_um)
+
+    # from trace_analysis.plotting import show_point_connections
+    # show_point_connections(self.coordinates[molecule_indices], sequence_coordinates_in_file[sequence_indices])
+
 
     # This is probably not the way to go
     # def give_molecules_closest_sequence(self):
@@ -463,13 +516,25 @@ class File:
 
 
 class Molecule:
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.sequence_index = None
+
+    @property
+    def sequence_name(self):
+        if self.sequence_index is not None:
+            return self.file.sequencing_data.name[self.sequence_index]
+
     @property
     def sequence(self):
-        return self.file.sequencing_data.sequence[self.index, :].tostring()
+        if self.sequence_index is not None:
+            return self.file.sequencing_data.sequence[self.sequence_index, :].tobytes().decode('UTF-8')
 
     @property
     def sequencing_data(self):
-        return self.file.sequencing_data[self.index]
+        if self.sequence_index is not None:
+            return self.file.sequencing_data[self.sequence_index]
 
 
 def std_string(value_and_uncertainty):
