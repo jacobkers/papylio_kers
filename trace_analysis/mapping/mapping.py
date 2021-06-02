@@ -75,6 +75,7 @@ class Mapping2:
         load : str or pathlib.Path
             Path to file that has to be loaded
         """
+
         self.name = name
         self.source_name = source_name
         self.source = source #source=donor=left side image
@@ -304,8 +305,8 @@ class Mapping2:
 
         return np.sum(distances < distance_threshold)
 
-    def show_mapping_transformation(self, figure=None, show_source=False, crop=None,
-                                    source_colour='forestgreen', destination_colour='r', save_path=None):
+    def show_mapping_transformation(self, figure=None, show_source=False, show_destination=False, crop=None,
+                                    inverse=False, source_colour='forestgreen', destination_colour='r', save_path=None):
         """Show a point scatter of the source transformed to the destination points and the destination.
 
         Parameters
@@ -327,18 +328,25 @@ class Mapping2:
             source = self.source_cropped
             destination = self.destination_cropped
 
-
-        destination_from_source = self.transform_coordinates(source)
-
         axis = figure.gca()
+
+        if not inverse:
+            destination_from_source = self.transform_coordinates(source)
+            axis.scatter(destination_from_source[:, 0], destination_from_source[:, 1], facecolors='none',
+                         edgecolors=source_colour, linewidth=1, marker='o', label=f'{self.source_name} transformed')
+            show_destination = True
+        else:
+            source_from_destination = self.transform_coordinates(destination, inverse=True)
+            axis.scatter(source_from_destination[:, 0], source_from_destination[:, 1], facecolors='none',
+                         edgecolors=destination_colour, linewidth=1, marker='o', label=f'{self.destination_name} transformed')
+            show_source = True
 
         if show_source:
             axis.scatter(source[:, 0], source[:, 1], facecolors=source_colour, edgecolors='none', marker='.',
                          label=self.source_name)
-        axis.scatter(destination_from_source[:, 0], destination_from_source[:, 1], facecolors='none',
-                     edgecolors=source_colour, linewidth=1, marker='o', label=f'{self.source_name} transformed')
-        axis.scatter(destination[:, 0], destination[:, 1], facecolors=destination_colour, edgecolors='none', marker='.',
-                     label=self.destination_name)
+        if show_destination:
+            axis.scatter(destination[:, 0], destination[:, 1], facecolors=destination_colour, edgecolors='none', marker='.',
+                         label=self.destination_name)
 
         axis.set_aspect('equal')
 
@@ -546,12 +554,12 @@ def overlap_vertices(vertices_A, vertices_B):
     polygon_overlap = polygon_A.intersection(polygon_B)
     return np.array(polygon_overlap.exterior.coords.xy).T[:-1]
 
-def crop_coordinates(coordinates, vertices, return_indices=False):
-    indices = pth.Path(vertices).contains_points(coordinates)
-    if not return_indices:
-        return coordinates[indices]
-    else:
-        return indices, coordinates[indices]
+def crop_coordinates_indices(coordinates, vertices):
+    return pth.Path(vertices).contains_points(coordinates)
+
+def crop_coordinates(coordinates, vertices):
+    indices = crop_coordinates_indices(coordinates, vertices)
+    return coordinates[indices]
 
     # bounds.sort(axis=0)
     # selection = (coordinates[:, 0] > bounds[0, 0]) & (coordinates[:, 0] < bounds[1, 0]) & \
