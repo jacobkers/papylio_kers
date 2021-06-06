@@ -16,14 +16,15 @@ from trace_analysis.movie.sifx import SifxMovie
 from trace_analysis.movie.pma import PmaMovie
 from trace_analysis.movie.tif import TifMovie
 from trace_analysis.movie.nd2 import ND2Movie
+from trace_analysis.movie.binary import BinaryMovie
 from trace_analysis.plotting import histogram
 from trace_analysis.mapping.mapping import Mapping2
 from trace_analysis.peak_finding import find_peaks
-from trace_analysis.coordinate_optimization import  coordinates_within_margin, \
-                                                    coordinates_after_gaussian_fit, \
-                                                    coordinates_without_intensity_at_radius, \
-                                                    merge_nearby_coordinates, \
-                                                    set_of_tuples_from_array, array_from_set_of_tuples
+from trace_analysis.coordinate_optimization import coordinates_within_margin, \
+                                                   coordinates_after_gaussian_fit, \
+                                                   coordinates_without_intensity_at_radius, \
+                                                   merge_nearby_coordinates, \
+                                                   set_of_tuples_from_array, array_from_set_of_tuples
 from trace_analysis.trace_extraction import extract_traces
 from trace_analysis.coordinate_transformations import translate, transform # MD: we don't want to use this anymore I think, it is only linear
                                                                            # IS: We do! But we just need to make them usable with the nonlinear mapping
@@ -82,6 +83,7 @@ class File:
                                 '.nd2': self.import_nd2_file,
                                 '.tif': self.import_tif_file,
                                 '.tiff': self.import_tif_file,
+                                '.bin': self.import_bin_file,
                                 '.TIF': self.import_tif_file,
                                 '.TIFF': self.import_tif_file,
                                 '_ave.tif': self.import_average_tif_file,
@@ -289,6 +291,11 @@ class File:
         self.movie = ND2Movie(imageFilePath)
         self.number_of_frames = self.movie.number_of_frames
 
+    def import_bin_file(self):
+        imageFilePath = self.absoluteFilePath.with_suffix('.bin')
+        self.movie = BinaryMovie(imageFilePath)
+        self.number_of_frames = self.movie.number_of_frames
+
     def import_average_tif_file(self):
         averageTifFilePath = self.absoluteFilePath.with_name(self.name+'_ave.tif')
         self._average_image = io.imread(averageTifFilePath, as_gray=True)
@@ -476,7 +483,7 @@ class File:
         for window_start_frame in window_start_frames:
 
             # --- allowed to apply sliding window to either the max projection OR the averages ----
-            image = self.movie.make_projection_image(type=projection_image_type, start_frame=window_start_frame,
+            image = self.movie.make_projection_image(projection_type=projection_image_type, start_frame=window_start_frame,
                                                      number_of_frames=window_size)
 
             # Do we need a separate image?
@@ -540,7 +547,7 @@ class File:
 
             # Map coordinates to main channel in movie
             # TODO: make this usable for any number of channels
-            coordinate_sets[i] = coordinate_sets[i]+self.movie.channel_boundaries(channels[i])[0]
+            coordinate_sets[i] = coordinate_sets[i]+self.movie.get_channel_from_name(channels[i]).boundaries[0]
             # if channels[i] in ['a', 'acceptor']:
             if i > 0: #i.e. if channel is not main channel
                 coordinate_sets[i] = self.mapping.transform_coordinates(coordinate_sets[i],
@@ -798,9 +805,9 @@ class File:
             margin = 0
 
         donor_coordinates = coordinates_within_margin(coordinates,
-                                                      bounds=self.movie.channel_boundaries('d'), margin=margin)
+                                                      bounds=self.movie.get_channel_from_name('d').boundaries, margin=margin)
         acceptor_coordinates = coordinates_within_margin(coordinates,
-                                                         bounds=self.movie.channel_boundaries('a'), margin=margin)
+                                                         bounds=self.movie.get_channel_from_name('a').boundaries, margin=margin)
 
         # TODO: put overlapping coordinates in file.coordinates for mapping file
         # Possibly do this with mapping.nearest_neighbour match
@@ -848,13 +855,14 @@ class File:
                 file.mapping = self.mapping
                 file.is_mapping_file = False
 
-    def show_image(self, image_type='default', mode='2d', figure=None):
+    def show_image(self, image_type='default', figure=None):
         # Refresh configuration
         if image_type == 'default':
             self.experiment.import_config_file()
             image_type = self.experiment.configuration['show_movie']['image']
 
-        if figure is None: figure = plt.figure() # Or possibly e.g. plt.figure('Movie')
+        if figure is None:
+            figure = plt.figure()
         axis = figure.gca()
 
         # Choose method to plot
@@ -865,29 +873,17 @@ class File:
             image = self.maximum_projection_image
             axis.set_title('Maximum projection')
 
-        if mode == '2d':
-#            p98 = np.percentile(image, 98)
-#            axis.imshow(image, vmax=p98)
-            vmax = np.percentile(image, 99.9)
-            axis.imshow(image, vmax=vmax)
+        axis.imshow(image)
 
-        if mode == '3d':
-            from matplotlib import cm
-            axis = figure.gca(projection='3d')
-            X = np.arange(image.shape[1])
-            Y = np.arange(image.shape[0])
-            X, Y = np.meshgrid(X, Y)
-            axis.plot_surface(X,Y,image, cmap=cm.coolwarm,
-                                   linewidth=0, antialiased=False)
-
-    def show_average_image(self, mode='2d', figure=None):
-        self.show_image(image_type='average_image', mode=mode, figure=figure)
+    def show_average_image(self, figure=None):
+        self.show_image(image_type='average_image', figure=figure)
 
     def show_coordinates(self, figure=None, annotate=None, **kwargs):
         # Refresh configuration
         self.experiment.import_config_file()
 
-        if not figure: figure = plt.figure()
+        if not figure:
+            figure = plt.figure()
 
         if annotate is None:
             annotate = self.experiment.configuration['show_movie']['annotate']
@@ -895,6 +891,7 @@ class File:
         if self.coordinates is not None:
             axis = figure.gca()
             sc_coordinates = axis.scatter(self.coordinates[:, 0], self.coordinates[:, 1], facecolors='none', edgecolors='red', **kwargs)
+            # marker='o'
 
             if annotate:
                 annotation = axis.annotate("", xy=(0, 1.03), xycoords=axis.transAxes) # x in data units, y in axes fraction
@@ -928,3 +925,5 @@ class File:
                 figure.canvas.mpl_connect("motion_notify_event", hover)
 
             plt.show()
+            # plt.savefig(self.writepath.joinpath(self.name + '_ave_circles.png'), dpi=600)
+
