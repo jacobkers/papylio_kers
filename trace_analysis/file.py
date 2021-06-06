@@ -23,7 +23,8 @@ from trace_analysis.coordinate_optimization import  coordinates_within_margin, \
                                                     coordinates_after_gaussian_fit, \
                                                     coordinates_without_intensity_at_radius, \
                                                     merge_nearby_coordinates, \
-                                                    set_of_tuples_from_array, array_from_set_of_tuples
+                                                    set_of_tuples_from_array, array_from_set_of_tuples, \
+                                                    coordinates_within_margin_selection
 from trace_analysis.trace_extraction import extract_traces
 from trace_analysis.coordinate_transformations import translate, transform # MD: we don't want to use this anymore I think, it is only linear
                                                                            # IS: We do! But we just need to make them usable with the nonlinear mapping
@@ -579,7 +580,15 @@ class File:
                 raise NotImplementedError()
             coordinates_in_other_channel = self.mapping.transform_coordinates(coordinates_in_main_channel, direction='Donor2Acceptor')
             coordinates_list.append(coordinates_in_other_channel)
-        coordinates = np.hstack(coordinates_list).reshape((-1, 2))
+
+        coordinates = np.hstack(coordinates_list)
+
+        coordinates_selections = [coordinates_within_margin_selection(coordinates, bounds=self.movie.channel_boundaries(i))
+                                  for i, coordinates in enumerate(coordinates_list)]
+        selection = np.vstack(coordinates_selections).all(axis=0)
+        coordinates = coordinates[selection]
+
+        coordinates = coordinates.reshape((-1, 2))
 
         # --- finally, we set the coordinates of the molecules ---
         self.coordinates = coordinates
