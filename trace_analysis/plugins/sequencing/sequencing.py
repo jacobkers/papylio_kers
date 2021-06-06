@@ -269,9 +269,14 @@ class File:
     @property
     def sequence_indices(self):
         if len(self.molecules) > 0:
-            return np.vstack([molecule.sequence_index for molecule in self.molecules])
+            return np.array([molecule.sequence_index for molecule in self.molecules])
         else:
             return np.array([])
+
+    @sequence_indices.setter
+    def sequence_indices(self, sequence_indices):
+        for i, molecule in enumerate(self.molecules):
+            molecule.sequence_index = sequence_indices[i]
 
     @property
     def sequencing_tile(self):
