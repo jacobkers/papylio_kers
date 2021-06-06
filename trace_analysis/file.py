@@ -27,7 +27,7 @@ from trace_analysis.coordinate_optimization import  coordinates_within_margin, \
 from trace_analysis.trace_extraction import extract_traces
 from trace_analysis.coordinate_transformations import translate, transform # MD: we don't want to use this anymore I think, it is only linear
                                                                            # IS: We do! But we just need to make them usable with the nonlinear mapping
-
+from trace_analysis.background_subtraction import extract_background
 # from trace_analysis.plugin_manager import PluginManager
 # from trace_analysis.plugin_manager import PluginMetaClass
 from trace_analysis.plugin_manager import plugins
@@ -62,9 +62,7 @@ class File:
 
         self.log_details = None  # a string with the contents of the log file
         self.number_of_frames = None
-
-        self.background = np.array([0, 0])
-
+     
         self.isSelected = False
         self.is_mapping_file = False
 
@@ -194,6 +192,29 @@ class File:
 
         return np.vstack([molecule.coordinates[channel] for molecule in self.molecules])
 
+    #in analogy with coordinates, also background:
+    @property
+    def background(self):
+        if len(self.molecules) > 0:
+            return np.concatenate([molecule.background for molecule in self.molecules])
+        else:
+            return np.array([])
+
+    @background.setter
+    def background(self, background, number_of_channels = None):
+        if number_of_channels is None:
+            number_of_channels = self.number_of_channels
+        self.number_of_molecules = np.shape(background)[0]//number_of_channels
+
+        for i, molecule in enumerate(self.molecules):
+            molecule.background = background[(i * number_of_channels):((i + 1) * number_of_channels)]
+
+    def background_from_channel(self, channel):
+        if type(channel) is str:
+            channel = {'d': 0, 'a': 1, 'g':0, 'r':1}[channel]
+
+        return np.vstack([molecule.background[channel] for molecule in self.molecules])
+    
     @property
     def time(self):  # the time axis of the experiment, if not found in log it will be asked as input
         if self.exposure_time is None:
@@ -211,7 +232,7 @@ class File:
             molecule.intensity = traces[:, i, :] # 3d array of traces
             # molecule.intensity = traces[(i * self.number_of_channels):((i + 1) * self.number_of_channels), :] # 2d array of traces
         self.number_of_frames = traces.shape[2]
-
+        
     def findAndAddExtensions(self):
         foundFiles = [file.name for file in self.experiment.mainPath.joinpath(self.relativePath).glob(self.name + '*')]
         foundExtensions = [file[len(self.name):] for file in foundFiles]
@@ -365,9 +386,12 @@ class File:
 
     def import_pks_file(self):
         # Background value stored in pks file is not imported yet
-        coordinates = np.genfromtxt(str(self.relativeFilePath) + '.pks')
-        coordinates = np.atleast_2d(coordinates)[:,1:3]
-
+        data = np.genfromtxt(str(self.relativeFilePath) + '.pks')
+        coordinates = np.atleast_2d(data)[:,1:3]
+        try: 
+            self.background=np.atleast_2d(data)[:,3]
+        except: 
+            self.background=np.zeros(len(data))
         self.coordinates = coordinates
 
     def find_coordinates(self, configuration=None):
@@ -542,18 +566,32 @@ class File:
             coordinates_list.append(coordinates_in_other_channel)
         coordinates = np.hstack(coordinates_list).reshape((-1, 2))
 
+
+
+        # should also have incorporated check coordinatesDA_within_margin from MD_check_boundaries
         # --- finally, we set the coordinates of the molecules ---
         self.molecules = [] # Should we put this here?
         self.coordinates = coordinates
+        self.extract_background()
         self.export_pks_file()
+
+    def extract_background(self):
+        background_list = []
+        for i, channel in enumerate(self.movie.channels):
+            channel_image = self.movie.get_channel(self.average_image, i)
+            channel_coordinates = self.coordinates_from_channel(i)-self.movie.channel_vertices(i)[0]
+            #TODO: enable setting method from configuration file
+            background_list.append(extract_background(channel_image, channel_coordinates, method='ROI_minimum'))
+        self.background = np.vstack(background_list).T.reshape((-1))
 
     def export_pks_file(self):
         pks_filepath = self.absoluteFilePath.with_suffix('.pks')
         with pks_filepath.open('w') as pks_file:
             for i, coordinate in enumerate(self.coordinates):
                 # outfile.write(' {0:4.0f} {1:4.4f} {2:4.4f} {3:4.4f} {4:4.4f} \n'.format(i, coordinate[0], coordinate[1], 0, 0, width4=4, width6=6))
-                pks_file.write('{0:4.0f} {1:4.4f} {2:4.4f} \n'.format(i + 1, coordinate[0], coordinate[1]))
-
+               # pks_file.write('{0:4.0f} {1:4.4f} {2:4.4f} \n'.format(i + 1, coordinate[0], coordinate[1]))
+                pks_file.write('{0:4.0f} {1:4.4f} {2:4.4f} {3:4.4f}\n'.format(i + 1, coordinate[0], coordinate[1], self.background[i]))
+                
     def import_traces_file(self):
         traces_filepath = self.absoluteFilePath.with_suffix('.traces')
         with traces_filepath.open('r') as traces_file:
@@ -610,14 +648,21 @@ class File:
         if configuration is None: configuration = self.experiment.configuration['trace_extraction']
         channel = configuration['channel']  # Default was 'all'
         gaussian_width = configuration['gaussian_width']  # Default was 11
+        subtract_background = configuration['subtract_background']
 
-        traces = extract_traces(self.movie, self.coordinates, channel=channel, gauss_width = gaussian_width)
+        if subtract_background:
+            background = self.background
+        else:
+            background = None
+        traces = extract_traces(self.movie, self.coordinates, background=background, channel=channel,
+                                gauss_width=gaussian_width)
         number_of_molecules = len(traces) // self.number_of_channels
         traces = traces.reshape((number_of_molecules, self.number_of_channels, self.movie.number_of_frames)).swapaxes(0, 1)
 
         self.traces = traces
         self.export_traces_file()
         if '.traces' not in self.extensions: self.extensions.append('.traces')
+        
 
     def export_traces_file(self):
         traces_filepath = self.absoluteFilePath.with_suffix('.traces')
@@ -764,8 +809,13 @@ class File:
         if ('initial_translation' in configuration) and (configuration['initial_translation'] == 'width/2'):
             initial_transformation = {'translation': [image.shape[0] // 2, 0]}
         else:
-            initial_transformation = {'translation': configuration['initial_translation']}
-
+            if configuration['initial_translation'][0]=='[': # remove brackets
+                arr = [float(x) for x in configuration['initial_translation'][1:-1].split(' ')]
+                initial_transformation = {'translation': arr}
+            else:
+                arr = [float(x) for x in configuration['initial_translation'].split(' ')]
+                initial_transformation = {'translation': configuration['initial_translation']}
+        
         # Obtain specific mapping parameters from configuration file
         additional_mapping_parameters = {key: configuration[key]
                                          for key in (configuration.keys() and {'distance_threshold'})}
