@@ -19,7 +19,7 @@ class Molecule:
 
         self.steps = None  #Defined in other classes as: pd.DataFrame(columns=['frame', 'trace', 'state', 'method','thres'])
         self.kon_boolean = None  # 3x3 matrix that is indicates whether the kon will be calculated from the beginning, in-between molecules or for the end only
-        self.bg_scale=np.sum(make_gaussian(self.file.experiment.configuration['find_coordinates']['coordinate_optimization']['coordinates_after_gaussian_fit']['gaussian_width']))
+        #self.bg_scale=np.sum(make_gaussian(self.file.experiment.configuration['find_coordinates']['coordinate_optimization']['coordinates_after_gaussian_fit']['gaussian_width']))
 
     @property
     def coordinates(self):
@@ -41,7 +41,7 @@ class Molecule:
         return stepfinder
 
     def I(self, emission, Ioff=0):
-        return self.intensity[emission, :] - Ioff - self.background[emission] * self.bg_scale #this number comes from sum(make_gaussian) in trace_extraction
+        return self.intensity[emission, :] - Ioff # - self.background[emission] * self.bg_scale #this number comes from sum(make_gaussian) in trace_extraction
 
     def E(self, Imin=0, Iroff=0, Igoff=0, alpha=0):
         red = np.copy(self.I(1, Ioff=Iroff))

@@ -581,11 +581,8 @@ class File:
             channel_image = self.movie.get_channel(self.average_image, i)
             channel_coordinates = self.coordinates_from_channel(i)-self.movie.channel_vertices(i)[0]
             #TODO: enable setting method from configuration file
-            plt.figure()
-            plt.imshow(channel_image)
-
             background_list.append(extract_background(channel_image, channel_coordinates, method='ROI_minimum'))
-        self.background = np.vstack(background_list).T.reshape((-1, 1))
+        self.background = np.vstack(background_list).T.reshape((-1))
 
     def export_pks_file(self):
         pks_filepath = self.absoluteFilePath.with_suffix('.pks')
@@ -651,8 +648,14 @@ class File:
         if configuration is None: configuration = self.experiment.configuration['trace_extraction']
         channel = configuration['channel']  # Default was 'all'
         gaussian_width = configuration['gaussian_width']  # Default was 11
+        subtract_background = configuration['subtract_background']
 
-        traces = extract_traces(self.movie, self.coordinates, channel=channel, gauss_width = gaussian_width)
+        if subtract_background:
+            background = self.background
+        else:
+            background = None
+        traces = extract_traces(self.movie, self.coordinates, background=background, channel=channel,
+                                gauss_width=gaussian_width)
         number_of_molecules = len(traces) // self.number_of_channels
         traces = traces.reshape((number_of_molecules, self.number_of_channels, self.movie.number_of_frames)).swapaxes(0, 1)
 

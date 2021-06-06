@@ -48,3 +48,4 @@ mapping:
 trace_extraction:
     channel: 'all'
     gaussian_width: 11
+    subtract_background: True

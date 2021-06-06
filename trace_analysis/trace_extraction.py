@@ -28,7 +28,7 @@ def make_gaussian(size, center=None, offset=[0,0]):
 
     return 2.0 * np.exp(- 0.3 * ((x-center[0]-offset[0])**2 + (y-center[0]-offset[1])**2))
 
-def extract_trace_values_from_image(image, coordinates, twoD_gaussians):  # extract traces
+def extract_trace_values_from_image(image, coordinates, background, twoD_gaussians):  # extract traces
     coordinates = np.atleast_2d(coordinates)
 
     # Probably indeed better to get this outside of the function, so that it is not redefined every time.
@@ -47,13 +47,15 @@ def extract_trace_values_from_image(image, coordinates, twoD_gaussians):  # extr
                       (coordinate[0] - half_size_Gaussian):(coordinate[0] + half_size_Gaussian + 1)
                       ]
 
+        intensities = intensities - background[i]
+
         weighted_intensities = intensities * twoD_gaussians[i]
         trace_values[i] = np.sum(weighted_intensities)
         #trace_values[i]=np.sum(intensities) # MD testing
     return trace_values
 
 
-def extract_traces(movie, coordinates, channel='all', gauss_width=4):
+def extract_traces(movie, coordinates, background=None, channel='all', gauss_width=4):
     # return donor and acceptor for the full data set
     #     root, name = os.path.split(self.filepath)
     #     traces_fn=os.path.join(root,name[:-4]+'-P.traces')
@@ -81,6 +83,9 @@ def extract_traces(movie, coordinates, channel='all', gauss_width=4):
 
     traces = np.zeros((len(coordinates), movie.number_of_frames))
 
+    if background is None:
+        background = np.zeros(len(coordinates))
+
     # t0 = time.time()
 
     #twoD_gaussian = make_gaussian(gauss_width, fwhm=3, center=(gauss_width // 2, gauss_width // 2))
@@ -93,7 +98,7 @@ def extract_traces(movie, coordinates, channel='all', gauss_width=4):
         print(frame_number)
         image = movie.read_frame(frame_number)
         image = movie.get_channel(image, channel)
-        trace_values_in_frame = extract_trace_values_from_image(image, coordinates, twoD_gaussians)
+        trace_values_in_frame = extract_trace_values_from_image(image, coordinates, background, twoD_gaussians)
 
         traces[:,frame_number] = trace_values_in_frame  # will multiply with gaussian, spot location is not drift compensated
     # t1=time.time()
