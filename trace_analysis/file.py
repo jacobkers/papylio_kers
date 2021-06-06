@@ -566,16 +566,26 @@ class File:
             coordinates_list.append(coordinates_in_other_channel)
         coordinates = np.hstack(coordinates_list).reshape((-1, 2))
 
+
+
         # should also have incorporated check coordinatesDA_within_margin from MD_check_boundaries
         # --- finally, we set the coordinates of the molecules ---
         self.molecules = [] # Should we put this here?
         self.coordinates = coordinates
-        #might not be the best place, tried extract_traces=not good
-        self.background=extract_background(self, method='ROI_min') # 
-        print(np.shape(self.background))
-        for i, molecule in enumerate(self.molecules):
-            molecule.background= [self.background[i*2-1],self.background[i*2]]
+        self.extract_background()
         self.export_pks_file()
+
+    def extract_background(self):
+        background_list = []
+        for i, channel in enumerate(self.movie.channels):
+            channel_image = self.movie.get_channel(self.average_image, i)
+            channel_coordinates = self.coordinates_from_channel(i)-self.movie.channel_vertices(i)[0]
+            #TODO: enable setting method from configuration file
+            plt.figure()
+            plt.imshow(channel_image)
+
+            background_list.append(extract_background(channel_image, channel_coordinates, method='ROI_minimum'))
+        self.background = np.vstack(background_list).T.reshape((-1, 1))
 
     def export_pks_file(self):
         pks_filepath = self.absoluteFilePath.with_suffix('.pks')

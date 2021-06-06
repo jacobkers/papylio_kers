@@ -2,82 +2,60 @@
 """
 Created on Mon Mar  8 16:10:42 2021
 
-input = file, method, *args
+input = image, coordinates, method, filter_neighbourhood_size, radius
 methods+args:
     Channel_mean
     Channel_median
-    ROI_min, args= filter_neighbourhood_size ** DEFAULT
-    ROI_median, args= filter_neighbourhood_size
-    Surrounding_mean, filter=radius
-    Surrounding_median, filter=radius
+    ROI_minimum, uses filter_neighbourhood_size ** DEFAULT
+    ROI_median, uses filter_neighbourhood_size
+    Surrounding_mean, uses radius
+    Surrounding_median, uses radius
 """
 
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.ndimage.filters as filters
 
-def extract_background(file, method='ROI_min',  *args):
-    coordinates=file.coordinates
-    average_image=file.average_image
-    #TODO: later on extend it to a loop over all individual images, for now stick to average_image
-    donor_image = file.movie.get_channel(image=average_image, channel='d')
-    acceptor_image = file.movie.get_channel(image=average_image, channel='a')
-    background=np.zeros(np.shape(coordinates)[0])
-    
-    default_filtersize=10
-    default_radius=5
-    if method=='Channel_mean':
-        background[0::2]= np.mean(donor_image)
-        background[1::2]= np.mean(acceptor_image)
-        # TODO: extend to multiple channels
-    elif method=='Channel_median': 
-        background[:,0]= np.median(donor_image)
-        background[:,1]= np.median(acceptor_image)
-    elif method=='ROI_min':
-        try: 
-            filter_neighbourhood_size=args[0]
-        except: 
-            filter_neighbourhood_size=default_filtersize
-        image_min = filters.minimum_filter(average_image, filter_neighbourhood_size) 
-        #TODO: improve edge between donor&acceptor channel
-        plt.imshow(image_min)
-        for ii in range(np.shape(background)[0]):
-                xpos=int(coordinates[ii][0])
-                ypos=int(coordinates[ii][1])
-                ##TODO: once MD_check_boundaries is merged, the try except should be removed
-                try: background[ii]=image_min[ypos,xpos]
-                except: background[ii]=-1
-            
-    elif method=='ROI_median':
-        try: filter_neighbourhood_size=args[0]
-        except: filter_neighbourhood_size=default_filtersize
-        image_median = filters.median_filter(average_image, filter_neighbourhood_size) 
-        #TODO: improve edge between donor&acceptor channel
-        for ii in range(np.shape(background)[0]):
-            xpos=int(coordinates[ii][0])
-            ypos=int(coordinates[ii][1])
-            try: background[ii]=image_median[ypos,xpos]
-            except: background[ii]=-1
-            
-    elif method=='Surrounding_mean': #not optimal when multiple spots are close, better to use median
+
+def extract_background(image, coordinates, method='ROI_minimum', filter_neighbourhood_size=10, radius=5):
+    background = np.zeros(coordinates.shape[0])
+
+    if method == 'channel_mean':
+        background[:] = np.mean(image)
+
+    elif method == 'channel_median':
+        background[:] = np.median(image)
+
+    elif method == 'ROI_minimum':
+        image_min = filters.minimum_filter(image, filter_neighbourhood_size)
+        # TODO: improve edge between donor&acceptor channel
+        # plt.imshow(image_min)
+        for i, (x, y) in enumerate(coordinates):
+            background[i] = image_min[int(y), int(x)]
+
+    elif method == 'ROI_median':
+        image_median = filters.median_filter(image, filter_neighbourhood_size)
+        # TODO: improve edge between donor&acceptor channel
+        for i, (x, y) in enumerate(coordinates):
+            background[i] = image_median[int(y), int(x)]
+
+    elif method == 'surrounding_mean':  # not optimal when multiple spots are close, better to use median
         from trace_analysis.coordinate_optimization import crop, circle
-        try: radius=args[0]
-        except: radius=default_radius
         circle_matrix = circle(radius)
-        for ii in range(np.shape(background)[0]):
-            cropped_peak = crop(average_image, coordinates[ii], radius*2+1)
-            AA=cropped_peak * circle_matrix
-            try: background[ii]=np.mean(AA[np.nonzero(AA)])
-            except: background[ii]=-1
-            
-    elif method=='Surrounding_median': #similar to coordinate_optimization, coordinates_without_intensity_at_radius
+        for i, c in coordinates:
+            cropped_peak = crop(image, c, radius * 2 + 1)
+            circle_image = cropped_peak * circle_matrix
+            background[i] = np.mean(circle_image[np.nonzero(circle_image)])
+
+    elif method == 'surrounding_median':  # similar to coordinate_optimization, coordinates_without_intensity_at_radius
         from trace_analysis.coordinate_optimization import crop, circle
-        radius=args[0]
         circle_matrix = circle(radius)
-        for ii in range(np.shape(background)[0]):
-            cropped_peak = crop(average_image, coordinates[ii], radius*2+1)
-            AA=cropped_peak * circle_matrix
-            try: background[ii]=np.median(AA[np.nonzero(AA)])
-            except: background[ii]=-1
-            
+        for i, c in coordinates:
+            cropped_peak = crop(image, c, radius * 2 + 1)
+            circle_image = cropped_peak * circle_matrix
+            background[i] = np.median(circle_image[np.nonzero(circle_image)])
+
+    else:
+        raise ValueError('Unknown method')
+
     return background
