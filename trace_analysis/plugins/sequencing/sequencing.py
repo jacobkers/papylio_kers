@@ -343,6 +343,13 @@ class File:
 
 
 class Molecule:
+    slots = 'sequence_index'
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.sequence_index = None
+
     @property
     def sequence(self):
         return self.file.sequencing_data.sequence[self.index, :].tostring()

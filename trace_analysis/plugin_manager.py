@@ -27,7 +27,18 @@ def plugins(cls):
         The adapted class with the same name as the input class, however now with the plugin classes mixed in.
 
     """
-    return type(cls.__name__, PluginManager().get_class_plugins(cls.__name__) + (cls,), {})
+    classes = PluginManager().get_class_plugins(cls.__name__) + (cls,)
+    slots = ()
+    try:
+        for c in classes:
+            if type(c.slots) is tuple:
+                slots += c.slots
+            else:
+                slots += (c.slots,)
+    except AttributeError:
+        pass
+
+    return type(cls.__name__, classes, {'__slots__': slots})
 
 
 

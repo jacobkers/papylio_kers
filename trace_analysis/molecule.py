@@ -8,14 +8,16 @@ from trace_analysis.trace_extraction import make_gaussian
 
 @plugins
 class Molecule:
+    slots = ('file', 'index', '_coordinates', 'intensity', '_background', 'is_selected', 'steps', 'kon_boolean')
+
     def __init__(self, file):
         self.file = file
         self.index = None
         self._coordinates = None
         self.intensity = None
-        self._background=None
+        self._background = None
 
-        self.isSelected = False
+        self.is_selected = False
 
         self.steps = None  #Defined in other classes as: pd.DataFrame(columns=['frame', 'trace', 'state', 'method','thres'])
         self.kon_boolean = None  # 3x3 matrix that is indicates whether the kon will be calculated from the beginning, in-between molecules or for the end only
