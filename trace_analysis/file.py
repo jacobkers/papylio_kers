@@ -586,7 +586,7 @@ class File:
         background_list = []
         for i, channel in enumerate(self.movie.channels):
             channel_image = self.movie.get_channel(self.average_image, i)
-            channel_coordinates = self.coordinates_from_channel(i)-self.movie.channel_vertices(i)[0]
+            channel_coordinates = self.coordinates_from_channel(i)-self.movie.channels[i].vertices[0]
             #TODO: enable setting method from configuration file
             background_list.append(extract_background(channel_image, channel_coordinates, method='ROI_minimum'))
         self.background = np.vstack(background_list).T.reshape((-1))
