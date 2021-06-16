@@ -836,10 +836,11 @@ class File:
                                 initial_transformation=initial_transformation)
         self.mapping.perform_mapping(**additional_mapping_parameters)
         self.mapping.file = self
-        self.is_mapping_file = True
 
         # self.export_mapping(filetype='classic')
         self.export_mapping()
+
+        self.use_mapping_for_all_files()
 
     def copy_coordinates_to_selected_files(self):
         for file in self.experiment.selectedFiles:

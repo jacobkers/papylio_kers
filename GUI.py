@@ -403,6 +403,8 @@ class HyperTreeListPlus(HTL.HyperTreeList):
         self.insertDataIntoColumns()
         self.Expand(experimentItem)
 
+        self.LabelAsMappingFile(experiment.mapping_file)
+
     def AddFile(self, file, experimentItem):
 
         folders = file.relativePath.parts
@@ -490,10 +492,10 @@ class HyperTreeListPlus(HTL.HyperTreeList):
             self.Bind(wx.EVT_MENU, lambda selectEvent: self.OnPerformMapping(selectEvent, item, file),
                       popupMenuPerformMapping)
 
-            if file.mapping is not None:
-                popupMenuApplyMappingToOtherFiles = popupMenu.Append(wx.ID_ANY, "&Apply mapping to other files", "Apply mapping to other files")
-                self.Bind(wx.EVT_MENU, lambda selectEvent: self.OnApplyMappingToOtherFiles(selectEvent, item, file),
-                          popupMenuApplyMappingToOtherFiles)
+            # if file.mapping is not None:
+            #     popupMenuApplyMappingToOtherFiles = popupMenu.Append(wx.ID_ANY, "&Apply mapping to other files", "Apply mapping to other files")
+            #     self.Bind(wx.EVT_MENU, lambda selectEvent: self.OnApplyMappingToOtherFiles(selectEvent, item, file),
+            #               popupMenuApplyMappingToOtherFiles)
 
             if file.coordinates is not None:
                 popupMenuCopyCoordinatesToSelectedFiles = popupMenu.Append(wx.ID_ANY, "&Copy coordinates to selected files", "Copy coordinates to selected files")
@@ -504,13 +506,19 @@ class HyperTreeListPlus(HTL.HyperTreeList):
 
     def OnPerformMapping(self, event, item, file):
         file.perform_mapping()
+        self.LabelAsMappingFile(file)
 
-    def OnApplyMappingToOtherFiles(self, event, item, file):
-        file.use_mapping_for_all_files()
+    # def OnApplyMappingToOtherFiles(self, event, item, file):
+    #     file.use_mapping_for_all_files()
+    #     self.LabelAsMappingFile(file)
+
+    def LabelAsMappingFile(self, file):
         standardColour = self.GetItemBackgroundColour(self.GetRootItem().GetChildren()[0])
-        for i in self.FileItems:
-            self.SetItemBackgroundColour(i, standardColour)
-        self.SetItemBackgroundColour(item, wx.YELLOW) #wx.Colour(160,160,160))
+        for FileItem in self.FileItems:
+            if FileItem.GetData() is file:
+                self.SetItemBackgroundColour(FileItem, wx.YELLOW)  # wx.Colour(160,160,160))
+            else:
+                self.SetItemBackgroundColour(FileItem, standardColour)
 
     def OnCopyCoordinatesToSelectedFiles(self, event, item, file):
         # Maybe we should somehow indicate which files have coordinates from other files. [IS 31-01-2020]

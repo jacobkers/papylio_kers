@@ -145,6 +145,12 @@ class Experiment:
         """list of Molecule : List of selected molecules in all files"""
         return [molecule for file in self.files for molecule in file.selectedMolecules]
 
+    @property
+    def mapping_file(self):
+        for file in self.files:
+            if file.is_mapping_file:
+                return file
+
     def import_config_file(self):
         """Import configuration file from main folder into the configuration property."""
         with self.mainPath.joinpath('config.yml').open('r') as yml_file:
@@ -196,6 +202,11 @@ class Experiment:
 
         for file in uniqueFiles:
             self.addFile(file)
+
+        for file in self.files:
+            if file.mapping is not None:
+                file.use_mapping_for_all_files()
+                break
 
     def addFile(self, relativeFilePath):
         """Add a file to the experiment
