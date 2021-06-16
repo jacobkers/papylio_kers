@@ -639,7 +639,7 @@ class File:
         '''
         try:
             filename = f'{self.relativeFilePath}_selected_molecules.txt'
-            selected = np.atleast_1d(np.loadtxt(filename, dtype=int))
+            selected = np.atleast_1d(np.loadtxt(filename, dtype=float)).astype(int)
         except FileNotFoundError:
             return
         # print(selected, type(selected))
