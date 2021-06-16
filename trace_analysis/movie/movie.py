@@ -301,7 +301,8 @@ class Movie:
             2d image array with the average image
 
         """
-        return self.make_projection_image('average', start_frame, number_of_frames, write)
+        return self.make_projection_image('average', start_frame=start_frame, number_of_frames=number_of_frames,
+                                          write=write)
 
     def make_maximum_projection(self, start_frame=0, number_of_frames=20, write=False):
         """ Construct a maximum projection image
@@ -323,7 +324,8 @@ class Movie:
             2d image array with the maximum projection image
         """
 
-        return self.make_projection_image('maximum', start_frame, number_of_frames, write)
+        return self.make_projection_image('maximum', start_frame=start_frame, number_of_frames=number_of_frames,
+                                          write=write)
 
     def show(self):
         return MoviePlotter(self)
