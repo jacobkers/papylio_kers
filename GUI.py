@@ -216,7 +216,7 @@ class MoviePanel(wx.Frame):
         self._file = file
         self.ShowMovie()
 
-    def ShowMovie(self, show_coordinates = True):
+    def ShowMovie(self, show_coordinates=True):
         if self.IsShown():
             self.panel.axis.clear()
             if self._file is not None:
@@ -226,7 +226,8 @@ class MoviePanel(wx.Frame):
                 if self._file.is_mapping_file:
                     self._file.mapping.show_mapping_transformation(figure=self.panel.figure)
                 else:
-                    self._file.show_coordinates(figure=self.panel.figure)
+                    if self._file.coordinates.size > 0:
+                        self._file.show_coordinates(figure=self.panel.figure)
             self.panel.canvas.draw()
             self.panel.canvas.Refresh()
 
@@ -507,7 +508,8 @@ class HyperTreeListPlus(HTL.HyperTreeList):
     def OnApplyMappingToOtherFiles(self, event, item, file):
         file.use_mapping_for_all_files()
         standardColour = self.GetItemBackgroundColour(self.GetRootItem().GetChildren()[0])
-        for item in self.FileItems: self.SetItemBackgroundColour(item, standardColour)
+        for i in self.FileItems:
+            self.SetItemBackgroundColour(i, standardColour)
         self.SetItemBackgroundColour(item, wx.YELLOW) #wx.Colour(160,160,160))
 
     def OnCopyCoordinatesToSelectedFiles(self, event, item, file):
