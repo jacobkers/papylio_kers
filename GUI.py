@@ -9,6 +9,12 @@ Created on Fri Sep 14 15:44:52 2018
 
 # If you get the error wxApp must be created first, restart kernel
 
+#Use the following lines on Mac
+from sys import platform
+if platform == "darwin":
+    from matplotlib import use
+    use('WXAgg')
+
 #!/usr/bin/env python
 import time
 import pandas as pd
@@ -16,12 +22,6 @@ import wx #cross-platform GUI API
 import wx.dataview
 import wx.lib.agw.hypertreelist as HTL
 from trace_analysis import Experiment, File
-
-#Use the following lines on Mac
-from sys import platform
-if platform == "darwin":
-    from matplotlib import use
-    use('WXAgg')
 
 import matplotlib as mpl
 from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg as FigureCanvas
