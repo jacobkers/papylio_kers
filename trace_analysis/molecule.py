@@ -10,15 +10,62 @@ from trace_analysis.trace_extraction import make_gaussian
 import copy
 
 class Molecules:
-    def __init__(self, molecules=[], name=''):
+    def __init__(self, name=''):
         # for value in molecules:
         #     if not isinstance(value, Molecule):
         #         raise TypeError('MoleculeList can only contain Molecule objects')
         # self.molecules = molecules
         self.name = name
-    #
-    # def __len__(self):
-    #     return self.sequence.shape[0]
+
+        self.empty_parameter_index = pd.MultiIndex.from_arrays([[],[]], names=['Parameter','Channel'])
+        self.empty_traces_index = pd.MultiIndex.from_arrays([[],[]], names=['Frame','Channel'])
+        self._traces = None
+        self._parameters = None
+
+    @property
+    def traces(self):
+        return self._traces
+
+    @traces.setter
+    def traces(self, traces):
+        if self._traces is not None and (len(traces.columns) != len(self.molecule_index)):
+            raise ValueError('Number of molecules does not match current number of molecules, to proceed reset the object first ')
+        self._traces = traces
+        self.molecule_index = traces.columns
+
+    @property
+    def parameters(self):
+        return self._parameters
+
+    @parameters.setter
+    def parameters(self, parameters):
+        if self._parameters is not None and (len(parameters.columns) != len(self.molecule_index)):
+            raise ValueError('Number of molecules does not match current number of molecules, to proceed reset the object first ')
+        self._parameters = parameters
+        self.molecule_index = parameters.columns
+
+    @property
+    def molecule_index(self):
+        if self._traces is not None:
+            return self.traces.columns
+
+    @molecule_index.setter
+    def molecule_index(self, molecule_index):
+        if self._traces is None:
+            self._traces = pd.DataFrame(index=self.empty_traces_index, columns=molecule_index)
+        else:
+            self._traces.columns = molecule_index
+        if self._parameters is None:
+            self._parameters = pd.DataFrame(index=self.empty_parameter_index, columns=molecule_index)
+        else:
+            self._parameters.columns = self.molecule_index
+
+    def reset(self):
+        self._traces = None
+        self._parameters = None
+
+    def __len__(self):
+        return len(self.molecule_index)
 
     def __getitem__(self, item):
         # new = copy.copy(self)
@@ -53,22 +100,28 @@ class Molecules:
             return self
         else:
             return self.__add__(other)
-    # def __getattribute__(self, item):
-    #     try:
-    #         datatype = type(self.molecules[0].item)
-    #         if isinstance(datatype, pd.DataFrame):
-    #             [getattr(molecule, item) for molecule in self.molecules]
-    #     except AttributeError
-    #         super().__getattribute__(item)
-    #
-    #
+
+    def __getattr__(self, name):
+        try:
+            return self._parameters.loc[[name]]
+        except KeyError:
+            super().__getattr__(name)
+
     # def __setattr__(self, key, value):
-    #     if isinstance(value, pd.DataFrame):
-    #         number_of_molecules = value.index.levshape[[name == 'Molecule' for name in value.index.names].index(True)]
-    #         if number_of_molecules != self.__len__():
-    #             raise ValueError('Wrong number of molecules')
-    #         for molecule in self.molecules:
-    #             molecule.key = value.loc[]
+    #     if key in self.__dict__.keys():
+    #         super().__setattr__(key, value)
+    #     else:
+    #         self._parameters.loc[key,:] = value
+
+    def add_parameters(self, added_parameters):
+        parameters = self.parameters.append(added_parameters)
+        self.parameters = parameters[~parameters.index.duplicated(keep='last')]
+
+    def import_pks_file(self, pks_filepath, number_of_channels):
+        self.add_parameters(import_pks_file(pks_filepath, number_of_channels))
+
+    def export_pks_file(self, pks_filepath):
+        export_pks_file(self.parameters.loc[['x','y','background']], pks_filepath)
 
     def import_traces_file(self, traces_filepath, number_of_channels):
         self.traces = import_traces_file(traces_filepath, number_of_channels)
@@ -76,6 +129,38 @@ class Molecules:
     def export_traces_file(self, traces_filepath):
         export_traces_file(self.traces, traces_filepath)
 
+    def save(self, filepath):
+        filepath = Path(filepath)
+        self.traces.to_hdf(filepath.with_suffix('.trc'), "table", append=False)
+        self.parameters.to_hdf(filepath.with_suffix('.par'), "table", append=False)
+
+    def load(self, filepath):
+        filepath = Path(filepath)
+        self.traces = pd.read_hdf(filepath.with_suffix('.trc'), 'table')
+        self.parameters = pd.read_hdf(filepath.with_suffix('.par'), 'table')
+
+def import_pks_file(pks_filepath, number_of_channels):
+    pks_filepath = Path(pks_filepath)
+    data = np.atleast_2d(np.genfromtxt(pks_filepath)[:,1:])
+    if data.shape[1] == 2:
+        data = np.hstack([data, np.zeros((len(data),1))])
+
+    number_of_molecules = len(data) // number_of_channels
+    index = pd.MultiIndex.from_product([[pks_filepath.with_suffix('').name],
+                                        np.arange(number_of_molecules),
+                                        np.arange(number_of_channels)],
+                                        names=['File','Molecule', 'Channel'])
+    columns = pd.Index(['x', 'y', 'background'], name='Parameter')
+    return pd.DataFrame(data=data, index=index, columns=columns).T.stack('Channel')
+
+def export_pks_file(coordinates_and_background, pks_filepath):
+    coordinates_and_background = coordinates_and_background.unstack('Channel').T
+    pks_filepath = Path(pks_filepath)
+    with pks_filepath.open('w') as pks_file:
+        for i, (background, x, y) in enumerate(coordinates_and_background.values):
+            # outfile.write(' {0:4.0f} {1:4.4f} {2:4.4f} {3:4.4f} {4:4.4f} \n'.format(i, coordinate[0], coordinate[1], 0, 0, width4=4, width6=6))
+            # pks_file.write('{0:4.0f} {1:4.4f} {2:4.4f} \n'.format(i + 1, coordinate[0], coordinate[1]))
+            pks_file.write('{0:4.0f} {1:4.4f} {2:4.4f} {3:4.4f}\n'.format(i + 1, x, y, background))
 
 
 def import_traces_file(traces_filepath, number_of_channels):
@@ -91,7 +176,7 @@ def import_traces_file(traces_filepath, number_of_channels):
     traces = np.reshape(rawData.ravel(), (number_of_channels * number_of_molecules, number_of_frames),
                         order='F')  # 2d array of traces
 
-    column_index = pd.MultiIndex.from_product([[traces_filepath.with_suffix('')],
+    column_index = pd.MultiIndex.from_product([[traces_filepath.with_suffix('').name],
                                         np.arange(number_of_molecules),
                                         np.arange(number_of_channels)],
                                        names=['File', 'Molecule', 'Channel'])
@@ -197,9 +282,13 @@ class Molecule:
 
 
 if __name__ == '__main__':
-    traces_filepath = r'D:\SURFdrive\Promotie\Code\Python\traceAnalysis\twoColourExampleData\20141017 - Holliday junction - Copy\test.traces'
+    # traces_filepath = r'D:\SURFdrive\Promotie\Code\Python\traceAnalysis\twoColourExampleData\20141017 - Holliday junction - Copy\test.traces'
+    traces_filepath = r'P:\SURFdrive\Promotie\Code\Python\traceAnalysis\twoColourExampleData\20141017 - Holliday junction - Copy\test.traces'
     test = Molecules()
     test.import_traces_file(traces_filepath, 2)
     test[5:10]
 
     test[5]+test[10]
+    pks_filepath = Path(traces_filepath).with_suffix('.pks')
+    test.import_pks_file(pks_filepath, 2)
+    test.export_pks_file(pks_filepath.with_name('test2.pks'))
