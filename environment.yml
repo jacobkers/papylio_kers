@@ -21,6 +21,7 @@ dependencies:
 - sphinx_rtd_theme=0.4.3
 - git=2.23.0
 - nd2reader=3.0
+- xarray=0.18
 - bioconda::logomaker=0.8
 - pip:
     - tifffile==2019.7.26
