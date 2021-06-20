@@ -17,7 +17,7 @@ import numpy as np
 import matplotlib.pyplot as plt  # Provides a MATLAB-like plotting framework
 
 from trace_analysis.file import File
-from trace_analysis.molecule import Molecule
+from trace_analysis.molecule import Molecules
 from trace_analysis.plotting import histogram
 # from trace_analysis.plugin_manager import PluginManager
 # from trace_analysis.plugin_manager import PluginMetaClass
@@ -128,7 +128,7 @@ class Experiment:
     @property
     def molecules(self):
         """list of Molecule : List of all molecules in the experiment"""
-        return [molecule for file in self.files for molecule in file.molecules]
+        return Molecules.sum([file.molecules for file in self.files])
 
     @property
     def selectedFiles(self):
