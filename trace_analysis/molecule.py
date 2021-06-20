@@ -14,6 +14,11 @@ class Molecules:
     def load(filepath):
         return Molecules().load(filepath)
 
+    def sum(list_of_molecules):
+        new = Molecules()
+        new.dataset = xr.concat([m.dataset for m in list_of_molecules], dim='molecule')
+        return new
+
     def __init__(self, name=''):
         # for value in molecules:
         #     if not isinstance(value, Molecule):
@@ -21,28 +26,62 @@ class Molecules:
         # self.molecules = molecules
         self.name = name
 
-        self._dataset = xr.Dataset(
+        self.dataset = xr.Dataset()
+        self.init_dataset(reset=True)
+
+
+    # @property
+    # def dataset(self):
+    #     return self._dataset
+    #
+    # @dataset.setter
+    # def dataset(self, dataset):
+    #     if not self._dataset:
+    #         self._dataset = dataset
+    #         if 'selected' not in self._dataset.keys():
+    #             self.dataset['selected'] = xr.DataArray(False, coords=[dataset.molecule])
+    #         elif 'selected' not in self._dataset.keys():
+    #             self.dataset['x'] = xr.DataArray(False, coords=[dataset.molecule])
+    #             self.dataset['y'] = xr.DataArray(False, coords=[dataset.molecule])
+    #     else:
+    #         self._dataset = dataset
+
+    def init_dataset(self, molecule_multiindex=None, reset=False):
+        if not reset and len(self.dataset.molecule) > 0:
+            return
+        if molecule_multiindex is None:
+            molecule_multiindex = pd.MultiIndex.from_tuples([], names=['molecule_in_file', 'file'])
+        # self.dataset = xr.Dataset(
+        #     {
+        #         'selected':     ('molecule', xr.DataArray(False, coords=(molecule_multiindex,)),
+        #         'x':            ('molecule', xr.DataArray(np.nan, coords=[molecule_multiindex])),
+        #         'y':            ('molecule', xr.DataArray(np.nan, coords=[molecule_multiindex])),
+        #         'background':   ('molecule', xr.DataArray(np.nan, coords=[molecule_multiindex]))
+        #         'traces':       (('molecule'))
+        #     },
+        #     coords=
+        #     {
+        #         'molecule': ('molecule', molecule_multiindex), # pd.MultiIndex.from_tuples([], names=['molecule_in_file', 'file'])),
+        #         'frame': ('frame', np.array([], dtype=int)),
+        #         'channel': ('channel', np.array([], dtype=int))
+        #     }
+        # )
+
+        self.dataset = xr.Dataset(
+            {
+                'selected':     ('molecule', xr.DataArray(False, coords=[molecule_multiindex])),
+                'x':            (('molecule', 'channel'), xr.DataArray(np.nan, coords=[molecule_multiindex,[]])),
+                'y':            (('molecule', 'channel'), xr.DataArray(np.nan, coords=[molecule_multiindex, []])),
+                'background':   (('molecule','channel'), xr.DataArray(np.nan, coords=[molecule_multiindex, []])),
+                'traces':       (('molecule', 'channel', 'frame'), xr.DataArray(np.nan, coords=[molecule_multiindex,[],[]]))
+            },
             coords=
             {
-                'molecule':     ('molecule', pd.MultiIndex.from_tuples([],names=['molecule_in_file','file'])),
-                'frame':        ('frame', np.array([], dtype=int)),
-                'channel':      ('channel', np.array([], dtype=int))
+                'molecule': ('molecule', molecule_multiindex), # pd.MultiIndex.from_tuples([], names=['molecule_in_file', 'file'])),
+                'frame': ('frame', np.array([], dtype=int)),
+                'channel': ('channel', np.array([], dtype=int))
             }
         )
-
-
-    @property
-    def dataset(self):
-        return self._dataset
-
-    @dataset.setter
-    def dataset(self, dataset):
-        if not self._dataset:
-            self._dataset = dataset
-            if 'selected' not in self._dataset.keys():
-                self.dataset['selected'] = xr.DataArray(False, coords=[dataset.molecule])
-        else:
-            self._dataset = dataset
 
         # self.empty_parameter_index = pd.MultiIndex.from_arrays([['is_selected'],[]], names=['Parameter','Channel'])
         # self.empty_traces_index = pd.MultiIndex.from_arrays([[],[]], names=['Frame','Channel'])
@@ -101,7 +140,9 @@ class Molecules:
         return new
 
     def __add__(self, other):
-        return xr.concat([self.dataset, other.data_set], dim='molecule')
+        new = Molecules()
+        new.dataset = xr.concat([self.dataset, other.dataset], dim='molecule')
+        return new
 
     def __radd__(self, other):
         if other == 0:
@@ -128,12 +169,20 @@ class Molecules:
     # def add_parameter_from_list(self, name, parameter_list, channel=''):
     #     self.parameters.loc[(name, channel), :] = parameter_list
 
+    @property
+    def coordinates(self):
+        return self.dataset[['x', 'y']].to_array('dimension')
+
+    @coordinates.setter
+    def coordinates(self, coordinates):
+        self.dataset = self.dataset.merge(coordinates.to_dataset('dimension'))
+
     def import_file(self, filepath):
         filepath = Path(filepath)
         if filepath.suffix == '.traces':
             self.import_traces_file(filepath)
         elif filepath.suffix == '.pks':
-            self.import_traces_file(filepath)
+            self.import_pks_file(filepath)
         else:
             raise FileNotFoundError(filepath)
 
@@ -149,7 +198,9 @@ class Molecules:
     def import_pks_file(self, pks_filepath):
         peaks = import_pks_file(pks_filepath)
         peaks = split_dimension(peaks, 'peak', ('molecule', 'channel'), (-1, 2))
-        peaks = split_dimension(peaks, 'molecule', ('molecule_in_file', 'file'), (-1, 1), to='multiindex')
+        file = str(pks_filepath.with_suffix(''))
+        peaks = split_dimension(peaks, 'molecule', ('molecule_in_file', 'file'), (-1, 1), (-1, [file]), to='multiindex')
+        self.init_dataset(peaks.molecule.to_index())
         self.dataset = self.dataset.merge(peaks.to_dataset('parameter'))
 
     def export_pks_file(self, pks_filepath):
@@ -160,7 +211,9 @@ class Molecules:
     def import_traces_file(self, traces_filepath):
         traces = import_traces_file(traces_filepath)
         traces = split_dimension(traces, 'trace', ('molecule', 'channel'), (-1, 2))
-        traces = split_dimension(traces, 'molecule', ('molecule_in_file', 'file'), (-1, 1), to='multiindex')
+        file = str(traces_filepath.with_suffix(''))
+        traces = split_dimension(traces, 'molecule', ('molecule_in_file', 'file'), (-1, 1), (-1, [file]), to='multiindex')
+        self.init_dataset(traces.molecule.to_index())
         dataset = xr.Dataset({'traces': traces})
         self.dataset = self.dataset.merge(dataset)
 
@@ -170,11 +223,13 @@ class Molecules:
 
     def save(self, filepath):
         filepath = Path(filepath)
-        self.dataset.to_netcdf(filepath.with_suffix('.nc'))
+        self.dataset.reset_index('molecule').to_netcdf(filepath.with_suffix('.nc'))
 
     def load(self, filepath):
         filepath = Path(filepath)
-        self.dataset = xr.open_dataset(filepath.with_suffix('.nc'))
+        loaded_dataset = xr.open_dataset(filepath.with_suffix('.nc')).set_index({'molecule': ('molecule_in_file','file')})
+        self.init_dataset(loaded_dataset.molecule)
+        self.dataset = loaded_dataset.combine_first(self.dataset)
 
 
 def import_pks_file(pks_filepath):
@@ -235,7 +290,7 @@ def import_traces_file(traces_filepath):
     # index = pd.Index(data=np.arange(number_of_frames), name='Frame')
     # return pd.DataFrame(traces.T, index=index, columns=column_index).stack('Channel')
 
-def split_dimension(data_array, old_dim, new_dims, new_dims_shape, to='dimensions'):
+def split_dimension(data_array, old_dim, new_dims, new_dims_shape=None, new_dims_coords=None, to='dimensions'):
     all_dims = list(data_array.dims)
     old_dim_index = all_dims.index(old_dim)
     all_dims[old_dim_index:old_dim_index + 1] = new_dims
@@ -249,7 +304,12 @@ def split_dimension(data_array, old_dim, new_dims, new_dims_shape, to='dimension
     elif sum(new_dims_shape == -1) > 1:
         raise ValueError
 
-    new_index = pd.MultiIndex.from_product((range(dim_len) for dim_len in new_dims_shape), names=new_dims)
+    if new_dims_coords is None:
+        new_dims_coords = [-1]*len(new_dims_shape)
+    new_dims_coords = (range(new_dims_shape[i]) if new_dims_coord == -1 else new_dims_coord
+                       for i, new_dims_coord in enumerate(new_dims_coords))
+
+    new_index = pd.MultiIndex.from_product(new_dims_coords, names=new_dims)
     data_array = data_array.assign_coords(**{old_dim: new_index})
 
     if to == 'dimensions':
