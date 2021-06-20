@@ -536,10 +536,12 @@ class Mapping2:
                     continue
                 elif isinstance(value, skimage.transform._geometric.GeometricTransform):
                     attributes[key] = value.params.tolist()
+#TODO: solve issue with nonlinear mapping.transformation_type, which spits out a tuple of two arrays (4x4) instead np.shape(value.params.tolist())== (2, 15) 
                 elif type(value).__module__ == np.__name__:
-                    attributes[key] = value.tolist()
+                    attributes[key] = value.tolist();
                 else:
                     attributes.pop(key)
+
             if filetype in ['yml','yaml']:
                 with filepath.with_suffix('.mapping').open('w') as yml_file:
                     yaml.dump(attributes, yml_file, sort_keys=False)

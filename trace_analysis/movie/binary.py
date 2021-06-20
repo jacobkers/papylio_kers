@@ -20,22 +20,12 @@ class BinaryMovie(Movie):
         self.width = 250
         self.height = 250
         self.number_of_frames = 200
-        self.dtype = np.dtype(np.uint16)
-        self.alternating_laser_excitation = [1, 0]
+        self.illumination_arrangement = np.array([1, 0])
+        self.channel_arrangement = np.array([[[1]], [[0]]])
 
         self.read_header()
 
-    @property
-    def pixels_per_frame(self):
-        return self.width*self.height
-
-    @property
-    def bitdepth(self):
-        return self.dtype.itemsize
-
-    @property
-    def bytes_per_frame(self):
-        return self.bitdepth * self.pixels_per_frame
+        self.create_frame_info() # Possibly move to Movie later on
 
     def _read_header(self):
         pass
@@ -66,16 +56,17 @@ class BinaryMovie(Movie):
 
         start_byte = start_frame * self.bytes_per_frame
 
-        with self.filepath.open('rb') as bin:
-            bin.seek(start_byte)
-            data = np.fromfile(bin, dtype=self.dtype, count=self.pixels_per_frame*number_of_frames)
+        with self.filepath.open('rb') as bin_file:
+            bin_file.seek(start_byte)
+            data = np.fromfile(bin_file, dtype=self.data_type, count=self.pixels_per_frame*number_of_frames)
             image = data.reshape((number_of_frames, self.width, self.height))
 
         return image
 
 if __name__ == "__main__":
-    movie = BinaryMovie(r'.\Example_data\Binary\movie.bin')
+    movie = BinaryMovie(r'.\Example_data\binary\movie.bin')
     test = movie.read_frames(2,10)
     plt.imshow(test[0])
+    movie.make_projection_images()
 
 
