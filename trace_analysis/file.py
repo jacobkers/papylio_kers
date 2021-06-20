@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt #Provides a MATLAB-like plotting framework
 import skimage.io as io
 import skimage as ski
 import warnings
-from trace_analysis.molecule import Molecule
+from trace_analysis.molecule import Molecules
 from trace_analysis.movie.sifx import SifxMovie
 from trace_analysis.movie.pma import PmaMovie
 from trace_analysis.movie.tif import TifMovie
@@ -57,7 +57,7 @@ class File:
         self.name = relativeFilePath.name
         self.extensions = list()
 
-        self.molecules = list()
+        self.molecules = Molecules()
 
         self.exposure_time = None  # Found from log file or should be inputted
 
@@ -119,24 +119,24 @@ class File:
     def number_of_molecules(self):
         return len(self.molecules)
 
-    @number_of_molecules.setter
-    def number_of_molecules(self, number_of_molecules):
-        if not self.molecules:
-            for molecule in range(0, number_of_molecules):
-                self.addMolecule()
-        elif number_of_molecules != self.number_of_molecules:
-            raise ValueError(f'Requested number of molecules ({number_of_molecules}) differs from existing number of '
-                             f'molecules ({self.number_of_molecules}) in {self}. \n'
-                             f'If you are sure you want to proceed, empty the molecules list file.molecules = [], or '
-                             f'possibly delete old pks or traces files')
+    # @number_of_molecules.setter
+    # def number_of_molecules(self, number_of_molecules):
+    #     if not self.molecules:
+    #         for molecule in range(0, number_of_molecules):
+    #             self.addMolecule()
+    #     elif number_of_molecules != self.number_of_molecules:
+    #         raise ValueError(f'Requested number of molecules ({number_of_molecules}) differs from existing number of '
+    #                          f'molecules ({self.number_of_molecules}) in {self}. \n'
+    #                          f'If you are sure you want to proceed, empty the molecules list file.molecules = [], or '
+    #                          f'possibly delete old pks or traces files')
 
     @property
     def number_of_channels(self):
         return self.experiment.number_of_channels
 
     @property
-    def selectedMolecules(self):
-        return [molecule for molecule in self.molecules if molecule.isSelected]
+    def selected_molecules(self):
+        return self.molecules[self.molecules.selected]
 
     @property
     def average_image(self):
@@ -158,14 +158,10 @@ class File:
 
     @property
     def coordinates(self):
-        # if not self._pks_file:
-        #     _pks_file = PksFile(self.absoluteFilePath.with_suffix('.pks'))
-
-        #return np.concatenate([[molecule.coordinates[0, :] for molecule in self.molecules]])
-
-        if len(self.molecules) > 0:
-            return np.concatenate([molecule.coordinates for molecule in self.molecules])
-        else:
+        try:
+            return self.molecules.coordinates.unstack('molecule')\
+                .stack(coordinate=('file', 'molecule_in_file', 'channel')).T.values
+        except KeyError:
             return np.array([])
 
         # Probably the active one is better.
@@ -175,14 +171,14 @@ class File:
         # else:
         #     return None
 
-    @coordinates.setter
-    def coordinates(self, coordinates, number_of_channels = None):
-        if number_of_channels is None:
-            number_of_channels = self.number_of_channels
-        self.number_of_molecules = np.shape(coordinates)[0]//number_of_channels
-
-        for i, molecule in enumerate(self.molecules):
-            molecule.coordinates = coordinates[(i * number_of_channels):((i + 1) * number_of_channels), :]
+    # @coordinates.setter
+    # def coordinates(self, coordinates, number_of_channels = None):
+    #     if number_of_channels is None:
+    #         number_of_channels = self.number_of_channels
+    #     self.number_of_molecules = np.shape(coordinates)[0]//number_of_channels
+    #
+    #     for i, molecule in enumerate(self.molecules):
+    #         molecule.coordinates = coordinates[(i * number_of_channels):((i + 1) * number_of_channels), :]
 
     def coordinates_from_channel(self, channel):
         # if not self._pks_file:
@@ -192,31 +188,33 @@ class File:
         if type(channel) is str:
             channel = {'d': 0, 'a': 1, 'g':0, 'r':1}[channel]
 
-        return np.vstack([molecule.coordinates[channel] for molecule in self.molecules])
+        return self.molecules.coordinates.sel(channel=0).T.values
+
 
     #in analogy with coordinates, also background:
     @property
     def background(self):
-        if len(self.molecules) > 0:
-            return np.concatenate([molecule.background for molecule in self.molecules])
-        else:
+        try:
+            return self.molecules.dataset['background'].unstack('molecule')\
+                .stack(background=('file', 'molecule_in_file', 'channel')).T.values
+        except KeyError:
             return np.array([])
 
-    @background.setter
-    def background(self, background, number_of_channels = None):
-        if number_of_channels is None:
-            number_of_channels = self.number_of_channels
-        self.number_of_molecules = np.shape(background)[0]//number_of_channels
-
-        for i, molecule in enumerate(self.molecules):
-            molecule.background = background[(i * number_of_channels):((i + 1) * number_of_channels)]
-
-    def background_from_channel(self, channel):
-        if type(channel) is str:
-            channel = {'d': 0, 'a': 1, 'g':0, 'r':1}[channel]
-
-        return np.vstack([molecule.background[channel] for molecule in self.molecules])
-    
+    # @background.setter
+    # def background(self, background, number_of_channels = None):
+    #     if number_of_channels is None:
+    #         number_of_channels = self.number_of_channels
+    #     self.number_of_molecules = np.shape(background)[0]//number_of_channels
+    #
+    #     for i, molecule in enumerate(self.molecules):
+    #         molecule.background = background[(i * number_of_channels):((i + 1) * number_of_channels)]
+    #
+    # def background_from_channel(self, channel):
+    #     if type(channel) is str:
+    #         channel = {'d': 0, 'a': 1, 'g':0, 'r':1}[channel]
+    #
+    #     return np.vstack([molecule.background[channel] for molecule in self.molecules])
+    #
     @property
     def time(self):  # the time axis of the experiment, if not found in log it will be asked as input
         if self.exposure_time is None:
@@ -228,12 +226,12 @@ class File:
         return np.dstack([molecule.intensity for molecule in self.molecules]).swapaxes(1, 2) # 3d array of traces
         # np.concatenate([molecule.intensity for molecule in self.molecules]) # 2d array of traces
 
-    @traces.setter
-    def traces(self, traces):
-        for i, molecule in enumerate(self.molecules):
-            molecule.intensity = traces[:, i, :] # 3d array of traces
-            # molecule.intensity = traces[(i * self.number_of_channels):((i + 1) * self.number_of_channels), :] # 2d array of traces
-        self.number_of_frames = traces.shape[2]
+    # @traces.setter
+    # def traces(self, traces):
+    #     for i, molecule in enumerate(self.molecules):
+    #         molecule.intensity = traces[:, i, :] # 3d array of traces
+    #         # molecule.intensity = traces[(i * self.number_of_channels):((i + 1) * self.number_of_channels), :] # 2d array of traces
+    #     self.number_of_frames = traces.shape[2]
         
     def findAndAddExtensions(self):
         foundFiles = [file.name for file in self.experiment.mainPath.joinpath(self.relativePath).glob(self.name + '*')]
@@ -323,7 +321,8 @@ class File:
             self.mapping.transformation = AffineTransform(matrix=transformation)
 
             if len(file_content)==6:
-                self.mapping.transformation_inverse=np.linalg.inv(self.mapping.transformation)
+                self.mapping.transformation_inverse=\
+                    AffineTransform(matrix=np.linalg.inv(self.mapping.transformation.params))
             else:
                 transformation_inverse = np.zeros((3,3))
                 transformation_inverse[2,2] = 1
@@ -392,14 +391,15 @@ class File:
         self.mapping = Mapping2(load=self.absoluteFilePath.with_suffix('.mapping'))
 
     def import_pks_file(self):
-        # Background value stored in pks file is not imported yet
-        data = np.genfromtxt(str(self.relativeFilePath) + '.pks')
-        coordinates = np.atleast_2d(data)[:,1:3]
-        try: 
-            self.background=np.atleast_2d(data)[:,3]
-        except: 
-            self.background=np.zeros(len(data))
-        self.coordinates = coordinates
+        # # Background value stored in pks file is not imported yet
+        # data = np.genfromtxt(str(self.relativeFilePath) + '.pks')
+        # coordinates = np.atleast_2d(data)[:,1:3]
+        # try:
+        #     self.background=np.atleast_2d(data)[:,3]
+        # except:
+        #     self.background=np.zeros(len(data))
+        # self.coordinates = coordinates
+        self.molecules.import_file(self.relativeFilePath.with_suffix('.pks'))
 
     def find_coordinates(self, configuration=None):
         '''
@@ -591,23 +591,24 @@ class File:
             background_list.append(extract_background(channel_image, channel_coordinates, method='ROI_minimum'))
         self.background = np.vstack(background_list).T.reshape((-1))
 
-    def export_pks_file(self):
-        pks_filepath = self.absoluteFilePath.with_suffix('.pks')
-        with pks_filepath.open('w') as pks_file:
-            for i, coordinate in enumerate(self.coordinates):
-                # outfile.write(' {0:4.0f} {1:4.4f} {2:4.4f} {3:4.4f} {4:4.4f} \n'.format(i, coordinate[0], coordinate[1], 0, 0, width4=4, width6=6))
-               # pks_file.write('{0:4.0f} {1:4.4f} {2:4.4f} \n'.format(i + 1, coordinate[0], coordinate[1]))
-                pks_file.write('{0:4.0f} {1:4.4f} {2:4.4f} {3:4.4f}\n'.format(i + 1, coordinate[0], coordinate[1], self.background[i]))
-                
+    # def export_pks_file(self):
+    #     pks_filepath = self.absoluteFilePath.with_suffix('.pks')
+    #     with pks_filepath.open('w') as pks_file:
+    #         for i, coordinate in enumerate(self.coordinates):
+    #             # outfile.write(' {0:4.0f} {1:4.4f} {2:4.4f} {3:4.4f} {4:4.4f} \n'.format(i, coordinate[0], coordinate[1], 0, 0, width4=4, width6=6))
+    #            # pks_file.write('{0:4.0f} {1:4.4f} {2:4.4f} \n'.format(i + 1, coordinate[0], coordinate[1]))
+    #             pks_file.write('{0:4.0f} {1:4.4f} {2:4.4f} {3:4.4f}\n'.format(i + 1, coordinate[0], coordinate[1], self.background[i]))
+    #
     def import_traces_file(self):
-        traces_filepath = self.absoluteFilePath.with_suffix('.traces')
-        with traces_filepath.open('r') as traces_file:
-            self.number_of_frames = np.fromfile(traces_file, dtype=np.int32, count=1).item()
-            number_of_traces = np.fromfile(traces_file, dtype=np.int16, count=1).item()
-            self.number_of_molecules = number_of_traces // self.number_of_channels
-            rawData = np.fromfile(traces_file, dtype=np.int16, count=self.number_of_frames * number_of_traces)
-        self.traces = np.reshape(rawData.ravel(), (self.number_of_channels, self.number_of_molecules, self.number_of_frames), order='F')  # 3d array of traces
-        #self.traces = np.reshape(rawData.ravel(), (self.number_of_channels * self.number_of_molecules, self.number_of_frames), order='F') # 2d array of traces
+        self.molecules.import_file(self.relativeFilePath.with_suffix('.traces'))
+    #     traces_filepath = self.absoluteFilePath.with_suffix('.traces')
+    #     with traces_filepath.open('r') as traces_file:
+    #         self.number_of_frames = np.fromfile(traces_file, dtype=np.int32, count=1).item()
+    #         number_of_traces = np.fromfile(traces_file, dtype=np.int16, count=1).item()
+    #         self.number_of_molecules = number_of_traces // self.number_of_channels
+    #         rawData = np.fromfile(traces_file, dtype=np.int16, count=self.number_of_frames * number_of_traces)
+    #     self.traces = np.reshape(rawData.ravel(), (self.number_of_channels, self.number_of_molecules, self.number_of_frames), order='F')  # 3d array of traces
+    #     #self.traces = np.reshape(rawData.ravel(), (self.number_of_channels * self.number_of_molecules, self.number_of_frames), order='F') # 2d array of traces
 
     def import_excel_file(self, filename=None):
         if filename is None:
@@ -684,10 +685,10 @@ class File:
             np.array(self.traces.T, dtype=np.int16).tofile(traces_file)
 
 
-    def addMolecule(self):
-        index = len(self.molecules) # this is the molecule number
-        self.molecules.append(Molecule(self))
-        self.molecules[-1].index = index
+    # def addMolecule(self):
+    #     index = len(self.molecules) # this is the molecule number
+    #     self.molecules.append(Molecule(self))
+    #     self.molecules[-1].index = index
 
     def histogram(self, axis=None, bins=100, parameter='E', molecule_averaging=False,
                   makeFit=False, export=False, **kwargs):
@@ -845,7 +846,8 @@ class File:
     def copy_coordinates_to_selected_files(self):
         for file in self.experiment.selectedFiles:
             if file is not self:
-                file.coordinates = self.coordinates
+                file.molecules.init_dataset(self.molecules.dataset.molecule, reset=True)
+                file.molecules.coordinates = self.molecules.coordinates
                 file.export_pks_file()
 
     def use_mapping_for_all_files(self):
