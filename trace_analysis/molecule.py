@@ -11,7 +11,7 @@ from trace_analysis.trace_extraction import make_gaussian
 import copy
 
 class Molecules:
-    def load(self, filepath):
+    def load(filepath):
         return Molecules().load(filepath)
 
     def __init__(self, name=''):
@@ -21,8 +21,28 @@ class Molecules:
         # self.molecules = molecules
         self.name = name
 
-        self.dataset = xr.Dataset()
+        self._dataset = xr.Dataset(
+            coords=
+            {
+                'molecule':     ('molecule', pd.MultiIndex.from_tuples([],names=['molecule_in_file','file'])),
+                'frame':        ('frame', np.array([], dtype=int)),
+                'channel':      ('channel', np.array([], dtype=int))
+            }
+        )
 
+
+    @property
+    def dataset(self):
+        return self._dataset
+
+    @dataset.setter
+    def dataset(self, dataset):
+        if not self._dataset:
+            self._dataset = dataset
+            if 'selected' not in self._dataset.keys():
+                self.dataset['selected'] = xr.DataArray(False, coords=[dataset.molecule])
+        else:
+            self._dataset = dataset
 
         # self.empty_parameter_index = pd.MultiIndex.from_arrays([['is_selected'],[]], names=['Parameter','Channel'])
         # self.empty_traces_index = pd.MultiIndex.from_arrays([[],[]], names=['Frame','Channel'])
@@ -76,7 +96,9 @@ class Molecules:
         return len(self.dataset.molecule)
 
     def __getitem__(self, item):
-        return self.dataset.sel(molecule=item)
+        new = Molecules()
+        new.dataset = self.dataset.isel(molecule=item)
+        return new
 
     def __add__(self, other):
         return xr.concat([self.dataset, other.data_set], dim='molecule')
@@ -91,7 +113,7 @@ class Molecules:
         try:
             return self.dataset[name]
         except KeyError:
-            super().__getattr__(name)
+            super().__getattribute__(name)
 
     # def __setattr__(self, key, value):
     #     if key in self.__dict__.keys():
@@ -127,19 +149,23 @@ class Molecules:
     def import_pks_file(self, pks_filepath):
         peaks = import_pks_file(pks_filepath)
         peaks = split_dimension(peaks, 'peak', ('molecule', 'channel'), (-1, 2))
-        self.dataset['coordinates'] = peaks.sel(parameter=['x', 'y'])
-        self.dataset['background'] = peaks.sel(parameter='background')
+        peaks = split_dimension(peaks, 'molecule', ('molecule_in_file', 'file'), (-1, 1), to='multiindex')
+        self.dataset = self.dataset.merge(peaks.to_dataset('parameter'))
 
     def export_pks_file(self, pks_filepath):
-        peaks = xr.concat([self.dataset['coordinates'], self.dataset['background']], dim='parameter')
+        peaks = self.dataset[['x','y','background']].reset_index('molecule')\
+            .stack(peaks=('molecule', 'channel')).to_array(dim='parameter').T
         export_pks_file(peaks, pks_filepath)
 
     def import_traces_file(self, traces_filepath):
         traces = import_traces_file(traces_filepath)
-        self.dataset['traces'] = split_dimension(traces, 'trace', ('molecule', 'channel'), (-1, 2))
+        traces = split_dimension(traces, 'trace', ('molecule', 'channel'), (-1, 2))
+        traces = split_dimension(traces, 'molecule', ('molecule_in_file', 'file'), (-1, 1), to='multiindex')
+        dataset = xr.Dataset({'traces': traces})
+        self.dataset = self.dataset.merge(dataset)
 
     def export_traces_file(self, traces_filepath):
-        traces = self.traces.stack(traces=('molecule', 'channel')).T
+        traces = self.traces.reset_index('molecule').stack(trace=('molecule', 'channel')).T
         export_traces_file(traces, traces_filepath)
 
     def save(self, filepath):
@@ -149,6 +175,7 @@ class Molecules:
     def load(self, filepath):
         filepath = Path(filepath)
         self.dataset = xr.open_dataset(filepath.with_suffix('.nc'))
+
 
 def import_pks_file(pks_filepath):
     pks_filepath = Path(pks_filepath)
@@ -208,7 +235,7 @@ def import_traces_file(traces_filepath):
     # index = pd.Index(data=np.arange(number_of_frames), name='Frame')
     # return pd.DataFrame(traces.T, index=index, columns=column_index).stack('Channel')
 
-def split_dimension(data_array, old_dim, new_dims, new_dims_shape):
+def split_dimension(data_array, old_dim, new_dims, new_dims_shape, to='dimensions'):
     all_dims = list(data_array.dims)
     old_dim_index = all_dims.index(old_dim)
     all_dims[old_dim_index:old_dim_index + 1] = new_dims
@@ -224,7 +251,13 @@ def split_dimension(data_array, old_dim, new_dims, new_dims_shape):
 
     new_index = pd.MultiIndex.from_product((range(dim_len) for dim_len in new_dims_shape), names=new_dims)
     data_array = data_array.assign_coords(**{old_dim: new_index})
-    return data_array.unstack(old_dim).transpose(*all_dims)
+
+    if to == 'dimensions':
+        return data_array.unstack(old_dim).transpose(*all_dims)
+    elif to == 'multiindex':
+        return data_array
+    else:
+        raise ValueError
 
 # test.reset_index('trace').set_index(trace=['file','molecule','channel'])
 # test3.reset_index('trace').reset_coords('file', drop=True).assign_coords({'file': ('trace',[1]*278)}).set_index(trace=['file','molecule','channel'])
@@ -348,3 +381,7 @@ if __name__ == '__main__':
     # test[5:10]
     #
     # test[5]+test[10]
+
+
+    test.export_traces_file(filepath.with_name('test2.traces'))
+    test.export_pks_file(filepath.with_name('test2.pks'))
