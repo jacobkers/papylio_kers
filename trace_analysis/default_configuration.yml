@@ -51,5 +51,6 @@ mapping:
             margin: 20
 trace_extraction:
     channel: 'all'
-    gaussian_width: 11
+    mask_size: TIR-T
+    neighbourhood_size: 11
     subtract_background: True
