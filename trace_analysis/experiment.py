@@ -14,6 +14,9 @@ import os  # Miscellaneous operating system interfaces - to be able to switch fr
 from pathlib import Path  # For efficient path manipulation
 import yaml
 import numpy as np
+# import matplotlib
+# matplotlib.use('WXAgg')
+
 import matplotlib.pyplot as plt  # Provides a MATLAB-like plotting framework
 import xarray as xr
 import pandas as pd

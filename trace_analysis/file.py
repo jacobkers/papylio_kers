@@ -102,6 +102,8 @@ class File:
                                 '.nc': self.noneFunction
                                 }
 
+        print(self)
+
         super().__init__()
 
         # if self.experiment.import_all is True:
@@ -739,7 +741,7 @@ class File:
             .reset_index(['molecule','frame'], drop=True)
 
         if not self.relativeFilePath.with_suffix('.nc').is_file():
-            self._init_dataset(len(traces.molecule))
+            self._init_dataset(len(intensity.molecule))
 
         xr.Dataset({'intensity': intensity}).to_netcdf(self.relativeFilePath.with_suffix('.nc'), mode='a')
 
@@ -956,22 +958,23 @@ class File:
 
         if self.coordinates is not None:
             axis = figure.gca()
-            sc_coordinates = axis.scatter(self.coordinates[:, 0], self.coordinates[:, 1], facecolors='none', edgecolors='red', **kwargs)
+            coordinates = self.coordinates.stack({'peak': ('molecule', 'channel')}).T.values
+            sc_coordinates = axis.scatter(coordinates[:, 0], coordinates[:, 1], facecolors='none', edgecolors='red', **kwargs)
             # marker='o'
 
-            if self.selectedMolecules:
-                selected_coordinates = self.get_coordinates(selected=True)
-                axis.scatter(selected_coordinates[:, 0], selected_coordinates[:, 1], facecolors='none', edgecolors='green', **kwargs)
+            selected_coordinates = self.coordinates[self.selected].stack({'peak': ('molecule', 'channel')}).T.values
+            axis.scatter(selected_coordinates[:, 0], selected_coordinates[:, 1], facecolors='none', edgecolors='green', **kwargs)
 
             if annotate:
                 annotation = axis.annotate("", xy=(0, 1.03), xycoords=axis.transAxes) # x in data units, y in axes fraction
                 annotation.set_visible(False)
 
-                molecule_indices = np.repeat(np.arange(0, self.number_of_molecules), self.number_of_channels)
+                #molecule_indices = np.repeat(np.arange(0, self.number_of_molecules), self.number_of_channels)
+                molecule_indices = np.repeat(self.molecule_in_file.values, self.number_of_channels)
                 # sequence_indices = np.repeat(self.sequence_indices, self.number_of_channels)
 
                 def update_annotation(ind):
-                    print(ind)
+                    # print(ind)
 
                     # text = "Molecule number: {} \nSequence: {}".format(" ".join([str(indices[ind["ind"][0]])]),
                     #                        " ".join([str(sequences[ind["ind"][0]].decode('UTF-8'))]))
@@ -980,8 +983,8 @@ class File:
                     text = f'Molecule number: {", ".join(map(str, molecule_index))}'
 
                     if hasattr(self, 'sequences'):
-                        sequence_names = [str(self.molecules[index].sequence_name) for index in molecule_index]
-                        sequences = [str(self.molecules[index].sequence) for index in molecule_index]
+                        sequence_names = [str(self.sequence_name[index]) for index in molecule_index]
+                        sequences = [str(self.sequence[index]) for index in molecule_index]
                         text += f'\nSequence name: {", ".join(sequence_names)}'
                         text += f'\nSequence: {", ".join(sequences)}'
 
