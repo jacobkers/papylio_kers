@@ -83,11 +83,11 @@ def find_nearest(array, value):
 
 if __name__ == '__main__':
 
-    mainPath = r'C:/Users/iason/Desktop/traceanalysis/trace_analysis/traces/test_data/DNA08'
+    main_path = r'C:/Users/iason/Desktop/traceanalysis/trace_analysis/traces/test_data/DNA08'
 
-    exp = Experiment(mainPath)
+    exp = Experiment(main_path)
     file = exp.files[0]
-    filename = mainPath + '/hel21_dwells_data.xlsx'
+    filename = main_path + '/hel21_dwells_data.xlsx'
     dwell_data =  pd.read_excel(filename, index_col=[0, 1], dtype={'kon' :np.str})
     # fret_hist = plot_fret_histogram(file.molecules, bins=100)
     mol = file.molecules[0]
