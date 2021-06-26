@@ -75,6 +75,8 @@ class File:
         self._average_image = None
         self._maximum_projection_image = None
 
+        self.datset_variables = ['molecule', 'coordinates', 'background', 'intensity', 'selected', 'molecule_in_file']
+
         # I think it will be easier if we have import functions for specific data instead of specific files.
         # For example. the sifx, pma and tif files can better be handled in the Movie class. Here we then just have a method import_movie.
         # [IS 10-08-2020]
@@ -125,6 +127,10 @@ class File:
     def number_of_molecules(self):
         return len(self.molecule)
 
+    # @property
+    # def molecule(self):
+    #     with xr.open_dataset(self.relativeFilePath.with_suffix('.nc'), engine='h5netcdf') as dataset:
+    #         return dataset['molecule'].load()
     # @number_of_molecules.setter
     # def number_of_molecules(self, number_of_molecules):
     #     if not self.molecules:
@@ -164,7 +170,7 @@ class File:
 
     # @property
     # def coordinates(self):
-    #     with xr.open_dataset(self.relativeFilePath.with_suffix('.nc'), engine='netcdf4') as dataset:
+    #     with xr.open_dataset(self.relativeFilePath.with_suffix('.nc'), engine='h5netcdf') as dataset:
     #         #.set_index({'molecule': ('molecule_in_file','file')})
     #         return dataset['coordinates'].load()
     #
@@ -202,12 +208,20 @@ class File:
         return self.coordinates.sel(channel=channel)
 
     def __getattr__(self, item):
-        try:
-            with xr.open_dataset(self.relativeFilePath.with_suffix('.nc'), engine='netcdf4') as dataset:
+        if item in self.dataset_variables:
+            with xr.open_dataset(self.relativeFilePath.with_suffix('.nc'), engine='h5netcdf') as dataset:
                 return dataset[item].load()
-        except KeyError:
+        else:
             super().__getattribute__(item)
 
+    def get_data(self, key):
+        with xr.open_dataset(self.relativeFilePath.with_suffix('.nc'), engine='h5netcdf') as dataset:
+            return dataset[key].load()
+
+    @property
+    def dataset(self):
+        with xr.open_dataset(self.relativeFilePath.with_suffix('.nc'), engine='h5netcdf') as dataset:
+            return dataset.load()
 
     # def get_coordinates(self, selected=False):
     #     if selected:
@@ -261,7 +275,7 @@ class File:
         dataset = dataset.reset_index('molecule').rename(molecule_='molecule_in_file')
         dataset = dataset.assign_coords({'file': ('molecule', [str(self.relativeFilePath)]*number_of_molecules)})
 
-        dataset.to_netcdf(self.relativeFilePath.with_suffix('.nc'), engine='netcdf4', mode='w')
+        dataset.to_netcdf(self.relativeFilePath.with_suffix('.nc'), engine='h5netcdf', mode='w')
         self.extensions.add('.nc')
 
     def findAndAddExtensions(self):
@@ -628,7 +642,7 @@ class File:
         # Reset current .nc file
         self._init_dataset(len(coordinates.molecule))
 
-        coordinates.to_netcdf(self.relativeFilePath.with_suffix('.nc'), mode='a')
+        coordinates.to_netcdf(self.relativeFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
         self.extract_background()
 
         # self.molecules.export_pks_file(self.relativeFilePath.with_suffix('.pks'))
@@ -642,7 +656,7 @@ class File:
             background_list.append(extract_background(channel_image, channel_coordinates, method='ROI_minimum'))
 
         background = xr.DataArray(np.vstack(background_list).T, dims=['molecule','channel'], name='background')
-        background.to_netcdf(self.relativeFilePath.with_suffix('.nc'), mode='a')
+        background.to_netcdf(self.relativeFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
 
     def import_excel_file(self, filename=None):
         if filename is None:
@@ -711,7 +725,7 @@ class File:
         # number_of_molecules = len(traces) // self.number_of_channels
         # traces = traces.reshape((number_of_molecules, self.number_of_channels, self.movie.number_of_frames)).swapaxes(0, 1)
 
-        intensity.to_netcdf(self.relativeFilePath.with_suffix('.nc'), mode='a')
+        intensity.to_netcdf(self.relativeFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
 
         #self.export_traces_file()
 
@@ -727,7 +741,7 @@ class File:
         background = peaks.sel(parameter='background', drop=True)
 
         xr.Dataset({'coordinates': coordinates, 'background': background})\
-            .to_netcdf(self.relativeFilePath.with_suffix('.nc'), mode='a')
+            .to_netcdf(self.relativeFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
 
     def export_pks_file(self):
         peaks = xr.merge([self.coordinates.to_dataset('dimension'), self.background.to_dataset()])\
@@ -743,7 +757,7 @@ class File:
         if not self.relativeFilePath.with_suffix('.nc').is_file():
             self._init_dataset(len(intensity.molecule))
 
-        xr.Dataset({'intensity': intensity}).to_netcdf(self.relativeFilePath.with_suffix('.nc'), mode='a')
+        xr.Dataset({'intensity': intensity}).to_netcdf(self.relativeFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
 
     def export_traces_file(self):
         traces = self.intensity.stack(trace=('molecule', 'channel')).T
@@ -913,7 +927,7 @@ class File:
         for file in self.experiment.selectedFiles:
             if file is not self:
                 file._init_dataset(len(self.molecule))
-                self.coordinates.to_netcdf(file.relativeFilePath.with_suffix('.nc'))
+                self.coordinates.to_netcdf(file.relativeFilePath.with_suffix('.nc'), engine='h5netcdf')
 
     def use_mapping_for_all_files(self):
         self.is_mapping_file = True
