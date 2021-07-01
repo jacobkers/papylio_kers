@@ -157,6 +157,10 @@ class Experiment:
             if file.is_mapping_file:
                 return file
 
+    @property
+    def nc_file_paths(self):
+        return [file.relativeFilePath.with_suffix('.nc') for file in self.files if '.nc' in file.extensions]
+
     def import_config_file(self):
         """Import configuration file from main folder into the configuration property."""
         with self.main_path.joinpath('config.yml').open('r') as yml_file:
@@ -307,3 +311,23 @@ class Experiment:
         for molecule in self.molecules:
             molecule.plot()
             input("Press enter to continue")
+
+    def plot_trace(self, files=None, query={}):
+        from trace_analysis.trace_plot import TraceAnalysisFrame
+        import wx
+
+        if files is None:
+            files = self.files
+
+        file_paths = [file.relativeFilePath.with_suffix('.nc') for file in files if '.nc' in file.extensions]
+
+        with xr.open_mfdataset(file_paths, concat_dim='molecule', combine='nested') as ds:
+            ds_sel = ds.query(query).reset_index('molecule', drop=True)  # HJ1_WT, HJ7_G116T
+            app = wx.App(False)
+            # app = wit.InspectableApp()
+            frame = TraceAnalysisFrame(None, ds_sel, "Sample editor")
+            # frame.molecules = exp.files[1].molecules
+            # print('test')
+            # import wx.lib.inspection
+            # wx.lib.inspection.InspectionTool().Show()
+            app.MainLoop()

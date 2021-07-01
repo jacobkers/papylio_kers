@@ -211,8 +211,9 @@ class File:
         if item in self.dataset_variables:
             with xr.open_dataset(self.relativeFilePath.with_suffix('.nc'), engine='h5netcdf') as dataset:
                 return dataset[item].load()
-        else:
-            super().__getattribute__(item)
+        # else:
+        #     super().__getattribute__(item)
+        raise AttributeError
 
     def get_data(self, key):
         with xr.open_dataset(self.relativeFilePath.with_suffix('.nc'), engine='h5netcdf') as dataset:

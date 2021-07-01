@@ -15,25 +15,27 @@ from matplotlib.backends.backend_wxagg import NavigationToolbar2WxAgg as Navigat
 
 
 class TraceAnalysisFrame(wx.Frame):
-    def __init__(self, molecules, parent=None, title='Traces'):
-        wx.Frame.__init__(self, parent, title=title, size=(1400,700))
+    def __init__(self, parent=None, dataset=None, title='Traces'):
+        wx.Frame.__init__(self, parent, title=title, size=(1400, 700))
         self.parent = parent
         self.panel = TraceAnalysisPanel(parent=self)
-        self.molecules = molecules
+        self.dataset = dataset
         #self.Bind(wx.EVT_CLOSE, self.OnClose)
 
         self.Bind(wx.EVT_CHAR_HOOK, self.OnNavigationKey)
 
+        self.molecule_index = 0
+
         self.Show()
 
-    @property
-    def molecules(self):
-        return self._molecules
+    # @property
+    # def molecules(self):
+    #     return self._molecules
+    #
+    # @molecules.setter
+    # def molecules(self, molecules):
+    #     self._molecules = molecules
 
-    @molecules.setter
-    def molecules(self, molecules):
-        self._molecules = molecules
-        self.molecule_index = 0
 
     @property
     def molecule_index(self):
@@ -42,10 +44,10 @@ class TraceAnalysisFrame(wx.Frame):
     @molecule_index.setter
     def molecule_index(self, molecule_index):
         self._molecule_index = molecule_index
-        self.molecule = self.molecules[molecule_index]
+        self.molecule = self.dataset.isel(molecule=self.molecule_index)
 
     def next_molecule(self):
-        if (self.molecule_index+1) < len(self.molecules):
+        if (self.molecule_index+1) < len(self.dataset.molecule):
             self.molecule_index += 1
 
     def previous_molecule(self):
@@ -62,7 +64,7 @@ class TraceAnalysisFrame(wx.Frame):
 
     def OnNavigationKey(self, event):
         key_code = event.GetKeyCode()
-        print(key_code)
+        # print(key_code)
         if key_code == 316:
             self.next_molecule()
         elif key_code == 314:
@@ -74,13 +76,31 @@ class TraceAnalysisPanel(wx.Panel):
         wx.Panel.__init__(self, parent, id=id, size=(1400,700), **kwargs)
 
 
-        self.figure = mpl.figure.Figure(dpi=dpi)#, figsize=(2, 2))
-        self.axes=self.figure.subplots(2,1)
+        self.figure = mpl.figure.Figure(dpi=dpi, constrained_layout=True)#, figsize=(2, 2))
+
+        grid = self.figure.add_gridspec(2, 2, width_ratios=[10, 1]) #, height_ratios=(2, 7),
+                         # left=0.1, right=0.9, bottom=0.1, top=0.9,
+                         # wspace=0.05, hspace=0.05)
+        self.intensity_plot = self.figure.add_subplot(grid[0, 0])
+        self.FRET_plot = self.figure.add_subplot(grid[1, 0], sharex=self.intensity_plot)
+        self.intensity_histogram = self.figure.add_subplot(grid[0, 1], sharey=self.intensity_plot)
+        self.FRET_histogram = self.figure.add_subplot(grid[1, 1], sharex=self.intensity_histogram, sharey=self.FRET_plot)
+
         # self.figure = plt.Figure(dpi=dpi, figsize=(2,2))
         #
         # self.axis = self.figure.gca()
 
         #self.figure, self.axes = mpl.figure.Figure().subplots(2,1)
+
+        self.intensity_plot.set_ylim(-5000, 35000)
+        self.FRET_plot.set_ylim(0, 1)
+
+        self.intensity_plot.set_ylabel('Intensity (a. u.)')
+        self.FRET_plot.set_ylabel('FRET (-)')
+        self.FRET_plot.set_xlabel('Time (0.1 s)')
+
+        self.intensity_histogram.get_yaxis().set_visible(False)
+        self.FRET_histogram.get_yaxis().set_visible(False)
 
         self.canvas = FigureCanvas(self, -1, self.figure)
         self.toolbar = NavigationToolbar(self.canvas)
@@ -103,21 +123,43 @@ class TraceAnalysisPanel(wx.Panel):
     def molecule(self, molecule):
         self._molecule = molecule
 
+        g = molecule.intensity.sel(channel=0).values
+        r = molecule.intensity.sel(channel=1).values
+        e = r/(g+r)
+
         if not self.artists:
-            self.artists += self.axes[0].plot(molecule.intensity[0, :].T, c='g')
-            self.artists += self.axes[0].plot(molecule.intensity[1, :].T, c='r')
-            self.artists += self.axes[1].plot(molecule.E().T, c='b')
+            self.artists += [self.intensity_plot.plot(g, c='g')]
+            self.artists += [self.intensity_plot.plot(r, c='r')]
+            self.artists += [self.FRET_plot.plot(e, c='b')]
+            self.artists += [[self.intensity_plot.set_title('test')]]
+            self.artists += [self.intensity_histogram.hist(g, bins=100, orientation='horizontal',
+                                                           range=self.intensity_plot.get_ylim(), color='g', alpha=0.5)[2]]
+            self.artists += [self.intensity_histogram.hist(r, bins=100, orientation='horizontal',
+                                                           range=self.intensity_plot.get_ylim(), color='r', alpha=0.5)[2]]
+            self.artists += [self.FRET_histogram.hist(e, bins=100, orientation='horizontal',
+                                                      range=self.FRET_plot.get_ylim(), color='b')[2]]
+
             #self.axes[1].plot(molecule.E(), animate=True)
-            self.bm = BlitManager(self.canvas, self.artists)
+            self.bm = BlitManager(self.canvas, [a for b in self.artists for a in b])
             self.canvas.draw()
 
         # for axis in self.axes:
         #     axis.cla()
-
-        self.artists[0].set_ydata(molecule.intensity[0,:])
-        self.artists[1].set_ydata(molecule.intensity[1,:])
-        self.artists[2].set_ydata(molecule.E())
-
+        import numpy as np
+        self.artists[0][0].set_ydata(g)
+        self.artists[1][0].set_ydata(r)
+        self.artists[2][0].set_ydata(e)
+        self.artists[3][0].set_text(molecule.sequence_name.values)
+        n, _ = np.histogram(g, 100, range=self.intensity_plot.get_ylim())
+        for count, artist in zip(n, self.artists[4]):
+            artist.set_width(count)
+        n, _ = np.histogram(r, 100, range=self.intensity_plot.get_ylim())
+        for count, artist in zip(n, self.artists[5]):
+            artist.set_width(count)
+        n, _ = np.histogram(e, 100, range=self.FRET_plot.get_ylim())
+        for count, artist in zip(n, self.artists[6]):
+            artist.set_width(count)
+            #for count, rect in zip(n, bar_container.patches):
         # tell the blitting manager to do its thing
         self.bm.update()
 
@@ -245,21 +287,28 @@ class BlitManager:
 #        # self.Bind(wx.EVT_CLOSE, self.OnClose)
 #        self.Show()
 
-import trace_analysis as ta
-#exp = ta.Experiment(r'D:\SURFdrive\Promotie\Code\Python\traceAnalysis\twoColourExampleData\20141017 - Holliday junction - Copy')
-exp = ta.Experiment(r'D:\20200918 - Test data\Single-molecule data small')
-# print(exp.files)
-# m = exp.files[1].molecules[0]
-# print(exp.files[2])
+if __name__ == "__main__":
 
-app = wx.App(False)
-# app = wit.InspectableApp()
-frame = TraceAnalysisFrame(None, m, "Sample editor")
-# frame.molecules = exp.files[1].molecules
-print('test')
-import wx.lib.inspection
-wx.lib.inspection.InspectionTool().Show()
-app.MainLoop()
+    import trace_analysis as ta
+    #exp = ta.Experiment(r'D:\SURFdrive\Promotie\Code\Python\traceAnalysis\twoColourExampleData\20141017 - Holliday junction - Copy')
+    exp = ta.Experiment(r'D:\20200918 - Test data\Single-molecule data small')
+    # exp = ta.Experiment(r'D:\SURFdrive\Promotie\Data\Test data')
+    # exp = ta.Experiment(r'/Users/ivoseverins/SURFdrive/Promotie/Data/Test data')
+    # print(exp.files)
+    # m = exp.files[1].molecules[0]
+    # print(exp.files[2])
+    import xarray as xr
+    file_paths = [p for p in exp.nc_file_paths if '561' in str(p)]
+    with xr.open_mfdataset(exp.nc_file_paths, concat_dim='molecule', combine='nested') as ds:
+        ds_sel = ds.sel(molecule=ds.sequence_name=='HJ7_G116T').reset_index('molecule', drop=True) # HJ1_WT, HJ7_G116T
+        app = wx.App(False)
+        # app = wit.InspectableApp()
+        frame = TraceAnalysisFrame(None, ds_sel, "Sample editor")
+        # frame.molecules = exp.files[1].molecules
+        print('test')
+        import wx.lib.inspection
+        wx.lib.inspection.InspectionTool().Show()
+        app.MainLoop()
 
 
 
