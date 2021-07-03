@@ -75,7 +75,7 @@ class File:
         self._average_image = None
         self._maximum_projection_image = None
 
-        self.datset_variables = ['molecule', 'coordinates', 'background', 'intensity', 'selected', 'molecule_in_file']
+        self.dataset_variables = ['molecule', 'coordinates', 'background', 'intensity', 'FRET', 'selected', 'molecule_in_file']
 
         # I think it will be easier if we have import functions for specific data instead of specific files.
         # For example. the sifx, pma and tif files can better be handled in the Movie class. Here we then just have a method import_movie.
@@ -728,7 +728,19 @@ class File:
 
         intensity.to_netcdf(self.relativeFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
 
+        self.calculate_FRET()
+
         #self.export_traces_file()
+
+    def calculate_FRET(self):
+        # TODO: Make suitable for mutliple colours
+        # TODO: Implement corrections
+        donor = self.intensity.sel(channel=0, drop=True)
+        acceptor = self.intensity.sel(channel=1, drop=True)
+        FRET = acceptor/(donor+acceptor)
+        FRET.name = 'FRET'
+        FRET.to_netcdf(self.relativeFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
+
 
     def import_pks_file(self):
         peaks = import_pks_file(self.relativeFilePath.with_suffix('.pks'))

@@ -322,7 +322,7 @@ class Experiment:
         file_paths = [file.relativeFilePath.with_suffix('.nc') for file in files if '.nc' in file.extensions]
 
         with xr.open_mfdataset(file_paths, concat_dim='molecule', combine='nested') as ds:
-            ds_sel = ds.query(query).reset_index('molecule', drop=True)  # HJ1_WT, HJ7_G116T
+            ds_sel = ds.query(query)  # HJ1_WT, HJ7_G116T
             app = wx.App(False)
             # app = wit.InspectableApp()
             frame = TraceAnalysisFrame(None, ds_sel, "Sample editor")

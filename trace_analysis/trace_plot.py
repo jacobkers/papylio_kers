@@ -125,7 +125,7 @@ class TraceAnalysisPanel(wx.Panel):
 
         g = molecule.intensity.sel(channel=0).values
         r = molecule.intensity.sel(channel=1).values
-        e = r/(g+r)
+        e = molecule.FRET.values
 
         if not self.artists:
             self.artists += [self.intensity_plot.plot(g, c='g')]
