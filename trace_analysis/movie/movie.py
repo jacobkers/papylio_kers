@@ -140,8 +140,8 @@ class Movie:
                              dims=('x', 'y', 'channel'),
                              coords={'channel': [channel.index for channel in self.channels]})
 
-        channels = self.get_channel_from_name(channel)
-        channel_indices = self.get_channel_index_from_name(channel)
+        channels = self.get_channels_from_names(channel)
+        channel_indices = self.get_channel_indices_from_names(channel)
         frame = frame.sel(channel=channel_indices)
 
         if self.illumination_correction is not None:
@@ -165,7 +165,7 @@ class Movie:
         if not isinstance(channel, Channel):
             channel = self.get_channel_from_name(channel)
 
-        return channel[0].crop_image(image)
+        return channel.crop_image(image)
 
     def get_channel_from_name(self, channel_name):
         """Get the channel index belonging to a specific channel (name)
@@ -182,17 +182,34 @@ class Movie:
             The index of the channel to which the channel name belongs
 
         """
-        if channel_name in [None, 'all']:
-            return self.channels
-
         for channel in self.channels:
             if channel_name in channel.names:
-                return [channel]
+                return channel
         else:
             raise ValueError('Channel name not found')
 
-    def get_channel_index_from_name(self, channel_name):
-        channels = self.get_channel_from_name(channel_name)
+    def get_channels_from_names(self, channel_names):
+        """Get the channel index belonging to a specific channel (name)
+        If
+
+        Parameters
+        ----------
+        channel : str or int
+            The name or number of a channel
+
+        Returns
+        -------
+        i: int
+            The index of the channel to which the channel name belongs
+
+        """
+        if channel_names in [None, 'all']:
+            return self.channels
+
+        return [self.get_channel_from_name(channel_name) for channel_name in channel_names]
+
+    def get_channel_indices_from_names(self, channel_names):
+        channels = self.get_channels_from_names(channel_names)
         return [channel.index for channel in channels]
 
     def saveas_tif(self):
