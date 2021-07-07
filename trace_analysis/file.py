@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt #Provides a MATLAB-like plotting framework
 import skimage.io as io
 import skimage as ski
 import warnings
+import sys
 from trace_analysis.molecule import Molecule
 from trace_analysis.movie.sifx import SifxMovie
 from trace_analysis.movie.pma import PmaMovie
@@ -517,6 +518,7 @@ class File:
             else:
                 raise ValueError(f'"{method}" is not a valid method.')
 
+            print(f' Finding molecules in {self}')
             for i, channel_image in enumerate(channel_images):
                 channel_coordinates = find_peaks(image=channel_image, **peak_finding_configuration)  # .astype(int)))
 
@@ -573,7 +575,8 @@ class File:
             coordinates_list.append(coordinates_in_other_channel)
         coordinates = np.hstack(coordinates_list).reshape((-1, 2))
 
-
+        sys.stdout.write('\r')
+        print(f'   {coordinates.shape[0]} molecules found')
 
         # should also have incorporated check coordinatesDA_within_margin from MD_check_boundaries
         # --- finally, we set the coordinates of the molecules ---
@@ -583,6 +586,7 @@ class File:
         self.export_pks_file()
 
     def extract_background(self):
+        print(f' Calculating background in {self}')
         background_list = []
         for i, channel in enumerate(self.movie.channels):
             channel_image = self.movie.get_channel(self.average_image, i)
@@ -652,17 +656,26 @@ class File:
 
         if self.movie is None: raise FileNotFoundError('No movie file was found')
 
+        print(f' Extracting traces in {self}')
+
         if configuration is None: configuration = self.experiment.configuration['trace_extraction']
         channel = configuration['channel']  # Default was 'all'
-        gaussian_width = configuration['gaussian_width']  # Default was 11
+        # gaussian_width = configuration['gaussian_width']  # Default was 11
+        mask_size = configuration['mask_size']  # Default was 11
+        neighbourhood_size = configuration['neighbourhood_size']  # Default was 11
         subtract_background = configuration['subtract_background']
+
+        if mask_size == 'TIR-T' or mask_size == 'TIR-V':
+            mask_size = 1.291
 
         if subtract_background:
             background = self.background
         else:
             background = None
+        # traces = extract_traces(self.movie, self.coordinates, background=background, channel=channel,
+        #                         gauss_width=gaussian_width)
         traces = extract_traces(self.movie, self.coordinates, background=background, channel=channel,
-                                gauss_width=gaussian_width)
+                                mask_size=mask_size, neighbourhood_size=neighbourhood_size)
         number_of_molecules = len(traces) // self.number_of_channels
         traces = traces.reshape((number_of_molecules, self.number_of_channels, self.movie.number_of_frames)).swapaxes(0, 1)
 
@@ -777,7 +790,8 @@ class File:
         if acceptor_coordinates.size == 0: #should throw a error message to warm no acceptor molecules found
             print('No acceptor molecules found')
         acceptor_coordinates = transform(acceptor_coordinates, translation=[image.shape[0]//2, 0])
-        print(acceptor_coordinates.shape, donor_coordinates.shape)
+        # print(acceptor_coordinates.shape, donor_coordinates.shape)
+        print(f'Donor: {donor_coordinates.shape[0]}, Acceptor: {acceptor_coordinates.shape[0]}')
         coordinates = np.append(donor_coordinates, acceptor_coordinates, axis=0)
 
         # coordinate_optimization_functions = \
@@ -849,6 +863,7 @@ class File:
                 file.export_pks_file()
 
     def use_mapping_for_all_files(self):
+        print(f"\n{File} used as mapping")
         self.is_mapping_file = True
         #mapping = self.movie.use_for_mapping()
         for file in self.experiment.files:

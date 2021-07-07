@@ -98,6 +98,8 @@ class Experiment:
 
         self.addAllFilesInMainPath()
 
+        print('\nInitialize experiment: \n' + str(self.mainPath))
+
     def __repr__(self):
         return (f'{self.__class__.__name__}({self.name})')
 
@@ -298,3 +300,8 @@ class Experiment:
         for molecule in self.molecules:
             molecule.plot()
             input("Press enter to continue")
+
+    def print_files(self):
+        for i, file in enumerate(self.files):
+            print(f"{i:3d}.  {file.relativeFilePath}")
+

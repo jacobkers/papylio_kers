@@ -1,3 +1,5 @@
+import sys
+
 import numpy as np
 
 # def make_gaussian(size, fwhm = 3, center=None):
@@ -20,13 +22,50 @@ import numpy as np
 #
 #     return np.exp(-4*np.log(2) * ((x-x0)**2 + (y-y0)**2) / fwhm**2)
 
-def make_gaussian(size, center=None, offset=[0,0]):
+
+def make_gaussian_mask(size, center=None, offset=(0, 0), sigma=1.291):
+    # TODO: Explain calculation in docstring
+    # It is to keep the photon number the same after applying the mask.
+    # If there is a PSF of N photons, which is nothing but a 2D Gauss function with given sigma and amplitude,
+    # the sum of the pixel is N. The idea is that the pixel sum should be the same after applying the mask.
+    # The normalization factor is calculated to compensate the amplitude of 2D Gaussian after applying the mask.
+    # The normalization factor should be different for different PSF size (i.e. different magnification or setup).
+    # So N = sum(mask * (psf_single_photon*N)), and so sum(mask*psf_single_photon)
+    # Both the mask and the psf are 2d Gaussians
+
     x = np.arange(0, size, 1, float)
-    y = x[:,np.newaxis]
+    y = x[:, np.newaxis]
 
     if center is None: center = [size // 2, size //2]
+    #
+    # mask_IDL = 2.0 * np.exp(- 0.3 * ((x - center[0] - offset[0]) ** 2 + (y - center[0] - offset[1]) ** 2))
+    mask = np.exp(-((x - center[0] - offset[0]) ** 2 + (y - center[0] - offset[1]) ** 2) / sigma**2 / 2)
+    psf_single_photon = mask/np.sum(mask)
+    norm_factor = np.sum(np.multiply(mask, psf_single_photon))
+    mask = np.divide(mask, norm_factor)
 
-    return 2.0 * np.exp(- 0.3 * ((x-center[0]-offset[0])**2 + (y-center[0]-offset[1])**2))
+    ### SHK to del. for debug
+    # print(np.sum(np.multiply(mask, psf_single_photon)))
+    # import matplotlib.pyplot as plt
+    # from mpl_toolkits.mplot3d import Axes3D
+    #
+    # fig = plt.figure(1101)
+    # fig.clf()
+    # ax = plt.axes(projection='3d')
+    # ax.plot_surface(x, y, mask_IDL)
+    # fig = plt.figure(1102)
+    # ax = plt.axes(projection='3d')
+    # ax.plot_surface(x, y, mask)
+    # xx, yy = np.meshgrid(x,y)
+    # ax.scatter(xx, yy, mask_IDL, c='k', depthshade=False, alpha=1, s=30)
+    # plt.show()
+    # fig = plt.figure(1103)
+    # ax = plt.axes(projection='3d')
+    # ax.plot_surface(x, y, np.subtract(mask_IDL, mask))
+    # plt.show()
+    ### END of SHK del
+
+    return mask
 
 def extract_trace_values_from_image(image, coordinates, background, twoD_gaussians):  # extract traces
     coordinates = np.atleast_2d(coordinates)
@@ -55,7 +94,7 @@ def extract_trace_values_from_image(image, coordinates, background, twoD_gaussia
     return trace_values
 
 
-def extract_traces(movie, coordinates, background=None, channel='all', gauss_width=4):
+def extract_traces(movie, coordinates, background=None, channel='all', mask_size=1.291, neighbourhood_size=11):
     # return donor and acceptor for the full data set
     #     root, name = os.path.split(self.filepath)
     #     traces_fn=os.path.join(root,name[:-4]+'-P.traces')
@@ -91,16 +130,19 @@ def extract_traces(movie, coordinates, background=None, channel='all', gauss_wid
     #twoD_gaussian = make_gaussian(gauss_width, fwhm=3, center=(gauss_width // 2, gauss_width // 2))
 
     offsets = coordinates % 1
-
-    twoD_gaussians = [make_gaussian(gauss_width, offset=offsets[i]) for i in range(len(coordinates))]
+    twoD_gaussians = [make_gaussian_mask(size=neighbourhood_size, offset=offsets[i], sigma=mask_size) for i in range(len(coordinates))]
 
     for frame_number in range(movie.number_of_frames):  # self.number_of_frames also works for pm, len(self.movie_file_object.filelist) not
-        print(frame_number)
+        # print(frame_number)
+        if frame_number % 13 == 0:
+            sys.stdout.write(f'\r   Frame {frame_number} of {movie.number_of_frames}')
+
         image = movie.read_frame(frame_number)
         image = movie.get_channel(image, channel)
         trace_values_in_frame = extract_trace_values_from_image(image, coordinates, background, twoD_gaussians)
 
         traces[:,frame_number] = trace_values_in_frame  # will multiply with gaussian, spot location is not drift compensated
+    sys.stdout.write(f'\r   Frame {frame_number+1} of {movie.number_of_frames}\n')
     # t1=time.time()
     # elapsed_time=t1-t0; print(elapsed_time)
 

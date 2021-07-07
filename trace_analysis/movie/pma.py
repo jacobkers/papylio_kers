@@ -32,13 +32,7 @@ class PmaMovie(Movie):
         with self.filepath.open('rb') as pma_file:
             self.width = np.fromfile(pma_file, np.int16, count=1)[0].astype(int)
             self.height = np.fromfile(pma_file, np.int16, count=1)[0].astype(int)
-
-        # Is this necessary for just one pma file? Then I think we should not include this. [IS 08-11-2020]
-        if self.width == 0: #required for hel21.pma from Sung Hyun
-            self.width = 512
-            self.height = 512
-
-        self.number_of_frames = int((statinfo.st_size-4)/(self.width*self.height))
+            self.number_of_frames = int((statinfo.st_size-4)/(self.width*self.height))
 
     def _read_frame(self, frame_number):
         with self.filepath.open('rb') as pma_file:
