@@ -518,7 +518,7 @@ class File:
             else:
                 raise ValueError(f'"{method}" is not a valid method.')
 
-            print(f'Finding molecules in {self}')
+            print(f' Finding molecules in {self}')
             for i, channel_image in enumerate(channel_images):
                 channel_coordinates = find_peaks(image=channel_image, **peak_finding_configuration)  # .astype(int)))
 
@@ -586,7 +586,7 @@ class File:
         self.export_pks_file()
 
     def extract_background(self):
-        print(f'Calculating background in {self}')
+        print(f' Calculating background in {self}')
         background_list = []
         for i, channel in enumerate(self.movie.channels):
             channel_image = self.movie.get_channel(self.average_image, i)
@@ -656,7 +656,7 @@ class File:
 
         if self.movie is None: raise FileNotFoundError('No movie file was found')
 
-        print(f'Extracting traces in {self}')
+        print(f' Extracting traces in {self}')
 
         if configuration is None: configuration = self.experiment.configuration['trace_extraction']
         channel = configuration['channel']  # Default was 'all'
