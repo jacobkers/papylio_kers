@@ -518,7 +518,7 @@ class File:
             else:
                 raise ValueError(f'"{method}" is not a valid method.')
 
-            print(' finding  molecules')
+            print(f'Finding molecules in {self}')
             for i, channel_image in enumerate(channel_images):
                 channel_coordinates = find_peaks(image=channel_image, **peak_finding_configuration)  # .astype(int)))
 
@@ -582,11 +582,11 @@ class File:
         # --- finally, we set the coordinates of the molecules ---
         self.molecules = [] # Should we put this here?
         self.coordinates = coordinates
-        print(' calculating background')
         self.extract_background()
         self.export_pks_file()
 
     def extract_background(self):
+        print(f'Calculating background in {self}')
         background_list = []
         for i, channel in enumerate(self.movie.channels):
             channel_image = self.movie.get_channel(self.average_image, i)
@@ -655,6 +655,8 @@ class File:
         self.experiment.import_config_file()
 
         if self.movie is None: raise FileNotFoundError('No movie file was found')
+
+        print(f'Extracting traces in {self}')
 
         if configuration is None: configuration = self.experiment.configuration['trace_extraction']
         channel = configuration['channel']  # Default was 'all'
@@ -789,7 +791,7 @@ class File:
             print('No acceptor molecules found')
         acceptor_coordinates = transform(acceptor_coordinates, translation=[image.shape[0]//2, 0])
         # print(acceptor_coordinates.shape, donor_coordinates.shape)
-        print(f'Acceptor: {acceptor_coordinates.shape[0]}, donor: {donor_coordinates.shape[0]}')
+        print(f'Donor: {donor_coordinates.shape[0]}, Acceptor: {acceptor_coordinates.shape[0]}')
         coordinates = np.append(donor_coordinates, acceptor_coordinates, axis=0)
 
         # coordinate_optimization_functions = \
@@ -861,6 +863,7 @@ class File:
                 file.export_pks_file()
 
     def use_mapping_for_all_files(self):
+        print(f"\n{File} used as mapping")
         self.is_mapping_file = True
         #mapping = self.movie.use_for_mapping()
         for file in self.experiment.files:

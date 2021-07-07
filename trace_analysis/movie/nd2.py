@@ -56,8 +56,7 @@ class ND2Movie(Movie):
             print('pageNb out of range, printed image {0} instead'.format(self.number_of_frames))
         # note: im is a Frame, which is pims.frame.Frame, a np. array with additiona frame umber and metadata
 
-        im1 = np.rot90(im)
-        return im1
+        return im
 
 
 if __name__ == "__main__":

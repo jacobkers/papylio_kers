@@ -23,7 +23,7 @@ import numpy as np
 #     return np.exp(-4*np.log(2) * ((x-x0)**2 + (y-y0)**2) / fwhm**2)
 
 
-def make_gaussian(size, center=None, offset=(0,0), sigma=1.291):
+def make_gaussian(size, center=None, offset=(0, 0), sigma=1.291):
     x = np.arange(0, size, 1, float)
     y = x[:, np.newaxis]
 
@@ -110,7 +110,7 @@ def extract_traces(movie, coordinates, background=None, channel='all', mask_size
 
     # donor=np.zeros(( self.number_of_frames,self.pts_number))
     # acceptor=np.zeros((self.number_of_frames,self.pts_number))
-    print(' Extracting traces')
+
     traces = np.zeros((len(coordinates), movie.number_of_frames))
 
     if background is None:
@@ -126,14 +126,14 @@ def extract_traces(movie, coordinates, background=None, channel='all', mask_size
     for frame_number in range(movie.number_of_frames):  # self.number_of_frames also works for pm, len(self.movie_file_object.filelist) not
         # print(frame_number)
         if frame_number % 13 == 0:
-            sys.stdout.write(f'\r  trace extraction: fr{frame_number}/{movie.number_of_frames}')
+            sys.stdout.write(f'\r   Frame {frame_number} of {movie.number_of_frames}')
 
         image = movie.read_frame(frame_number)
         image = movie.get_channel(image, channel)
         trace_values_in_frame = extract_trace_values_from_image(image, coordinates, background, twoD_gaussians)
 
         traces[:,frame_number] = trace_values_in_frame  # will multiply with gaussian, spot location is not drift compensated
-    sys.stdout.write(f'\r   trace extracted: fr{frame_number+1}/{movie.number_of_frames}\n')
+    sys.stdout.write(f'\r   Frame {frame_number+1} of {movie.number_of_frames}\n')
     # t1=time.time()
     # elapsed_time=t1-t0; print(elapsed_time)
 
