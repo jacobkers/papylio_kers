@@ -33,6 +33,9 @@ class ND2Movie(Movie):
         self.read_header()
         self.create_frame_info()  # Possibly move to Movie later on
 
+        # We should probably put this in the configuration file
+        self.rot90 = 1
+
     def _read_header(self):
         with ND2Reader(self.filepath) as images:
             self.width = images.metadata['width']
