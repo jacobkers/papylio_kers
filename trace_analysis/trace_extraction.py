@@ -23,7 +23,16 @@ import numpy as np
 #     return np.exp(-4*np.log(2) * ((x-x0)**2 + (y-y0)**2) / fwhm**2)
 
 
-def make_gaussian(size, center=None, offset=(0, 0), sigma=1.291):
+def make_gaussian_mask(size, center=None, offset=(0, 0), sigma=1.291):
+    # TODO: Explain calculation in docstring
+    # It is to keep the photon number the same after applying the mask.
+    # If there is a PSF of N photons, which is nothing but a 2D Gauss function with given sigma and amplitude,
+    # the sum of the pixel is N. The idea is that the pixel sum should be the same after applying the mask.
+    # The normalization factor is calculated to compensate the amplitude of 2D Gaussian after applying the mask.
+    # The normalization factor should be different for different PSF size (i.e. different magnification or setup).
+    # So N = sum(mask * (psf_single_photon*N)), and so sum(mask*psf_single_photon)
+    # Both the mask and the psf are 2d Gaussians
+
     x = np.arange(0, size, 1, float)
     y = x[:, np.newaxis]
 
@@ -121,7 +130,7 @@ def extract_traces(movie, coordinates, background=None, channel='all', mask_size
     #twoD_gaussian = make_gaussian(gauss_width, fwhm=3, center=(gauss_width // 2, gauss_width // 2))
 
     offsets = coordinates % 1
-    twoD_gaussians = [make_gaussian(size=neighbourhood_size, offset=offsets[i], sigma=mask_size) for i in range(len(coordinates))]
+    twoD_gaussians = [make_gaussian_mask(size=neighbourhood_size, offset=offsets[i], sigma=mask_size) for i in range(len(coordinates))]
 
     for frame_number in range(movie.number_of_frames):  # self.number_of_frames also works for pm, len(self.movie_file_object.filelist) not
         # print(frame_number)
