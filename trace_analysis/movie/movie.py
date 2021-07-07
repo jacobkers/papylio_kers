@@ -247,13 +247,13 @@ class Movie:
             image = (image / number_of_frames).astype(self.data_type)
             self._average_image = image # Possibly we should save only the overview image not the last image [IS: 20-04-2021]
         elif projection_type == 'maximum':
-            print(' making the maximum projection image')
+            print(f'Making maximum projection image of {self.name}')
             for i, frame_index in enumerate(frame_indices):
                 if i % 13 == 0:
-                    sys.stdout.write(f'\r   fr{frame_index} in {frame_indices[0]}-{frame_indices[-1]}  frames processed')
+                    sys.stdout.write(f'\r   Processing frame {frame_index} in {frame_indices[0]}-{frame_indices[-1]}')
                 frame = self.read_frame(frame_number=frame_index)
                 image = np.maximum(image, frame)
-            sys.stdout.write(f'\r   {frame_index+1} frames processed in {frame_indices[0]}-{frame_indices[-1]}\n')
+            sys.stdout.write(f'\r   Processed frames {frame_indices[0]}-{frame_indices[-1]}\n')
             self._maximum_projection_image = image # Possibly we should save only the overview image not the last image [IS: 20-04-2021]
 
         if write:
