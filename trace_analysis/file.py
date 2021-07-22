@@ -789,7 +789,7 @@ class File:
                                           **configuration['peak_finding']['acceptor'])
         if acceptor_coordinates.size == 0: #should throw a error message to warm no acceptor molecules found
             print('No acceptor molecules found')
-        acceptor_coordinates = transform(acceptor_coordinates, translation=[image.shape[0]//2, 0])
+        acceptor_coordinates = transform(acceptor_coordinates, translation=[image.shape[1]//2, 0])
         # print(acceptor_coordinates.shape, donor_coordinates.shape)
         print(f'Donor: {donor_coordinates.shape[0]}, Acceptor: {acceptor_coordinates.shape[0]}')
         coordinates = np.append(donor_coordinates, acceptor_coordinates, axis=0)
@@ -828,9 +828,10 @@ class File:
         # self.coordinates = np.hstack([donor_coordinates, acceptor_coordinates]).reshape((-1, 2))
 
         if ('initial_translation' in configuration) and (configuration['initial_translation'] == 'width/2'):
-            initial_transformation = {'translation': [image.shape[0] // 2, 0]}
+            # initial_transformation = {'translation': [image.shape[0] // 2, 0]}
+            initial_transformation = {'translation': [image.shape[1] // 2, 0]}
         else:
-            if configuration['initial_translation'][0]=='[': # remove brackets
+            if configuration['initial_translation'][0] == '[':  # remove brackets
                 arr = [float(x) for x in configuration['initial_translation'][1:-1].split(' ')]
                 initial_transformation = {'translation': arr}
             else:
