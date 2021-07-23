@@ -1,4 +1,6 @@
 import numpy as np
+import pandas as pd
+import xarray as xr
 import tifffile
 
 from trace_analysis.movie.movie import Movie
@@ -28,6 +30,10 @@ class TifMovie(Movie):
             self.height = tif_tags['ImageLength']
             self.number_of_frames = len(tif.pages)
             self.data_type = np.dtype(f"uint{tif_tags['BitsPerSample']}")
+
+            self.datetime = pd.to_datetime([page.tags['DateTime'].value for page in tif.pages])
+            self.time = xr.DataArray((self.datetime-self.datetime[0]).total_seconds(), dims='frame',
+                                     coords={}, attrs={'units': 's'})
 
             try:
                 if tif.metaseries_metadata:

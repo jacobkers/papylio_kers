@@ -314,6 +314,13 @@ if __name__ == "__main__":
 
 
 
+# Add time to existing .nc file
+# for file in exp.files:
+#     with xr.open_dataset(file.absoluteFilePath.with_suffix('.nc')) as ds:
+#         i = ds.intensity.load()
+#     test = i.assign_coords(time=file.movie.time)
+#     test.to_netcdf(file.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
+
 
 #
 # from matplotlib import use

@@ -726,6 +726,9 @@ class File:
         # number_of_molecules = len(traces) // self.number_of_channels
         # traces = traces.reshape((number_of_molecules, self.number_of_channels, self.movie.number_of_frames)).swapaxes(0, 1)
 
+        if hasattr(self.movie, 'time'):
+            intensity.assign_coords(time=self.movie.time)
+
         intensity.to_netcdf(self.relativeFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
 
         self.calculate_FRET()
