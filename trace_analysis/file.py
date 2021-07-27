@@ -473,8 +473,10 @@ class File:
         if method == 'by_channel':
             coordinate_sets = [set() for channel in channels]
         elif method in ('average_channels', 'sum_channels'):
-            if len(channels) < 2:
-                raise ValueError('No channels to overlay')
+            # SHK: following two lines are not needed for average/sum channels
+            # if len(channels) < 2:
+            #     raise ValueError('No channels to overlay')
+            # END SHK
             coordinate_sets = [set()]
 
         # coordinates_sets = dict([(channel, set()) for channel in channels])
@@ -571,8 +573,22 @@ class File:
         for i in range(self.number_of_channels)[1:]:
             if self.number_of_channels > 2:
                 raise NotImplementedError()
-            coordinates_in_other_channel = self.mapping.transform_coordinates(coordinates_in_main_channel, direction='Donor2Acceptor')
-            coordinates_list.append(coordinates_in_other_channel)
+            ## SHK: This improvised modification is only for the case of finding peaks from Acceptor channel. This part (including above) need to be re-structured. (26JUL21)
+            # original code:
+            # coordinates_list.append(coordinates_in_other_channel)
+            # coordinates_in_other_channel = self.mapping.transform_coordinates(coordinates_in_main_channel, direction='Donor2Acceptor')
+            # modified code:
+            if len(channels) == 1 and (channels[0] == 'a' or channels[0] == 'acceptor'):
+                mapping_direction = 'Acceptor2Donor'
+                coordinates_in_other_channel = self.mapping.transform_coordinates(coordinates_in_main_channel, direction=mapping_direction)
+                coordinates_list = [coordinates_in_other_channel]
+                coordinates_list.append(coordinates_in_main_channel)
+            else:
+                mapping_direction = 'Donor2Acceptor'
+                coordinates_in_other_channel = self.mapping.transform_coordinates(coordinates_in_main_channel, direction=mapping_direction)
+                coordinates_list.append(coordinates_in_other_channel)
+            ## END SHK
+
         coordinates = np.hstack(coordinates_list).reshape((-1, 2))
 
         sys.stdout.write('\r')
@@ -656,7 +672,7 @@ class File:
 
         if self.movie is None: raise FileNotFoundError('No movie file was found')
 
-        print(f' Extracting traces in {self}')
+        print(f'\n Extracting traces in {self}')
 
         if configuration is None: configuration = self.experiment.configuration['trace_extraction']
         channel = configuration['channel']  # Default was 'all'

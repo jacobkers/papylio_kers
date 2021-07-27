@@ -241,13 +241,17 @@ class Movie:
         number_of_frames = len(frame_indices)
 
         if projection_type == 'average':
-            for frame_index in frame_indices:
+            if len(frame_indices) > 100:
+                print(f'\n Making average image of {self.name}')
+            for i, frame_index in enumerate(frame_indices):
+                if len(frame_indices) > 100 and i % 13 == 0:
+                    sys.stdout.write(f'\r   Processing frame {frame_index} in {frame_indices[0]}-{frame_indices[-1]}')
                 frame = self.read_frame(frame_number=frame_index, channel=channel).astype(float)
                 image = image + frame
             image = (image / number_of_frames).astype(self.data_type)
             self._average_image = image # Possibly we should save only the overview image not the last image [IS: 20-04-2021]
         elif projection_type == 'maximum':
-            print(f'Making maximum projection image of {self.name}')
+            print(f'\n Making maximum projection image of {self.name}')
             for i, frame_index in enumerate(frame_indices):
                 if i % 13 == 0:
                     sys.stdout.write(f'\r   Processing frame {frame_index} in {frame_indices[0]}-{frame_indices[-1]}')
