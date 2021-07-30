@@ -27,7 +27,7 @@ def histogram(molecules, axis=None, bins=100, parameter='E', molecule_averaging=
     # axis.hist(data,100)
     # data = np.concatenate([molecule.E() for molecule in molecules])
 
-    if parameter is 'E':
+    if parameter == 'E':
         if molecule_averaging:
             data = np.array([np.mean(molecule.E()) for molecule in molecules])
         else:

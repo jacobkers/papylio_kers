@@ -11,17 +11,21 @@ mpl.use('WXAgg')
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg as FigureCanvas
 from matplotlib.backends.backend_wxagg import NavigationToolbar2WxAgg as NavigationToolbar
-
+import numpy as np
 
 
 class TraceAnalysisFrame(wx.Frame):
-    def __init__(self, parent=None, dataset=None, title='Traces'):
+    def __init__(self, parent=None, dataset=None, title='Traces', plot_variables=['intensity', 'FRET'],
+                 ylims=[(0, 35000), (0, 1)], colours=[('g', 'r'), ('b')]):
         wx.Frame.__init__(self, parent, title=title, size=(1400, 700))
         self.parent = parent
-        self.panel = TraceAnalysisPanel(parent=self)
         self.dataset = dataset
+        self.plot_variables = plot_variables
+        self.ylims = ylims
+        self.colours = colours
         #self.Bind(wx.EVT_CLOSE, self.OnClose)
-
+        self.trace_panel = TraceAnalysisPanel(parent=self)
+        # self.control_panel = ControlPanel(parent=self)
         self.Bind(wx.EVT_CHAR_HOOK, self.OnNavigationKey)
 
         self.molecule_index = 0
@@ -60,7 +64,7 @@ class TraceAnalysisFrame(wx.Frame):
 
     @molecule.setter
     def molecule(self, molecule):
-        self.panel.molecule = molecule
+        self.trace_panel.molecule = molecule
 
     def OnNavigationKey(self, event):
         key_code = event.GetKeyCode()
@@ -71,20 +75,61 @@ class TraceAnalysisFrame(wx.Frame):
             self.previous_molecule()
 
 
+# class ControlPanel(wx.Panel):
+# To file/molecule
+# Selected button changes colour (spacebar)
+# Y-axis limits
+# Classification technique - change classification pannel based on specific technique
+
+# class Threshold_classification_panel
+
+# class HMM_classification_panel
+
+
+
+
 class TraceAnalysisPanel(wx.Panel):
+    # Kader om plot als geselecteerd
+    # Autosave function
     def __init__(self, parent, id=-1, dpi=None, **kwargs):
         wx.Panel.__init__(self, parent, id=id, size=(1400,700), **kwargs)
 
-
+        self.parent = parent
         self.figure = mpl.figure.Figure(dpi=dpi, constrained_layout=True)#, figsize=(2, 2))
 
-        grid = self.figure.add_gridspec(2, 2, width_ratios=[10, 1]) #, height_ratios=(2, 7),
+        plot_variables = self.parent.plot_variables
+
+        grid = self.figure.add_gridspec(len(plot_variables), 2, width_ratios=[10, 1]) #, height_ratios=(2, 7),
                          # left=0.1, right=0.9, bottom=0.1, top=0.9,
                          # wspace=0.05, hspace=0.05)
-        self.intensity_plot = self.figure.add_subplot(grid[0, 0])
-        self.FRET_plot = self.figure.add_subplot(grid[1, 0], sharex=self.intensity_plot)
-        self.intensity_histogram = self.figure.add_subplot(grid[0, 1], sharey=self.intensity_plot)
-        self.FRET_histogram = self.figure.add_subplot(grid[1, 1], sharex=self.intensity_histogram, sharey=self.FRET_plot)
+
+        self.plot_axes = {}
+        self.histogram_axes = {}
+
+        for i, plot_variable in enumerate(plot_variables):
+            plot = self.figure.add_subplot(grid[i, 0])
+            histogram = self.histogram_axes[plot_variable] = self.figure.add_subplot(grid[i, 1], sharey=plot)
+
+            if i > 0:
+                plot.sharex(self.plot_axes[plot_variables[0]])
+                histogram.sharex(self.histogram_axes[plot_variables[0]])
+
+            plot.set_ylim(self.parent.ylims[i])
+            plot.set_ylabel(plot_variable)
+
+            if i == len(plot_variables)-1:
+                plot.set_xlabel('Time')
+
+            histogram.get_yaxis().set_visible(False)
+
+            self.plot_axes[plot_variable] = plot
+            self.histogram_axes[plot_variable] = histogram
+
+
+        # self.intensity_plot = self.figure.add_subplot(grid[0, 0])
+        # self.FRET_plot = self.figure.add_subplot(grid[1, 0], sharex=self.intensity_plot)
+        # self.intensity_histogram = self.figure.add_subplot(grid[0, 1], sharey=self.intensity_plot)
+        # self.FRET_histogram = self.figure.add_subplot(grid[1, 1], sharex=self.intensity_histogram, sharey=self.FRET_plot)
 
         # self.figure = plt.Figure(dpi=dpi, figsize=(2,2))
         #
@@ -92,15 +137,6 @@ class TraceAnalysisPanel(wx.Panel):
 
         #self.figure, self.axes = mpl.figure.Figure().subplots(2,1)
 
-        self.intensity_plot.set_ylim(-5000, 35000)
-        self.FRET_plot.set_ylim(0, 1)
-
-        self.intensity_plot.set_ylabel('Intensity (a. u.)')
-        self.FRET_plot.set_ylabel('FRET (-)')
-        self.FRET_plot.set_xlabel('Time (0.1 s)')
-
-        self.intensity_histogram.get_yaxis().set_visible(False)
-        self.FRET_histogram.get_yaxis().set_visible(False)
 
         self.canvas = FigureCanvas(self, -1, self.figure)
         self.toolbar = NavigationToolbar(self.canvas)
@@ -113,7 +149,8 @@ class TraceAnalysisPanel(wx.Panel):
 
         self._molecule = None
 
-        self.artists = []
+        self.plot_artists = {}
+        self.histogram_artists = {}
 
     @property
     def molecule(self):
@@ -123,43 +160,66 @@ class TraceAnalysisPanel(wx.Panel):
     def molecule(self, molecule):
         self._molecule = molecule
 
-        g = molecule.intensity.sel(channel=0).values
-        r = molecule.intensity.sel(channel=1).values
-        e = molecule.FRET.values
+        # g = molecule.intensity.sel(channel=0).values
+        # r = molecule.intensity.sel(channel=1).values
+        # e = molecule.FRET.values
 
-        if not self.artists:
-            self.artists += [self.intensity_plot.plot(g, c='g')]
-            self.artists += [self.intensity_plot.plot(r, c='r')]
-            self.artists += [self.FRET_plot.plot(e, c='b')]
-            self.artists += [[self.intensity_plot.set_title('test')]]
-            self.artists += [self.intensity_histogram.hist(g, bins=100, orientation='horizontal',
-                                                           range=self.intensity_plot.get_ylim(), color='g', alpha=0.5)[2]]
-            self.artists += [self.intensity_histogram.hist(r, bins=100, orientation='horizontal',
-                                                           range=self.intensity_plot.get_ylim(), color='r', alpha=0.5)[2]]
-            self.artists += [self.FRET_histogram.hist(e, bins=100, orientation='horizontal',
-                                                      range=self.FRET_plot.get_ylim(), color='b')[2]]
+        if not self.plot_artists:
+            for i, plot_variable in enumerate(self.parent.plot_variables):
+                self.plot_artists[plot_variable] = self.plot_axes[plot_variable].plot(molecule[plot_variable].T)
+                for j, plot_artist in enumerate(self.plot_artists[plot_variable]):
+                    plot_artist.set_color(self.parent.colours[i][j])
+                #molecule.intensity.plot.line(x='frame', ax=self.plot_axes[plot_variable], color=self.parent.colours[i])
+                self.histogram_artists[plot_variable] = self.histogram_axes[plot_variable].hist(molecule[plot_variable].T,
+                                bins=50, orientation='horizontal', range=self.histogram_axes[plot_variable].get_ylim(),
+                                                                    color=self.parent.colours[i], alpha=0.5)[2]
+                if not isinstance(self.histogram_artists[plot_variable], list):
+                    self.histogram_artists[plot_variable] = [self.histogram_artists[plot_variable]]
+
+            # self.artists += [self.intensity_plot.plot(g, c='g')]
+            # self.artists += [self.intensity_plot.plot(r, c='r')]
+            # self.artists += [self.FRET_plot.plot(e, c='b')]
+            # self.artists += [[self.intensity_plot.set_title('test')]]
+            # self.artists += [self.intensity_histogram.hist(g, bins=100, orientation='horizontal',
+            #                                                range=self.intensity_plot.get_ylim(), color='g', alpha=0.5)[2]]
+            # self.artists += [self.intensity_histogram.hist(r, bins=100, orientation='horizontal',
+            #                                                range=self.intensity_plot.get_ylim(), color='r', alpha=0.5)[2]]
+            # self.artists += [self.FRET_histogram.hist(e, bins=100, orientation='horizontal',
+            #                                           range=self.FRET_plot.get_ylim(), color='b')[2]]
 
             #self.axes[1].plot(molecule.E(), animate=True)
-            self.bm = BlitManager(self.canvas, [a for b in self.artists for a in b])
+            artists = [a for b in self.plot_artists.values() for a in b] + \
+                      [a for c in self.histogram_artists.values() for b in c for a in b]
+            self.bm = BlitManager(self.canvas, artists)
             self.canvas.draw()
 
         # for axis in self.axes:
         #     axis.cla()
-        import numpy as np
-        self.artists[0][0].set_ydata(g)
-        self.artists[1][0].set_ydata(r)
-        self.artists[2][0].set_ydata(e)
-        self.artists[3][0].set_text(molecule.sequence_name.values)
-        n, _ = np.histogram(g, 100, range=self.intensity_plot.get_ylim())
-        for count, artist in zip(n, self.artists[4]):
-            artist.set_width(count)
-        n, _ = np.histogram(r, 100, range=self.intensity_plot.get_ylim())
-        for count, artist in zip(n, self.artists[5]):
-            artist.set_width(count)
-        n, _ = np.histogram(e, 100, range=self.FRET_plot.get_ylim())
-        for count, artist in zip(n, self.artists[6]):
-            artist.set_width(count)
-            #for count, rect in zip(n, bar_container.patches):
+
+        for i, plot_variable in enumerate(self.parent.plot_variables):
+            data = np.atleast_2d(molecule[plot_variable])
+            for j in range(len(data)):
+                self.plot_artists[plot_variable][j].set_ydata(data[j])
+                n, _ = np.histogram(data[j], 100, range=self.plot_axes[plot_variable].get_ylim())
+                for count, artist in zip(n, self.histogram_artists[plot_variable][j]):
+                    artist.set_width(count)
+
+
+
+        # self.artists[0][0].set_ydata(g)
+        # self.artists[1][0].set_ydata(r)
+        # self.artists[2][0].set_ydata(e)
+        # self.artists[3][0].set_text(molecule.sequence_name.values)
+        # n, _ = np.histogram(g, 100, range=self.intensity_plot.get_ylim())
+        # for count, artist in zip(n, self.artists[4]):
+        #     artist.set_width(count)
+        # n, _ = np.histogram(r, 100, range=self.intensity_plot.get_ylim())
+        # for count, artist in zip(n, self.artists[5]):
+        #     artist.set_width(count)
+        # n, _ = np.histogram(e, 100, range=self.FRET_plot.get_ylim())
+        # for count, artist in zip(n, self.artists[6]):
+        #     artist.set_width(count)
+        #     #for count, rect in zip(n, bar_container.patches):
         # tell the blitting manager to do its thing
         self.bm.update()
 
@@ -292,18 +352,19 @@ if __name__ == "__main__":
     import trace_analysis as ta
     #exp = ta.Experiment(r'D:\SURFdrive\Promotie\Code\Python\traceAnalysis\twoColourExampleData\20141017 - Holliday junction - Copy')
     exp = ta.Experiment(r'D:\20200918 - Test data\Single-molecule data small')
-    # exp = ta.Experiment(r'D:\SURFdrive\Promotie\Data\Test data')
+    # exp = ta.Experiment(r'P:\SURFdrive\Promotie\Data\Test data')
     # exp = ta.Experiment(r'/Users/ivoseverins/SURFdrive/Promotie/Data/Test data')
     # print(exp.files)
     # m = exp.files[1].molecules[0]
     # print(exp.files[2])
     import xarray as xr
     file_paths = [p for p in exp.nc_file_paths if '561' in str(p)]
-    with xr.open_mfdataset(exp.nc_file_paths, concat_dim='molecule', combine='nested') as ds:
-        ds_sel = ds.sel(molecule=ds.sequence_name=='HJ7_G116T').reset_index('molecule', drop=True) # HJ1_WT, HJ7_G116T
+    with xr.open_mfdataset(file_paths[2:], concat_dim='molecule', combine='nested') as ds:
+        ds_sel = ds.sel(molecule=ds.sequence_name=='HJ7_G')# .reset_index('molecule', drop=True) # HJ1_WT, HJ7_G116T
         app = wx.App(False)
         # app = wit.InspectableApp()
-        frame = TraceAnalysisFrame(None, ds_sel, "Sample editor")
+        frame = TraceAnalysisFrame(None, ds_sel, "Sample editor", plot_variables=['intensity', 'FRET', 'classification'],
+                 ylims=[(0, 35000), (0, 1), (-2,2)], colours=[('g', 'r'), ('b'), ('k')])
         # frame.molecules = exp.files[1].molecules
         print('test')
         import wx.lib.inspection
