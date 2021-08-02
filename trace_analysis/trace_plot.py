@@ -108,7 +108,7 @@ class TraceAnalysisPanel(wx.Panel):
 
         for i, plot_variable in enumerate(plot_variables):
             plot = self.figure.add_subplot(grid[i, 0])
-            histogram = self.histogram_axes[plot_variable] = self.figure.add_subplot(grid[i, 1], sharey=plot)
+            histogram = self.figure.add_subplot(grid[i, 1], sharey=plot)
 
             if i > 0:
                 plot.sharex(self.plot_axes[plot_variables[0]])
@@ -351,8 +351,8 @@ if __name__ == "__main__":
 
     import trace_analysis as ta
     #exp = ta.Experiment(r'D:\SURFdrive\Promotie\Code\Python\traceAnalysis\twoColourExampleData\20141017 - Holliday junction - Copy')
-    exp = ta.Experiment(r'D:\20200918 - Test data\Single-molecule data small')
-    # exp = ta.Experiment(r'P:\SURFdrive\Promotie\Data\Test data')
+    #exp = ta.Experiment(r'D:\20200918 - Test data\Single-molecule data small')
+    exp = ta.Experiment(r'P:\SURFdrive\Promotie\Data\Test data')
     # exp = ta.Experiment(r'/Users/ivoseverins/SURFdrive/Promotie/Data/Test data')
     # print(exp.files)
     # m = exp.files[1].molecules[0]
