@@ -509,7 +509,7 @@ class File:
                     channel_images = [(donor_image + acceptor_image_transformed) / 2]
                 elif method == 'sum_channels':
                     channel_images = [(donor_image + acceptor_image_transformed)]
-                channels = ['d']
+                channels = ['d'] # When number of channels can be > 2 this should probably be the channel with the lowest number
 
                 # TODO: Make this a separate plotting function, possibly in Movie
                 # plt.imshow(np.stack([donor_image.astype('uint8'),
@@ -552,8 +552,8 @@ class File:
             # Map coordinates to main channel in movie
             # TODO: make this usable for any number of channels
             coordinate_sets[i] = coordinate_sets[i]+self.movie.get_channel_from_name(channels[i]).boundaries[0]
-            # if channels[i] in ['a', 'acceptor']:
-            if i > 0: #i.e. if channel is not main channel
+            if channels[i] in ['a', 'acceptor']:
+            # if i > 0: #i.e. if channel is not main channel # this didn't work when selecting only the acceptor channel
                 coordinate_sets[i] = self.mapping.transform_coordinates(coordinate_sets[i],
                                                                         direction='Acceptor2Donor')
 
@@ -570,24 +570,11 @@ class File:
         # TODO: make this usable for more than two channels
         coordinates_in_main_channel = coordinates
         coordinates_list = [coordinates]
-        for i in range(self.number_of_channels)[1:]:
+        for i in range(self.number_of_channels)[1:]: # This for loop will only be useful once we make this usable for more than two channels
             if self.number_of_channels > 2:
                 raise NotImplementedError()
-            ## SHK: This improvised modification is only for the case of finding peaks from Acceptor channel. This part (including above) need to be re-structured. (26JUL21)
-            # original code:
-            # coordinates_list.append(coordinates_in_other_channel)
-            # coordinates_in_other_channel = self.mapping.transform_coordinates(coordinates_in_main_channel, direction='Donor2Acceptor')
-            # modified code:
-            if len(channels) == 1 and (channels[0] == 'a' or channels[0] == 'acceptor'):
-                mapping_direction = 'Acceptor2Donor'
-                coordinates_in_other_channel = self.mapping.transform_coordinates(coordinates_in_main_channel, direction=mapping_direction)
-                coordinates_list = [coordinates_in_other_channel]
-                coordinates_list.append(coordinates_in_main_channel)
-            else:
-                mapping_direction = 'Donor2Acceptor'
-                coordinates_in_other_channel = self.mapping.transform_coordinates(coordinates_in_main_channel, direction=mapping_direction)
-                coordinates_list.append(coordinates_in_other_channel)
-            ## END SHK
+            coordinates_in_other_channel = self.mapping.transform_coordinates(coordinates_in_main_channel, direction='Donor2Acceptor')
+            coordinates_list.append(coordinates_in_other_channel)
 
         coordinates = np.hstack(coordinates_list).reshape((-1, 2))
 
