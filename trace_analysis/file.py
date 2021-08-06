@@ -473,8 +473,10 @@ class File:
         if method == 'by_channel':
             coordinate_sets = [set() for channel in channels]
         elif method in ('average_channels', 'sum_channels'):
-            if len(channels) < 2:
-                raise ValueError('No channels to overlay')
+            # SHK: following two lines are not needed for average/sum channels
+            # if len(channels) < 2:
+            #     raise ValueError('No channels to overlay')
+            # END SHK
             coordinate_sets = [set()]
 
         # coordinates_sets = dict([(channel, set()) for channel in channels])
@@ -507,7 +509,7 @@ class File:
                     channel_images = [(donor_image + acceptor_image_transformed) / 2]
                 elif method == 'sum_channels':
                     channel_images = [(donor_image + acceptor_image_transformed)]
-                channels = ['d']
+                channels = ['d'] # When number of channels can be > 2 this should probably be the channel with the lowest number
 
                 # TODO: Make this a separate plotting function, possibly in Movie
                 # plt.imshow(np.stack([donor_image.astype('uint8'),
@@ -550,8 +552,8 @@ class File:
             # Map coordinates to main channel in movie
             # TODO: make this usable for any number of channels
             coordinate_sets[i] = coordinate_sets[i]+self.movie.get_channel_from_name(channels[i]).boundaries[0]
-            # if channels[i] in ['a', 'acceptor']:
-            if i > 0: #i.e. if channel is not main channel
+            if channels[i] in ['a', 'acceptor']:
+            # if i > 0: #i.e. if channel is not main channel # this didn't work when selecting only the acceptor channel
                 coordinate_sets[i] = self.mapping.transform_coordinates(coordinate_sets[i],
                                                                         direction='Acceptor2Donor')
 
@@ -568,11 +570,12 @@ class File:
         # TODO: make this usable for more than two channels
         coordinates_in_main_channel = coordinates
         coordinates_list = [coordinates]
-        for i in range(self.number_of_channels)[1:]:
+        for i in range(self.number_of_channels)[1:]: # This for loop will only be useful once we make this usable for more than two channels
             if self.number_of_channels > 2:
                 raise NotImplementedError()
             coordinates_in_other_channel = self.mapping.transform_coordinates(coordinates_in_main_channel, direction='Donor2Acceptor')
             coordinates_list.append(coordinates_in_other_channel)
+
         coordinates = np.hstack(coordinates_list).reshape((-1, 2))
 
         sys.stdout.write('\r')
@@ -656,7 +659,7 @@ class File:
 
         if self.movie is None: raise FileNotFoundError('No movie file was found')
 
-        print(f' Extracting traces in {self}')
+        print(f'\n Extracting traces in {self}')
 
         if configuration is None: configuration = self.experiment.configuration['trace_extraction']
         channel = configuration['channel']  # Default was 'all'
@@ -789,7 +792,7 @@ class File:
                                           **configuration['peak_finding']['acceptor'])
         if acceptor_coordinates.size == 0: #should throw a error message to warm no acceptor molecules found
             print('No acceptor molecules found')
-        acceptor_coordinates = transform(acceptor_coordinates, translation=[image.shape[0]//2, 0])
+        acceptor_coordinates = transform(acceptor_coordinates, translation=[image.shape[1]//2, 0])
         # print(acceptor_coordinates.shape, donor_coordinates.shape)
         print(f'Donor: {donor_coordinates.shape[0]}, Acceptor: {acceptor_coordinates.shape[0]}')
         coordinates = np.append(donor_coordinates, acceptor_coordinates, axis=0)
@@ -828,9 +831,10 @@ class File:
         # self.coordinates = np.hstack([donor_coordinates, acceptor_coordinates]).reshape((-1, 2))
 
         if ('initial_translation' in configuration) and (configuration['initial_translation'] == 'width/2'):
-            initial_transformation = {'translation': [image.shape[0] // 2, 0]}
+            # initial_transformation = {'translation': [image.shape[0] // 2, 0]}
+            initial_transformation = {'translation': [image.shape[1] // 2, 0]}
         else:
-            if configuration['initial_translation'][0]=='[': # remove brackets
+            if configuration['initial_translation'][0] == '[':  # remove brackets
                 arr = [float(x) for x in configuration['initial_translation'][1:-1].split(' ')]
                 initial_transformation = {'translation': arr}
             else:

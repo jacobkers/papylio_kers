@@ -29,12 +29,14 @@ class ND2Movie(Movie):
                           'point-selection': (45, 25)
                           }
 
+        # We should probably put this in the configuration file
+        # SHK: self.rot90 should be set before reading the header.
+        self.rot90 = 1
+
         self.f_obj = ND2Reader(self.filepath)
         self.read_header()
         self.create_frame_info()  # Possibly move to Movie later on
 
-        # We should probably put this in the configuration file
-        self.rot90 = 1
 
     def _read_header(self):
         with ND2Reader(self.filepath) as images:
