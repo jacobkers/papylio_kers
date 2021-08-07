@@ -1,3 +1,7 @@
+files:
+  excluded_extensions: [pdf, dat, db, py, yml, png, pdf, xlsx]
+  excluded_names: [_ave, _max]
+  excluded_paths: [Analysis]
 compute_image:
     number_of_frames: all
 show_movie:
@@ -47,4 +51,6 @@ mapping:
             margin: 20
 trace_extraction:
     channel: 'all'
-    gaussian_width: 11
+    mask_size: TIR-T
+    neighbourhood_size: 11
+    subtract_background: True

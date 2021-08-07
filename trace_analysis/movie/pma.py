@@ -1,21 +1,7 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Thu Aug 15 14:41:47 2019
-
-@author: Ivo Severins, Margreet Doctor, https://github.com/lightingghost/sifreader/blob/master/sifreader/sifreader.py
-"""
-
-from pathlib import Path
-import os, sys
-   
-
-import time
+import os
 import numpy as np
-import matplotlib.pyplot as plt
-import tifffile
 
 from trace_analysis.movie.movie import Movie
-
 
 class PmaMovie(Movie):
     def __init__(self, arg, *args, **kwargs):
@@ -23,151 +9,49 @@ class PmaMovie(Movie):
         
         self.writepath = self.filepath.parent
         self.name = self.filepath.with_suffix('').name
-        
-        #determine 8 bits or 16 bits
-        self.bitdepth = 16 if (self.filepath.name[-7:-4]=='_16') else 8
 
+        self.channel_arrangement = np.array([[[0,1]]])
+
+        # Determine whether the image is 8 bits or 16 bits
+        if (self.filepath.name[-7:-4]=='_16'):
+            self.data_type = np.dtype(np.uint16)
+        else:
+            self.data_type = np.dtype(np.uint8)
+
+        # Is this still used? [IS: 20-04-2021]
         self.threshold = {  'view':             (0,200),
                             'point-selection':  (45,25)
                             }
 
-
         self.read_header()
-#        self.find_filelist()
-#
-#    def find_filelist(self):
-#        self.filelist=[p.relative_to(self.filepath.parent) for p in self.filepath.parent.glob('*spool.dat')]
-#        
-#        #  correct numerical image name
-#        self.filelist.sort(key=lambda x: str(x)[9::-1])
-#       
-#    def __repr__(self):
-#        info = (('Original Filename', self.original_filename),
-#                ('Date', self.date),
-#                ('Camera Model', self.model),
-#                ('Temperature (deg.C)', '{:f}'.format(self.temperature)),
-#                ('Exposure Time', '{:f}'.format(self.exposuretime)),
-#                ('Cycle Time', '{:f}'.format(self.cycletime)),
-#                ('Number of accumulations', '{:d}'.format(self.accumulations)),
-#                ('Pixel Readout Rate (MHz)', '{:f}'.format(self.readout)),
-#                ("Horizontal Camera Resolution", '{:d}'.format(self.xres)),
-#                ("Vertical Camera Resolution", '{:d}'.format(self.yres)),
-#                ("Image width", '{:d}'.format(self.width)),
-#                ("Image Height", '{:d}'.format(self.height)),
-#                ("Horizontal Binning", '{:d}'.format(self.xbin)),
-#                ("Vertical Binning", '{:d}'.format(self.ybin)),
-#                ("EM Gain level", '{:f}'.format(self.gain)),
-#                ("Vertical Shift Speed", '{:f}'.format(self.vertical_shift_speed)),
-#                ("Pre-Amplifier Gain", '{:f}'.format(self.pre_amp_gain)),
-#                ("Stacksize", '{:d}'.format(self.stacksize)),
-#                ("Filesize", '{:d}'.format(self.filesize)),
-#                ("Offset to Image Data", '{:f}'.format(self.m_offset)))
-#        desc_len = max([len(d) for d in list(zip(*info))[0]]) + 3
-#        res = ''
-#        for description, value in info:
-#            res += ('{:' + str(desc_len) + '}{}\n').format(description + ': ', value)
-#
-#        res = super().__repr__() + '\n' + res
-#        return res
-#
+        self.create_frame_info()  # Possibly move to Movie later on
+
     def _read_header(self):
         statinfo = os.stat(self.filepath)       
                
-        with self.filepath.open('rb') as fid:
-            self.width = np.fromfile(fid, np.int16,count=1)[0].astype(int)
-            self.height =  np.fromfile(fid, np.int16,count=1)[0].astype(int)
+        with self.filepath.open('rb') as pma_file:
+            self.width = np.fromfile(pma_file, np.int16, count=1)[0].astype(int)
+            self.height = np.fromfile(pma_file, np.int16, count=1)[0].astype(int)
+            self.number_of_frames = int((statinfo.st_size-4)/(self.width*self.height))
 
-        # Is this necessary for just one pma file? Then I think we should not include this. [IS 08-11-2020]
-        if self.width==0: #required for hel21.pma from Sung Hyun
-            self.width=512;
-            self.height=512;
-
-        self.number_of_frames = int((statinfo.st_size-4)/(self.width*self.height))
-        
-        
-#        
-#        f = open(self.filepath, 'rb')
-#
-#
-#                self.temperature = float(tokens[5])
-#                self.date = time.strftime('%c', time.localtime(float(tokens[4])))
-#                self.exposuretime = float(tokens[12])
-#                self.cycletime = float(tokens[13])
-#                self.accumulations = int(tokens[15])
-#                self.readout = 1 / float(tokens[18]) / 1e6
-#                self.gain = float(tokens[21])
-#                self.vertical_shift_speed = float(tokens[41])
-#                self.pre_amp_gain = float(tokens[43])
-#            elif ii == 3:
-#                self.model = line.decode('utf-8')
-#            elif ii==4: #nImages is wrong, for test file it should be 5000, Python returns 40
-#                self.width,self.height,_=[int(ii) for ii in line.decode('utf-8').split()]
-#            elif ii == 5:
-#                self.original_filename = line.decode('utf-8') # not so useful if you copy to a different computer
-#
-#            elif line[:12] == b'Pixel number' and len(line)>14:
-#                line = line[12:]
-#                tokens = line.split()
-#                if len(tokens) < 6:
-#                    raise Exception('Not able to read stacksize.')
-#                self.yres = int(tokens[2])
-#                self.xres = int(tokens[3])
-#                self.stacksize = int(tokens[5])
-#                self.number_of_frames = self.stacksize
-####            elif ii == 44: #headerlen - 1:  ( b'65538 1 2048 2048 1 1 1 0')
-#                #continue with next line
-#                line = f.readline().strip()
-#    #            print(ii),print(line)
-#                tokens = line.decode('utf-8').split()
-##                print(tokens)
-#                if len(tokens) < 7:
-#                   raise Exception("Not able to read Image dimensions.")
-#                self.left = int(tokens[1])
-#                self.top = int(tokens[2])
-#                self.right = int(tokens[3])
-#                self.bottom = int(tokens[4])
-#                self.xbin = int(tokens[5])
-#                self.ybin = int(tokens[6])
-##                 self.left=0
-##                 self.right=self.left+self.width
-##                 self.bottom=0
-##                 self.top=self.bottom+self.height
-##                 self.xbin=1
-##                 self.ybin=1
-#                break
-#     
-#        f.close()
-#
-##        width = self.right - self.left + 1
-#        width=self.width
-#        mod = width % self.xbin
-#        self.width = int((width - mod) / self.ybin)
-##        height = self.top - self.bottom + 1
-#        height=self.height
-#        mod = height % self.ybin
-#        self.height = int((height - mod) / self.xbin)
-#
-#        self.filesize = os.path.getsize(self.filepath)
-#        self.datasize = self.width * self.height * 4 * self.stacksize
-#        self.m_offset = self.filesize - self.datasize - 8
-    
-       
     def _read_frame(self, frame_number):
-        with self.filepath.open('rb') as fid:
-            np.fromfile(fid, np.uint16,count=1)
-            np.fromfile(fid, np.uint16,count=1)
+        with self.filepath.open('rb') as pma_file:
+            np.fromfile(pma_file, np.uint16, count=1)
+            np.fromfile(pma_file, np.uint16, count=1)
         
-            if self.bitdepth == 8: #8 bits
-                fid.seek(4 + (frame_number*(self.width*self.height)), os.SEEK_SET)
-                im = np.reshape(np.fromfile(fid,np.uint8,count=self.width*self.height),(self.width,self.height))
+            if self.bitdepth == 8:
+                pma_file.seek(4+(frame_number*(self.width*self.height)), os.SEEK_SET)
+                image = np.reshape(np.fromfile(pma_file, np.uint8, count=self.width*self.height), (self.width,self.height))
             else:
-                fid.seek(4+ 2*frame_number*(self.width*self.height), os.SEEK_SET)
-                msb=np.reshape(np.fromfile(fid,np.uint8,count=(self.width*self.height)),(self.width,self.height))
-                lsb=np.reshape(np.fromfile(fid,np.uint8,count=(self.width*self.height)),(self.width,self.height))
-                im=256*msb+lsb;
+                pma_file.seek(4+2*frame_number*(self.width*self.height), os.SEEK_SET)
+                msb = np.reshape(np.fromfile(pma_file, np.uint8, count=(self.width*self.height)), (self.width, self.height))
+                lsb = np.reshape(np.fromfile(pma_file, np.uint8, count=(self.width*self.height)), (self.width, self.height))
+                image = 256*msb+lsb
 
-        if 0: # for testing match real data
-            plt.imshow(im)
-            tifffile.imwrite(self.writepath.joinPath(f'{self.name}_fr{frame_number}.tif') , im ,  photometric='minisblack')
-    
-        return im # still need to convert im
+        return image
+
+
+if __name__ == "__main__":
+    movie = PmaMovie(r'.\Example_data\pma\movie.pma')
+    movie.intensity_range = (0, 120)
+    movie.make_projection_images()

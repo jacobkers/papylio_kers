@@ -308,10 +308,21 @@ class Mapping2:
         if show_source:
             axis.scatter(self.source[:, 0], self.source[:, 1], facecolors='forestgreen', edgecolors='none', marker='.',
                          label=self.source_name)
+            # axis.scatter(self.source[:, 0], self.source[:, 1], facecolors='none', edgecolors='g', s=70,
+            #            label=self.source_name)
+        # axis.scatter(destination_from_source[:, 0], destination_from_source[:, 1], facecolors='none',
+        #              edgecolors='forestgreen', linewidth=1, marker='o', label=f'{self.source_name} transformed')
+        # axis.scatter(self.destination[:, 0], self.destination[:, 1], facecolors='r', edgecolors='none', marker='.',
+        #              label=self.destination_name)
+
         axis.scatter(destination_from_source[:, 0], destination_from_source[:, 1], facecolors='none',
                      edgecolors='forestgreen', linewidth=1, marker='o', label=f'{self.source_name} transformed')
         axis.scatter(self.destination[:, 0], self.destination[:, 1], facecolors='r', edgecolors='none', marker='.',
                      label=self.destination_name)
+        # axis.scatter(destination_from_source[:, 0], destination_from_source[:, 1], facecolors='none',
+        #              edgecolors='g', linewidth=1, marker='o', label=f'{self.source_name} transformed', s=70)
+        # axis.scatter(self.destination[:, 0], self.destination[:, 1], facecolors='none', edgecolors='r', marker='o',
+        #              label=self.destination_name, alpha=.5, s=60)
 
         axis.set_aspect('equal')
         axis.set_xlabel('x')
@@ -445,11 +456,12 @@ class Mapping2:
                     continue
                 elif isinstance(value, skimage.transform._geometric.GeometricTransform):
                     attributes[key] = value.params.tolist()
+#TODO: solve issue with nonlinear mapping.transformation_type, which spits out a tuple of two arrays (4x4) instead np.shape(value.params.tolist())== (2, 15) 
                 elif type(value).__module__ == np.__name__:
-                    attributes[key] = value.tolist()
+                    attributes[key] = value.tolist();
                 else:
                     attributes.pop(key)
-
+                
             with filepath.with_suffix('.mapping').open('w') as yml_file:
                 yaml.dump(attributes, yml_file, sort_keys=False)
 

@@ -10,11 +10,11 @@ Created on Fri Sep 14 15:24:46 2018
 #     from matplotlib import use
 #     use('WXAgg')
 
-import os # Miscellaneous operating system interfaces - to be able to switch from Mac to Windows
-from pathlib import Path # For efficient path manipulation
+import os  # Miscellaneous operating system interfaces - to be able to switch from Mac to Windows
+from pathlib import Path  # For efficient path manipulation
 import yaml
 import numpy as np
-import matplotlib.pyplot as plt #Provides a MATLAB-like plotting framework
+import matplotlib.pyplot as plt  # Provides a MATLAB-like plotting framework
 
 from trace_analysis.file import File
 from trace_analysis.molecule import Molecule
@@ -23,15 +23,16 @@ from trace_analysis.plotting import histogram
 # from trace_analysis.plugin_manager import PluginMetaClass
 from trace_analysis.plugin_manager import plugins
 
-import re # Regular expressions
+import re  # Regular expressions
 import warnings
 
-#import matplotlib.pyplot as plt #Provides a MATLAB-like plotting framework
-#import itertools #Functions creating iterators for efficient looping
-#np.seterr(divide='ignore', invalid='ignore')
-#import pandas as pd
-#from threshold_analysis_v2 import stepfinder
-#import pickle
+
+# import matplotlib.pyplot as plt #Provides a MATLAB-like plotting framework
+# import itertools #Functions creating iterators for efficient looping
+# np.seterr(divide='ignore', invalid='ignore')
+# import pandas as pd
+# from threshold_analysis_v2 import stepfinder
+# import pickle
 
 @plugins
 class Experiment:
@@ -55,7 +56,7 @@ class Experiment:
         If false, then files are detected, but not imported.
     """
 
-    def __init__(self, mainPath, channels=['g','r'], import_all=True):
+    def __init__(self, mainPath, channels=['g', 'r'], import_all=True):
         """Init method for the Experiment class
 
         Loads config file if it locates one in the main directory, otherwise it exports the default config file to the main directory.
@@ -96,6 +97,8 @@ class Experiment:
         os.chdir(mainPath)
 
         self.addAllFilesInMainPath()
+
+        print('\nInitialize experiment: \n' + str(self.mainPath))
 
     def __repr__(self):
         return (f'{self.__class__.__name__}({self.name})')
@@ -144,6 +147,12 @@ class Experiment:
         """list of Molecule : List of selected molecules in all files"""
         return [molecule for file in self.files for molecule in file.selectedMolecules]
 
+    @property
+    def mapping_file(self):
+        for file in self.files:
+            if file.is_mapping_file:
+                return file
+
     def import_config_file(self):
         """Import configuration file from main folder into the configuration property."""
         with self.mainPath.joinpath('config.yml').open('r') as yml_file:
@@ -152,7 +161,7 @@ class Experiment:
     def export_config_file(self):
         """Export from the configuration property into the configuration file in main folder"""
         with self.mainPath.joinpath('config.yml').open('w') as yml_file:
-             yaml.dump(self.configuration, yml_file, sort_keys = False)
+            yaml.dump(self.configuration, yml_file, sort_keys=False)
 
     def addAllFilesInMainPath(self):
         """Find unique files in all subfolders and add them to the experiment
@@ -171,23 +180,35 @@ class Experiment:
         """
 
         files = [p.relative_to(self.mainPath).with_suffix('') for p in self.mainPath.glob('**/*')
-                    if  (p.is_file() &
-                        ('_' not in p.name) &
-                        ('Analysis ' not in str(p)) &
-                        #('\\.' not in str(p.with_suffix(''))) & # Can be removed, line below is better  - Ivo
-                        ('.' not in [s[0] for s in p.parts]) &
-                        (p.suffix not in ['.dat','.db', '.ini','.py','.yml'])
-                        )
-                    ]
+                 if (
+                         # Use only files
+                         p.is_file() &
+                         # Exclude stings in filename
+                         all(name not in p.with_suffix('').name for name in
+                             self.configuration['files']['excluded_names']) &
+                         # Exclude strings in path
+                         all(path not in str(p.relative_to(self.mainPath).parent) for path in
+                             self.configuration['files']['excluded_paths']) &
+                         # Exlude hidden folders
+                         ('.' not in [s[0] for s in p.parts]) &
+                         # Exclude file extensions
+                         (p.suffix[1:] not in self.configuration['files']['excluded_extensions'])
+                 )
+                 ]
 
         for i, file in enumerate(files):
             if (file.name == 'Spooled files'):
-               files[i] = files[i].parent
+                files[i] = files[i].parent
 
         uniqueFiles = np.unique(files)
 
         for file in uniqueFiles:
             self.addFile(file)
+
+        for file in self.files:
+            if file.mapping is not None:
+                file.use_mapping_for_all_files()
+                break
 
     def addFile(self, relativeFilePath):
         """Add a file to the experiment
@@ -216,8 +237,8 @@ class Experiment:
             if new_file.extensions:
                 self.files.append(new_file)
 
-    def histogram(self, axis = None, bins = 100, parameter = 'E', molecule_averaging = False,
-                  fileSelection = False, moleculeSelection = False, makeFit = False, export=False, **kwargs):
+    def histogram(self, axis=None, bins=100, parameter='E', molecule_averaging=False,
+                  fileSelection=False, moleculeSelection=False, makeFit=False, export=False, **kwargs):
         """FRET histogram of all molecules in the experiment or a specified selection
 
         Parameters
@@ -242,8 +263,8 @@ class Experiment:
             Arbitrary keyword arguments.
 
         """
-        #files = [file for file in exp.files if file.isSelected]
-        #files = self.files
+        # files = [file for file in exp.files if file.isSelected]
+        # files = self.files
 
         if (fileSelection & moleculeSelection):
             molecules = [molecule for file in self.selectedFiles for molecule in file.selectedMolecules]
@@ -254,14 +275,15 @@ class Experiment:
         else:
             molecules = [molecule for file in self.files for molecule in file.molecules]
 
-        histogram(molecules, axis=axis, bins=bins, parameter=parameter, molecule_averaging=molecule_averaging, makeFit=makeFit, collection_name=self, **kwargs)
+        histogram(molecules, axis=axis, bins=bins, parameter=parameter, molecule_averaging=molecule_averaging,
+                  makeFit=makeFit, collection_name=self, **kwargs)
         if export: plt.savefig(self.mainPath.joinpath(f'{self.name}_{parameter}_histogram').with_suffix('.png'))
 
     def boxplot_number_of_molecules(self):
         """Boxplot of the number of molecules in each file"""
-        fig, ax = plt.subplots(figsize = (8,1.5))
+        fig, ax = plt.subplots(figsize=(8, 1.5))
         pointCount = [len(file.molecules) for file in self.files]
-        plt.boxplot(pointCount, vert=False, labels = [''], widths = (0.8))
+        plt.boxplot(pointCount, vert=False, labels=[''], widths=(0.8))
         plt.xlabel('Count')
         plt.title('Molecules per file')
         plt.tight_layout()
@@ -278,3 +300,8 @@ class Experiment:
         for molecule in self.molecules:
             molecule.plot()
             input("Press enter to continue")
+
+    def print_files(self):
+        for i, file in enumerate(self.files):
+            print(f"{i:3d}.  {file.relativeFilePath}")
+

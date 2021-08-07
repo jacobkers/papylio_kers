@@ -9,6 +9,12 @@ Created on Fri Sep 14 15:44:52 2018
 
 # If you get the error wxApp must be created first, restart kernel
 
+#Use the following lines on Mac
+from sys import platform
+if platform == "darwin":
+    from matplotlib import use
+    use('WXAgg')
+
 #!/usr/bin/env python
 import time
 import pandas as pd
@@ -16,12 +22,6 @@ import wx #cross-platform GUI API
 import wx.dataview
 import wx.lib.agw.hypertreelist as HTL
 from trace_analysis import Experiment, File
-
-#Use the following lines on Mac
-from sys import platform
-if platform == "darwin":
-    from matplotlib import use
-    use('WXAgg')
 
 import matplotlib as mpl
 from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg as FigureCanvas
@@ -216,7 +216,7 @@ class MoviePanel(wx.Frame):
         self._file = file
         self.ShowMovie()
 
-    def ShowMovie(self, show_coordinates = True):
+    def ShowMovie(self, show_coordinates=True):
         if self.IsShown():
             self.panel.axis.clear()
             if self._file is not None:
@@ -226,7 +226,8 @@ class MoviePanel(wx.Frame):
                 if self._file.is_mapping_file:
                     self._file.mapping.show_mapping_transformation(figure=self.panel.figure)
                 else:
-                    self._file.show_coordinates(figure=self.panel.figure)
+                    if self._file.coordinates.size > 0:
+                        self._file.show_coordinates(figure=self.panel.figure)
             self.panel.canvas.draw()
             self.panel.canvas.Refresh()
 
@@ -402,6 +403,8 @@ class HyperTreeListPlus(HTL.HyperTreeList):
         self.insertDataIntoColumns()
         self.Expand(experimentItem)
 
+        self.LabelAsMappingFile(experiment.mapping_file)
+
     def AddFile(self, file, experimentItem):
 
         folders = file.relativePath.parts
@@ -489,10 +492,10 @@ class HyperTreeListPlus(HTL.HyperTreeList):
             self.Bind(wx.EVT_MENU, lambda selectEvent: self.OnPerformMapping(selectEvent, item, file),
                       popupMenuPerformMapping)
 
-            if file.mapping is not None:
-                popupMenuApplyMappingToOtherFiles = popupMenu.Append(wx.ID_ANY, "&Apply mapping to other files", "Apply mapping to other files")
-                self.Bind(wx.EVT_MENU, lambda selectEvent: self.OnApplyMappingToOtherFiles(selectEvent, item, file),
-                          popupMenuApplyMappingToOtherFiles)
+            # if file.mapping is not None:
+            #     popupMenuApplyMappingToOtherFiles = popupMenu.Append(wx.ID_ANY, "&Apply mapping to other files", "Apply mapping to other files")
+            #     self.Bind(wx.EVT_MENU, lambda selectEvent: self.OnApplyMappingToOtherFiles(selectEvent, item, file),
+            #               popupMenuApplyMappingToOtherFiles)
 
             if file.coordinates is not None:
                 popupMenuCopyCoordinatesToSelectedFiles = popupMenu.Append(wx.ID_ANY, "&Copy coordinates to selected files", "Copy coordinates to selected files")
@@ -503,12 +506,19 @@ class HyperTreeListPlus(HTL.HyperTreeList):
 
     def OnPerformMapping(self, event, item, file):
         file.perform_mapping()
+        self.LabelAsMappingFile(file)
 
-    def OnApplyMappingToOtherFiles(self, event, item, file):
-        file.use_mapping_for_all_files()
+    # def OnApplyMappingToOtherFiles(self, event, item, file):
+    #     file.use_mapping_for_all_files()
+    #     self.LabelAsMappingFile(file)
+
+    def LabelAsMappingFile(self, file):
         standardColour = self.GetItemBackgroundColour(self.GetRootItem().GetChildren()[0])
-        for item in self.FileItems: self.SetItemBackgroundColour(item, standardColour)
-        self.SetItemBackgroundColour(item, wx.YELLOW) #wx.Colour(160,160,160))
+        for FileItem in self.FileItems:
+            if FileItem.GetData() is file:
+                self.SetItemBackgroundColour(FileItem, wx.YELLOW)  # wx.Colour(160,160,160))
+            else:
+                self.SetItemBackgroundColour(FileItem, standardColour)
 
     def OnCopyCoordinatesToSelectedFiles(self, event, item, file):
         # Maybe we should somehow indicate which files have coordinates from other files. [IS 31-01-2020]

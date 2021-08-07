@@ -4,6 +4,7 @@ from trace_analysis.analysis.autoThreshold import stepfinder
 # from trace_analysis.plugin_manager import PluginManager
 # from trace_analysis.plugin_manager import PluginMetaClass
 from trace_analysis.plugin_manager import plugins
+from trace_analysis.trace_extraction import make_gaussian_mask
 
 @plugins
 class Molecule:
@@ -12,26 +13,35 @@ class Molecule:
         self.index = None
         self._coordinates = None
         self.intensity = None
+        self._background=None
 
         self.isSelected = False
 
         self.steps = None  #Defined in other classes as: pd.DataFrame(columns=['frame', 'trace', 'state', 'method','thres'])
         self.kon_boolean = None  # 3x3 matrix that is indicates whether the kon will be calculated from the beginning, in-between molecules or for the end only
+        #self.bg_scale=np.sum(make_gaussian_mask(self.file.experiment.configuration['find_coordinates']['coordinate_optimization']['coordinates_after_gaussian_fit']['gaussian_width']))
 
     @property
     def coordinates(self):
         return self._coordinates
-
+    
+    @property
+    def background(self):
+        return self._background
+    
     @coordinates.setter
     def coordinates(self, coordinates):
         self._coordinates = np.atleast_2d(coordinates)
 
+    def background(self, background):
+        self.background=background # should be dependent on emission channel as well
+        
     @property  # this is just for the stepfinder to be called through Molecule. Maybe not needed
     def find_steps(self):
         return stepfinder
 
     def I(self, emission, Ioff=0):
-        return self.intensity[emission, :] - Ioff - self.file.background[emission]
+        return self.intensity[emission, :] - Ioff # - self.background[emission] * self.bg_scale #this number comes from sum(make_gaussian_mask) in trace_extraction
 
     def E(self, Imin=0, Iroff=0, Igoff=0, alpha=0):
         red = np.copy(self.I(1, Ioff=Iroff))
