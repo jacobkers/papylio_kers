@@ -77,10 +77,71 @@ def generate_point_tuples(point_set_KDTree, maximum_distance, tuple_size):
         distance = np.linalg.norm(pair_coordinates[0] - pair_coordinates[1])
         internal_points = point_set_KDTree.query_ball_point(center, distance / 2 * 0.99)
         for internal_point_combination in itertools.combinations(internal_points, tuple_size-2):
-            #point_tuples.append(pair + tuple(internal_points))
-            yield pair + tuple(internal_point_combination)
+            point_tuples.append(pair + tuple(internal_point_combination))
+            # yield pair + tuple(internal_point_combination)
 
-    #return point_tuples
+    return point_tuples
+
+def geometric_hash_table2(point_set_KDTree, point_tuples):
+    pt = np.array(point_tuples)
+    d = point_set_KDTree.data[pt]
+    d0 = np.array([[0,0],[1,1]])
+
+
+    T = np.repeat(np.expand_dims(np.diag([1.,1.,1.],k=0), axis=0), len(d), axis=0)
+    T[:, :2, 2] = d0[0] - d[:, 0, :]
+
+
+    diffs_d = d[:,1,:] - d[:,0,:]
+    diffs_d0 = d0[1] - d0[0]
+    m_d = np.linalg.norm(diffs_d, axis=1)
+    m_d0 = np.linalg.norm(diffs_d0)
+
+    unit_diffs_d = np.divide(diffs_d, m_d[:, None])
+    unit_diffs_d0 = diffs_d0 / m_d0
+
+    D = np.repeat(np.expand_dims(np.diag([1., 1., 1.], k=0), axis=0), len(d), axis=0)
+    D[:,0,0] = D[:,1,1] = 1 / m_d * m_d0
+
+    dot_product = np.dot(unit_diffs_d, unit_diffs_d0) # for mapping to (0,0),(1,1) could be replaced by sum to increase speed
+    cross_product = np.cross(unit_diffs_d, unit_diffs_d0) # for mapping to (0,0),(1,1) could be replaced by subtraction to increase speed
+    R = np.repeat(np.expand_dims(np.diag([1., 1., 1.], k=0), axis=0), len(d), axis=0)
+    R[:,0,0] = R[:,1,1] = dot_product
+    R[:,1,0] = cross_product
+    R[:,0,1] = -cross_product
+
+    transformation_matrices = R@D@T
+
+    # transformation_matrices @ np.dstack([d, np.ones((d.shape[0], d.shape[1], 1))]).swapaxes(1,2)
+    hash_code = transformation_matrices[:,:2,:] @ np.dstack([d[:,len(d0):,:], np.ones((d.shape[0], d.shape[1]-len(d0), 1))]).swapaxes(1, 2)
+
+    # Break similarity of pair
+    break_similarity = hash_code.swapaxes(1,2)[:, :, 0].sum(axis=1) > ((pt.shape[1] - d0.shape[0]) / 2)
+    # this is not yet suited for using more than two basis points
+    switch_basis_points_matrix = np.array([[-1,0,1],[0,-1,1],[0,0,1]])
+    transformation_matrices[break_similarity] = switch_basis_points_matrix[None,:,:]@transformation_matrices[break_similarity]
+    hash_code[break_similarity] = transformation_matrices[break_similarity, :2, :] @ np.dstack(
+        [d[break_similarity, len(d0):, :], np.ones((d[break_similarity].shape[0], d.shape[1] - len(d0), 1))]).swapaxes(1, 2)
+
+    hash_code = hash_code.swapaxes(1, 2)
+
+    # Break similarity of internal points
+    s = hash_code[:, :, 0].argsort()
+    hash_code = np.take_along_axis(hash_code, s[:, :, None], axis=1)
+
+    return hash_code.reshape(len(hash_code), -1)
+
+    # x = np.hstack([d[0][0:2], [[1],[1]]])
+    # y = np.hstack([d0, [[1],[1]]])
+    #
+    # x = np.vstack([x, x[1]-x[0]])
+    # y = np.vstack([y, y[1]-y[0]])
+    #
+    # A = np.linalg.lstsq(x.T, y.T, rcond=None)[0]
+    #
+    # scale = np.sqrt(x * x).sum(axis=0)
+    # coeff, r, rank, s = np.linalg.lstsq(x / scale, y[:, 0:2], rcond=None)
+    # A = (coeff.T / scale).T
 
 def geometric_hash_table(point_set_KDTree, point_tuples, tuple_size):
     #hash_table = []
@@ -112,16 +173,45 @@ def geometric_hash_table(point_set_KDTree, point_tuples, tuple_size):
         point_tuple = pair + tuple(internal_points)
         hash_code = hash_coordinates.flatten()
         # hash_table.append(hash_code)
+
         yield point_tuple, hash_code
 
         # plot_tuple(np.vstack([pair_coordinates, internal_coordinates])
         # plot_tuple(np.vstack([end_points, hash_coordinates]))
+
+def geometric_hash2(point_sets, maximum_distance=100, tuple_size=4):
+    # TODO: Add minimum_distance and implement
+    # TODO: Make invariant to mirroring
+    # TODO: Make usable with multiple point-sets in a single hash table
+    # TODO: Implement names of point_sets, possibly through a dictionary and adding a attribute to each KDtree
+    start_time = time.time()
+
+    if type(point_sets) is not list:
+        point_sets = [point_sets]
+
+    point_set_KDTrees = [cKDTree(point_set) for point_set in point_sets]
+
+    hash_tables = []
+    point_tuple_sets = []
+    for point_set_KDTree in point_set_KDTrees:
+        point_tuples = generate_point_tuples(point_set_KDTree, maximum_distance, tuple_size)
+        hash_table = geometric_hash_table2(point_set_KDTree, point_tuples)
+
+        hash_tables.append(hash_table)
+        point_tuple_sets.append(point_tuples)
+
+    hash_table_KDTree = cKDTree(np.vstack(hash_tables))
+
+    print("--- %s seconds ---" % (time.time() - start_time))
+
+    return point_set_KDTrees, point_tuple_sets, hash_table_KDTree
 
 def geometric_hash(point_sets, maximum_distance=100, tuple_size=4):
     # TODO: Add minimum_distance and implement
     # TODO: Make invariant to mirroring
     # TODO: Make usable with multiple point-sets in a single hash table
     # TODO: Implement names of point_sets, possibly through a dictionary and adding a attribute to each KDtree
+    start_time = time.time()
 
     if type(point_sets) is not list:
         point_sets = [point_sets]
@@ -141,6 +231,8 @@ def geometric_hash(point_sets, maximum_distance=100, tuple_size=4):
         point_tuple_sets.append(point_tuples)
 
     hash_table_KDTree = cKDTree(np.array(hash_table))
+
+    print("--- %s seconds ---" % (time.time() - start_time))
 
     return point_set_KDTrees, point_tuple_sets, hash_table_KDTree
 
@@ -191,8 +283,8 @@ def find_match_after_hashing(source, maximum_distance_source, tuple_size, source
                                 alpha, test_radius, K_threshold, magnification_range, rotation_range)
             if found_transformation:
                 match = Mapping2(source=source, destination=destination_KDTree.data, method='Geometric hashing',
-                                transformation_type='linear', initial_translation=None)
-                match.transformation = found_transformation.params
+                                transformation_type='linear', initial_transformation=None)
+                match.transformation = found_transformation
                 match.destination_index = destination_index
 
                 match.hash_table_distance = distance
@@ -302,6 +394,117 @@ def find_match(source, destination, source_vertices,
 
 
 if __name__ == '__main__':
+    from trace_analysis.plugins.sequencing.point_set_simulation import simulate_mapping_test_point_set
+
+    # Simulate source and destination point sets
+    number_of_source_points = 4000
+    transformation = AffineTransform(translation=[128, 128], rotation=0 / 360 * 2 * np.pi, scale=[1, 1])
+    source_bounds = np.array([[0, 0], [512, 512]])
+    source_crop_bounds = np.array([[0, 0], [50, 50]])
+    fraction_missing_source = 0.5
+    fraction_missing_destination = 0.5
+    maximum_error_source = 0
+    maximum_error_destination = 0
+    shuffle = True
+
+    destination, source = simulate_mapping_test_point_set(number_of_source_points, transformation,
+                                                          source_bounds, source_crop_bounds,
+                                                          fraction_missing_source, fraction_missing_destination,
+                                                          maximum_error_source, maximum_error_destination, shuffle)
+    destinations = [destination]
+
+    perfect = Mapping2(source, destination)
+    perfect.transformation = AffineTransform(matrix=transformation._inv_matrix)
+    perfect.show_mapping_transformation(show_source=True)
+
+    # scatter_coordinates([source, destination])
+
+    source_vertices = np.array([source_crop_bounds[0], source_crop_bounds.T[0],
+                                source_crop_bounds[1], np.flip(source_crop_bounds.T[1])])
+
+
+
+
+    # destination_KDTree, destination_tuples, destination_hash_table_KDTree = geometric_hash(destination, 3000, 4)
+    # source_KDTree, source_tuples, source_hash_table_KDTree = geometric_hash(source, 100, 4)
+
+    tuple_size = 4
+    maximum_distance_source = 1000
+    maximum_distance_destination = 50
+
+    source_hash_data = geometric_hash2(source, maximum_distance_source, tuple_size)
+    # destination_hash_data = geometric_hash(destination, maximum_distance_destination, tuple_size)
+
+    destination_hash_data = geometric_hash2(destination, maximum_distance_destination, tuple_size)
+
+    hash_table_distance_threshold = 0.01
+    alpha = 0.1
+    test_radius = 10
+    K_threshold = 10e9
+
+    match = find_match_after_hashing(source, maximum_distance_source, tuple_size, source_vertices,
+                                     *destination_hash_data2,
+                                     hash_table_distance_threshold=0.01,
+                                     alpha=0.1, test_radius=10, K_threshold=10e9)
+
+    source_KDTree, source_tuples, source_hash_table_KDTree = source_hash_data
+    destination_KDTree, destination_tuples, destination_hash_table_KDTree = destination_hash_data
+
+    match.show_mapping_transformation(show_source=True)
+
+    # match = find_match_after_hashing(*source_hash_data, source_vertices, *destination_hash_data)
+
+    # match = find_match(source, destination, source_vertices)
+    # if match:
+    #     scatter_coordinates([source, destination, match(source), source_vertices, match(source_vertices)])
+
+
+
+    import trace_analysis as ta
+    exp = ta.Experiment(r'C:\Users\ivoseverins\surfdrive\Promotie\Data\Sung hyun and Frank')
+
+    import numpy as np
+    tile1101 = np.loadtxt(r'C:\Users\ivoseverins\surfdrive\Promotie\Data\Sung hyun and Frank\1101.loc')
+    tile1102 = np.loadtxt(r'C:\Users\ivoseverins\surfdrive\Promotie\Data\Sung hyun and Frank\1102.loc')
+
+
+    tuple_size = 4
+    maximum_distance_destination = 500
+    tile1101_hash_data = geometric_hash2(tile1101, maximum_distance_destination, tuple_size)
+    tile1102_hash_data = geometric_hash2(tile1102, maximum_distance_destination, tuple_size)
+
+    maximum_distance_source = 500
+    file_coordinates = exp.files[0].coordinates[1::2]
+    file_coordinates[:,0] = -file_coordinates[:,0]
+    file_hash_data = geometric_hash2(file_coordinates, maximum_distance_source, tuple_size)
+
+    plt.close('all')
+    for file in exp.files:
+        file_coordinates = file.coordinates[1::2]
+        file_coordinates[:,0] = -file_coordinates[:,0]
+        source_vertices = np.array([[256,0],[256,512],[512,512],[512,0]])
+        match = find_match_after_hashing(file_coordinates, maximum_distance_source, tuple_size, source_vertices,
+                                         *tile1101_hash_data,
+                                         hash_table_distance_threshold=0.01,
+                                         alpha=0.5, test_radius=50, K_threshold=10e9)
+        if match is not None:
+            match.show_mapping_transformation()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     # Make random source and destination dataset
     # np.random.seed(42)
     # destination = np.random.rand(1000,2)*1000
@@ -329,49 +532,49 @@ if __name__ == '__main__':
 
 
 
-    file_coordinates = np.loadtxt(
-        r'C:\Users\Ivo Severins\Desktop\seqdemo\20190924 - Single-molecule setup (TIR-I)\16L\spool_6.pks')[:, 1:3]
-    tile_coordinates = np.loadtxt(r'C:\Users\Ivo Severins\Desktop\seqdemo\20190926 - Sequencer (MiSeq)\2102.loc')
-
-    source = file_coordinates
-    destination = tile_coordinates
-    source_vertices = np.array([[1024,0],[2048,0],[2048,2048],[1024,2048]])
-
-    # source = file_coordinates[[1,5,9,7]]
-    # destination = tile_coordinates[[73,82,85,84]]
-
-    source[:,0] = -source[:,0]
-    source_vertices[:,0] = -source_vertices[:,0]
-
-    # destination_KDTree, destination_tuples, destination_hash_table_KDTree = geometric_hash(destination, 3000, 4)
-    # source_KDTree, source_tuples, source_hash_table_KDTree = geometric_hash(source, 100, 4)
-
-    tuple_size = 4
-    maximum_distance_source = 1000
-    maximum_distance_destination = 3000
-
-    source_hash_data = geometric_hash(source, maximum_distance_source, tuple_size)
-    destination_hash_data = geometric_hash(destination, maximum_distance_destination, tuple_size)
-
-    hash_table_distance_threshold = 0.01
-    alpha = 0.1
-    test_radius = 10
-    K_threshold = 10e9
-
-    match = find_match_after_hashing(source, maximum_distance_source, tuple_size, source_vertices,
-                                     *destination_hash_data,
-                                     hash_table_distance_threshold=0.01,
-                                     alpha=0.1, test_radius=10, K_threshold=10e9)
-
-
-    source_KDTree, source_tuples, source_hash_table_KDTree = source_hash_data
-    destination_KDTree, destination_tuples, destination_hash_table_KDTree = destination_hash_data
-
-    #match = find_match_after_hashing(*source_hash_data, source_vertices, *destination_hash_data)
-
-    #match = find_match(source, destination, source_vertices)
-    if match:
-        scatter_coordinates([source, destination, match(source), source_vertices, match(source_vertices)])
+    # file_coordinates = np.loadtxt(
+    #     r'C:\Users\Ivo Severins\Desktop\seqdemo\20190924 - Single-molecule setup (TIR-I)\16L\spool_6.pks')[:, 1:3]
+    # tile_coordinates = np.loadtxt(r'C:\Users\Ivo Severins\Desktop\seqdemo\20190926 - Sequencer (MiSeq)\2102.loc')
+    #
+    # source = file_coordinates
+    # destination = tile_coordinates
+    # source_vertices = np.array([[1024,0],[2048,0],[2048,2048],[1024,2048]])
+    #
+    # # source = file_coordinates[[1,5,9,7]]
+    # # destination = tile_coordinates[[73,82,85,84]]
+    #
+    # source[:,0] = -source[:,0]
+    # source_vertices[:,0] = -source_vertices[:,0]
+    #
+    # # destination_KDTree, destination_tuples, destination_hash_table_KDTree = geometric_hash(destination, 3000, 4)
+    # # source_KDTree, source_tuples, source_hash_table_KDTree = geometric_hash(source, 100, 4)
+    #
+    # tuple_size = 4
+    # maximum_distance_source = 1000
+    # maximum_distance_destination = 3000
+    #
+    # source_hash_data = geometric_hash(source, maximum_distance_source, tuple_size)
+    # destination_hash_data = geometric_hash(destination, maximum_distance_destination, tuple_size)
+    #
+    # hash_table_distance_threshold = 0.01
+    # alpha = 0.1
+    # test_radius = 10
+    # K_threshold = 10e9
+    #
+    # match = find_match_after_hashing(source, maximum_distance_source, tuple_size, source_vertices,
+    #                                  *destination_hash_data,
+    #                                  hash_table_distance_threshold=0.01,
+    #                                  alpha=0.1, test_radius=10, K_threshold=10e9)
+    #
+    #
+    # source_KDTree, source_tuples, source_hash_table_KDTree = source_hash_data
+    # destination_KDTree, destination_tuples, destination_hash_table_KDTree = destination_hash_data
+    #
+    # #match = find_match_after_hashing(*source_hash_data, source_vertices, *destination_hash_data)
+    #
+    # #match = find_match(source, destination, source_vertices)
+    # if match:
+    #     scatter_coordinates([source, destination, match(source), source_vertices, match(source_vertices)])
 
     #
     #
