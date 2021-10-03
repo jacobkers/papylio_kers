@@ -112,7 +112,7 @@ class TraceAnalysisPanel(wx.Panel):
 
             if i > 0:
                 plot.sharex(self.plot_axes[plot_variables[0]])
-                histogram.sharex(self.histogram_axes[plot_variables[0]])
+                # histogram.sharex(self.histogram_axes[plot_variables[0]])
 
             plot.set_ylim(self.parent.ylims[i])
             plot.set_ylabel(plot_variable)
@@ -167,11 +167,13 @@ class TraceAnalysisPanel(wx.Panel):
         if not self.plot_artists:
             for i, plot_variable in enumerate(self.parent.plot_variables):
                 self.plot_artists[plot_variable] = self.plot_axes[plot_variable].plot(molecule[plot_variable].T)
+                if i==0:
+                    self.title_artist = self.plot_axes[plot_variable].set_title('')
                 for j, plot_artist in enumerate(self.plot_artists[plot_variable]):
                     plot_artist.set_color(self.parent.colours[i][j])
                 #molecule.intensity.plot.line(x='frame', ax=self.plot_axes[plot_variable], color=self.parent.colours[i])
                 self.histogram_artists[plot_variable] = self.histogram_axes[plot_variable].hist(molecule[plot_variable].T,
-                                bins=50, orientation='horizontal', range=self.histogram_axes[plot_variable].get_ylim(),
+                                bins=50, orientation='horizontal', range=self.plot_axes[plot_variable].get_ylim(),
                                                                     color=self.parent.colours[i], alpha=0.5)[2]
                 if not isinstance(self.histogram_artists[plot_variable], list):
                     self.histogram_artists[plot_variable] = [self.histogram_artists[plot_variable]]
@@ -188,7 +190,8 @@ class TraceAnalysisPanel(wx.Panel):
             #                                           range=self.FRET_plot.get_ylim(), color='b')[2]]
 
             #self.axes[1].plot(molecule.E(), animate=True)
-            artists = [a for b in self.plot_artists.values() for a in b] + \
+            artists = [self.title_artist] + \
+                      [a for b in self.plot_artists.values() for a in b] + \
                       [a for c in self.histogram_artists.values() for b in c for a in b]
             self.bm = BlitManager(self.canvas, artists)
             self.canvas.draw()
@@ -198,9 +201,10 @@ class TraceAnalysisPanel(wx.Panel):
 
         for i, plot_variable in enumerate(self.parent.plot_variables):
             data = np.atleast_2d(molecule[plot_variable])
+            self.title_artist.set_text(f'File: {molecule.file.values} | Molecule: {molecule.molecule_in_file.values}')#| Sequence: {molecule.sequence_name.values}')
             for j in range(len(data)):
                 self.plot_artists[plot_variable][j].set_ydata(data[j])
-                n, _ = np.histogram(data[j], 100, range=self.plot_axes[plot_variable].get_ylim())
+                n, _ = np.histogram(data[j], 50, range=self.plot_axes[plot_variable].get_ylim())
                 for count, artist in zip(n, self.histogram_artists[plot_variable][j]):
                     artist.set_width(count)
 
@@ -350,21 +354,22 @@ class BlitManager:
 if __name__ == "__main__":
 
     import trace_analysis as ta
-    #exp = ta.Experiment(r'D:\SURFdrive\Promotie\Code\Python\traceAnalysis\twoColourExampleData\20141017 - Holliday junction - Copy')
-    #exp = ta.Experiment(r'D:\20200918 - Test data\Single-molecule data small')
-    exp = ta.Experiment(r'P:\SURFdrive\Promotie\Data\Test data')
+    exp = ta.Experiment(r'D:\SURFdrive\Promotie\Code\Python\traceAnalysis\twoColourExampleData\20141017 - Holliday junction - Copy')
+    # exp = ta.Experiment(r'D:\20200918 - Test data\Single-molecule data small')
+    #exp = ta.Experiment(r'P:\SURFdrive\Promotie\Data\Test data')
     # exp = ta.Experiment(r'/Users/ivoseverins/SURFdrive/Promotie/Data/Test data')
     # print(exp.files)
     # m = exp.files[1].molecules[0]
     # print(exp.files[2])
     import xarray as xr
-    file_paths = [p for p in exp.nc_file_paths if '561' in str(p)]
-    with xr.open_mfdataset(file_paths[2:], concat_dim='molecule', combine='nested') as ds:
-        ds_sel = ds.sel(molecule=ds.sequence_name=='HJ7_G')# .reset_index('molecule', drop=True) # HJ1_WT, HJ7_G116T
+    #file_paths = [p for p in exp.nc_file_paths if '561' in str(p)]
+    file_paths = [exp.nc_file_paths[0]]
+    with xr.open_mfdataset(file_paths, concat_dim='molecule', combine='nested') as ds:
+        # ds_sel = ds.sel(molecule=ds.sequence_name=='HJ7_G')# .reset_index('molecule', drop=True) # HJ1_WT, HJ7_G116T
         app = wx.App(False)
         # app = wit.InspectableApp()
-        frame = TraceAnalysisFrame(None, ds_sel, "Sample editor", plot_variables=['intensity', 'FRET', 'classification'],
-                 ylims=[(0, 35000), (0, 1), (-2,2)], colours=[('g', 'r'), ('b'), ('k')])
+        frame = TraceAnalysisFrame(None, ds, "Sample editor", plot_variables=['intensity', 'FRET'], #'classification'],
+                 ylims=[(0, 1000), (0, 1), (-1,2)], colours=[('g', 'r'), ('b'), ('k')])
         # frame.molecules = exp.files[1].molecules
         print('test')
         import wx.lib.inspection
