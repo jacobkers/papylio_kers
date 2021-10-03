@@ -11,7 +11,7 @@ if __name__ == '__main__':
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
     p = Path(__file__).parents[2]
     sys.path.insert(0, str(p))
-    mainPath = PureWindowsPath('F:\\20191211_dCas9_DNA5_7_8_20_Vikttracr\\#5_strept_1nMCas9_10nMDNA20_snaps\\peaks5collect4_green_red\\histograms')   
+    main_path = PureWindowsPath('F:\\20191211_dCas9_DNA5_7_8_20_Vikttracr\\#5_strept_1nMCas9_10nMDNA20_snaps\\peaks5collect4_green_red\\histograms')
 
 import numpy as np
 import pandas as pd
@@ -44,7 +44,7 @@ def plot_avgFRET(exp, bins=100, save=True):
     plt.savefig('avgFRETall_hist.png', facecolor='white', dpi=300)
 
 if __name__ == '__main__':
-    exp = Experiment(mainPath)
+    exp = Experiment(main_path)
     bins=100
     plot_avgFRET(exp, bins, save=True)
 

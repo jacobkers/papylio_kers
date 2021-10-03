@@ -116,8 +116,8 @@ if __name__ == '__main__':
     from trace_analysis.experiment import Experiment
 
     start = time.time()
-    mainPath='F:/Google Drive/PhD/Programming - Data Analysis/traceanalysis/traces'
-    exp = Experiment(mainPath)
+    main_path='F:/Google Drive/PhD/Programming - Data Analysis/traceanalysis/traces'
+    exp = Experiment(main_path)
     file = exp.files[0]
 
     data = analyze_steps(file)

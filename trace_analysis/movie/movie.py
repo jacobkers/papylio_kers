@@ -5,6 +5,7 @@ import tifffile as TIFF
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
+import xarray as xr
 
 from trace_analysis.image_adapt.rolling_ball import rollingball
 from trace_analysis.image_adapt.find_threshold import remove_background, get_threshold
@@ -31,6 +32,7 @@ class Movie:
 
         self._data_type = np.dtype(np.uint16)
         self.intensity_range = (np.iinfo(self.data_type).min, np.iinfo(self.data_type).max)
+        self.illumination_correction = None
 
         if not self.filepath.suffix == '.sifx':
             self.writepath = self.filepath.parent
@@ -129,16 +131,31 @@ class Movie:
             self.width = height
             self.height = width
 
-    def read_frame(self, frame_number, channel=None):
+    def read_frame_raw(self, frame_number):
         frame = self._read_frame(frame_number)
-        frame = np.rot90(frame, self.rot90)
+        return np.rot90(frame, self.rot90)
 
-        if channel not in [None, 'all']:
-            if not isinstance(channel, Channel):
-                channel = self.get_channel_from_name(channel)
-            frame = channel.crop_image(frame)
+    def read_frame(self, frame_number, channel=None):
+        frame = self.read_frame_raw(frame_number)
+        frame = xr.DataArray(np.dstack([channel.crop_image(frame) for channel in self.channels]),
+                             dims=('x', 'y', 'channel'),
+                             coords={'channel': [channel.index for channel in self.channels]})
 
-        return frame
+        channels = self.get_channels_from_names(channel)
+        channel_indices = self.get_channel_indices_from_names(channel)
+        frame = frame.sel(channel=channel_indices)
+
+        if self.illumination_correction is not None:
+            for channel in channels:
+                frame = frame.astype(float)
+                frame.loc[{'channel': channel.index}] *= self.illumination_correction[frame_number, channel.index]
+
+        frame_out = np.zeros((self.height, self.width))
+        for channel in channels:
+            frame_out[channel.boundaries[0, 1]:channel.boundaries[1, 1],
+                      channel.boundaries[0, 0]:channel.boundaries[1, 0]] = frame.sel(channel=channel.index).values
+
+        return frame_out
 
     def get_channel(self, image=None, channel='d'):
         if image is None:
@@ -171,6 +188,30 @@ class Movie:
                 return channel
         else:
             raise ValueError('Channel name not found')
+
+    def get_channels_from_names(self, channel_names):
+        """Get the channel index belonging to a specific channel (name)
+        If
+
+        Parameters
+        ----------
+        channel : str or int
+            The name or number of a channel
+
+        Returns
+        -------
+        i: int
+            The index of the channel to which the channel name belongs
+
+        """
+        if channel_names in [None, 'all']:
+            return self.channels
+
+        return [self.get_channel_from_name(channel_name) for channel_name in channel_names]
+
+    def get_channel_indices_from_names(self, channel_names):
+        channels = self.get_channels_from_names(channel_names)
+        return [channel.index for channel in channels]
 
     def saveas_tif(self):
         tif_filepath = self.writepath.joinpath(self.name + '.tif')
@@ -378,6 +419,28 @@ class Movie:
         # note: optionally a fixed threshold can be set, like with IDL
         # note 2: do we need a different threshold for donor and acceptor?
 
+    def determine_illumination_correction(self, filter_neighbourhood_size=10):
+        import scipy.ndimage.filters as filters
+        illumination_intensity = np.zeros((self.number_of_frames, self.number_of_channels))
+
+        for i in range(self.number_of_frames):
+            frame = self.read_frame_raw(i)
+
+            filtered_frame = filters.minimum_filter(frame, filter_neighbourhood_size)
+            illumination_intensity[i, 0] = np.sum(self.get_channel(filtered_frame, 'g'))
+            illumination_intensity[i, 1] = np.sum(self.get_channel(filtered_frame, 'r'))
+
+        # figure = plt.figure()
+        # axis = figure.gca()
+        # axis.plot(illumination_intensity[:, 0], 'g', illumination_intensity[:, 1], 'r')
+        # axis.set_title('Minimum filtered intensity sum per frame')
+        # axis.set_xlabel('Frame (0.1s)')
+        # axis.set_ylabel('Minimum filtered intensity sum')
+        # axis.set_ylim((0, None))
+
+        self.illumination_correction = illumination_intensity.max(axis=0) / illumination_intensity
+
+
 class Channel:
     def __init__(self, movie, name, short_name, other_names=None, colour_map=None):
         self.movie = movie
@@ -502,13 +565,13 @@ class MoviePlotter:
 
 def make_colour_map(colour, N=256):
     values = np.zeros((N, 3))
-    if colour is 'grey':
+    if colour == 'grey':
         values[:, 0] = values[:, 1] = values[:, 2] = np.linspace(0, 1, N)
-    elif colour is 'red':
+    elif colour == 'red':
         values[:, 0] = np.linspace(0, 1, N)
-    elif colour is 'green':
+    elif colour == 'green':
         values[:, 1] = np.linspace(0, 1, N)
-    elif colour is 'blue':
+    elif colour == 'blue':
         values[:, 2] = np.linspace(0, 1, N)
     else:
         values[:, 0] = values[:, 1] = values[:, 2] = np.linspace(0, 1, N)

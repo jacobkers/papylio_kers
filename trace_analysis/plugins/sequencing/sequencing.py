@@ -6,7 +6,7 @@ import math
 from pathlib import Path
 from skimage.transform import AffineTransform
 import pandas as pd
-
+import xarray as xr
 # from trace_analysis.experiment import Experiment
 # from trace_analysis.file import File
 from trace_analysis.mapping.geometricHashing import SequencingDataMapping
@@ -60,7 +60,7 @@ class Experiment:
         #                                                 rotation=initial_rotation/360*np.pi*2,
         #                                                 shear=None, translation=None)
         self.geometric_hashtable = GeometricHashTable(tile_coordinate_sets,
-                                                      source_vertices=self.files[0].movie.channel_vertices('r'),
+                                                      source_vertices=self.files[0].movie.channels[1].vertices,
                                                       initial_source_transformation=initial_file_transformation)
 
     def generate_mapping_hashtable_from_coordinate_set(self, tile_coordinate_sets, maximum_distance_tile, tuple_size):
@@ -78,7 +78,7 @@ class Experiment:
         self.sequencing_data_for_mapping.export_positions_per_tile()
 
     # def map_files_to_sequencing_data(self, tile, configuration=None):
-    #     sequencing_mapping_path = self.mainPath.joinpath('sequencing_mapping')
+    #     sequencing_mapping_path = self.main_path.joinpath('sequencing_mapping')
     #     sequencing_mapping_path.mkdir(exist_ok=True)
     #
     #     presets = {'TIR-I single-molecule':
@@ -135,14 +135,14 @@ class Experiment:
             stage_to_tile_mapping.direct_match('linear')
             stage_to_tile_mapping.tile = tile.number
 
-            stage_to_tile_mapping.save(self.mainPath.joinpath(f'stage_to_tile_{tile.number}.mapping'))
+            stage_to_tile_mapping.save(self.main_path.joinpath(f'stage_to_tile_{tile.number}.mapping'))
             self.stage_to_sequencing_mappings.append(stage_to_tile_mapping)
 
     def show_stage_to_sequencing_mappings(self):
         for mapping in self.stage_to_sequencing_mappings:
             if mapping is not None:
                 mapping.show_mapping_transformation(source_colour='forestgreen', destination_colour='k',
-                                                    save_path=self.mainPath)
+                                                    save_path=self.main_path)
 
     def tile_boundaries_in_stage_coordinates(self):
         # TODO: Use real tile boundaries here
@@ -234,7 +234,7 @@ def within_bounds(coordinates, bounds, margin=0):
 
 class File:
     # def map_file_sequences_to_molecules(self, mapping_sequence, tile, match_threshold=5):
-    #     sequencing_mapping_path = self.experiment.mainPath.joinpath('sequencing_mapping')
+    #     sequencing_mapping_path = self.experiment.main_path.joinpath('sequencing_mapping')
     #     sequencing_mapping_path.mkdir(exist_ok=True)
     #     # Probably we will not have to export seqmap, at least not to file.
     #     self.seqmap, self.matches = map_sequences_to_molecules([self], self.experiment.sequencing_data, mapping_sequence,
@@ -371,7 +371,7 @@ class File:
                                    self.movie.stage_coordinates < boundaries[:, :, 1]])
         tile_index = np.where(np.all(tile_selection, axis=(0, 2)))[0][0]
 
-        source_vertices = self.movie.channel_vertices(channel)
+        source_vertices = self.movie.channels[channel].vertices
         source_vertices_in_stage_coordinates = \
             self.movie.stage_coordinates + np.flip(source_vertices * self.movie.pixel_size, axis=1)
 
@@ -410,7 +410,7 @@ class File:
 
         def interpolate(coordinates):
             coordinates = np.vstack([coordinates, coordinates[0]])
-            return np.linspace(coordinates, np.roll(coordinates, -1, axis=0)).reshape(-1,2, order='F')
+            return np.linspace(coordinates, np.roll(coordinates, -1, axis=0)).reshape(-1, 2, order='F')
 
         source_vertices_interpolated = interpolate(self.sequencing_match.source_vertices)
         destination_vertices_interpolated = self.sequencing_match.transform_coordinates(source_vertices_interpolated)
@@ -448,9 +448,38 @@ class File:
 
         cum_selection = np.cumsum(selection)-1
 
-        for molecule_index, sequence_index, distance in zip(molecule_indices, sequence_indices, distances):
-            self.molecules[molecule_index].sequence_index = np.argmax(cum_selection == sequence_index)
-            self.molecules[molecule_index].distance_to_sequence = distance
+        # for molecule_index, sequence_index, distance in zip(molecule_indices, sequence_indices, distances):
+        #     self.molecules[molecule_index].sequence_index = np.argmax(cum_selection == sequence_index)
+        #     self.molecules[molecule_index].distance_to_sequence = distance
+
+        sequence_indices2 = np.array([np.argmax(cum_selection == sequence_index)
+                                     for molecule_index, sequence_index, distance
+                                     in zip(molecule_indices, sequence_indices, distances)])
+
+        #molecule_index = self.molecule.to_index()[molecule_indices]
+        selected_sequencing_data = self.sequencing_data[sequence_indices2]
+        molecule = self.molecule_in_file
+        sequencing_dataset = xr.Dataset(
+            {
+                'sequence':             (('molecule', 'nucleotide'), selected_sequencing_data.sequence),
+                'quality':              (('molecule', 'nucleotide'), selected_sequencing_data.quality),
+                'distance_to_sequence': ('molecule', distances)
+            },
+            coords=
+            {
+                'sequence_name':    ('molecule', selected_sequencing_data.name),
+                'molecule':         ('molecule', molecule_indices),
+                'sequence_in_file': ('molecule', sequence_indices2)
+            }
+        )
+
+        sequencing_dataset = sequencing_dataset.reindex_like(molecule.set_index(molecule='molecule_in_file'),
+                                        fill_value={'sequence_name': '',
+                                                    'sequence_in_file': np.array(np.nan).astype(pd.UInt16Dtype)})
+        sequencing_dataset = sequencing_dataset.reset_index('molecule').rename(molecule_='molecule_in_file')
+
+        # Engine netcdf4 has some locking problems.
+        sequencing_dataset.to_netcdf(self.relativeFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
 
     def use_sequences_as_molecules(self):
         self.molecules = []
@@ -521,6 +550,8 @@ class File:
 
 
 class Molecule:
+    slots = 'sequence_index'
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 

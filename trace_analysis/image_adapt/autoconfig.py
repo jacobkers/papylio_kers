@@ -29,8 +29,8 @@ from trace_analysis.movie.movie import Movie
 from trace_analysis.image_adapt.find_threshold import get_threshold
 from skimage import measure
 
-def autoconfig_AND_perform_mapping(mapping_file_index, mainPath):
-    exp = Experiment(mainPath)
+def autoconfig_AND_perform_mapping(mapping_file_index, main_path):
+    exp = Experiment(main_path)
     mapping_file = exp.files[mapping_file_index]
     print(mapping_file.name)
     try : 
@@ -43,7 +43,7 @@ def autoconfig_AND_perform_mapping(mapping_file_index, mainPath):
         try : 
             #mapping_file.restartreset # doe snot work, full reset of exp works. There should be a simpler way !!!!!
             del exp
-            exp = Experiment(mainPath)
+            exp = Experiment(main_path)
             mapping_file = exp.files[mapping_file_index]
             mapping_file.perform_mapping()
             print('ran autoconfig once') 
@@ -62,7 +62,7 @@ def autoconfig_AND_perform_mapping(mapping_file_index, mainPath):
     
                 try : 
                     del exp
-                    exp = Experiment(mainPath)
+                    exp = Experiment(main_path)
                     mapping_file = exp.files[mapping_file_index]
                     mapping_file.perform_mapping()
                     print('ran autoconfig again') 

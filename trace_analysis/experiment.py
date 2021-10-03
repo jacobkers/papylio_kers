@@ -14,10 +14,15 @@ import os  # Miscellaneous operating system interfaces - to be able to switch fr
 from pathlib import Path  # For efficient path manipulation
 import yaml
 import numpy as np
+# import matplotlib
+# matplotlib.use('WXAgg')
+
 import matplotlib.pyplot as plt  # Provides a MATLAB-like plotting framework
+import xarray as xr
+import pandas as pd
 
 from trace_analysis.file import File
-from trace_analysis.molecule import Molecule
+# from trace_analysis.molecule import Molecules
 from trace_analysis.plotting import histogram
 # from trace_analysis.plugin_manager import PluginManager
 # from trace_analysis.plugin_manager import PluginMetaClass
@@ -47,7 +52,7 @@ class Experiment:
     ----------
     name : str
         Experiment name based on the name of the main folder
-    mainPath : str
+    main_path : str
         Absolute path to the main experiment folder
     files : list of :obj:`File`
         Files
@@ -56,7 +61,7 @@ class Experiment:
         If false, then files are detected, but not imported.
     """
 
-    def __init__(self, mainPath, channels=['g', 'r'], import_all=True):
+    def __init__(self, main_path, channels=['g', 'r'], import_all=True):
         """Init method for the Experiment class
 
         Loads config file if it locates one in the main directory, otherwise it exports the default config file to the main directory.
@@ -64,7 +69,7 @@ class Experiment:
 
         Parameters
         ----------
-        mainPath : str
+        main_path : str
             Absolute path to the main experiment folder
         channels : list of str
             Channels used in the experiment
@@ -73,8 +78,8 @@ class Experiment:
             If false, then files are detected, but not imported.
         """
 
-        self.name = os.path.basename(mainPath)
-        self.mainPath = Path(mainPath).absolute()
+        self.name = os.path.basename(main_path)
+        self.main_path = Path(main_path).absolute()
         self.files = list()
         self.import_all = import_all
 
@@ -83,7 +88,7 @@ class Experiment:
         self._pairs = [[c1, c2] for i1, c1 in enumerate(channels) for i2, c2 in enumerate(channels) if i2 > i1]
 
         # Load custom config file or otherwise load the default config file
-        if self.mainPath.joinpath('config.yml').is_file():
+        if self.main_path.joinpath('config.yml').is_file():
             self.import_config_file()
         else:
             with Path(__file__).with_name('default_configuration.yml').open('r') as yml_file:
@@ -94,9 +99,10 @@ class Experiment:
                 FileNotFoundError
                 pass
 
-        os.chdir(mainPath)
+        os.chdir(main_path)
 
-        self.addAllFilesInMainPath()
+        file_paths = self.find_file_paths()
+        self.add_files(file_paths)
 
         print('\nInitialize experiment: \n' + str(self.mainPath))
 
@@ -130,7 +136,7 @@ class Experiment:
     @property
     def molecules(self):
         """list of Molecule : List of all molecules in the experiment"""
-        return [molecule for file in self.files for molecule in file.molecules]
+        return Molecules.sum([file.molecules for file in self.files])
 
     @property
     def selectedFiles(self):
@@ -153,20 +159,24 @@ class Experiment:
             if file.is_mapping_file:
                 return file
 
+    @property
+    def nc_file_paths(self):
+        return [file.relativeFilePath.with_suffix('.nc') for file in self.files if '.nc' in file.extensions]
+
     def import_config_file(self):
         """Import configuration file from main folder into the configuration property."""
-        with self.mainPath.joinpath('config.yml').open('r') as yml_file:
+        with self.main_path.joinpath('config.yml').open('r') as yml_file:
             self.configuration = yaml.load(yml_file, Loader=yaml.SafeLoader)
 
     def export_config_file(self):
         """Export from the configuration property into the configuration file in main folder"""
-        with self.mainPath.joinpath('config.yml').open('w') as yml_file:
+        with self.main_path.joinpath('config.yml').open('w') as yml_file:
             yaml.dump(self.configuration, yml_file, sort_keys=False)
 
-    def addAllFilesInMainPath(self):
+    def find_file_paths(self):
         """Find unique files in all subfolders and add them to the experiment
 
-        Get all files in all subfolders of the mainpath and remove their suffix (extensions), and add them to the experiment.
+        Get all files in all subfolders of the main_path and remove their suffix (extensions), and add them to the experiment.
 
         Note
         ----
@@ -179,38 +189,41 @@ class Experiment:
 
         """
 
-        files = [p.relative_to(self.mainPath).with_suffix('') for p in self.mainPath.glob('**/*')
-                 if (
-                         # Use only files
-                         p.is_file() &
-                         # Exclude stings in filename
-                         all(name not in p.with_suffix('').name for name in
-                             self.configuration['files']['excluded_names']) &
-                         # Exclude strings in path
-                         all(path not in str(p.relative_to(self.mainPath).parent) for path in
-                             self.configuration['files']['excluded_paths']) &
-                         # Exlude hidden folders
-                         ('.' not in [s[0] for s in p.parts]) &
-                         # Exclude file extensions
-                         (p.suffix[1:] not in self.configuration['files']['excluded_extensions'])
-                 )
-                 ]
+        file_paths = [p.relative_to(self.main_path).with_suffix('') for p in self.main_path.glob('**/*')
+                      if (
+                          # Use only files
+                              p.is_file() &
+                              # Exclude stings in filename
+                              all(name not in p.with_suffix('').name for name in
+                                  self.configuration['files']['excluded_names']) &
+                              # Exclude strings in path
+                              all(path not in str(p.relative_to(self.main_path).parent) for path in
+                                  self.configuration['files']['excluded_paths']) &
+                              # Exclude hidden folders
+                              ('.' not in [s[0] for s in p.parts]) &
+                              # Exclude file extensions
+                              (p.suffix[1:] not in self.configuration['files']['excluded_extensions'])
+                      )
+                      ]
 
-        for i, file in enumerate(files):
-            if (file.name == 'Spooled files'):
-                files[i] = files[i].parent
+        for i, file_path in enumerate(file_paths):
+            if (file_path.name == 'Spooled files'):
+                file_path[i] = file_path[i].parent
 
-        uniqueFiles = np.unique(files)
+        unique_file_paths = np.unique(file_paths)
 
-        for file in uniqueFiles:
-            self.addFile(file)
+        return unique_file_paths
+
+    def add_files(self, file_paths):
+        for file_path in file_paths:
+            self.add_file(file_path)
 
         for file in self.files:
             if file.mapping is not None:
                 file.use_mapping_for_all_files()
                 break
 
-    def addFile(self, relativeFilePath):
+    def add_file(self, relativeFilePath):
         """Add a file to the experiment
 
         Add the file to the experiment only if the file object has found and imported relevant extensions .
@@ -277,7 +290,7 @@ class Experiment:
 
         histogram(molecules, axis=axis, bins=bins, parameter=parameter, molecule_averaging=molecule_averaging,
                   makeFit=makeFit, collection_name=self, **kwargs)
-        if export: plt.savefig(self.mainPath.joinpath(f'{self.name}_{parameter}_histogram').with_suffix('.png'))
+        if export: plt.savefig(self.main_path.joinpath(f'{self.name}_{parameter}_histogram').with_suffix('.png'))
 
     def boxplot_number_of_molecules(self):
         """Boxplot of the number of molecules in each file"""
@@ -288,8 +301,8 @@ class Experiment:
         plt.title('Molecules per file')
         plt.tight_layout()
 
-        fig.savefig(self.mainPath.joinpath('number_of_molecules.pdf'), bbox_inches='tight')
-        fig.savefig(self.mainPath.joinpath('number_of_molecules.png'), bbox_inches='tight')
+        fig.savefig(self.main_path.joinpath('number_of_molecules.pdf'), bbox_inches='tight')
+        fig.savefig(self.main_path.joinpath('number_of_molecules.png'), bbox_inches='tight')
 
     def select(self):
         """Simple method to look through all molecules in the experiment
@@ -305,3 +318,22 @@ class Experiment:
         for i, file in enumerate(self.files):
             print(f"{i:3d}.  {file.relativeFilePath}")
 
+    def plot_trace(self, files=None, query={}):
+        from trace_analysis.trace_plot import TraceAnalysisFrame
+        import wx
+
+        if files is None:
+            files = self.files
+
+        file_paths = [file.relativeFilePath.with_suffix('.nc') for file in files if '.nc' in file.extensions]
+
+        with xr.open_mfdataset(file_paths, concat_dim='molecule', combine='nested') as ds:
+            ds_sel = ds.query(query)  # HJ1_WT, HJ7_G116T
+            app = wx.App(False)
+            # app = wit.InspectableApp()
+            frame = TraceAnalysisFrame(None, ds_sel, "Sample editor")
+            # frame.molecules = exp.files[1].molecules
+            # print('test')
+            # import wx.lib.inspection
+            # wx.lib.inspection.InspectionTool().Show()
+            app.MainLoop()

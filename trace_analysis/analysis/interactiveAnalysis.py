@@ -691,10 +691,10 @@ if __name__ == '__main__':
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
     p = Path(__file__).parents[2]
 
-    # mainPath = Path(str(p) + '/traces')
-    mainPath = os.path.join(p, WindowsPath('traces'))  # This path cannot be found strangely
-    mainPath = r'C:\Users\iason\Desktop\traceanalysis\trace_analysis\traces\test_data\DNA04'
-    exp = Experiment(mainPath)
+    # main_path = Path(str(p) + '/traces')
+    main_path = os.path.join(p, WindowsPath('traces'))  # This path cannot be found strangely
+    main_path = r'C:\Users\iason\Desktop\traceanalysis\trace_analysis\traces\test_data\DNA04'
+    exp = Experiment(main_path)
     file = exp.files[0]
     molecules = file.molecules
     i = InteractivePlot(molecules)

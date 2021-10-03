@@ -173,7 +173,7 @@ def plot_matched_files_in_tile(files, show_file_coordinates=False, show_file_ver
 
             # figure.gca().scatter(vertices[:, 0], vertices[:, 1], c='g')
             if show_file_vertices:
-                vertices = file.sequencing_match.transform_coordinates(file.movie.channel_vertices('r'))
+                vertices = file.sequencing_match.transform_coordinates(file.movie.channels[1].vertices)
                 if unit == 'um':
                     vertices = MiSeq_pixels_to_um(vertices)
                 p = patches.Polygon(vertices,

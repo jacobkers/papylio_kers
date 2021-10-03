@@ -11,7 +11,7 @@ if __name__ == '__main__':
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
     p = Path(__file__).parents[3]
     sys.path.insert(0, str(p))
-    mainPath = PureWindowsPath('C:\\Users\\pimam\\Documents\\MEP\\tracesfiles')
+    main_path = PureWindowsPath('C:\\Users\\pimam\\Documents\\MEP\\tracesfiles')
 
 import numpy as np
 import pandas as pd
