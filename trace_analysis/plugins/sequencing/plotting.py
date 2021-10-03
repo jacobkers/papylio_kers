@@ -133,3 +133,72 @@ def plot_sequencing_match(match, write_path, title, filename, unit = 'um', MiSeq
         fig.savefig(write_path.joinpath(n + '.png'), bbox_inches='tight', dpi=250)
 
     return ax1, ax2
+
+
+
+# Show all matched files in tiles
+def plot_matched_files_in_tile(files, show_file_coordinates=False, show_file_vertices=True, unit='um', save=False):
+    def MiSeq_pixels_to_um(pixels):
+        return 958 / 2800 * (pixels - 1000) / 10
+
+    for tile in files[0].experiment.sequencing_data_for_mapping.tiles:
+        files_on_tile = [file for file in files if file.sequencing_match.tile == tile.number]
+        print(len(files_on_tile))
+
+        tile_coordinates = tile.coordinates
+
+        if unit == 'um':
+            tile_coordinates = MiSeq_pixels_to_um(tile_coordinates)
+
+        figure = plt.figure()
+        axis = figure.gca()
+
+        axis.scatter(tile_coordinates[:,0], tile_coordinates[:,1], marker = '.', facecolors = 'k', edgecolors='k')
+        axis.set_facecolor('white')
+        axis.set_aspect('equal')
+
+        axis.set_xlim([0, 30000])
+        axis.set_ylim([0, 30000])
+        axis.set_xlabel('x (FASTQ)')
+        axis.set_ylabel('y (FASTQ)')
+
+        axis.ticklabel_format(axis='both', style='sci', scilimits=(5,6), useOffset=None, useLocale=None, useMathText=True)
+
+        for file in files_on_tile:
+            if show_file_coordinates:
+                coordinates = file.sequencing_match.source_to_destination
+                if unit == 'um':
+                    coordinates = MiSeq_pixels_to_um(coordinates)
+                axis.scatter(coordinates[:, 0], coordinates[:, 1], c='#40A535', marker='x')
+
+            # figure.gca().scatter(vertices[:, 0], vertices[:, 1], c='g')
+            if show_file_vertices:
+                vertices = file.sequencing_match.transform_coordinates(file.movie.channel_vertices('r'))
+                if unit == 'um':
+                    vertices = MiSeq_pixels_to_um(vertices)
+                p = patches.Polygon(vertices,
+                                    linewidth=2, edgecolor='#40A535', facecolor='none', fill='false'
+                                    )
+
+                axis.add_patch(p)
+
+        axis.set_title(f'Tile {tile.name}')
+
+        if unit == 'um':
+            start = 0
+            end = 1001
+            stepsize = 250
+
+            axis.set_xlim([0, 1000])
+            axis.set_ylim([0, 1000])
+            axis.set_xlabel('x (\u03BCm)')
+            axis.set_ylabel('y (\u03BCm)')
+            axis.xaxis.set_ticks(np.arange(start, end, stepsize))
+            axis.yaxis.set_ticks(np.arange(start, end, stepsize))
+
+            axis.ticklabel_format(axis='both', style='sci', scilimits=(0, 4), useOffset=None, useLocale=None,
+                                 useMathText=True)
+
+        if save:
+            figure.tight_layout()
+            figure.savefig(f'Matched_files_in_tile_{tile.name}.png', bbox_inches='tight', dpi=250)

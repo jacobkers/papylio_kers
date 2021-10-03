@@ -3,8 +3,9 @@ import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
 from scipy.spatial import cKDTree
 
-def coordinates_within_margin(coordinates,  image = None, bounds = None, margin=10):
-    if coordinates.size == 0: return np.array([])
+def coordinates_within_margin_selection(coordinates,  image = None, bounds = None, margin=10):
+    if coordinates.size == 0:
+        return np.array([])
 
     if image is not None:
         bounds = np.array([[0,0], [image.shape[1],image.shape[0]]])
@@ -15,7 +16,13 @@ def coordinates_within_margin(coordinates,  image = None, bounds = None, margin=
                          (coordinates[:, 1] < (bounds[1,1] - margin))
                          ])
 
-    return coordinates[criteria.all(axis=0)]
+    return criteria.all(axis=0)
+
+
+def coordinates_within_margin(coordinates, image=None, bounds=None, margin=10):
+    criteria = coordinates_within_margin_selection(coordinates,  image=image, bounds=bounds, margin=margin)
+    return coordinates[criteria]
+
 
 def circle(r):
     d = 2*r + 1

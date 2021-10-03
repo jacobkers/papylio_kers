@@ -21,11 +21,12 @@ from trace_analysis.movie.binary import BinaryMovie
 from trace_analysis.plotting import histogram
 from trace_analysis.mapping.mapping import Mapping2
 from trace_analysis.peak_finding import find_peaks
-from trace_analysis.coordinate_optimization import coordinates_within_margin, \
-                                                   coordinates_after_gaussian_fit, \
-                                                   coordinates_without_intensity_at_radius, \
-                                                   merge_nearby_coordinates, \
-                                                   set_of_tuples_from_array, array_from_set_of_tuples
+from trace_analysis.coordinate_optimization import  coordinates_within_margin, \
+                                                    coordinates_after_gaussian_fit, \
+                                                    coordinates_without_intensity_at_radius, \
+                                                    merge_nearby_coordinates, \
+                                                    set_of_tuples_from_array, array_from_set_of_tuples, \
+                                                    coordinates_within_margin_selection
 from trace_analysis.trace_extraction import extract_traces
 from trace_analysis.coordinate_transformations import translate, transform # MD: we don't want to use this anymore I think, it is only linear
                                                                            # IS: We do! But we just need to make them usable with the nonlinear mapping
@@ -185,6 +186,27 @@ class File:
         for i, molecule in enumerate(self.molecules):
             molecule.coordinates = coordinates[(i * number_of_channels):((i + 1) * number_of_channels), :]
 
+    def set_coordinates_of_channel(self, coordinates, channel):
+        # TODO: make this usable for more than two channels
+        channel_index = self.movie.get_channel_number(channel)  # Or possibly make it self.channels
+        if channel_index == 0:
+            coordinates_in_main_channel = coordinates
+        elif channel_index == 1:
+            coordinates_in_main_channel = self.mapping.transform_coordinates(coordinates, inverse=True)
+        else:
+            raise NotImplementedError('File.set_coordinates_of_channel not implemented for more than two channels')
+
+        # for channel in self.channels or for mapping in self.mappings
+        coordinates_list = [coordinates_in_main_channel]
+        for i in range(1, self.number_of_channels):
+            if self.number_of_channels > 2:
+                raise NotImplementedError('File.set_coordinates_of_channel not implemented for more than two channels')
+            coordinates_in_other_channel = self.mapping.transform_coordinates(coordinates_in_main_channel, direction='Donor2Acceptor')
+            coordinates_list.append(coordinates_in_other_channel)
+        coordinates = np.hstack(coordinates_list).reshape((-1, 2))
+
+        self.coordinates = coordinates
+
     def coordinates_from_channel(self, channel):
         # if not self._pks_file:
         #     _pks_file = PksFile(self.absoluteFilePath.with_suffix('.pks'))
@@ -217,7 +239,15 @@ class File:
             channel = {'d': 0, 'a': 1, 'g':0, 'r':1}[channel]
 
         return np.vstack([molecule.background[channel] for molecule in self.molecules])
-    
+
+    def get_coordinates(self, selected=False):
+        if selected:
+            molecules = self.selectedMolecules
+        else:
+            molecules = self.molecules
+
+        return np.vstack([molecule.coordinates for molecule in molecules])
+
     @property
     def time(self):  # the time axis of the experiment, if not found in log it will be asked as input
         if self.exposure_time is None:
@@ -462,6 +492,9 @@ class File:
         window_size = configuration['window_size']
         use_sliding_window = bool(configuration['use_sliding_window'])
 
+        # Reset current molecules
+        self.molecules = []  # Should we put this here?
+
         # --- make the windows
         # (if no sliding windows, just a single window is made to make it compatible with next bit of code) ----
         if use_sliding_window:
@@ -536,6 +569,11 @@ class File:
 
                 coordinate_sets[i].update(channel_coordinates)
 
+        # Check whether points are found
+        for coordinate_set in coordinate_sets:
+            if len(coordinate_set) == 0:
+                return
+
         # --- correct for photon shot noise / stage drift ---
         # Not sure whether to put this in front of combine_coordinate_sets/detect_FRET_pairs or behind [IS: 12-08-2020]
         # I think before, as you would do it either for each window, or for the combined windows.
@@ -551,9 +589,11 @@ class File:
 
             # Map coordinates to main channel in movie
             # TODO: make this usable for any number of channels
+
             coordinate_sets[i] = coordinate_sets[i]+self.movie.get_channel_from_name(channels[i]).boundaries[0]
             if channels[i] in ['a', 'acceptor']:
             # if i > 0: #i.e. if channel is not main channel # this didn't work when selecting only the acceptor channel
+                # Maybe we can do this earlier, right after point detection, then we need only a single coordinate_set
                 coordinate_sets[i] = self.mapping.transform_coordinates(coordinate_sets[i],
                                                                         direction='Acceptor2Donor')
 
@@ -568,6 +608,7 @@ class File:
             coordinates = combine_coordinate_sets(coordinate_sets, method='and')  # the old detect_FRET_pairs
 
         # TODO: make this usable for more than two channels
+        # TODO: Use set_coordinates_of_channel
         coordinates_in_main_channel = coordinates
         coordinates_list = [coordinates]
         for i in range(self.number_of_channels)[1:]: # This for loop will only be useful once we make this usable for more than two channels
@@ -576,14 +617,20 @@ class File:
             coordinates_in_other_channel = self.mapping.transform_coordinates(coordinates_in_main_channel, direction='Donor2Acceptor')
             coordinates_list.append(coordinates_in_other_channel)
 
-        coordinates = np.hstack(coordinates_list).reshape((-1, 2))
+        coordinates = np.hstack(coordinates_list)
+
+        coordinates_selections = [coordinates_within_margin_selection(coordinates, bounds=self.movie.channel_boundaries(i))
+                                  for i, coordinates in enumerate(coordinates_list)]
+        selection = np.vstack(coordinates_selections).all(axis=0)
+        coordinates = coordinates[selection]
+
+        coordinates = coordinates.reshape((-1, 2))
 
         sys.stdout.write('\r')
         print(f'   {coordinates.shape[0]} molecules found')
 
         # should also have incorporated check coordinatesDA_within_margin from MD_check_boundaries
         # --- finally, we set the coordinates of the molecules ---
-        self.molecules = [] # Should we put this here?
         self.coordinates = coordinates
         self.extract_background()
         self.export_pks_file()
@@ -913,19 +960,31 @@ class File:
             sc_coordinates = axis.scatter(self.coordinates[:, 0], self.coordinates[:, 1], facecolors='none', edgecolors='red', **kwargs)
             # marker='o'
 
+            if self.selectedMolecules:
+                selected_coordinates = self.get_coordinates(selected=True)
+                axis.scatter(selected_coordinates[:, 0], selected_coordinates[:, 1], facecolors='none', edgecolors='green', **kwargs)
+
             if annotate:
                 annotation = axis.annotate("", xy=(0, 1.03), xycoords=axis.transAxes) # x in data units, y in axes fraction
                 annotation.set_visible(False)
 
-                indices = np.repeat(np.arange(0, self.number_of_molecules), self.number_of_channels)
-                sequences = np.repeat(self.sequences, self.number_of_channels)
+                molecule_indices = np.repeat(np.arange(0, self.number_of_molecules), self.number_of_channels)
+                # sequence_indices = np.repeat(self.sequence_indices, self.number_of_channels)
 
                 def update_annotation(ind):
+                    print(ind)
+
+                    # text = "Molecule number: {} \nSequence: {}".format(" ".join([str(indices[ind["ind"][0]])]),
+                    #                        " ".join([str(sequences[ind["ind"][0]].decode('UTF-8'))]))
+                    plot_index = ind["ind"]
+                    molecule_index = molecule_indices[plot_index]
+                    text = f'Molecule number: {", ".join(map(str, molecule_index))}'
+
                     if hasattr(self, 'sequences'):
-                        text = "Molecule number: {} \nSequence: {}".format(" ".join([str(indices[ind["ind"][0]])]),
-                                               " ".join([str(sequences[ind["ind"][0]].decode('UTF-8'))]))
-                    else:
-                        text = "Molecule number: {}".format(" ".join([str(indices[ind["ind"][0]])]))
+                        sequence_names = [str(self.molecules[index].sequence_name) for index in molecule_index]
+                        sequences = [str(self.molecules[index].sequence) for index in molecule_index]
+                        text += f'\nSequence name: {", ".join(sequence_names)}'
+                        text += f'\nSequence: {", ".join(sequences)}'
 
                     annotation.set_text(text)
 
@@ -945,5 +1004,12 @@ class File:
                 figure.canvas.mpl_connect("motion_notify_event", hover)
 
             plt.show()
-            # plt.savefig(self.writepath.joinpath(self.name + '_ave_circles.png'), dpi=600)
+
+    def show_coordinates_in_image(self, figure=None):
+        if not figure:
+            figure = plt.figure()
+
+        self.show_average_image(figure=figure)
+        self.show_coordinates(figure=figure)
+        # plt.savefig(self.writepath.joinpath(self.name + '_ave_circles.png'), dpi=600)
 

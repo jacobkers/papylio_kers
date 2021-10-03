@@ -1,32 +1,15 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib.path as pth
+
 import itertools
 from scipy.spatial import cKDTree
 import random
 from trace_analysis.mapping.geometricHashing import mapToPoint
-from trace_analysis.mapping.mapping import Mapping2
+from trace_analysis.mapping.mapping import Mapping2, crop_coordinates
 from trace_analysis.plotting import scatter_coordinates
 from skimage.transform import AffineTransform
 import time
 
-
-def crop_coordinates(coordinates, vertices, return_indices=False):
-    indices = pth.Path(vertices).contains_points(coordinates)
-    if not return_indices:
-        return coordinates[indices]
-    else:
-        return indices, coordinates[indices]
-
-    # bounds.sort(axis=0)
-    # selection = (coordinates[:, 0] > bounds[0, 0]) & (coordinates[:, 0] < bounds[1, 0]) & \
-    #             (coordinates[:, 1] > bounds[0, 1]) & (coordinates[:, 1] < bounds[1, 1])
-    # return coordinates[selection]
-
-#
-# selection = (destination[:,0] > source_bounds[0,0]) & (destination[:,0] < source_bounds[1,0]) & \
-#             (destination[:,1] > source_bounds[0,1]) & (destination[:,1] < source_bounds[1,1])
-#source = destination[selection]
 
 
 #
