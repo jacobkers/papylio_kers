@@ -104,7 +104,7 @@ class Experiment:
         file_paths = self.find_file_paths()
         self.add_files(file_paths)
 
-        print('\nInitialize experiment: \n' + str(self.mainPath))
+        print('\nInitialize experiment: \n' + str(self.main_path))
 
     def __repr__(self):
         return (f'{self.__class__.__name__}({self.name})')

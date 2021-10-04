@@ -1091,8 +1091,8 @@ def import_traces_file(traces_filepath):
         raw_data = np.fromfile(traces_file, dtype=np.int16, count=number_of_frames * number_of_traces)
     # traces = np.reshape(rawData.ravel(),
     #                         (number_of_channels, number_of_molecules, number_of_frames),
-    #                         order='F')  # 3d array of traces
-    traces = np.reshape(raw_data, (number_of_frames, number_of_traces)).T  # 2d array of traces
+    #                         order='F')  # 3d array of trace # 2d array of traces
+    traces = np.reshape(raw_data.ravel(), (number_of_traces, number_of_frames), order='F') # 2d array of traces
     traces = xr.DataArray(traces, dims=("trace", "frame"), coords=(range(number_of_traces), range(number_of_frames)))
     return traces
 
