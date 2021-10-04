@@ -1,0 +1,2 @@
+bash Sequencing_setup.sh
+pause

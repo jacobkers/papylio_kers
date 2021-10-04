@@ -1,0 +1,5 @@
+name: sequencing
+channels:
+- conda-forge
+dependencies:
+- bioconda::bowtie2
