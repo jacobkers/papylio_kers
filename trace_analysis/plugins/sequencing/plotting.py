@@ -1,3 +1,4 @@
+import math
 import numpy as np
 import matplotlib.pyplot as plt
 from trace_analysis.coordinate_transformations import transform
@@ -202,3 +203,38 @@ def plot_matched_files_in_tile(files, show_file_coordinates=False, show_file_ver
         if save:
             figure.tight_layout()
             figure.savefig(f'Matched_files_in_tile_{tile.name}.png', bbox_inches='tight', dpi=250)
+
+def plot_cluster_locations_per_tile(df, number_of_tiles=19, number_of_sides=2, save_filepath=None):
+    # df should contain Tile number, x and y
+
+    number_of_rows = number_of_sides * math.ceil(number_of_tiles / 10)
+    number_of_columns = np.min([10, number_of_tiles])
+    figure, axes = plt.subplots(number_of_rows, number_of_columns, sharex=True, sharey=True,
+                                figsize=(number_of_columns*2, number_of_rows*2))
+
+    for ax in axes.flatten():
+        row_index, column_index = np.where(axes == ax)
+        row_index = row_index[0]
+        column_index = column_index[0]
+
+        side_index = row_index // 2
+        tile_index = column_index + row_index % 2 * 10
+        tile_number = (side_index+1)*1000+100+tile_index+1
+
+        # print(side_index, tile_index, row_index, column_index, tile_number)
+
+        if tile_index+1 > number_of_tiles:
+            ax.set_visible(False)
+            continue
+
+        df_tile = df[df.Tile == tile_number]
+
+        df_tile.plot.scatter(x='x', y='y', ax=ax, marker='.', s=7)
+        ax.set_title(tile_number)
+        ax.set_aspect('equal')
+        ax.set_xlabel('x (sequencer)')
+        ax.set_ylabel('y (sequencer)')
+
+    figure.tight_layout()
+    if save_filepath:
+        figure.savefig(save_filepath, dpi=300)
