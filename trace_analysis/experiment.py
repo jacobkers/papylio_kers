@@ -125,7 +125,7 @@ class Collection(UserList):
 
     def regex(self, pattern):
         p = re.compile(pattern)
-        return [True if re.compile(p).search(string) else False for string in self.data]
+        return [True if p.search(string) else False for string in self.data]
 
 
 
