@@ -30,7 +30,7 @@ from trace_analysis.plugin_manager import plugins
 
 import re  # Regular expressions
 import warnings
-
+from joblib import Parallel, delayed
 
 # import matplotlib.pyplot as plt #Provides a MATLAB-like plotting framework
 # import itertools #Functions creating iterators for efficient looping
@@ -38,6 +38,96 @@ import warnings
 # import pandas as pd
 # from threshold_analysis_v2 import stepfinder
 # import pickle
+import inspect
+from tqdm import tqdm
+import multiprocessing
+
+from collections import UserList
+from collections.abc import MutableSequence
+
+import os, sys
+
+class HiddenPrints:
+    def __enter__(self):
+        self._original_stdout = sys.stdout
+        sys.stdout = open(os.devnull, 'w')
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        sys.stdout.close()
+        sys.stdout = self._original_stdout
+
+class Collection(UserList):
+    def __init__(self, data=[]):
+        # self.data = data
+        super(Collection, self).__setattr__('data', data)
+        super(Collection, self).__setattr__('parallel', 1)
+        # super(Collection, self).__setattr__('parallel', multiprocessing.cpu_count())
+
+    def __getattr__(self, item):
+        # if inspect.ismethod(getattr(self.files[0], item))
+        if callable(getattr(self.data[0], item)):
+            if self.parallel == 1:
+                def f(*args, **kwargs):
+                    with HiddenPrints():
+                        output = [getattr(datum, item)(*args, **kwargs) if datum is not None else None
+                                  for datum in tqdm(self.data, position=0, leave=True)]
+                    for o in output:
+                        if o is not None:
+                            return Collection(output)
+                return f
+            else:
+                def f(*args, **kwargs):
+                    output = Parallel(self.parallel, require='sharedmem')(delayed(getattr(datum, item))(*args, **kwargs) if datum is not None else None for datum in tqdm(self.data))
+                    # output = Parallel(self.parallel)(
+                    #     delayed(getattr(File, item))(datum, *args, **kwargs) if datum is not None else None for datum in
+                    #     tqdm(self.data))
+                    for o in output:
+                        if o is not None:
+                            return Collection(output)
+                return f
+        else:
+            return Collection([getattr(datum, item) if datum is not None else None for datum in self.data])
+
+    def __setattr__(self, key, value):
+        # if key == 'data':
+        #     super(Collection, self).__setattr__(key, value)
+        if len(self.data)==0:
+            raise IndexError('Collection is empty')
+        elif hasattr(self.data[0], key):
+            for datum in self.data:
+                setattr(datum, key, value)
+        else:
+            super(Collection, self).__setattr__(key, value)
+
+    def __getitem__(self, item):
+        if isinstance(item, int):
+            return self.data[item]
+        elif isinstance(item, np.ndarray) or isinstance(item, list):
+            return Collection(np.array(self.data)[item].tolist())
+            # if isinstance(data, list) and len(data) == 1:
+            #     return data[0]
+            # else:
+            #     return Collection(data)
+        else:
+            return Collection(self.data[item])
+
+    def __delitem__(self, key):
+        self.data.pop(key)
+
+    def __len__(self):
+        return len(self.data)
+
+    def __setitem__(self, key, value):
+        self.data[key] = value
+
+    def insert(self, index, object):
+        self.data.insert(index, object)
+
+    def regex(self, pattern):
+        p = re.compile(pattern)
+        return [True if re.compile(p).search(string) else False for string in self.data]
+
+
 
 @plugins
 class Experiment:
@@ -80,7 +170,7 @@ class Experiment:
 
         self.name = os.path.basename(main_path)
         self.main_path = Path(main_path).absolute()
-        self.files = list()
+        self.files = Collection()
         self.import_all = import_all
 
         self._channels = np.atleast_1d(np.array(channels))
@@ -101,8 +191,16 @@ class Experiment:
 
         os.chdir(main_path)
 
-        file_paths = self.find_file_paths()
-        self.add_files(file_paths)
+        # file_paths = self.find_file_paths()
+        # self.add_files(file_paths, test_duplicates=False)
+
+        self.add_files(self.main_path, test_duplicates=False)
+
+        # Find mapping file
+        for file in self.files:
+            if file.mapping is not None:
+                file.use_mapping_for_all_files()
+                break
 
         print('\nInitialize experiment: \n' + str(self.main_path))
 
@@ -133,31 +231,35 @@ class Experiment:
         """list of list of str : List of channel pairs"""
         return self._pairs
 
-    @property
-    def molecules(self):
-        """list of Molecule : List of all molecules in the experiment"""
-        return Molecules.sum([file.molecules for file in self.files])
+    # @property
+    # def molecules(self):
+    #     """list of Molecule : List of all molecules in the experiment"""
+    #     return Molecules.sum([file.molecules for file in self.files])
 
     @property
     def selectedFiles(self):
         """list of File : List of selected files"""
         return [file for file in self.files if file.isSelected]
 
-    @property
-    def selectedMoleculesInSelectedFiles(self):
-        """list of Molecule : List of selected molecules in selected files"""
-        return [molecule for file in self.selectedFiles for molecule in file.selectedMolecules]
+    # @property
+    # def selectedMoleculesInSelectedFiles(self):
+    #     """list of Molecule : List of selected molecules in selected files"""
+    #     return [molecule for file in self.selectedFiles for molecule in file.selectedMolecules]
 
-    @property
-    def selectedMoleculesInAllFiles(self):
-        """list of Molecule : List of selected molecules in all files"""
-        return [molecule for file in self.files for molecule in file.selectedMolecules]
+    # @property
+    # def selectedMoleculesInAllFiles(self):
+    #     """list of Molecule : List of selected molecules in all files"""
+    #     return [molecule for file in self.files for molecule in file.selectedMolecules]
 
     @property
     def mapping_file(self):
         for file in self.files:
             if file.is_mapping_file:
                 return file
+
+    @property
+    def file_paths(self):
+        return [file.relativeFilePath for file in self.files]
 
     @property
     def nc_file_paths(self):
@@ -214,41 +316,104 @@ class Experiment:
 
         return unique_file_paths
 
-    def add_files(self, file_paths):
-        for file_path in file_paths:
-            self.add_file(file_path)
+    def add_files(self, paths, test_duplicates=True):
+        """Find unique files in all subfolders and add them to the experiment
 
-        for file in self.files:
-            if file.mapping is not None:
-                file.use_mapping_for_all_files()
-                break
+        Get all files in all subfolders of the main_path and remove their suffix (extensions), and add them to the experiment.
 
-    def add_file(self, relativeFilePath):
-        """Add a file to the experiment
+        Note
+        ----
+        Non-relevant files are excluded e.g. files with underscores or 'Analysis' in their name, or files with dat, db,
+        ini, py and yml extensions.
 
-        Add the file to the experiment only if the file object has found and imported relevant extensions .
-        If the file is already present in experiment, then try to find and import new extensions.
-
-        Parameters
-        ----------
-        relativeFilePath : pathlib.Path or str
-            Path with respect to the main experiment path
+        Note
+        ----
+        Since sifx files made using spooling are all called 'Spooled files' the parent folder is used as file instead of the sifx file
 
         """
-        relativeFilePath = Path(relativeFilePath)
+        if isinstance(paths, str) or isinstance(paths, Path):
+            paths = paths.glob('**/*')
 
-        # if there is no extension, add all files with the same name with all extensions
-        # if there is an extension just add that file if the filename is the same
+        file_paths_and_extensions = \
+            [[p.relative_to(self.main_path).with_suffix(''), p.suffix]
+             for p in paths
+             if (
+                 # Use only files
+                     p.is_file() &
+                     # Exclude stings in filename
+                     all(name not in p.with_suffix('').name for name in
+                         self.configuration['files']['excluded_names']) &
+                     # Exclude strings in path
+                     all(path not in str(p.relative_to(self.main_path).parent) for path in
+                         self.configuration['files']['excluded_paths']) &
+                     # Exclude hidden folders
+                     ('.' not in [s[0] for s in p.parts]) &
+                     # Exclude file extensions
+                     (p.suffix[1:] not in self.configuration['files']['excluded_extensions'])
+             )
+             ]
 
-        # Test whether file is already in experiment
-        for file in self.files:
-            if file.relativeFilePath == relativeFilePath:
-                file.findAndAddExtensions()
-                break
-        else:
-            new_file = File(relativeFilePath, self)
-            if new_file.extensions:
-                self.files.append(new_file)
+        # TODO: Test spooled file import
+        for i, (file_path, _) in enumerate(file_paths_and_extensions):
+            if (file_path.name == 'Spooled files'):
+                file_paths_and_extensions[i, 0] = file_paths_and_extensions[i, 0].parent
+
+        file_paths_and_extensions = np.array(file_paths_and_extensions)
+
+        file_paths_and_extensions = file_paths_and_extensions[file_paths_and_extensions[:, 0].argsort()]
+        unique_file_paths, indices = np.unique(file_paths_and_extensions[:, 0], return_index=True)
+        extensions_per_filepath = np.split(file_paths_and_extensions[:, 1], indices[1:])
+
+        for file_path, extensions in zip(unique_file_paths, extensions_per_filepath):
+            if not test_duplicates or (file_path.absolute().relative_to(self.main_path) not in self.file_paths):
+                self.files.append(File(file_path, extensions, self))
+            else:
+                i = self.file_paths.find(file_path.absolute().relative_to(self.main_path))
+                self.files[i].add_extensions(extensions)
+
+    # def add_files(self, file_paths, test_duplicates=True):
+    #     for file_path in file_paths:
+    #         self.add_file(file_path, test_duplicates)
+    #
+    #     for file in self.files:
+    #         if file.mapping is not None:
+    #             file.use_mapping_for_all_files()
+    #             break
+
+    # def add_file(self, file_path, test_duplicates=True):
+    #     """Add a file to the experiment
+    #
+    #     Add the file to the experiment only if the file object has found and imported relevant extensions .
+    #     If the file is already present in experiment, then try to find and import new extensions.
+    #
+    #     Parameters
+    #     ----------
+    #     relativeFilePath : pathlib.Path or str
+    #         Path with respect to the main experiment path
+    #
+    #     """
+    #     # Perhaps move this conversion to relative file path to File
+    #     relative_file_path = Path(file_path).absolute().relative_to(self.main_path)
+    #
+    #     # if there is no extension, add all files with the same name with all extensions
+    #     # if there is an extension just add that file if the filename is the same
+    #
+    #     # Test whether file is already in experiment
+    #     # for file in self.files:
+    #     #     if file.relativeFilePath == relativeFilePath:
+    #     #         file.findAndAddExtensions()
+    #     #         break
+    #     # else:
+    #     #     new_file = File(relativeFilePath, self)
+    #     #     if new_file.extensions:
+    #     #         self.files.append(new_file)
+    #
+    #
+    #     if not test_duplicates or (relative_file_path not in self.file_paths):
+    #         self.files.append(File(relative_file_path, self))
+    #     else:
+    #         i = self.file_paths.find(file_path.absolute().relative_to(self.main_path))
+    #         self.files[i].findAndAddExtensions()
 
     def histogram(self, axis=None, bins=100, parameter='E', molecule_averaging=False,
                   fileSelection=False, moleculeSelection=False, makeFit=False, export=False, **kwargs):

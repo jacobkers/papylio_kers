@@ -4,12 +4,13 @@ import xarray as xr
 import tifffile
 
 from trace_analysis.movie.movie import Movie
-
+from trace_analysis.timer import Timer
 
 class TifMovie(Movie):
     def __init__(self, arg, *args, **kwargs):
         super().__init__(arg, *args, **kwargs)
         
+
         self.writepath = self.filepath.parent
         self.name = self.filepath.with_suffix('').name
         
@@ -17,8 +18,8 @@ class TifMovie(Movie):
                             'point-selection':  (45,25)
                             }
 
-        self.read_header()
-        self.create_frame_info()  # Possibly move to Movie later on
+        # self.read_header()
+        # self.create_frame_info()  # Possibly move to Movie later on
 
     def _read_header(self):
         with tifffile.TiffFile(self.filepath) as tif:
@@ -28,15 +29,15 @@ class TifMovie(Movie):
                 tif_tags[name] = value
             self.width = tif_tags['ImageWidth']
             self.height = tif_tags['ImageLength']
-            self.number_of_frames = len(tif.pages)
+            # self.number_of_frames = len(tif.pages) # very slow
             self.data_type = np.dtype(f"uint{tif_tags['BitsPerSample']}")
 
-            self.datetime = pd.to_datetime([page.tags['DateTime'].value for page in tif.pages])
-            self.time = xr.DataArray((self.datetime-self.datetime[0]).total_seconds(), dims='frame',
-                                     coords={}, attrs={'units': 's'})
-
+            #self.datetime = pd.to_datetime([page.tags['DateTime'].value for page in tif.pages])
+            #self.time = xr.DataArray((self.datetime-self.datetime[0]).total_seconds(), dims='frame',
+            #                         coords={}, attrs={'units': 's'})
             try:
                 if tif.metaseries_metadata:
+                    self.number_of_frames = tif.metaseries_metadata['SetInfo']['number-of-planes']
                     pixel_size_x = tif.metaseries_metadata['PlaneInfo']['spatial-calibration-x']
                     pixel_size_y = tif.metaseries_metadata['PlaneInfo']['spatial-calibration-y']
                     self.pixel_size = np.array([pixel_size_x, pixel_size_y])
@@ -49,17 +50,19 @@ class TifMovie(Movie):
             except AttributeError:
                 pass
 
+            self.create_frame_info()  # Possibly move to Movie later on
+
     def _read_frame(self, frame_number):
         with tifffile.TiffFile(self.filepath) as tif:
-            tifpage = tif.pages
-            if self.number_of_frames == 1:
-                # return -1,0,0,0
-                im = tifpage[0].asarray()
-            elif (self.number_of_frames - 1) >= frame_number:
-                im = tifpage[frame_number].asarray()
+            # if self.number_of_frames == 1:
+            #     # return -1,0,0,0
+            #     im = tifpage[0].asarray()
+            if (self.number_of_frames - 1) >= frame_number:
+                im = tif.pages[frame_number].asarray()
             else:
-                im = tifpage[self.number_of_frames - 1].asarray()
-                print('pageNb out of range, printed image {0} instead'.format(self.number_of_frames))
+                raise IndexError('Selected frame number larger than number of frames')
+            #     im = tifpage[self.number_of_frames - 1].asarray()
+            #     print('pageNb out of range, printed image {0} instead'.format(self.number_of_frames))
         return im
 
 

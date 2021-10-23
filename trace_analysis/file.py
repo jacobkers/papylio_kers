@@ -36,7 +36,6 @@ from trace_analysis.background_subtraction import extract_background
 # from trace_analysis.plugin_manager import PluginMetaClass
 from trace_analysis.plugin_manager import plugins
 
-
 @plugins
 class File:
     # plugins = []
@@ -53,7 +52,7 @@ class File:
     #     else:
     #         return super().__new__(cls._plugin_mixin_class)
 
-    def __init__(self, relativeFilePath, experiment):
+    def __init__(self, relativeFilePath, extensions=None, experiment=None):
         relativeFilePath = Path(relativeFilePath)
         self.experiment = experiment
 
@@ -107,11 +106,9 @@ class File:
 
         print(self)
 
-        super().__init__()
-
-        # if self.experiment.import_all is True:
-        #     self.findAndAddExtensions()
-
+        if extensions is None:
+            extensions = self.find_extensions()
+        self.add_extensions(extensions, load=self.experiment.import_all)
 
     def __repr__(self):
         return (f'{self.__class__.__name__}({self.relativePath.joinpath(self.name)})')
@@ -209,6 +206,8 @@ class File:
         return self.coordinates.sel(channel=channel)
 
     def __getattr__(self, item):
+        if item == 'dataset_variables':
+            return
         if item in self.dataset_variables:
             with xr.open_dataset(self.relativeFilePath.with_suffix('.nc'), engine='h5netcdf') as dataset:
                 return dataset[item].load()
@@ -280,29 +279,26 @@ class File:
         dataset.to_netcdf(self.relativeFilePath.with_suffix('.nc'), engine='h5netcdf', mode='w')
         self.extensions.add('.nc')
 
-    def findAndAddExtensions(self):
-        foundFiles = [file.name for file in self.experiment.main_path.joinpath(self.relativePath).glob(self.name + '*')]
-        foundExtensions = [file[len(self.name):] for file in foundFiles]
-
+    def find_extensions(self):
+        file_names = [file.name for file in self.experiment.main_path.joinpath(self.relativePath).glob(self.name + '*')]
+        extensions = [file_name[len(self.name):] for file_name in file_names]
         # For the special case of a sifx file, which is located inside a folder
-        if '' in foundExtensions: foundExtensions[foundExtensions.index('')] = '.sifx'
+        if '' in extensions:
+            extensions[extensions.index('')] = '.sifx'
+        return extensions
 
-        newExtensions = [extension for extension in foundExtensions if extension not in self.extensions]
-        # self.extensions = self.extensions + newExtensions
-        for extension in newExtensions: self.importExtension(extension)
+    def find_and_add_extensions(self):
+        self.add_extensions(self.find_extensions())
 
-    def importExtension(self, extension):
-
-        # print(f.relative_to(self.experiment.main_path))
-
-        # if extension not in self.extensions: # better to use sets here
-        #     self.extensions.append(extension)
-
-        # print(extension)
-
-        self.importFunctions.get(extension, self.noneFunction)()
-        if extension in self.importFunctions.keys():
-            self.extensions.add(extension)
+    def add_extensions(self, extensions, load=True):
+        if isinstance(extensions, str):
+            extensions = [extensions]
+        for extension in set(extensions)-self.extensions:
+            if load:
+                self.importFunctions.get(extension, self.noneFunction)()
+            if extension in self.importFunctions.keys():
+                self.extensions.add(extension)
+        # or self.extensions = self.extensions | extensions
 
     def noneFunction(self):
         return
@@ -329,8 +325,8 @@ class File:
         #TODO: Pass all image files to the Movie class and let the Movie class decide what to do
         imageFilePath = self.absoluteFilePath.with_suffix('.tif')
         self.movie = TifMovie(imageFilePath)
-        # self.movie.number_of_channels = self.experiment.number_of_channels
-        self.number_of_frames = self.movie.number_of_frames
+        # # self.movie.number_of_channels = self.experiment.number_of_channels
+        # self.number_of_frames = self.movie.number_of_frames
 
     def import_nd2_file(self):
         imageFilePath = self.absoluteFilePath.with_suffix('.nd2')
@@ -648,6 +644,7 @@ class File:
         # self.experiment.dataset.drop_sel(file=str(self.relativeFilePath), errors='ignore')
 
         # Reset current .nc file
+        # TODO: Initialize dataset even if 0 molecules are found
         self._init_dataset(len(coordinates.molecule))
 
         coordinates.to_netcdf(self.relativeFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')

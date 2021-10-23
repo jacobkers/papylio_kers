@@ -9,7 +9,7 @@ import xarray as xr
 
 from trace_analysis.image_adapt.rolling_ball import rollingball
 from trace_analysis.image_adapt.find_threshold import remove_background, get_threshold
-
+from trace_analysis.timer import Timer
 
 class Movie:
     def __init__(self, filepath):  # , **kwargs):
@@ -38,7 +38,8 @@ class Movie:
             self.writepath = self.filepath.parent
             self.name = self.filepath.with_suffix('').name
 
-        self.read_header()
+        self.header_is_read = False
+
         # self.create_frame_info()
 
     def __repr__(self):
@@ -58,12 +59,15 @@ class Movie:
 
     @property
     def average_image(self):
-        if self._average_image is None: self.make_average_image(write=True)
+        if self._average_image is None:
+            if self.filepath.with_name(self.name+'_ave.tif')
+            self.make_average_image(write=True)
         return self._average_image
 
     @property
     def maximum_projection_image(self):
-        if self._maximum_projection_image is None: self.make_maximum_projection(write=True)
+        if self._maximum_projection_image is None:
+            self.make_maximum_projection(write=True)
         return self._maximum_projection_image
 
     # @property
@@ -131,7 +135,11 @@ class Movie:
             self.width = height
             self.height = width
 
+        self.header_is_read = True
+
     def read_frame_raw(self, frame_number):
+        if not self.header_is_read:
+            self.read_header()
         frame = self._read_frame(frame_number)
         return np.rot90(frame, self.rot90)
 
@@ -251,6 +259,8 @@ class Movie:
         np.ndarray
             2d image array with the projected image
         """
+        if not self.header_is_read:
+            self.read_header()
 
         frames = self.frame_info
         frames = frames.loc[start_frame:]
@@ -308,7 +318,7 @@ class Movie:
             # plt.imsave(filepath.with_suffix('.tif'), image, format='tif', cmap=colour_map, vmin=self.intensity_range[0], vmax=self.intensity_range[1])
             # plt.imsave(filepath.with_suffix('.png'), image, cmap=colour_map, vmin=self.intensity_range[0], vmax=self.intensity_range[1])
 
-        return image
+        # return image
 
     def make_projection_images(self, projection_type='average', start_frame=0, number_of_frames=20):
         illumination_indices, channel_indices = \
