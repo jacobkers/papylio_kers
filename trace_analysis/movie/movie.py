@@ -293,7 +293,7 @@ class Movie:
             sys.stdout.write(f'\r   Processed frames {frame_indices[0]}-{frame_indices[-1]}\n')
 
         if write:
-            filename = self.name + '_'+projection_type[:3]+f'_{number_of_frames}fr'+filename_addition
+            filename = self.name + '_'+projection_type[:3]+filename_addition # f'_{number_of_frames}fr'+
             filepath = self.writepath.joinpath(filename)
             TIFF.imwrite(filepath.with_suffix('.tif'), image)
             # plt.imsave(filepath.with_suffix('.tif'), image, format='tif', cmap=colour_map, vmin=self.intensity_range[0], vmax=self.intensity_range[1])

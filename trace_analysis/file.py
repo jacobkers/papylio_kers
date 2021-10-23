@@ -153,18 +153,18 @@ class File:
     def average_image(self):
         number_of_frames = self.configuration['compute_image']['number_of_frames']
         try:
-            image_file_path = self.filepath.with_name(self.name+f'_ave_{number_of_frames}.tif')
-            return io.imread(averageTifFilePath, as_gray=True)
-        except:
+            image_file_path = self.relativeFilePath.with_name(self.name+f'_ave.tif') #_{number_of_frames}fr.tif')
+            return io.imread(image_file_path, as_gray=True)
+        except FileNotFoundError:
             return self.movie.make_average_image(number_of_frames=number_of_frames, write=True)
 
     @property
     def maximum_projection_image(self):
         number_of_frames = self.configuration['compute_image']['number_of_frames']
         try:
-            image_file_path = self.filepath.with_name(self.name+f'_max_{number_of_frames}.tif')
+            image_file_path = self.relativeFilePath.with_name(self.name+f'_max.tif') #_{number_of_frames}fr.tif')
             return io.imread(image_file_path, as_gray=True)
-        except:
+        except FileNotFoundError:
             return self.movie.make_maximum_projection(number_of_frames=number_of_frames, write=True)
 
     # @property
@@ -487,6 +487,8 @@ class File:
         window_size = configuration['window_size']
         use_sliding_window = bool(configuration['use_sliding_window'])
 
+        # Reset current .nc file
+        self._init_dataset(len(coordinates.molecule))
 
         # --- make the windows
         # (if no sliding windows, just a single window is made to make it compatible with next bit of code) ----
@@ -635,10 +637,6 @@ class File:
         # #coordinates = split_dimension(coordinates, 'molecule', ('molecule_in_file', 'file'), (-1, 1), (-1, [file]), to='multiindex')
         # coordinates = coordinates.reset_index('molecule').rename(molecule_='molecule_in_file')
         # self.experiment.dataset.drop_sel(file=str(self.relativeFilePath), errors='ignore')
-
-        # Reset current .nc file
-        # TODO: Initialize dataset even if 0 molecules are found
-        self._init_dataset(len(coordinates.molecule))
 
         coordinates.to_netcdf(self.relativeFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
         self.extract_background()
