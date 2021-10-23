@@ -72,8 +72,6 @@ class File:
 
         self.movie = None
         self.mapping = None
-        self._average_image = None
-        self._maximum_projection_image = None
 
         self.dataset_variables = ['molecule', 'coordinates', 'background', 'intensity', 'FRET', 'selected', 'molecule_in_file']
 
@@ -91,8 +89,6 @@ class File:
                                 '.bin': self.import_bin_file,
                                 '.TIF': self.import_tif_file,
                                 '.TIFF': self.import_tif_file,
-                                '_ave.tif': self.import_average_tif_file,
-                                '_max.tif': self.import_maximum_projection_tif_file,
                                 '.coeff': self.import_coeff_file,
                                 '.map': self.import_map_file,
                                 '.mapping': self.import_mapping_file,
@@ -125,6 +121,11 @@ class File:
     def number_of_molecules(self):
         return len(self.molecule)
 
+    @property
+    def configuration(self):
+        self.experiment.import_config_file()
+        return self.experiment.configuration
+
     # @property
     # def molecule(self):
     #     with xr.open_dataset(self.relativeFilePath.with_suffix('.nc'), engine='h5netcdf') as dataset:
@@ -150,21 +151,21 @@ class File:
 
     @property
     def average_image(self):
-        if self._average_image is None:
-            # Refresh configuration
-            self.experiment.import_config_file()
-            number_of_frames = self.experiment.configuration['compute_image']['number_of_frames']
-            self._average_image = self.movie.make_average_image(number_of_frames=number_of_frames, write=True)
-        return self._average_image
+        number_of_frames = self.configuration['compute_image']['number_of_frames']
+        try:
+            image_file_path = self.filepath.with_name(self.name+f'_ave_{number_of_frames}.tif')
+            return io.imread(averageTifFilePath, as_gray=True)
+        except:
+            return self.movie.make_average_image(number_of_frames=number_of_frames, write=True)
 
     @property
     def maximum_projection_image(self):
-        if self._maximum_projection_image is None:
-            # Refresh configuration
-            self.experiment.import_config_file()
-            number_of_frames = self.experiment.configuration['compute_image']['number_of_frames']
-            self._maximum_projection_image = self.movie.make_maximum_projection(number_of_frames=number_of_frames, write=True)
-        return self._maximum_projection_image
+        number_of_frames = self.configuration['compute_image']['number_of_frames']
+        try:
+            image_file_path = self.filepath.with_name(self.name+f'_max_{number_of_frames}.tif')
+            return io.imread(image_file_path, as_gray=True)
+        except:
+            return self.movie.make_maximum_projection(number_of_frames=number_of_frames, write=True)
 
     # @property
     # def coordinates(self):
@@ -337,14 +338,6 @@ class File:
         imageFilePath = self.absoluteFilePath.with_suffix('.bin')
         self.movie = BinaryMovie(imageFilePath)
         self.number_of_frames = self.movie.number_of_frames
-
-    def import_average_tif_file(self):
-        averageTifFilePath = self.absoluteFilePath.with_name(self.name+'_ave.tif')
-        self._average_image = io.imread(averageTifFilePath, as_gray=True)
-
-    def import_maximum_projection_tif_file(self):
-        maxTifFilePath = self.absoluteFilePath.with_name(self.name+'_max.tif')
-        self._maximum_projection_image = io.imread(maxTifFilePath, as_gray=True)
 
     def import_coeff_file(self):
         from skimage.transform import AffineTransform

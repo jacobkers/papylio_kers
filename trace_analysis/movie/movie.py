@@ -15,8 +15,6 @@ class Movie:
     def __init__(self, filepath):  # , **kwargs):
         self.filepath = Path(filepath)
         # self.filepaths = [Path(filepath) for filepath in filepaths] # For implementing multiple files, e.g. two channels over two files
-        self._average_image = None
-        self._maximum_projection_image = None
         self.is_mapping_movie = False
 
         self.illuminations = [Illumination(self, 'green', 'g')]
@@ -56,19 +54,6 @@ class Movie:
     @property
     def bytes_per_frame(self):
         return self.data_type.itemsize * self.pixels_per_frame
-
-    @property
-    def average_image(self):
-        if self._average_image is None:
-            if self.filepath.with_name(self.name+'_ave.tif')
-            self.make_average_image(write=True)
-        return self._average_image
-
-    @property
-    def maximum_projection_image(self):
-        if self._maximum_projection_image is None:
-            self.make_maximum_projection(write=True)
-        return self._maximum_projection_image
 
     # @property
     # def channel_grid(self):
@@ -165,9 +150,7 @@ class Movie:
 
         return frame_out
 
-    def get_channel(self, image=None, channel='d'):
-        if image is None:
-            image = self.average_image
+    def get_channel(self, image, channel='d'):
         if channel in [None, 'all']:
             return image
 
@@ -300,7 +283,6 @@ class Movie:
                 frame = self.read_frame(frame_number=frame_index, channel=channel).astype(float)
                 image = image + frame
             image = (image / number_of_frames).astype(self.data_type)
-            self._average_image = image # Possibly we should save only the overview image not the last image [IS: 20-04-2021]
         elif projection_type == 'maximum':
             print(f'\n Making maximum projection image of {self.name}')
             for i, frame_index in enumerate(frame_indices):
@@ -309,7 +291,6 @@ class Movie:
                 frame = self.read_frame(frame_number=frame_index)
                 image = np.maximum(image, frame)
             sys.stdout.write(f'\r   Processed frames {frame_indices[0]}-{frame_indices[-1]}\n')
-            self._maximum_projection_image = image # Possibly we should save only the overview image not the last image [IS: 20-04-2021]
 
         if write:
             filename = self.name + '_'+projection_type[:3]+f'_{number_of_frames}fr'+filename_addition
@@ -318,7 +299,7 @@ class Movie:
             # plt.imsave(filepath.with_suffix('.tif'), image, format='tif', cmap=colour_map, vmin=self.intensity_range[0], vmax=self.intensity_range[1])
             # plt.imsave(filepath.with_suffix('.png'), image, cmap=colour_map, vmin=self.intensity_range[0], vmax=self.intensity_range[1])
 
-        # return image
+        return image
 
     def make_projection_images(self, projection_type='average', start_frame=0, number_of_frames=20):
         illumination_indices, channel_indices = \
@@ -389,26 +370,6 @@ class Movie:
 
     def show(self):
         return MoviePlotter(self)
-
-    # Moved to file, can probably be removed
-    def show_projection_image(self, projection_type='average', figure=None):
-        # This is only the last saved projection image, which may not be what we want here
-        # We may want an standard overview image [IS: 20-04-2021]
-        if not figure:
-            figure = plt.figure()
-        axis = figure.gca()
-
-        if projection_type == 'average':
-            image = self.average_image
-            axis.set_title('Average image')
-        elif projection_type == 'maximum':
-            image = self.maximum_projection_image
-            axis.set_title('Maximum projection')
-
-        axis.imshow(image)
-
-    def show_average_image(self, figure=None):
-        self.show_projection_image(projection_type='average', figure=figure)
 
     def subtract_background(self, image, method='per_channel'):
         if method == 'rollingball':
