@@ -16,6 +16,8 @@ def find_peaks(image=None, method='AKAZE', **kwargs):
         coordinates = find_peaks_adaptive_threshold(image, **kwargs)
     elif method == 'local-maximum':
         coordinates = find_peaks_local_maximum(image, **kwargs)
+    elif method == 'relative-local-maximum':
+        coordinates = find_peaks_relative_local_maximum(image, **kwargs)
     return coordinates
 
 def find_peaks_absolute_threshold(image, threshold = None, minimum_area = 5, maximum_area = 15):
@@ -52,17 +54,43 @@ def find_peaks_adaptive_threshold(image, minimum_area = 5, maximum_area = 15):
 def find_peaks_local_maximum(image,
                              minimum_intensity_difference=25,
                              maximum_intensity_difference=math.inf,
-                             filter_neighbourhood_size=10):
+                             filter_neighbourhood_size_min=10,
+                             filter_neighbourhood_size_max=5):
 
-    image_max = filters.maximum_filter(image, filter_neighbourhood_size)
+    image_max = filters.maximum_filter(image, filter_neighbourhood_size_max)
     maxima = (image == image_max)
-    image_min = filters.minimum_filter(image, filter_neighbourhood_size)
+    image_min = filters.minimum_filter(image, filter_neighbourhood_size_min)
     # Probably I need to make the neighbourhood_size of the minimum filter larger.
 
     difference_above_minimum = ((image_max - image_min) > minimum_intensity_difference)
     difference_below_maximum = ((image_max - image_min) < maximum_intensity_difference)
     difference_within_bounds = np.logical_and(difference_above_minimum, difference_below_maximum)
     maxima[difference_within_bounds == 0] = 0
+
+    labeled, num_objects = ndimage.label(maxima)
+    if num_objects > 0:
+        coordinates = np.fliplr(np.array(ndimage.center_of_mass(image, labeled, range(1, num_objects + 1))))
+    else:
+        coordinates = np.array([])
+        print('No peaks found')
+
+    return coordinates
+
+
+def find_peaks_relative_local_maximum(image,
+                                      minimum_times_background=4.5,
+                                      maximum_times_background=math.inf,
+                                      filter_neighbourhood_size_min=10,
+                                      filter_sigma_min=25,
+                                      filter_neighbourhood_size_max=5):
+
+    image_min = filters.minimum_filter(image, filter_neighbourhood_size_min)
+    image_min_gaussian = filters.gaussian_filter(image_min, sigma=filter_sigma_min)
+    relative_image = image/image_min_gaussian
+
+    relative_image_max = filters.maximum_filter(relative_image, filter_neighbourhood_size_max)
+    maxima = (relative_image == relative_image_max)
+    maxima[relative_image_max < minimum_times_background] = False
 
     labeled, num_objects = ndimage.label(maxima)
     if num_objects > 0:
