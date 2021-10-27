@@ -49,7 +49,7 @@ if perform_new_mapping:
     plt.pause(0.1)
 
 # Run for specific files
-file_indices_of_interest = list(range(11, 20))
+file_indices_of_interest = [1, 2, 3]
 
 selected_files = [file for file_index, file in enumerate(exp.files) if file_index in file_indices_of_interest]
 
