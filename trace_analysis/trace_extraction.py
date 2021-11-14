@@ -119,35 +119,36 @@ def extract_traces(movie, coordinates, background=None, channel='all', mask_size
 
     # donor=np.zeros(( self.number_of_frames,self.pts_number))
     # acceptor=np.zeros((self.number_of_frames,self.pts_number))
+    with movie:
+        movie.read_header()
+        traces = np.zeros((len(coordinates), movie.number_of_frames))
 
-    traces = np.zeros((len(coordinates), movie.number_of_frames))
+        if background is None:
+            background = np.zeros(len(coordinates))
 
-    if background is None:
-        background = np.zeros(len(coordinates))
+        # t0 = time.time()
 
-    # t0 = time.time()
+        #twoD_gaussian = make_gaussian(gauss_width, fwhm=3, center=(gauss_width // 2, gauss_width // 2))
 
-    #twoD_gaussian = make_gaussian(gauss_width, fwhm=3, center=(gauss_width // 2, gauss_width // 2))
+        offsets = coordinates % 1
+        twoD_gaussians = [make_gaussian_mask(size=neighbourhood_size, offset=offsets[i], sigma=mask_size) for i in range(len(coordinates))]
 
-    offsets = coordinates % 1
-    twoD_gaussians = [make_gaussian_mask(size=neighbourhood_size, offset=offsets[i], sigma=mask_size) for i in range(len(coordinates))]
+        for frame_number in range(movie.number_of_frames):  # self.number_of_frames also works for pm, len(self.movie_file_object.filelist) not
+            # print(frame_number)
+            if frame_number % 13 == 0:
+                sys.stdout.write(f'\r   Frame {frame_number} of {movie.number_of_frames}')
 
-    for frame_number in range(movie.number_of_frames):  # self.number_of_frames also works for pm, len(self.movie_file_object.filelist) not
-        # print(frame_number)
-        if frame_number % 13 == 0:
-            sys.stdout.write(f'\r   Frame {frame_number} of {movie.number_of_frames}')
+            image = movie.read_frame(frame_number)
+            image = movie.get_channel(image, channel)
+            trace_values_in_frame = extract_trace_values_from_image(image, coordinates, background, twoD_gaussians)
 
-        image = movie.read_frame(frame_number)
-        image = movie.get_channel(image, channel)
-        trace_values_in_frame = extract_trace_values_from_image(image, coordinates, background, twoD_gaussians)
+            traces[:,frame_number] = trace_values_in_frame  # will multiply with gaussian, spot location is not drift compensated
+        sys.stdout.write(f'\r   Frame {frame_number+1} of {movie.number_of_frames}\n')
+        # t1=time.time()
+        # elapsed_time=t1-t0; print(elapsed_time)
 
-        traces[:,frame_number] = trace_values_in_frame  # will multiply with gaussian, spot location is not drift compensated
-    sys.stdout.write(f'\r   Frame {frame_number+1} of {movie.number_of_frames}\n')
-    # t1=time.time()
-    # elapsed_time=t1-t0; print(elapsed_time)
+        # root, name = os.path.split(self.filepath)
 
-    # root, name = os.path.split(self.filepath)
-
-    # if os.path.isfile(trace_fn):
+        # if os.path.isfile(trace_fn):
 
     return traces

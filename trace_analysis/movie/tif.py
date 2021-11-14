@@ -17,14 +17,22 @@ class TifMovie(Movie):
         self.threshold = {  'view':             (0,200),
                             'point-selection':  (45,25)
                             }
-
+        self.file = None # Note this is for the tif file, not the File class.
         # self.read_header()
         # self.create_frame_info()  # Possibly move to Movie later on
 
+        self._initialized = True
+
+    def open(self):
+        self.file = tifffile.TiffFile(self.filepath)
+
+    def close(self):
+        self.file.close()
+
     def _read_header(self):
-        with tifffile.TiffFile(self.filepath) as tif:
+        with self:
             tif_tags = {}
-            for tag in tif.pages[0].tags.values():
+            for tag in self.file.pages[0].tags.values():
                 name, value = tag.name, tag.value
                 tif_tags[name] = value
             self.width = tif_tags['ImageWidth']
@@ -36,14 +44,14 @@ class TifMovie(Movie):
             #self.time = xr.DataArray((self.datetime-self.datetime[0]).total_seconds(), dims='frame',
             #                         coords={}, attrs={'units': 's'})
             try:
-                if tif.metaseries_metadata:
-                    self.number_of_frames = tif.metaseries_metadata['SetInfo']['number-of-planes']
-                    pixel_size_x = tif.metaseries_metadata['PlaneInfo']['spatial-calibration-x']
-                    pixel_size_y = tif.metaseries_metadata['PlaneInfo']['spatial-calibration-y']
+                if self.file.metaseries_metadata:
+                    self.number_of_frames = self.file.metaseries_metadata['SetInfo']['number-of-planes']
+                    pixel_size_x = self.file.metaseries_metadata['PlaneInfo']['spatial-calibration-x']
+                    pixel_size_y = self.file.metaseries_metadata['PlaneInfo']['spatial-calibration-y']
                     self.pixel_size = np.array([pixel_size_x, pixel_size_y])
-                    self.pixel_size_unit = tif.metaseries_metadata['PlaneInfo']['spatial-calibration-units']
-                    stage_position_x = tif.metaseries_metadata['PlaneInfo']['stage-position-x']
-                    stage_position_y = tif.metaseries_metadata['PlaneInfo']['stage-position-y']
+                    self.pixel_size_unit = self.file.metaseries_metadata['PlaneInfo']['spatial-calibration-units']
+                    stage_position_x = self.file.metaseries_metadata['PlaneInfo']['stage-position-x']
+                    stage_position_y = self.file.metaseries_metadata['PlaneInfo']['stage-position-y']
                     self.stage_coordinates = np.array([[stage_position_x, stage_position_y]])
                     self.stage_coordinates_in_pixels = self.stage_coordinates / self.pixel_size
 
@@ -53,12 +61,12 @@ class TifMovie(Movie):
             self.create_frame_info()  # Possibly move to Movie later on
 
     def _read_frame(self, frame_number):
-        with tifffile.TiffFile(self.filepath) as tif:
+        with self:
             # if self.number_of_frames == 1:
             #     # return -1,0,0,0
             #     im = tifpage[0].asarray()
             if (self.number_of_frames - 1) >= frame_number:
-                im = tif.pages[frame_number].asarray()
+                im = self.file.pages[frame_number].asarray()
             else:
                 raise IndexError('Selected frame number larger than number of frames')
             #     im = tifpage[self.number_of_frames - 1].asarray()

@@ -77,7 +77,10 @@ class Collection(UserList):
                 return f
             else:
                 def f(*args, **kwargs):
-                    output = Parallel(self.parallel, require='sharedmem')(delayed(getattr(datum, item))(*args, **kwargs) if datum is not None else None for datum in tqdm(self.data))
+                    with HiddenPrints():
+                        output = Parallel(self.parallel, require='sharedmem')\
+                            (delayed(getattr(datum, item))(*args, **kwargs) if datum is not None else None
+                             for datum in tqdm(self.data, position=0, leave=True))
                     # output = Parallel(self.parallel)(
                     #     delayed(getattr(File, item))(datum, *args, **kwargs) if datum is not None else None for datum in
                     #     tqdm(self.data))
@@ -123,6 +126,10 @@ class Collection(UserList):
     def insert(self, index, object):
         self.data.insert(index, object)
 
+    @property
+    def str(self):
+        return Collection([str(datum) for datum in self.data])
+
     def regex(self, pattern):
         p = re.compile(pattern)
         return [True if p.search(string) else False for string in self.data]
@@ -150,7 +157,7 @@ class Experiment:
         If true, then all files in the main folder are automatically imported. \n
         If false, then files are detected, but not imported.
     """
-
+    # TODO: Add presets for specific microscopes
     def __init__(self, main_path, channels=['g', 'r'], import_all=True):
         """Init method for the Experiment class
 

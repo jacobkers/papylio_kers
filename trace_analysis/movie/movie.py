@@ -13,6 +13,7 @@ from trace_analysis.timer import Timer
 
 class Movie:
     def __init__(self, filepath):  # , **kwargs):
+        self.header_is_read = False
         self.filepath = Path(filepath)
         # self.filepaths = [Path(filepath) for filepath in filepaths] # For implementing multiple files, e.g. two channels over two files
         self.is_mapping_movie = False
@@ -36,12 +37,32 @@ class Movie:
             self.writepath = self.filepath.parent
             self.name = self.filepath.with_suffix('').name
 
-        self.header_is_read = False
-
         # self.create_frame_info()
+
+        self._with_counter = 0
+
+    def __enter__(self):
+        if self._with_counter == 0:
+            self.open()
+            print('open')
+        self._with_counter += 1
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self._with_counter -= 1
+        if self._with_counter == 0:
+            self.close()
+            print('close')
 
     def __repr__(self):
         return (f'{self.__class__.__name__}({str(self.filepath)})')
+
+    def __getattr__(self, item):
+        if '_initialized' in self.__dict__ and not self.header_is_read:
+        # if item != 'header_is_read' and not self.header_is_read:
+            self.read_header()
+            return getattr(self, item)
+        else:
+            return super().__getattribute__(item)
 
     @property
     def pixels_per_frame(self):
@@ -220,7 +241,7 @@ class Movie:
             #     tifffile.imwrite(self.writepath.joinPath(f'{self.name}_fr{frame_number}.tif'), image,  photometric='minisblack')
 
     def make_projection_image(self, projection_type='average', start_frame=0, number_of_frames=20, illumination=None,
-                              channel=None, write=False):
+                              channel=None, write=False, return_image=True):
         """ Construct a projection image
         Determine a projection image for a number_of_frames starting at start_frame.
         i.e. [start_frame, start_frame + number_of_frames)
@@ -299,7 +320,8 @@ class Movie:
             # plt.imsave(filepath.with_suffix('.tif'), image, format='tif', cmap=colour_map, vmin=self.intensity_range[0], vmax=self.intensity_range[1])
             # plt.imsave(filepath.with_suffix('.png'), image, cmap=colour_map, vmin=self.intensity_range[0], vmax=self.intensity_range[1])
 
-        return image
+        if return_image:
+            return image
 
     def make_projection_images(self, projection_type='average', start_frame=0, number_of_frames=20):
         illumination_indices, channel_indices = \
@@ -314,7 +336,7 @@ class Movie:
                                        illumination_index, channel_index, write=True)
 
             image = self.make_projection_image(projection_type, start_frame, number_of_frames,
-                                               illumination_index, channel_index)
+                                               illumination_index, channel_index, return_image=True)
             image = (image - self.intensity_range[0]) / (self.intensity_range[1]-self.intensity_range[0])
             images.append(self.channels[channel_index].colour_map(image, bytes=True))
 

@@ -119,7 +119,7 @@ class File:
 
     @property
     def number_of_molecules(self):
-        return len(self.molecule)
+        return len(self.dataset.molecule)
 
     @property
     def configuration(self):
@@ -487,9 +487,6 @@ class File:
         window_size = configuration['window_size']
         use_sliding_window = bool(configuration['use_sliding_window'])
 
-        # Reset current .nc file
-        self._init_dataset(len(coordinates.molecule))
-
         # --- make the windows
         # (if no sliding windows, just a single window is made to make it compatible with next bit of code) ----
         if use_sliding_window:
@@ -514,9 +511,10 @@ class File:
         for window_start_frame in window_start_frames:
 
             # --- allowed to apply sliding window to either the max projection OR the averages ----
-            image = self.movie.make_projection_image(projection_type=projection_image_type, start_frame=window_start_frame,
-                                                     number_of_frames=window_size)
-
+            # image = self.movie.make_projection_image(projection_type=projection_image_type, start_frame=window_start_frame,
+            #                                          number_of_frames=window_size, return_image=True)
+            image = self.average_image
+            self.movie.read_header()
             # Do we need a separate image?
             # # --- we output the "sum of these images" ----
             # find_coords_img += image
@@ -558,7 +556,10 @@ class File:
                      'coordinates_after_gaussian_fit': coordinates_after_gaussian_fit,
                      'coordinates_without_intensity_at_radius': coordinates_without_intensity_at_radius}
                 for f, kwargs in configuration['coordinate_optimization'].items():
+                    if len(channel_coordinates) == 0:
+                        break
                     channel_coordinates = coordinate_optimization_functions[f](channel_coordinates, channel_image, **kwargs)
+
 
                 channel_coordinates = set_of_tuples_from_array(channel_coordinates)
 
@@ -567,6 +568,11 @@ class File:
         # Check whether points are found
         for coordinate_set in coordinate_sets:
             if len(coordinate_set) == 0:
+                # Reset current .nc file
+                self._init_dataset(0)
+                coordinates = xr.DataArray(np.empty((0, 2, 2)), dims=('molecule', 'channel', 'dimension'),
+                                    coords={'channel': [0, 1], 'dimension': ['x', 'y']}, name='coordinates')
+                coordinates.to_netcdf(self.relativeFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
                 return
 
         # --- correct for photon shot noise / stage drift ---
@@ -614,7 +620,8 @@ class File:
 
         coordinates = np.hstack(coordinates_list)
 
-        coordinates_selections = [coordinates_within_margin_selection(coordinates, bounds=self.movie.channels[i].boundaries)
+        coordinates_selections = [coordinates_within_margin_selection(coordinates, bounds=self.movie.channels[i].boundaries,
+                                                                      **configuration['coordinate_optimization']['coordinates_within_margin'])
                                   for i, coordinates in enumerate(coordinates_list)]
         selection = np.vstack(coordinates_selections).all(axis=0)
         coordinates = coordinates[selection]
@@ -638,6 +645,14 @@ class File:
         # coordinates = coordinates.reset_index('molecule').rename(molecule_='molecule_in_file')
         # self.experiment.dataset.drop_sel(file=str(self.relativeFilePath), errors='ignore')
 
+        # Because split_dimension doesn't keep the channels in case of an empty array.
+        if len(coordinates) == 0:
+            coordinates = xr.DataArray(np.empty((0, 2, 2)), dims=('molecule', 'channel', 'dimension'),
+                                       coords={'channel': [0, 1], 'dimension': ['x', 'y']}, name='coordinates')
+
+        # Reset current .nc file
+        self._init_dataset(len(coordinates.molecule))
+
         coordinates.to_netcdf(self.relativeFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
         self.extract_background()
 
@@ -652,7 +667,7 @@ class File:
             #TODO: enable setting method from configuration file
             background_list.append(extract_background(channel_image, channel_coordinates, method='ROI_minimum'))
 
-        background = xr.DataArray(np.vstack(background_list).T, dims=['molecule','channel'], name='background')
+        background = xr.DataArray(np.vstack(background_list).T, dims=['molecule', 'channel'], name='background')
         background.to_netcdf(self.relativeFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
 
     def import_excel_file(self, filename=None):
@@ -998,7 +1013,7 @@ class File:
             sc_coordinates = axis.scatter(coordinates[:, 0], coordinates[:, 1], facecolors='none', edgecolors='red', **kwargs)
             # marker='o'
 
-            selected_coordinates = self.coordinates[self.selected].stack({'peak': ('molecule', 'channel')}).T.values
+            selected_coordinates = self.coordinates.sel(molecule=self.selected).stack({'peak': ('molecule', 'channel')}).T.values
             axis.scatter(selected_coordinates[:, 0], selected_coordinates[:, 1], facecolors='none', edgecolors='green', **kwargs)
 
             if annotate:
@@ -1054,7 +1069,10 @@ class File:
 
 def import_pks_file(pks_filepath):
     pks_filepath = Path(pks_filepath)
-    data = np.atleast_2d(np.genfromtxt(pks_filepath)[:,1:])
+    data = np.genfromtxt(pks_filepath)
+    if len(data) == 0:
+        return xr.DataArray(np.empty((0,3)), dims=("peak",'parameter'), coords={'parameter': ['x', 'y', 'background']})
+    data = np.atleast_2d(data)[:,1:]
     if data.shape[1] == 2:
         data = np.hstack([data, np.zeros((len(data),1))])
     return xr.DataArray(data, dims=("peak",'parameter'),
@@ -1113,10 +1131,14 @@ def split_dimension(data_array, old_dim, new_dims, new_dims_shape=None, new_dims
     new_dims_coords = (range(new_dims_shape[i]) if new_dims_coord == -1 else new_dims_coord
                        for i, new_dims_coord in enumerate(new_dims_coords))
 
+    new_dims_coords = [np.arange(new_dims_shape[i]) if new_dims_coord == -1 else new_dims_coord
+                       for i, new_dims_coord in enumerate(new_dims_coords)]
+
     new_index = pd.MultiIndex.from_product(new_dims_coords, names=new_dims)
     data_array = data_array.assign_coords(**{old_dim: new_index})
 
     if to == 'dimensions':
+        # Unstack does not work well for empty data_arrays, but in principle all necessary information is contained in the multiindex, i.e. range of all dimensions.
         return data_array.unstack(old_dim).transpose(*all_dims)
     elif to == 'multiindex':
         return data_array
