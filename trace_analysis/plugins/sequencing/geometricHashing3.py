@@ -15,40 +15,100 @@ import time
 
 
 class GeometricHashTable:
-    def __init__(self, destinations, source_vertices=None, initial_source_transformation=AffineTransform(),
-                 number_of_source_bases=20, number_of_destination_bases='all'):
+    def __init__(self, destinations=None, source_vertices=None, initial_source_transformation=AffineTransform(),
+                 number_of_source_bases=20, number_of_destination_bases='all', load=False):
         # self.tile = tile
         # self.files = files # List of coordinate sets
         # self.dataPath = Path(dataPath)
 
-        self.initial_source_transformation = initial_source_transformation
+        if load:
+            self.load()
+        else:
 
-        # self.mode = mode
-        # if mode == 'translation': self.hashTableRange = [-10000, 10000]
-        # else: self.hashTableRange = [-1,1]
-        # self.nBins = nBins
+            self.initial_source_transformation = initial_source_transformation
 
-        #
-        # self.number_of_source_bases = number_of_source_bases
-        # self.number_of_destination_bases = number_of_destination_bases
+            # self.mode = mode
+            # if mode == 'translation': self.hashTableRange = [-10000, 10000]
+            # else: self.hashTableRange = [-1,1]
+            # self.nBins = nBins
 
-        # self._hashTable = None
-        # self._matches = None
-        #
-        # self.rotationRange = rotationRange
-        # self.magnificationRange = magnificationRange
-        #
+            #
+            # self.number_of_source_bases = number_of_source_bases
+            # self.number_of_destination_bases = number_of_destination_bases
+
+            # self._hashTable = None
+            # self._matches = None
+            #
+            # self.rotationRange = rotationRange
+            # self.magnificationRange = magnificationRange
+            #
 
 
-        self.destinations = destinations
-        self.destination_KDTrees = [cKDTree(destination) for destination in destinations]
-        self.source_vertices = source_vertices
+            self.destinations = destinations
+            self.destination_KDTrees = [cKDTree(destination) for destination in destinations]
+            self.source_vertices = source_vertices
 
-        self.number_of_hashtable_entries_per_destination = []
-        self.number_of_hashtable_entries_per_basis = []
-        self.number_of_bases_per_destination = []
+            self.number_of_hashtable_entries_per_destination = []
+            self.number_of_hashtable_entries_per_basis = []
+            self.number_of_bases_per_destination = []
 
-        self.create_hashtable()
+            self.basis_index_edges_for_destination = None
+            self.entry_index_edges_for_destination = None
+            self.entry_index_edges_for_basis = None
+
+            self.hashtable = None
+
+            self.create_hashtable()
+
+    def save(self):
+        # destinations_stacked = np.vstack([np.c_[i*np.ones(destination.shape[0], dtype=int), destination]
+        #                                   for i, destination in enumerate(self.destinations)])
+        destinations_stacked = np.vstack(self.destinations)
+        destinations_length = np.array([len(destination) for destination in self.destinations])
+
+        # number_of_hashtable_entries_per_basis_stacked = \
+        #     np.vstack([np.c_[i * np.ones(len(n), dtype=int), n]
+        #                for i, n in enumerate(self.number_of_hashtable_entries_per_basis)])
+
+        number_of_hashtable_entries_per_basis_stacked = np.hstack(self.number_of_hashtable_entries_per_basis)
+        number_of_hashtable_entries_per_basis_length = np.array([len(n) for n in self.number_of_hashtable_entries_per_basis])
+
+        np.savez('geometric_hashtable.npz',
+                    initial_source_transformation=self.initial_source_transformation.params,
+                    destinations_stacked=destinations_stacked,
+                    destinations_length=destinations_length,
+                    hashtable=self.hashtable.data,
+                    source_vertices=self.source_vertices,
+                    number_of_hashtable_entries_per_destination=np.array(self.number_of_hashtable_entries_per_destination),
+                    number_of_hashtable_entries_per_basis_stacked=number_of_hashtable_entries_per_basis_stacked,
+                    number_of_hashtable_entries_per_basis_length=number_of_hashtable_entries_per_basis_length,
+                    number_of_bases_per_destination=np.array(self.number_of_bases_per_destination),
+                    basis_index_edges_for_destination=self.basis_index_edges_for_destination,
+                    entry_index_edges_for_destination=self.entry_index_edges_for_destination,
+                    entry_index_edges_for_basis=self.entry_index_edges_for_basis
+                    )
+
+    def load(self):
+        file = np.load('geometric_hashtable.npz')
+        self.initial_source_transformation = AffineTransform(file['initial_source_transformation'])
+        self.destinations = np.split(file['destinations_stacked'], np.cumsum(file['destinations_length'])[:-1])
+        self.destination_KDTrees = [cKDTree(destination) for destination in self.destinations]
+
+        self.hashtable = cKDTree(file['hashtable'])
+        self.source_vertices = file['source_vertices']
+
+        self.number_of_hashtable_entries_per_destination = file['number_of_hashtable_entries_per_destination'].tolist()
+
+        number_of_hashtable_entries_per_basis=\
+            np.split(file['number_of_hashtable_entries_per_basis_stacked'],
+                 np.cumsum(file['number_of_hashtable_entries_per_basis_length'])[:-1])
+        self.number_of_hashtable_entries_per_basis = [n.tolist() for n in number_of_hashtable_entries_per_basis]
+
+        self.number_of_bases_per_destination = file['number_of_bases_per_destination'].tolist()
+
+        self.basis_index_edges_for_destination = file['basis_index_edges_for_destination']
+        self.entry_index_edges_for_destination = file['entry_index_edges_for_destination']
+        self.entry_index_edges_for_basis = file['entry_index_edges_for_basis']
 
     def create_hashtable(self):
         hashtable_entries_per_destination = []
@@ -142,7 +202,7 @@ class GeometricHashTable:
             destination_index = np.where(destination_basis_index<self.basis_index_edges_for_destination[1:])[0][0]
 
             source_basis_in_destination = self.initial_source_transformation(source[source_basis_index])
-            translation = self.destinations[destination_index][destination_basis_index-self.basis_index_edges_for_destination[destination_index]]\
+            translation = self.destinations[destination_index][[destination_basis_index-self.basis_index_edges_for_destination[destination_index]]]\
                           - source_basis_in_destination
 
             found_transformation = self.initial_source_transformation + AffineTransform(translation=translation)
@@ -203,11 +263,11 @@ class GeometricHashTable:
 
 
 if __name__ == '__main__':
-    # source = np.loadtxt(r'D:\SURFdrive\Promotie\Code\Python\traceAnalysis\trace_analysis\plugins\sequencing\source.txt')
-    source = np.loadtxt(r'D:\SURFdrive\Promotie\Code\Python\traceAnalysis\trace_analysis\plugins\sequencing\source3.txt')
-    destination1 = np.loadtxt(r'D:\SURFdrive\Promotie\Code\Python\traceAnalysis\trace_analysis\plugins\sequencing\destination.txt')
-    destination2 = np.loadtxt(r'D:\SURFdrive\Promotie\Code\Python\traceAnalysis\trace_analysis\plugins\sequencing\destination2.txt')
-    destinations = [destination1, destination2]
+    source = np.loadtxt(r'D:\SURFdrive\Promotie\Code\Python\traceAnalysis\trace_analysis\plugins\sequencing\Test pointset\source.txt')
+    # source = np.loadtxt(r'D:\SURFdrive\Promotie\Code\Python\traceAnalysis\trace_analysis\plugins\sequencing\source3.txt')
+    destination1 = np.loadtxt(r'D:\SURFdrive\Promotie\Code\Python\traceAnalysis\trace_analysis\plugins\sequencing\Test pointset\destination.txt')
+    # destination2 = np.loadtxt(r'D:\SURFdrive\Promotie\Code\Python\traceAnalysis\trace_analysis\plugins\sequencing\destination2.txt')
+    destinations = [destination1]#, destination2]
 
     initial_magnification = np.array([ 3.67058194, -3.67058194])
     initial_rotation = 0.6285672733195177 # degrees
