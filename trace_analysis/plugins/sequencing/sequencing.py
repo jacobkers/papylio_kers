@@ -17,19 +17,21 @@ from .geometricHashing2 import geometric_hash, find_match_after_hashing
 from .geometricHashing3 import GeometricHashTable
 from .plotting import plot_sequencing_match, plot_matched_files_in_tile
 from trace_analysis.mapping.icp import icp, nearest_neighbor_pair
-
+from .sequencing_data import SequencingData
 
 class Experiment:
     def import_sequencing_data(self, fastq_file_path):
         self.fastq_file_path = Path(fastq_file_path)
         self.sequencing_data = FastqData(self.fastq_file_path)
 
-    def generate_mapping_hashtable(self, mapping_sequence, number_of_allowed_mismatches,
-                                   imaged_surface=None, maximum_distance_tile=None, tuple_size=None):
+    def import_sequencing_data_for_mapping(self, file_path):
+        self.sequencing_data_for_mapping = SequencingData(file_path)
+
+    def generate_mapping_hashtable(self, imaged_surface=None, maximum_distance_tile=None, tuple_size=None):
 
         # TODO: Add timer to generate_mapping_hashtable and find_sequences methods, by making a decorator function. [IS: 10-08-2020]
 
-        self.select_sequencing_data_for_mapping(mapping_sequence, number_of_allowed_mismatches)
+        # self.select_sequencing_data_for_mapping(mapping_sequence, number_of_allowed_mismatches)
 
         if imaged_surface in ['top', 1]:
             self.sequencing_data_for_mapping = self.sequencing_data_for_mapping[self.sequencing_data_for_mapping.tile < 2000]
@@ -40,19 +42,18 @@ class Experiment:
         # TODO: get maximum_distance_tile and tuple_size from configuration
         self.geometric_hash_data = geometric_hash(tile_coordinate_sets, maximum_distance_tile, tuple_size)
 
-    def generate_mapping_hashtable3(self, mapping_sequence, number_of_allowed_mismatches,
-                                    imaged_surface=None, initial_file_transformation=None, maximum_distance_tile=None, tuple_size=None):
+    def generate_mapping_hashtable3(self, imaged_surface=None, initial_file_transformation=None, maximum_distance_tile=None, tuple_size=None):
 
         # TODO: Add timer to generate_mapping_hashtable and find_sequences methods, by making a decorator function. [IS: 10-08-2020]
 
-        self.select_sequencing_data_for_mapping(mapping_sequence, number_of_allowed_mismatches)
+        # self.select_sequencing_data_for_mapping(mapping_sequence, number_of_allowed_mismatches)
 
         if imaged_surface in ['top', 1]:
-            self.sequencing_data_for_mapping = self.sequencing_data_for_mapping[self.sequencing_data_for_mapping.tile < 2000]
+            sequencing_data_for_mapping = self.sequencing_data_for_mapping[self.sequencing_data_for_mapping.tile < 2000]
         elif imaged_surface in ['bottom', 2]:
-            self.sequencing_data_for_mapping = self.sequencing_data_for_mapping[self.sequencing_data_for_mapping.tile > 2000]
+            sequencing_data_for_mapping = self.sequencing_data_for_mapping[self.sequencing_data_for_mapping.tile > 2000]
 
-        tile_coordinate_sets = [tile.coordinates for tile in self.sequencing_data_for_mapping.tiles]
+        tile_coordinate_sets = [tile.coordinates for tile in sequencing_data_for_mapping.tiles]
 
         # initial_magnification = np.array([3.67058194, -3.67058194])
         # initial_rotation = 0.6285672733195177  # degrees
@@ -251,8 +252,8 @@ class File:
         self.importFunctions['.fastq'] = self.import_sequencing_data
         self.importFunctions['_sequencing_match.mapping'] = self.import_sequencing_match
 
-        if self.experiment.import_all is True:
-            self.findAndAddExtensions()
+        # if self.experiment.import_all is True:
+        #     self.findAndAddExtensions()
 
     @property
     def sequences(self):
