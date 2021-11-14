@@ -15,6 +15,7 @@ Start_analysis.py
 *.iml
 *.*.pyc
 .DS_Store
+*_backup*
 
 *.pyc
 Example_MD*
