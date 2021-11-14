@@ -588,7 +588,7 @@ if __name__ == "__main__":
     # Create test point set (with some missing points)
     from trace_analysis.plugins.sequencing.point_set_simulation import simulate_mapping_test_point_set
 
-    # Simulate soure and destination point sets
+    # Simulate source and destination point sets
     number_of_source_points = 40
     transformation = AffineTransform(translation=[256, 0], rotation=5 / 360 * 2 * np.pi, scale=[0.98, 0.98])
     source_bounds = ([0, 0], [256, 512])

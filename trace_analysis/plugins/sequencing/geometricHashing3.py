@@ -263,21 +263,58 @@ class GeometricHashTable:
 
 
 if __name__ == '__main__':
-    source = np.loadtxt(r'D:\SURFdrive\Promotie\Code\Python\traceAnalysis\trace_analysis\plugins\sequencing\Test pointset\source.txt')
+    # # source = np.loadtxt(r'D:\SURFdrive\Promotie\Code\Python\traceAnalysis\trace_analysis\plugins\sequencing\source.txt')
     # source = np.loadtxt(r'D:\SURFdrive\Promotie\Code\Python\traceAnalysis\trace_analysis\plugins\sequencing\source3.txt')
-    destination1 = np.loadtxt(r'D:\SURFdrive\Promotie\Code\Python\traceAnalysis\trace_analysis\plugins\sequencing\Test pointset\destination.txt')
+    # destination1 = np.loadtxt(r'D:\SURFdrive\Promotie\Code\Python\traceAnalysis\trace_analysis\plugins\sequencing\destination.txt')
     # destination2 = np.loadtxt(r'D:\SURFdrive\Promotie\Code\Python\traceAnalysis\trace_analysis\plugins\sequencing\destination2.txt')
-    destinations = [destination1]#, destination2]
+    # destinations = [destination1, destination2]
+    #
+    # initial_magnification = np.array([ 3.67058194, -3.67058194])
+    # initial_rotation = 0.6285672733195177 # degrees
+    #
+    # initial_source_transformation = AffineTransform(matrix=None, scale=initial_magnification,
+    #                                                 rotation=initial_rotation/360*np.pi*2,
+    #                                                 shear=None, translation=None)
+    # source_vertices = np.array([[256,   0], [512,   0], [512, 512], [256, 512]])
+    #
+    # ht = GeometricHashTable(destinations, source_vertices, initial_source_transformation=initial_source_transformation)
+    #
+    # match = ht.query(source, 15)
 
-    initial_magnification = np.array([ 3.67058194, -3.67058194])
-    initial_rotation = 0.6285672733195177 # degrees
+    from trace_analysis.plugins.sequencing.point_set_simulation import simulate_mapping_test_point_set
 
-    initial_source_transformation = AffineTransform(matrix=None, scale=initial_magnification,
-                                                    rotation=initial_rotation/360*np.pi*2,
-                                                    shear=None, translation=None)
-    source_vertices = np.array([[256,   0], [512,   0], [512, 512], [256, 512]])
+    # Simulate source and destination point sets
+    number_of_source_points = 4000
+    transformation = AffineTransform(translation=[128, 128], rotation=0 / 360 * 2 * np.pi, scale=[1, 1])
+    source_bounds = np.array([[0, 0], [512, 512]])
+    source_crop_bounds = np.array([[0, 0], [50, 50]])
+    fraction_missing_source = 0.8
+    fraction_missing_destination = 0.6
+    maximum_error_source = 0
+    maximum_error_destination = 0
+    shuffle = True
 
-    ht = GeometricHashTable(destinations, source_vertices, initial_source_transformation=initial_source_transformation)
+    destination, source = simulate_mapping_test_point_set(number_of_source_points, transformation,
+                                                          source_bounds, source_crop_bounds,
+                                                          fraction_missing_source, fraction_missing_destination,
+                                                          maximum_error_source, maximum_error_destination, shuffle)
+    destinations = [destination]
 
-    match = ht.query(source, 15)
+    perfect = Mapping2(source, destination)
+    perfect.transformation = AffineTransform(matrix=transformation._inv_matrix)
+    perfect.show_mapping_transformation()
 
+    # scatter_coordinates([source, destination])
+
+    source_vertices = np.array([source_crop_bounds[0], source_crop_bounds.T[0],
+                                source_crop_bounds[1], np.flip(source_crop_bounds.T[1])])
+    ht = GeometricHashTable(destinations, source_vertices)
+
+    distance = 5
+    alpha = 0.5
+    sigma = 2
+    K_threshold = 10e8
+
+    test = ht.query(source, distance, alpha, sigma, K_threshold)
+    if test:
+        test.show_mapping_transformation()
