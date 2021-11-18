@@ -63,7 +63,9 @@ def fit_twoD_gaussian(Z):
     X, Y = np.meshgrid(x, y)
     xdata = np.vstack((X.ravel(), Y.ravel()))
 
-    p0 = [20,20,0,0,1,1]
+    # SHK: better initial guess
+    # p0 = [20,20,0,0,1,1]
+    p0 = [Z.min(), Z.max()-Z.min(), 0, 0, 1, 1]
     popt, pcov = curve_fit(twoD_gaussian, xdata, Z.ravel(), p0) #input: function, xdata, ydata,p0
       
     # The offset can potentially be used for background subtraction
