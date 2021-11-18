@@ -13,9 +13,10 @@ import os, sys
 import time
 import numpy as np
 import matplotlib.pyplot as plt
+import xarray as xr
 from nd2reader import ND2Reader
 
-from trace_analysis.movie.movie import Movie
+from trace_analysis.movie.movie import Movie, Illumination
 
 
 class ND2Movie(Movie):
@@ -33,19 +34,27 @@ class ND2Movie(Movie):
         # SHK: self.rot90 should be set before reading the header.
         self.rot90 = 1
 
-        self.f_obj = ND2Reader(self.filepath)
+        self.f_obj = ND2Reader(str(self.filepath))
+        self.f_obj.iter_axes = 'tc'
         self.read_header()
         self.create_frame_info()  # Possibly move to Movie later on
 
 
     def _read_header(self):
-        with ND2Reader(self.filepath) as images:
+        with ND2Reader(str(self.filepath)) as images:
             self.width = images.metadata['width']
             self.height = images.metadata['height']
             # self.number_of_frames = images.metadata['num_frames']
+            images.iter_axes = 'tc'
+            self.number_of_fields_of_view = len(images.metadata["experiment"]["loops"])
             self.number_of_frames = len(images)
+            self.illuminations = [Illumination(self, name) for name in images.metadata["channels"]]
+            self.illumination_arrangement = np.arange(len(self.illuminations))
             # self.bitdepth = 16
-            self.exp_time = images.metadata['experiment']['loops'][0]['sampling_interval']
+            self.time = xr.DataArray(np.repeat(images.timesteps, self.number_of_illuminations)/1000, dims='frame',
+                                     coords={}, attrs={'units': 's'})
+
+            # self.exp_time = images.metadata['experiment']['loops'][0]['sampling_interval']
            # self.exp_time_start=images.metadata['experiment']['loops'][0]['start']
            # self.exp_time_duration=images.metadata['experiment']['loops'][0]['duration']
            # self.pixelmicron=images.metadata['experiment']['pixel_microns']

@@ -742,7 +742,10 @@ class File:
         # traces = traces.reshape((number_of_molecules, self.number_of_channels, self.movie.number_of_frames)).swapaxes(0, 1)
 
         if hasattr(self.movie, 'time'):
-            intensity.assign_coords(time=self.movie.time)
+            intensity = intensity.assign_coords(time=self.movie.time)
+
+        if self.movie.illumination is not None:
+            intensity = intensity.assign_coords(illumination=self.movie.illumination)
 
         intensity.to_netcdf(self.relativeFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
 
