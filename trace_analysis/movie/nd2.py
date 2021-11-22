@@ -35,7 +35,10 @@ class ND2Movie(Movie):
         self.rot90 = 1
 
         self.f_obj = ND2Reader(str(self.filepath))
-        self.f_obj.iter_axes = 'tc'
+        if 'c' in self.f_obj.axes:
+            self.f_obj.iter_axes = 'tc'
+        else:
+            self.f_obj.iter_axes = 't'
         self.read_header()
         self.create_frame_info()  # Possibly move to Movie later on
 
@@ -44,8 +47,10 @@ class ND2Movie(Movie):
         with ND2Reader(str(self.filepath)) as images:
             self.width = images.metadata['width']
             self.height = images.metadata['height']
-            # self.number_of_frames = images.metadata['num_frames']
-            images.iter_axes = 'tc'
+            if 'c' in images.axes:
+                images.iter_axes = 'tc'
+            else:
+                images.iter_axes = 't'
             self.number_of_fields_of_view = len(images.metadata["experiment"]["loops"])
             self.number_of_frames = len(images)
             self.illuminations = [Illumination(self, name) for name in images.metadata["channels"]]
@@ -67,8 +72,8 @@ class ND2Movie(Movie):
             im = self.f_obj[frame_number]
         else:
             im = self.f_obj[self.number_of_frames - 1]
-            print('pageNb out of range, printed image {0} instead'.format(self.number_of_frames))
-        # note: im is a Frame, which is pims.frame.Frame, a np. array with additiona frame umber and metadata
+            print(f'pageNb out of range, printed image #{self.number_of_frames} instead')
+        # note: im is a Frame, which is pims.frame.Frame, a np. array with additional frame number and metadata
 
         return im
 

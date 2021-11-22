@@ -498,6 +498,15 @@ class File:
         window_size = configuration['window_size']
         use_sliding_window = bool(configuration['use_sliding_window'])
 
+        # --- set illumination configuration
+        #  An integer number for choosing one of the laser lines (the order of it first appeared)
+        #  ex. Two laser lines (532 and 640) in Alex mode starting with 532 excitation: 0 for green and 1 for red
+        #  None for simple average of the frames regardless of the order of illumination profile.
+        illumination = None
+        if 'illumination' in configuration:
+            illumination = configuration['illumination']
+            print(f'  frames with "{self.movie.illuminations[illumination]}" were chosen for peak finding')
+
 
         # --- make the windows
         # (if no sliding windows, just a single window is made to make it compatible with next bit of code) ----
@@ -524,7 +533,7 @@ class File:
 
             # --- allowed to apply sliding window to either the max projection OR the averages ----
             image = self.movie.make_projection_image(projection_type=projection_image_type, start_frame=window_start_frame,
-                                                     number_of_frames=window_size)
+                                                     number_of_frames=window_size, illumination=illumination)
 
             # Do we need a separate image?
             # # --- we output the "sum of these images" ----
@@ -974,7 +983,7 @@ class File:
                 file.mapping = self.mapping
                 file.is_mapping_file = False
 
-    def show_image(self, image_type='default', figure=None):
+    def show_image(self, image_type='default', figure=None, **kwargs):
         # Refresh configuration
         if image_type == 'default':
             self.experiment.import_config_file()
@@ -992,7 +1001,15 @@ class File:
             image = self.maximum_projection_image
             axis.set_title('Maximum projection')
 
-        axis.imshow(image)
+        image_handle = axis.imshow(image)
+
+        # process keyword arguments
+        colorscale = list(image_handle.get_clim())
+        if kwargs['vmin']:
+            colorscale[0] = kwargs['vmin']
+        if kwargs['vmax']:
+            colorscale[1] = kwargs['vmax']
+        image_handle.set_clim(colorscale)
 
     def show_average_image(self, figure=None):
         self.show_image(image_type='average_image', figure=figure)
