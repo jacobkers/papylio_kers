@@ -49,7 +49,7 @@ if perform_new_mapping:
     plt.pause(0.1)
 
 # Run for specific files
-file_indices_of_interest = [8, 9, 10]
+file_indices_of_interest = range(2, 110)
 
 selected_files = [file for file_index, file in enumerate(exp.files) if file_index in file_indices_of_interest]
 
@@ -67,6 +67,20 @@ for file in selected_files:
     print(f'\nWorking on {file}')
     file.find_coordinates()
     file.extract_traces()
+
+
+# show movie
+for file in selected_files:
+    figure_handle_movie = plt.figure()
+    # file.show_image(figure=figure_handle_movie)
+    file.show_image(figure=figure_handle_movie, vmin=120, vmax=200)
+    if file.is_mapping_file:
+        file.mapping.show_mapping_transformation(figure=figure_handle_movie)
+    else:
+        if file.coordinates.size > 0:
+            file.show_coordinates(figure=figure_handle_movie)
+plt.show()
+plt.pause(0.1)
 
 # Show interactive plot
 file_index = 3

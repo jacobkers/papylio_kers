@@ -21,7 +21,10 @@ def coordinates_within_margin_selection(coordinates,  image = None, bounds = Non
 
 def coordinates_within_margin(coordinates, image=None, bounds=None, margin=10):
     criteria = coordinates_within_margin_selection(coordinates,  image=image, bounds=bounds, margin=margin)
-    return coordinates[criteria]
+    if criteria.size == 0:
+        return np.array([])
+    else:
+        return coordinates[criteria]
 
 
 def circle(r):
@@ -63,7 +66,7 @@ def fit_twoD_gaussian(Z):
     X, Y = np.meshgrid(x, y)
     xdata = np.vstack((X.ravel(), Y.ravel()))
 
-    p0 = [20,20,0,0,1,1]
+    p0 = [np.min(Z), np.max(Z)-np.min(Z), 0, 0, 1, 1]
     popt, pcov = curve_fit(twoD_gaussian, xdata, Z.ravel(), p0) #input: function, xdata, ydata,p0
       
     # The offset can potentially be used for background subtraction
@@ -71,22 +74,25 @@ def fit_twoD_gaussian(Z):
 
 def coordinates_after_gaussian_fit(coordinates, image, gaussian_width = 9):
     new_coordinates = []
-    coordinates = coordinates_within_margin(coordinates, image=image, margin=gaussian_width//2+1)
+    if len(coordinates) == 0:
+        new_coordinates = coordinates
+    else:
+        coordinates = coordinates_within_margin(coordinates, image=image, margin=gaussian_width//2+1)
 
-    for i, coordinate in enumerate(coordinates):
-        # Could use the coordinates_within_margin for this [IS 01-11-2019]
-        #if np.all(coordinate > gaussian_width//2+1) and \
-        #        np.all(coordinate < np.array(image.shape)-gaussian_width//2-1):
-        cropped_peak = crop(image, coordinate, gaussian_width)
-        try:
-            coefficients = fit_twoD_gaussian(cropped_peak)
-            #new_coordinates.append(coordinate + coefficients[2:4])
-            new_coordinate = coordinate + coefficients[2:4]
-            if np.sum(np.abs(coefficients[2:4]))<gaussian_width*2:
-                new_coordinates.append(new_coordinate)
-            # else: #MD do nothing, you don't want to include fits with a center far outside the cropped image
-        except RuntimeError:
-            pass
+        for i, coordinate in enumerate(coordinates):
+            # Could use the coordinates_within_margin for this [IS 01-11-2019]
+            #if np.all(coordinate > gaussian_width//2+1) and \
+            #        np.all(coordinate < np.array(image.shape)-gaussian_width//2-1):
+            cropped_peak = crop(image, coordinate, gaussian_width)
+            try:
+                coefficients = fit_twoD_gaussian(cropped_peak)
+                #new_coordinates.append(coordinate + coefficients[2:4])
+                new_coordinate = coordinate + coefficients[2:4]
+                if np.sum(np.abs(coefficients[2:4]))<gaussian_width*2:
+                    new_coordinates.append(new_coordinate)
+                # else: #MD do nothing, you don't want to include fits with a center far outside the cropped image
+            except RuntimeError:
+                pass
     return np.array(new_coordinates)
 
 

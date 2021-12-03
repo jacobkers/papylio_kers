@@ -12,7 +12,7 @@ from trace_analysis.image_adapt.find_threshold import remove_background, get_thr
 
 
 class Movie:
-    def __init__(self, filepath):  # , **kwargs):
+    def __init__(self, filepath, *args, **kwargs):  # , **kwargs):
         self.filepath = Path(filepath)
         # self.filepaths = [Path(filepath) for filepath in filepaths] # For implementing multiple files, e.g. two channels over two files
         self._average_image = None
@@ -39,7 +39,7 @@ class Movie:
             self.writepath = self.filepath.parent
             self.name = self.filepath.with_suffix('').name
 
-        self.read_header()
+        # self.read_header()  # SHK: Why do we read header here while we also read in the "nd2.py" or "tif.py"?
         # self.create_frame_info()
 
     def __repr__(self):
@@ -332,7 +332,11 @@ class Movie:
             self._maximum_projection_image = image # Possibly we should save only the overview image not the last image [IS: 20-04-2021]
 
         if write:
-            filename = self.name + '_'+projection_type[:3]+f'_{number_of_frames}fr'+filename_addition
+            if hasattr(self, 'fov_info'):
+                filename_addition_fov = f'_fov{self.fov_info["fov_chosen"]:03d}'
+            else:
+                filename_addition_fov = ''
+            filename = self.name + filename_addition_fov + '_'+projection_type[:3]+f'_{number_of_frames}fr'+filename_addition
             filepath = self.writepath.joinpath(filename)
             TIFF.imwrite(filepath.with_suffix('.tif'), image)
             # plt.imsave(filepath.with_suffix('.tif'), image, format='tif', cmap=colour_map, vmin=self.intensity_range[0], vmax=self.intensity_range[1])
@@ -361,7 +365,7 @@ class Movie:
         filepath = self.writepath.joinpath(self.name + '_' + projection_type[:3] + f'_{number_of_frames}fr')
         plt.imsave(filepath.with_suffix('.png'), images_combined)
 
-    def make_average_image(self, start_frame=0, number_of_frames=20, write=False):
+    def make_average_image(self, start_frame=0, number_of_frames=20, illumination=None, write=False):
         """ Construct an average image
         Determine average image for a number_of_frames starting at start_frame.
         i.e. [start_frame, start_frame + number_of_frames)
@@ -382,9 +386,9 @@ class Movie:
 
         """
         return self.make_projection_image('average', start_frame=start_frame, number_of_frames=number_of_frames,
-                                          write=write)
+                                          illumination=illumination, write=write)
 
-    def make_maximum_projection(self, start_frame=0, number_of_frames=20, write=False):
+    def make_maximum_projection(self, start_frame=0, number_of_frames=20, illumination=None, write=False):
         """ Construct a maximum projection image
         Determine maximum projection image for a number_of_frames starting at start_frame.
         i.e. [start_frame, start_frame + number_of_frames)
@@ -405,7 +409,7 @@ class Movie:
         """
 
         return self.make_projection_image('maximum', start_frame=start_frame, number_of_frames=number_of_frames,
-                                          write=write)
+                                          illumination=illumination, write=write)
 
     def show(self):
         return MoviePlotter(self)

@@ -30,6 +30,7 @@ from trace_analysis.plugin_manager import plugins
 
 import re  # Regular expressions
 import warnings
+from nd2reader import ND2Reader
 
 
 # import matplotlib.pyplot as plt #Provides a MATLAB-like plotting framework
@@ -246,9 +247,49 @@ class Experiment:
                 file.findAndAddExtensions()
                 break
         else:
-            new_file = File(relativeFilePath, self)
-            if new_file.extensions:
-                self.files.append(new_file)
+            # check if the image file is nd2 file from Nikon
+            nd2_file = list(self.main_path.glob(str(relativeFilePath) + '.nd2'))
+            fov_info = {'number_of_fov': 1}  # fov=Field of View
+            if nd2_file:  # check if the nd2 file has multiple fov data,
+                fov_info = self.get_fov_from_nd2(nd2_file[0])
+
+            if fov_info['number_of_fov'] > 1:
+                for fov_id in range(fov_info['number_of_fov']):
+                    new_path = Path(str(relativeFilePath) + f'_fov{fov_id:03d}')
+                    fov_info['fov_chosen'] = fov_id
+                    new_file = File(new_path, self, fov_info=fov_info.copy())
+                    if new_file.extensions:
+                        self.files.append(new_file)
+            else:
+                new_file = File(relativeFilePath, self)
+                if new_file.extensions:
+                    self.files.append(new_file)
+
+    def get_fov_from_nd2(self, nd2_fullpath):
+        images = ND2Reader(str(nd2_fullpath))
+        y_positions = images._parser._raw_metadata.y_data   # nikon sample stage position
+        x_positions = images._parser._raw_metadata.x_data   # nikon sample stage position
+
+        # set the image data order in the nd2 file
+        if 'c' in images.axes:
+            images.iter_axes = 'tc'  # for alex measurements
+        else:
+            images.iter_axes = 't'
+
+        n_illumination = len(images.metadata["channels"])
+        n_frames = len(x_positions)
+        position_tolerance = 10  # xy tol = tolerance in um
+        first_frame_of_each_fov = [0]
+        last_frame_of_each_fov = []
+        for fri in range(n_frames - 1):
+            if abs(x_positions[fri] - x_positions[fri + 1]) > position_tolerance or abs(y_positions[fri] - y_positions[fri + 1]) > position_tolerance:
+                first_frame_of_each_fov.append(fri + 1)
+                last_frame_of_each_fov.append(fri)
+        last_frame_of_each_fov.append(n_frames-1)
+        fov_info = {'number_of_fov': len(first_frame_of_each_fov),
+                    'first_frame_of_each_fov': first_frame_of_each_fov,
+                    'last_frame_of_each_fov': last_frame_of_each_fov}
+        return fov_info
 
     def histogram(self, axis=None, bins=100, parameter='E', molecule_averaging=False,
                   fileSelection=False, moleculeSelection=False, makeFit=False, export=False, **kwargs):
