@@ -10,11 +10,11 @@ show_movie:
   frames_for_show_movie:
     first_frame: 3
     last_frame: 12
-  illumination: None
+  illumination: 0
 find_coordinates:
   channels:
       - donor
-  illumination: None # Set to 'None' if single illumination configuration is used. Set integer number if more than w illumination config is used
+  illumination: 0 # Integer number to specify which illumination config will be used. The same order that the illuminations were used during the measurement. Set to 0 if single illumination configuration is used.
   projection_image_type: average # Choose average or maximum
   method: by_channel # Choose by_channel, average_channels or sum_channels
   frames_for_peak_finding:
