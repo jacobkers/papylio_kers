@@ -137,7 +137,10 @@ class Movie:
         # self.frame_info['file'] = len(self.frame_info) * [list(range(2))] # For implementing multiple files
         # self.frame_info = self.frame_info.explode('file') # For implementing multiple files
         frame_info['time'] = frame_info.index.to_frame()['frame'].values
-        frame_info['illumination'] = self.illumination_arrangement.tolist() * (self.number_of_frames // self.illumination_arrangement.shape[0])
+        if self.illumination_arrangement:
+            frame_info['illumination'] = self.illumination_arrangement.tolist() * (self.number_of_frames // self.illumination_arrangement.shape[0])
+        else:
+            frame_info['illumination'] = [0] * self.number_of_frames
         frame_info['channel'] = self.channel_arrangement.tolist() * (self.number_of_frames // self.channel_arrangement.shape[0])
 
         frame_info = frame_info.explode('channel').explode('channel')
@@ -333,7 +336,10 @@ class Movie:
 
         if write:
             if hasattr(self, 'fov_info'):
-                filename_addition_fov = f'_fov{self.fov_info["fov_chosen"]:03d}'
+                if self.fov_info:
+                    filename_addition_fov = f'_fov{self.fov_info["fov_chosen"]:03d}'
+                else:
+                    filename_addition_fov = ''
             else:
                 filename_addition_fov = ''
             filename = self.name + filename_addition_fov + '_'+projection_type[:3]+f'_{number_of_frames}fr'+filename_addition

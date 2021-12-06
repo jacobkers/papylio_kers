@@ -10,11 +10,11 @@ show_movie:
   frames_for_show_movie:
     first_frame: 3
     last_frame: 12
-  illumination: 0
+  illumination: None
 find_coordinates:
   channels:
       - donor
-  illumination: 0 # Integer number to specify which illumination config will be used. The same order that the illuminations were used during the measurement. Set to 0 if single illumination configuration is used.
+  illumination: None # Set to None if single illumination configuration is used. Integer number to specify which illumination config will be used. The same order that the illuminations were used during the measurement.
   projection_image_type: average # Choose average or maximum
   method: by_channel # Choose by_channel, average_channels or sum_channels
   frames_for_peak_finding:
@@ -27,8 +27,8 @@ find_coordinates:
   peak_finding:
       method: local-maximum
       minimum_intensity_difference: 10
-      maximum_intensity_difference: 40  # Optional
-      filter_neighbourhood_size: 7  # Optional
+      maximum_intensity_difference: 1000000  # Optional
+      filter_neighbourhood_size: 10  # Optional
   coordinate_optimization:
       coordinates_within_margin:
           margin: 20
@@ -46,12 +46,12 @@ background:
 mapping:
     method: icp # Choose icp and nn
     distance_threshold: 3 # Only relevant for nn or icp
-    transformation_type: nonlinear # Choose linear, nonlinear or polynomial
+    transformation_type: polynomial # Choose linear, nonlinear or polynomial
     initial_translation: 'width/2' # Or e.g. [1024,0]
     peak_finding:
         donor:
             method: local-maximum
-            minimum_intensity_difference: 200
+            minimum_intensity_difference: 50
         acceptor:
             method: local-maximum
             minimum_intensity_difference: 50
@@ -66,6 +66,6 @@ mapping:
             margin: 20
 trace_extraction:
     channel: 'all'
-    mask_size: TIR-T
+    mask_size: TIR-T # float number, Presets: "TIR-T", "TIR-V", "TIR-S 1.5x 2x2", "TIR-S 1x 2x2"
     neighbourhood_size: 11
     subtract_background: True

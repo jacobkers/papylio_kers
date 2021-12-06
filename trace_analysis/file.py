@@ -161,7 +161,10 @@ class File:
             self.experiment.import_config_file()
             # number_of_frames = self.experiment.configuration['compute_image']['number_of_frames']
             configuration_show_movie = self.experiment.configuration['show_movie']
-            illumination = int(configuration_show_movie['illumination'])
+            if configuration_show_movie['illumination'] == 'None' or configuration_show_movie['illumination'] == 'none':
+                illumination = None
+            else:
+                illumination = int(configuration_show_movie['illumination'])
             first_frame = int(configuration_show_movie['frames_for_show_movie']['first_frame'])
             if configuration_show_movie['frames_for_show_movie']['last_frame'] == 'last':
                 last_frame = self.number_of_frames-1
@@ -736,13 +739,18 @@ class File:
             frames_for_background = [0, self.movie.number_of_frames-1]
 
         # --- get the averaged images for background extraction per illumination profile
-        image_for_background = [None] * len(self.movie.illumination_arrangement)
-        for illumination_id in self.movie.illumination_arrangement:
+        if self.movie.illumination_arrangement:
+            image_for_background = [None] * len(self.movie.illumination_arrangement)
+            illuminations_to_use = self.movie.illumination_arrangement
+        else:
+            image_for_background = [None]
+            illuminations_to_use = [None]
+        for illumination_id, illumination in enumerate(illuminations_to_use):
             image_for_background[illumination_id] = \
                         self.movie.make_projection_image(projection_type='average',
                                                          start_frame=frames_for_background[0],
                                                          number_of_frames=frames_for_background[1],
-                                                         illumination=illumination_id)
+                                                         illumination=illumination)
 
         # START of original code
         # background_list = []
@@ -755,7 +763,7 @@ class File:
 
         # END of original, START modified
         background_list = []
-        for illumination_id in self.movie.illumination_arrangement:
+        for illumination_id, illumination in enumerate(illuminations_to_use):
             tmp_background_list = []
             for i, channel in enumerate(self.movie.channels):
                 channel_image = self.movie.get_channel(image_for_background[illumination_id], i)
@@ -838,9 +846,14 @@ class File:
 
         coordinates = self.coordinates.stack(peak=('molecule', 'channel')).T
 
+        if self.movie.illumination_arrangement:
+            number_illumination = len(self.movie.illumination_arrangement)
+        else:
+            number_illumination = 1
+
         traces = extract_traces(self.movie, coordinates.values, background=background.values, channel=channel,
                                 mask_size=mask_size, neighbourhood_size=neighbourhood_size,
-                                number_illumination=len(self.movie.illumination_arrangement))
+                                number_illumination=number_illumination)
 
         intensity = xr.DataArray(traces, dims=['peak', 'frame'], name='intensity')\
             .assign_coords({'peak': coordinates.peak.to_index()})\
