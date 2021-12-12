@@ -16,7 +16,7 @@ class TifMovie(Movie):
         self.threshold = {  'view':             (0,200),
                             'point-selection':  (45,25)
                             }
-
+        self.rot90 = 1  # set 1 for TIR-T, 0 for Kavli obj-TIRF setup
         self.read_header()
         self.create_frame_info()  # Possibly move to Movie later on
 
@@ -31,9 +31,15 @@ class TifMovie(Movie):
             self.number_of_frames = len(tif.pages)
             self.data_type = np.dtype(f"uint{tif_tags['BitsPerSample']}")
 
-            self.datetime = pd.to_datetime([page.tags['DateTime'].value for page in tif.pages])
-            self.time = xr.DataArray((self.datetime-self.datetime[0]).total_seconds(), dims='frame',
-                                     coords={}, attrs={'units': 's'})
+            if 'DateTime' in tif.pages[0].tags:
+                self.datetime = pd.to_datetime([page.tags['DateTime'].value for page in tif.pages])
+                self.time = xr.DataArray((self.datetime-self.datetime[0]).total_seconds(), dims='frame',
+                                         coords={}, attrs={'units': 's'})
+            else:
+                # This is for tiff images from TIR-T and TIR-V measured by Solis software
+                exposure_time = tif.pages[0].tags['AndorExposureTime'].value
+                time_vector = exposure_time * np.arange(0, self.number_of_frames)
+                self.time = xr.DataArray(time_vector, dims='frame', coords={}, attrs={'units': 's'})
 
             try:
                 if tif.metaseries_metadata:

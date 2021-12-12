@@ -641,6 +641,7 @@ class File:
         for coordinate_set in coordinate_sets:
             if len(coordinate_set) == 0:
                 self._init_dataset(0)  # SHK: Creating a dummy dataset tp avoid errors in the downstream analysis
+                print('no peaks found')
                 return
 
         # --- correct for photon shot noise / stage drift ---
@@ -739,7 +740,7 @@ class File:
             frames_for_background = [0, self.movie.number_of_frames-1]
 
         # --- get the averaged images for background extraction per illumination profile
-        if self.movie.illumination_arrangement:
+        if self.movie.illumination_arrangement is not None:
             image_for_background = [None] * len(self.movie.illumination_arrangement)
             illuminations_to_use = self.movie.illumination_arrangement
         else:
@@ -846,7 +847,7 @@ class File:
 
         coordinates = self.coordinates.stack(peak=('molecule', 'channel')).T
 
-        if self.movie.illumination_arrangement:
+        if self.movie.illumination_arrangement is not None:
             number_illumination = len(self.movie.illumination_arrangement)
         else:
             number_illumination = 1

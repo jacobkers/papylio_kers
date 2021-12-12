@@ -8,8 +8,8 @@ show_movie:
   image: average_image
   annotate: False
   frames_for_show_movie:
-    first_frame: 3
-    last_frame: 12
+    first_frame: 0
+    last_frame: 9
   illumination: None
 find_coordinates:
   channels:
@@ -26,23 +26,23 @@ find_coordinates:
     minimal_point_separation: 2
   peak_finding:
       method: local-maximum
-      minimum_intensity_difference: 10
+      minimum_intensity_difference: 100
       maximum_intensity_difference: 1000000  # Optional
       filter_neighbourhood_size: 10  # Optional
   coordinate_optimization:
-      coordinates_within_margin:
+      coordinates_within_margin:  # Optional
           margin: 20
-      coordinates_after_gaussian_fit:
+      coordinates_after_gaussian_fit:  # Optional
           gaussian_width: 9
-      coordinates_without_intensity_at_radius:
+      coordinates_without_intensity_at_radius:  # Optional
           radius: 4
           cutoff: image_median
           fraction_of_peak_max: 0.25
 background:
   method: ROI_minimum
   frames_for_background: # 'last frame' can be set as 'last' to indicate the last frame of the movie
-    first_frame: 1
-    last_frame: 10
+    first_frame: 0
+    last_frame: 9
 mapping:
     method: icp # Choose icp and nn
     distance_threshold: 3 # Only relevant for nn or icp
@@ -51,19 +51,21 @@ mapping:
     peak_finding:
         donor:
             method: local-maximum
-            minimum_intensity_difference: 50
+            minimum_intensity_difference: 100
+            filter_neighbourhood_size: 10
         acceptor:
             method: local-maximum
-            minimum_intensity_difference: 50
+            minimum_intensity_difference: 100
+            filter_neighbourhood_size: 10
     coordinate_optimization:
-        coordinates_after_gaussian_fit:
+        coordinates_after_gaussian_fit:  # Optional
             gaussian_width: 9
-        coordinates_without_intensity_at_radius:
-            radius: 4
-            cutoff: image_median
-            fraction_of_peak_max: 0.35
-        coordinates_within_margin:
+        coordinates_within_margin:  # Optional
             margin: 20
+        coordinates_without_intensity_at_radius: # Optional
+          radius: 4
+          cutoff: image_median
+          fraction_of_peak_max: 0.35
 trace_extraction:
     channel: 'all'
     mask_size: TIR-T # float number, Presets: "TIR-T", "TIR-V", "TIR-S 1.5x 2x2", "TIR-S 1x 2x2"

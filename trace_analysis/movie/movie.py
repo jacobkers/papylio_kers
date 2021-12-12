@@ -137,8 +137,11 @@ class Movie:
         # self.frame_info['file'] = len(self.frame_info) * [list(range(2))] # For implementing multiple files
         # self.frame_info = self.frame_info.explode('file') # For implementing multiple files
         frame_info['time'] = frame_info.index.to_frame()['frame'].values
-        if self.illumination_arrangement:
-            frame_info['illumination'] = self.illumination_arrangement.tolist() * (self.number_of_frames // self.illumination_arrangement.shape[0])
+        if self.illumination_arrangement is not None:
+            if len(self.illumination_arrangement)>1:
+                frame_info['illumination'] = self.illumination_arrangement.tolist() * (self.number_of_frames // self.illumination_arrangement.shape[0])
+            else:
+                frame_info['illumination'] = [0] * self.number_of_frames
         else:
             frame_info['illumination'] = [0] * self.number_of_frames
         frame_info['channel'] = self.channel_arrangement.tolist() * (self.number_of_frames // self.channel_arrangement.shape[0])
