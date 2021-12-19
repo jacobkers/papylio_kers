@@ -284,6 +284,24 @@ class Mapping2:
               f'Mean-squared error: {error}\n'
               f'Number of iterations: {number_of_iterations}')
 
+    def cross_correlation(self, peak_detection='auto'):
+        from trace_analysis.mapping.cross_correlation import cross_correlate
+        if self.transformation is None:
+            self.transformation = AffineTransform()
+            self.transformation_inverse = AffineTransform()
+        correlation, self.correlation_conversion_function = cross_correlate(self.source_to_destination, self.destination)
+
+        if peak_detection == 'auto':
+            correlation_peak_coordinates = np.array(np.where(correlation==correlation.max())).flatten()[::-1]
+            self.set_correlation_peak_coordinates(correlation_peak_coordinates)
+
+    def set_correlation_peak_coordinates(self, correlation_peak_coordinates):
+        if not hasattr(self, 'correlation_conversion_function') and self.correlation_conversion_function is not None:
+            raise RuntimeError('Run cross_correlation first')
+        translation = self.correlation_conversion_function(correlation_peak_coordinates) # is this the correct direction
+        self.transformation += AffineTransform(translation=translation)
+        self.correlation_conversion_function = None
+
     def number_of_matched_points(self, distance_threshold):
         """Number of matched points determined by finding the two-way nearest neigbours that are closer than a distance
         threshold.
@@ -590,13 +608,13 @@ if __name__ == "__main__":
 
     # Simulate source and destination point sets
     number_of_source_points = 40
-    transformation = AffineTransform(translation=[256, 0], rotation=5 / 360 * 2 * np.pi, scale=[0.98, 0.98])
-    source_bounds = ([0, 0], [256, 512])
+    transformation = AffineTransform(translation=[256, 25])#, rotation=5 / 360 * 2 * np.pi, scale=[0.98, 0.98])
+    source_bounds = ([50,100], [100, 150])
     source_crop_bounds = None
     fraction_missing_source = 0
     fraction_missing_destination = 0
-    maximum_error_source = 2
-    maximum_error_destination = 2
+    maximum_error_source = 0
+    maximum_error_destination = 0
     shuffle = True
 
     source, destination = simulate_mapping_test_point_set(number_of_source_points, transformation,
@@ -605,21 +623,24 @@ if __name__ == "__main__":
                                                           maximum_error_source, maximum_error_destination, shuffle)
 
     # Make a mapping object, perform the mapping and show the transformation
-    mapping = Mapping2(source, destination, transformation_type='polynomial')
-    mapping.method = 'icp'
-    mapping.perform_mapping()
+    mapping = Mapping2(source, destination, transformation_type='linear')
+    #mapping.method = 'icp'
+    #mapping.perform_mapping()
+    mapping.cross_correlation()
+    # correlation_peak_coordinates = [244, 487]
+    # mapping.set_correlation_peak_coordinates(correlation_peak_coordinates)
     mapping.show_mapping_transformation(show_source=True)
 
-    # Create a test image
-    image = np.zeros((512,512))
-    image[100:110,:]=1
-    image[:,100:110]=1
-
-    # Transform the image
-    image_transformed = mapping.transform_image(image)
-
-    # Show the original and transformed image
-    plt.figure()
-    plt.imshow(image)
-    plt.figure()
-    plt.imshow(image_transformed)
+    # # Create a test image
+    # image = np.zeros((512,512))
+    # image[100:110,:]=1
+    # image[:,100:110]=1
+    #
+    # # Transform the image
+    # image_transformed = mapping.transform_image(image)
+    #
+    # # Show the original and transformed image
+    # plt.figure()
+    # plt.imshow(image)
+    # plt.figure()
+    # plt.imshow(image_transformed)
