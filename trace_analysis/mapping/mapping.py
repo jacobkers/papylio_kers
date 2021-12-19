@@ -298,8 +298,8 @@ class Mapping2:
     def set_correlation_peak_coordinates(self, correlation_peak_coordinates):
         if not hasattr(self, 'correlation_conversion_function') and self.correlation_conversion_function is not None:
             raise RuntimeError('Run cross_correlation first')
-        translation = self.correlation_conversion_function(correlation_peak_coordinates) # is this the correct direction
-        self.transformation += AffineTransform(translation=translation)
+        transformation = self.correlation_conversion_function(correlation_peak_coordinates) # is this the correct direction
+        self.transformation += transformation
         self.correlation_conversion_function = None
 
     def number_of_matched_points(self, distance_threshold):
@@ -609,8 +609,8 @@ if __name__ == "__main__":
     # Simulate source and destination point sets
     number_of_source_points = 40
     transformation = AffineTransform(translation=[256, 25])#, rotation=5 / 360 * 2 * np.pi, scale=[0.98, 0.98])
-    source_bounds = ([50,100], [100, 150])
-    source_crop_bounds = None
+    source_bounds = ([0,0], [256, 512])
+    source_crop_bounds = [[50,150], [200,300]]
     fraction_missing_source = 0
     fraction_missing_destination = 0
     maximum_error_source = 0

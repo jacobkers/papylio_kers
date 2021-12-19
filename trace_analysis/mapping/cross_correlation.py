@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.signal import fftconvolve
+from skimage.transform import AffineTransform
 
 from trace_analysis.trace_extraction import make_gaussian_mask
 
@@ -22,14 +23,14 @@ def coordinates_to_image(coordinates, gaussian_width=7):
 
     image_with_gaussians = fftconvolve(image, gauss)
 
-    def image_to_original_coordinates(image_coordinates):
-        return image_coordinates+[[min_x, min_y]]
+    # def image_to_original_coordinates(image_coordinates):
+    #     return image_coordinates+[[min_x, min_y]]
 
-    return image_with_gaussians, image_to_original_coordinates
+    return image_with_gaussians, AffineTransform(translation=[-min_x, -min_y])
 
 def cross_correlate(source, destination):
-    pseudo_image_source, back_conversion_source = coordinates_to_image(source) #/ 5)
-    pseudo_image_destination, back_conversion_destination = coordinates_to_image(destination) #/ 5)
+    pseudo_image_source, transfomation_source = coordinates_to_image(source) #/ 5)
+    pseudo_image_destination, transfomation_destination = coordinates_to_image(destination) #/ 5)
 
     plt.figure()
     plt.imshow(pseudo_image_source, origin='lower')
@@ -44,6 +45,9 @@ def cross_correlate(source, destination):
     plt.show()
 
     def correlation_coordinates_to_translation_coordinates(correlation_peak_coordinates):
-        return back_conversion_destination(correlation_peak_coordinates - np.array(pseudo_image_source.shape)[::-1])
+        # return back_conversion_destination(correlation_peak_coordinates - np.array(pseudo_image_source.shape)[::-1])
+        transfomation_correlation = AffineTransform(translation=correlation_peak_coordinates - (np.array(pseudo_image_source.shape)[::-1]-1))
+        transfomation_destination_inverse = AffineTransform(transfomation_destination._inv_matrix)
+        return transfomation_source + transfomation_correlation + transfomation_destination_inverse
 
     return correlation, correlation_coordinates_to_translation_coordinates
