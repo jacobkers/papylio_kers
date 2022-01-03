@@ -6,16 +6,19 @@ from skimage.transform import AffineTransform
 from trace_analysis.trace_extraction import make_gaussian_mask
 
 
-def coordinates_to_image(coordinates, gaussian_width=7):
+def coordinates_to_image(coordinates, gaussian_width=7, divider=5):
     gauss = make_gaussian_mask(gaussian_width)
 
     min_x, min_y = coordinates.min(axis=0)
+
+
+    transformation = AffineTransform(translation=[-min_x, -min_y]) + AffineTransform(scale=1/divider)
+    coordinates = transformation(coordinates)
+
     max_x, max_y = coordinates.max(axis=0)
 
-    coordinates = coordinates-[[min_x, min_y]]
-
-    image_width = int(np.ceil(max_x)-np.floor(min_x))+1
-    image_height = int(np.ceil(max_y)-np.floor(min_y))+1
+    image_width = int(np.ceil(max_x)) + 1
+    image_height = int(np.ceil(max_y)) + 1
 
     image = np.zeros((image_height, image_width))
     indices = coordinates.round().astype(int)
@@ -26,7 +29,7 @@ def coordinates_to_image(coordinates, gaussian_width=7):
     # def image_to_original_coordinates(image_coordinates):
     #     return image_coordinates+[[min_x, min_y]]
 
-    return image_with_gaussians, AffineTransform(translation=[-min_x, -min_y])
+    return image_with_gaussians, transformation
 
 def cross_correlate(source, destination):
     pseudo_image_source, transfomation_source = coordinates_to_image(source) #/ 5)
