@@ -369,10 +369,10 @@ class Mapping2:
         # axis.scatter(self.destination[:, 0], self.destination[:, 1], facecolors='r', edgecolors='none', marker='.',
         #              label=self.destination_name)
 
-        axis.scatter(destination_from_source[:, 0], destination_from_source[:, 1], facecolors='none',
-                     edgecolors='forestgreen', linewidth=1, marker='o', label=f'{self.source_name} transformed')
-        axis.scatter(self.destination[:, 0], self.destination[:, 1], facecolors='r', edgecolors='none', marker='.',
-                     label=self.destination_name)
+        # axis.scatter(destination_from_source[:, 0], destination_from_source[:, 1], facecolors='none',
+        #              edgecolors='forestgreen', linewidth=1, marker='o', label=f'{self.source_name} transformed')
+        # axis.scatter(self.destination[:, 0], self.destination[:, 1], facecolors='r', edgecolors='none', marker='.',
+        #              label=self.destination_name)
         # axis.scatter(destination_from_source[:, 0], destination_from_source[:, 1], facecolors='none',
         #              edgecolors='g', linewidth=1, marker='o', label=f'{self.source_name} transformed', s=70)
         # axis.scatter(self.destination[:, 0], self.destination[:, 1], facecolors='none', edgecolors='r', marker='o',
