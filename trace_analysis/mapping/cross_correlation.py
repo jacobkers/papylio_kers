@@ -31,9 +31,9 @@ def coordinates_to_image(coordinates, gaussian_width=7, divider=5):
 
     return image_with_gaussians, transformation
 
-def cross_correlate(source, destination):
-    pseudo_image_source, transfomation_source = coordinates_to_image(source) #/ 5)
-    pseudo_image_destination, transfomation_destination = coordinates_to_image(destination) #/ 5)
+def cross_correlate(source, destination, gaussian_width=7, divider=5):
+    pseudo_image_source, transfomation_source = coordinates_to_image(source, gaussian_width=gaussian_width, divider=divider) #/ 5)
+    pseudo_image_destination, transfomation_destination = coordinates_to_image(destination, gaussian_width=gaussian_width, divider=divider) #/ 5)
 
     plt.figure()
     plt.imshow(pseudo_image_source, origin='lower')

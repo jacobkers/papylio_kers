@@ -284,15 +284,17 @@ class Mapping2:
               f'Mean-squared error: {error}\n'
               f'Number of iterations: {number_of_iterations}')
 
-    def cross_correlation(self, peak_detection='auto'):
+    def cross_correlation(self, peak_detection='auto', gaussian_width=7, divider=5):
         from trace_analysis.mapping.cross_correlation import cross_correlate
         if self.transformation is None:
             self.transformation = AffineTransform()
             self.transformation_inverse = AffineTransform()
-        correlation, self.correlation_conversion_function = cross_correlate(self.source_to_destination, self.destination)
+        correlation, self.correlation_conversion_function = cross_correlate(self.source_to_destination, self.destination,
+                                                                            gaussian_width=gaussian_width, divider=divider)
 
         if peak_detection == 'auto':
             correlation_peak_coordinates = np.array(np.where(correlation==correlation.max())).flatten()[::-1]
+            plt.gca().scatter(correlation_peak_coordinates[0], correlation_peak_coordinates[1], marker='o', facecolors='none', edgecolors='r')
             self.set_correlation_peak_coordinates(correlation_peak_coordinates)
 
     def set_correlation_peak_coordinates(self, correlation_peak_coordinates):
