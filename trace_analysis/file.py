@@ -128,7 +128,7 @@ class File:
 
     # @property
     # def molecule(self):
-    #     with xr.open_dataset(self.relativeFilePath.with_suffix('.nc'), engine='h5netcdf') as dataset:
+    #     with xr.open_dataset(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf') as dataset:
     #         return dataset['molecule'].load()
     # @number_of_molecules.setter
     # def number_of_molecules(self, number_of_molecules):
@@ -153,7 +153,7 @@ class File:
     def average_image(self):
         number_of_frames = self.configuration['compute_image']['number_of_frames']
         try:
-            image_file_path = self.relativeFilePath.with_name(self.name+f'_ave.tif') #_{number_of_frames}fr.tif')
+            image_file_path = self.absoluteFilePath.with_name(self.name+f'_ave.tif') #_{number_of_frames}fr.tif')
             return io.imread(image_file_path, as_gray=True)
         except FileNotFoundError:
             return self.movie.make_average_image(number_of_frames=number_of_frames, write=True)
@@ -162,14 +162,14 @@ class File:
     def maximum_projection_image(self):
         number_of_frames = self.configuration['compute_image']['number_of_frames']
         try:
-            image_file_path = self.relativeFilePath.with_name(self.name+f'_max.tif') #_{number_of_frames}fr.tif')
+            image_file_path = self.absoluteFilePath.with_name(self.name+f'_max.tif') #_{number_of_frames}fr.tif')
             return io.imread(image_file_path, as_gray=True)
         except FileNotFoundError:
             return self.movie.make_maximum_projection(number_of_frames=number_of_frames, write=True)
 
     # @property
     # def coordinates(self):
-    #     with xr.open_dataset(self.relativeFilePath.with_suffix('.nc'), engine='h5netcdf') as dataset:
+    #     with xr.open_dataset(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf') as dataset:
     #         #.set_index({'molecule': ('molecule_in_file','file')})
     #         return dataset['coordinates'].load()
     #
@@ -210,19 +210,19 @@ class File:
         if item == 'dataset_variables':
             return
         if item in self.dataset_variables:
-            with xr.open_dataset(self.relativeFilePath.with_suffix('.nc'), engine='h5netcdf') as dataset:
+            with xr.open_dataset(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf') as dataset:
                 return dataset[item].load()
         # else:
         #     super().__getattribute__(item)
         raise AttributeError
 
     def get_data(self, key):
-        with xr.open_dataset(self.relativeFilePath.with_suffix('.nc'), engine='h5netcdf') as dataset:
+        with xr.open_dataset(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf') as dataset:
             return dataset[key].load()
 
     @property
     def dataset(self):
-        with xr.open_dataset(self.relativeFilePath.with_suffix('.nc'), engine='h5netcdf') as dataset:
+        with xr.open_dataset(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf') as dataset:
             return dataset.load()
 
     # def get_coordinates(self, selected=False):
@@ -275,9 +275,9 @@ class File:
             }
         )
         dataset = dataset.reset_index('molecule').rename(molecule_='molecule_in_file')
-        dataset = dataset.assign_coords({'file': ('molecule', [str(self.relativeFilePath)]*number_of_molecules)})
+        dataset = dataset.assign_coords({'file': ('molecule', [str(self.absoluteFilePath)]*number_of_molecules)})
 
-        dataset.to_netcdf(self.relativeFilePath.with_suffix('.nc'), engine='h5netcdf', mode='w')
+        dataset.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='w')
         self.extensions.add('.nc')
 
     def find_extensions(self):
@@ -305,9 +305,9 @@ class File:
         return
 
     def import_log_file(self):
-        self.exposure_time = np.genfromtxt(f'{self.relativeFilePath}.log', max_rows=1)[2]
+        self.exposure_time = np.genfromtxt(f'{self.absoluteFilePath}.log', max_rows=1)[2]
         print(f'Exposure time set to {self.exposure_time} sec for {self.name}')
-        self.log_details = open(f'{self.relativeFilePath}.log').readlines()
+        self.log_details = open(f'{self.absoluteFilePath}.log').readlines()
         self.log_details = ''.join(self.log_details)
 
     def import_sifx_file(self):
@@ -342,7 +342,7 @@ class File:
     def import_coeff_file(self):
         from skimage.transform import AffineTransform
         if self.mapping is None: # the following only works for 'linear'transformation_type
-            file_content=np.genfromtxt(str(self.relativeFilePath) + '.coeff')
+            file_content=np.genfromtxt(str(self.absoluteFilePath) + '.coeff')
             if len(file_content)==12:
                 [coefficients, coefficients_inverse] = np.split(file_content,2)
             elif len(file_content)==6:
@@ -379,8 +379,8 @@ class File:
 
     def import_map_file(self):
         from trace_analysis.mapping.polywarp import PolywarpTransform
-        #coefficients = np.genfromtxt(self.relativeFilePath.with_suffix('.map'))
-        file_content=np.genfromtxt(self.relativeFilePath.with_suffix('.map'))
+        #coefficients = np.genfromtxt(self.absoluteFilePath.with_suffix('.map'))
+        file_content=np.genfromtxt(self.absoluteFilePath.with_suffix('.map'))
         if len(file_content) == 64:
             [coefficients, coefficients_inverse] = np.split(file_content, 2)
         elif len(file_content) == 32:
@@ -572,7 +572,7 @@ class File:
                 self._init_dataset(0)
                 coordinates = xr.DataArray(np.empty((0, 2, 2)), dims=('molecule', 'channel', 'dimension'),
                                     coords={'channel': [0, 1], 'dimension': ['x', 'y']}, name='coordinates')
-                coordinates.to_netcdf(self.relativeFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
+                coordinates.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
                 return
 
         # --- correct for photon shot noise / stage drift ---
@@ -653,10 +653,10 @@ class File:
         # Reset current .nc file
         self._init_dataset(len(coordinates.molecule))
 
-        coordinates.to_netcdf(self.relativeFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
+        coordinates.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
         self.extract_background()
 
-        # self.molecules.export_pks_file(self.relativeFilePath.with_suffix('.pks'))
+        # self.molecules.export_pks_file(self.absoluteFilePath.with_suffix('.pks'))
 
     def extract_background(self):
         print(f' Calculating background in {self}')
@@ -668,11 +668,11 @@ class File:
             background_list.append(extract_background(channel_image, channel_coordinates, method='ROI_minimum'))
 
         background = xr.DataArray(np.vstack(background_list).T, dims=['molecule', 'channel'], name='background')
-        background.to_netcdf(self.relativeFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
+        background.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
 
     def import_excel_file(self, filename=None):
         if filename is None:
-            filename = f'{self.relativeFilePath}_steps_data.xlsx'
+            filename = f'{self.absoluteFilePath}_steps_data.xlsx'
         try:
             steps_data = pd.read_excel(filename, index_col=[0,1],
                                        dtype={'kon':np.str})       # reads from the 1st excel sheet of the file
@@ -700,7 +700,7 @@ class File:
         '''
         pass
         # try:
-        #     filename = f'{self.relativeFilePath}_selected_molecules.txt'
+        #     filename = f'{self.absoluteFilePath}_selected_molecules.txt'
         #     selected = np.atleast_1d(np.loadtxt(filename, dtype=int))
         # except FileNotFoundError:
         #     return
@@ -747,7 +747,7 @@ class File:
         if hasattr(self.movie, 'time'):
             intensity.assign_coords(time=self.movie.time)
 
-        intensity.to_netcdf(self.relativeFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
+        intensity.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
 
         self.calculate_FRET()
 
@@ -760,42 +760,42 @@ class File:
         acceptor = self.intensity.sel(channel=1, drop=True)
         FRET = acceptor/(donor+acceptor)
         FRET.name = 'FRET'
-        FRET.to_netcdf(self.relativeFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
+        FRET.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
 
 
     def import_pks_file(self):
-        peaks = import_pks_file(self.relativeFilePath.with_suffix('.pks'))
+        peaks = import_pks_file(self.absoluteFilePath.with_suffix('.pks'))
         peaks = split_dimension(peaks, 'peak', ('molecule', 'channel'), (-1, 2)).reset_index('molecule', drop=True)
         # peaks = split_dimension(peaks, 'molecule', ('molecule_in_file', 'file'), (-1, 1), (-1, [file]), to='multiindex')
 
-        if not self.relativeFilePath.with_suffix('.nc').is_file():
+        if not self.absoluteFilePath.with_suffix('.nc').is_file():
             self._init_dataset(len(peaks.molecule))
 
         coordinates = peaks.sel(parameter=['x', 'y']).rename(parameter='dimension')
         background = peaks.sel(parameter='background', drop=True)
 
         xr.Dataset({'coordinates': coordinates, 'background': background})\
-            .to_netcdf(self.relativeFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
+            .to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
 
     def export_pks_file(self):
         peaks = xr.merge([self.coordinates.to_dataset('dimension'), self.background.to_dataset()])\
             .stack(peaks=('molecule', 'channel')).to_array(dim='parameter').T
-        export_pks_file(peaks, self.relativeFilePath.with_suffix('.pks'))
+        export_pks_file(peaks, self.absoluteFilePath.with_suffix('.pks'))
         self.extensions.add('.pks')
 
     def import_traces_file(self):
-        traces = import_traces_file(self.relativeFilePath.with_suffix('.traces'))
+        traces = import_traces_file(self.absoluteFilePath.with_suffix('.traces'))
         intensity = split_dimension(traces, 'trace', ('molecule', 'channel'), (-1, 2))\
             .reset_index(['molecule','frame'], drop=True)
 
-        if not self.relativeFilePath.with_suffix('.nc').is_file():
+        if not self.absoluteFilePath.with_suffix('.nc').is_file():
             self._init_dataset(len(intensity.molecule))
 
-        xr.Dataset({'intensity': intensity}).to_netcdf(self.relativeFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
+        xr.Dataset({'intensity': intensity}).to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
 
     def export_traces_file(self):
         traces = self.intensity.stack(trace=('molecule', 'channel')).T
-        export_traces_file(traces, self.relativeFilePath.with_suffix('.traces'))
+        export_traces_file(traces, self.absoluteFilePath.with_suffix('.traces'))
         self.extensions.add('.traces')
 
 
@@ -814,7 +814,7 @@ class File:
 
     def savetoExcel(self, filename=None, save=True):
         if filename is None:
-            filename = f'{self.relativeFilePath}_steps_data.xlsx'
+            filename = f'{self.absoluteFilePath}_steps_data.xlsx'
 
         # Find the molecules for which steps were selected
         molecules_with_data = [mol for mol in self.molecules if mol.steps is not None]
@@ -963,7 +963,7 @@ class File:
         for file in self.experiment.selectedFiles:
             if file is not self:
                 file._init_dataset(len(self.molecule))
-                self.coordinates.to_netcdf(file.relativeFilePath.with_suffix('.nc'), engine='h5netcdf')
+                self.coordinates.to_netcdf(file.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf')
 
     def use_mapping_for_all_files(self):
         print(f"\n{File} used as mapping")
