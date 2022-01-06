@@ -12,7 +12,7 @@ from pathlib import Path
 import yaml
 import skimage.transform
 from skimage.transform import AffineTransform, PolynomialTransform
-import matplotlib.path as pth
+# import matplotlib.path as pth
 from shapely.geometry import Polygon, MultiPoint
 
 from trace_analysis.mapping.icp import icp, nearest_neighbor_pair, nearest_neighbour_match, direct_match
@@ -54,7 +54,7 @@ class Mapping2:
     def __init__(self, source=None, destination=None, method=None,
                  transformation_type=None, initial_transformation=None,
                  source_name='source', destination_name='destination',
-                 source_unit=None, destination_unit=None, name=None,
+                 source_unit=None, destination_unit=None, source_distance_threshold=0, name=None,
                  load=None):
         """Set passed object attributes
 
@@ -80,11 +80,12 @@ class Mapping2:
         self.source_name = source_name
         self.source = source #source=donor=left side image
         self.source_unit = source_unit
-        self.source_vertices = None # np.array(MultiPoint(self.source).envelope.exterior.xy).T[:-1]
+        self.source_distance_threshold = source_distance_threshold
+        self._source_vertices = None
         self.destination_name = destination_name
         self.destination_unit = destination_unit
         self.destination = destination #destination=acceptor=right side image
-        self.destination_vertices = None # np.array(MultiPoint(self.destination).envelope.exterior.xy).T[:-1]
+        self._destination_vertices = None
         self.method = method
         self.transformation_type = transformation_type
 
@@ -145,6 +146,33 @@ class Mapping2:
     #     return np.array([np.sign(self.transformation[0, 0]), np.sign(self.transformation[1, 1])])
 
     @property
+    def destination_distance_threshold(self):
+        return self.source_distance_threshold / np.max(self.transformation.scale)
+
+    @property
+    def source_vertices(self):
+        if self._source_vertices is None:
+            return determine_vertices(self.source, self.source_distance_threshold)
+        else:
+            return self._source_vertices
+
+    @source_vertices.setter
+    def source_vertices(self, vertices):
+        self._source_vertices = vertices
+
+    @property
+    def destination_vertices(self):
+        if self._source_vertices is None:
+            return determine_vertices(self.destination, self.destination_distance_threshold)
+        else:
+            return self._destination_vertices
+
+    @destination_vertices.setter
+    def destination_vertices(self, vertices):
+        self._destination_vertices = vertices
+
+
+    @property
     def source_to_destination(self):
         """Nx2 numpy.ndarray : Source coordinates transformed to the destination axis"""
 
@@ -155,6 +183,16 @@ class Mapping2:
         """type : Transform class based on the set transformation_type"""
 
         return self.transformation_types[self.transformation_type]
+
+    # @property
+    # def source_vertices(self):
+    #     point_set = self.source
+    #     from scipy.spatial import ConvexHull, convex_hull_plot_2d
+    #     hull = ConvexHull(point_set)
+    #     # number_of_vertices = n = hull.vertices.shape[0]
+    #     # number_of_points = hull.points.shape[0]
+    #     # corrected_number_of_points_in_hull = number_of_points-number_of_vertices/2-1
+    #     # area = hull.volume / corrected_number_of_points_in_hull * number_of_points
 
     def perform_mapping(self, method=None, **kwargs):
         """Find transformation from source to destination points using one of the mapping methods
@@ -302,9 +340,11 @@ class Mapping2:
             raise RuntimeError('Run cross_correlation first')
         transformation = self.correlation_conversion_function(correlation_peak_coordinates) # is this the correct direction
         self.transformation += transformation
+        self.transformation_inverse = AffineTransform(matrix=self.transformation._inv_matrix)
         self.correlation_conversion_function = None
 
-    def number_of_matched_points(self, distance_threshold):
+    @property
+    def number_of_matched_points(self):
         """Number of matched points determined by finding the two-way nearest neigbours that are closer than a distance
         threshold.
 
@@ -323,7 +363,7 @@ class Mapping2:
         distances, source_indices, destination_indices = \
             nearest_neighbor_pair(self.source_to_destination, self.destination)
 
-        return np.sum(distances < distance_threshold)
+        return np.sum(distances < self.destination_distance_threshold)
 
     def show_mapping_transformation(self, figure=None, show_source=False, show_destination=False, crop=None,
                                     inverse=False, source_colour='forestgreen', destination_colour='r', save_path=None):
@@ -507,8 +547,9 @@ class Mapping2:
         crop_vertices_in_destination = overlap_vertices(self.source_vertices_in_destination, self.destination_vertices)
         return crop_coordinates(self.destination, crop_vertices_in_destination)
 
-    def fraction_of_points_matched(self, distance_threshold):
-        number_of_matched_points = self.number_of_matched_points(distance_threshold)
+    @property
+    def fraction_of_points_matched(self):
+        number_of_matched_points = self.number_of_matched_points
         fraction_source_matched = number_of_matched_points / self.source_cropped.shape[0]
         fraction_destination_matched = number_of_matched_points / self.destination_cropped.shape[0]
 
@@ -589,19 +630,24 @@ def overlap_vertices(vertices_A, vertices_B):
     polygon_A = Polygon(vertices_A)
     polygon_B = Polygon(vertices_B)
     polygon_overlap = polygon_A.intersection(polygon_B)
-    return np.array(polygon_overlap.exterior.coords.xy).T[:-1]
+    # return np.array(polygon_overlap.exterior.coords.xy).T[:-1]
+    return np.array(polygon_overlap.boundary)[:-1]
 
 def crop_coordinates_indices(coordinates, vertices):
-    return pth.Path(vertices).contains_points(coordinates)
+    # return pth.Path(vertices).contains_points(coordinates)
+    cropped_coordinates = crop_coordinates(coordinates, vertices)
+    return np.array([c in cropped_coordinates for c in coordinates])
 
 def crop_coordinates(coordinates, vertices):
-    indices = crop_coordinates_indices(coordinates, vertices)
-    return coordinates[indices]
+    return np.array(Polygon(vertices).intersection(MultiPoint(coordinates)))
 
     # bounds.sort(axis=0)
     # selection = (coordinates[:, 0] > bounds[0, 0]) & (coordinates[:, 0] < bounds[1, 0]) & \
     #             (coordinates[:, 1] > bounds[0, 1]) & (coordinates[:, 1] < bounds[1, 1])
     # return coordinates[selection]
+
+def determine_vertices(point_set, margin=0):
+    return np.array(MultiPoint(point_set).convex_hull.buffer(margin, join_style=1).boundary)[:-1]
 
 
 if __name__ == "__main__":
@@ -625,13 +671,18 @@ if __name__ == "__main__":
                                                           maximum_error_source, maximum_error_destination, shuffle)
 
     # Make a mapping object, perform the mapping and show the transformation
-    mapping = Mapping2(source, destination, transformation_type='linear')
+    mapping = Mapping2(source, destination, transformation_type='linear', source_distance_threshold=5)
     #mapping.method = 'icp'
     #mapping.perform_mapping()
+    #mapping.source_vertices = np.array([[0,0],[0,512],[256,512],[256,0]])
+    #smapping.destination_vertices = transformation(np.array([[50,150],[50,300],[200,300],[200,150]]))
+
     mapping.cross_correlation()
     # correlation_peak_coordinates = [244, 487]
     # mapping.set_correlation_peak_coordinates(correlation_peak_coordinates)
     mapping.show_mapping_transformation(show_source=True)
+
+    mapping.fraction_of_points_matched
 
     # # Create a test image
     # image = np.zeros((512,512))
