@@ -78,13 +78,13 @@ class Mapping2:
 
         self.name = name
         self.source_name = source_name
-        self.source = source #source=donor=left side image
+        self.source = np.array(source) #source=donor=left side image
         self.source_unit = source_unit
         self.source_distance_threshold = source_distance_threshold
         self._source_vertices = None
         self.destination_name = destination_name
         self.destination_unit = destination_unit
-        self.destination = destination #destination=acceptor=right side image
+        self.destination = np.array(destination) #destination=acceptor=right side image
         self._destination_vertices = None
         self.method = method
         self.transformation_type = transformation_type
