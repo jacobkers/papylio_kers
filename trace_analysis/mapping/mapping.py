@@ -549,7 +549,7 @@ class Mapping2:
         return crop_coordinates(self.destination, crop_vertices_in_destination)
 
     def source_and_destination(self, crop):
-        if crop is ['destination', False]:
+        if crop in ['destination', False]:
             source = self.source
         elif crop in ['source', True]:
             source = self.source_cropped
