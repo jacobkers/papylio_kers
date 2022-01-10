@@ -147,7 +147,7 @@ class Mapping2:
 
     @property
     def destination_distance_threshold(self):
-        return self.source_distance_threshold / np.max(self.transformation.scale)
+        return self.source_distance_threshold * np.max(self.transformation.scale)
 
     @property
     def source_vertices(self):
@@ -371,7 +371,7 @@ class Mapping2:
 
         return np.sum(distances < self.destination_distance_threshold)
 
-    def show_mapping_transformation(self, figure=None, show_source=False, show_destination=False, crop=None,
+    def show_mapping_transformation(self, figure=None, show_source=False, show_destination=False, crop=False,
                                     inverse=False, source_colour='forestgreen', destination_colour='r', save_path=None):
         """Show a point scatter of the source transformed to the destination points and the destination.
 
@@ -387,12 +387,7 @@ class Mapping2:
         if not figure:
             figure = plt.figure()
 
-        if not crop:
-            source = self.source
-            destination = self.destination
-        else:
-            source = self.source_cropped
-            destination = self.destination_cropped
+        source, destination = self.source_and_destination(crop)
 
         axis = figure.gca()
 
@@ -553,11 +548,25 @@ class Mapping2:
         crop_vertices_in_destination = overlap_vertices(self.source_vertices_in_destination, self.destination_vertices)
         return crop_coordinates(self.destination, crop_vertices_in_destination)
 
-    @property
-    def fraction_of_points_matched(self):
+    def source_and_destination(self, crop):
+        if crop is ['destination', False]:
+            source = self.source
+        elif crop in ['source', True]:
+            source = self.source_cropped
+
+        if crop in ['source', False]:
+            destination = self.destination
+        elif crop in ['destination', True]:
+            destination = self.destination_cropped
+
+        return source, destination
+
+    def fraction_of_points_matched(self, crop=True):
         number_of_matched_points = self.number_of_matched_points
-        fraction_source_matched = number_of_matched_points / self.source_cropped.shape[0]
-        fraction_destination_matched = number_of_matched_points / self.destination_cropped.shape[0]
+        source, destination = self.source_and_destination(crop)
+
+        fraction_source_matched = number_of_matched_points / source.shape[0]
+        fraction_destination_matched = number_of_matched_points / destination.shape[0]
 
         return fraction_source_matched, fraction_destination_matched
 
