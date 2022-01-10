@@ -31,21 +31,23 @@ def coordinates_to_image(coordinates, gaussian_width=7, divider=5):
 
     return image_with_gaussians, transformation
 
-def cross_correlate(source, destination, gaussian_width=7, divider=5):
+def cross_correlate(source, destination, gaussian_width=7, divider=5, plot=False):
     pseudo_image_source, transfomation_source = coordinates_to_image(source, gaussian_width=gaussian_width, divider=divider) #/ 5)
     pseudo_image_destination, transfomation_destination = coordinates_to_image(destination, gaussian_width=gaussian_width, divider=divider) #/ 5)
-
-    plt.figure()
-    plt.imshow(pseudo_image_source, origin='lower')
-    plt.figure()
-    plt.imshow(pseudo_image_destination, origin='lower')
 
     from scipy.signal import correlate, correlation_lags
 
     correlation = correlate(pseudo_image_destination, pseudo_image_source, mode='full')
-    plt.figure()
-    plt.imshow(correlation)
-    plt.show()
+
+    if plot:
+        plt.figure()
+        plt.imshow(pseudo_image_source, origin='lower')
+        plt.figure()
+        plt.imshow(pseudo_image_destination, origin='lower')
+
+        plt.figure()
+        plt.imshow(correlation)
+        plt.show()
 
     def correlation_coordinates_to_translation_coordinates(correlation_peak_coordinates):
         # return back_conversion_destination(correlation_peak_coordinates - np.array(pseudo_image_source.shape)[::-1])
