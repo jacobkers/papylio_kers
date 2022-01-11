@@ -16,6 +16,7 @@ import sys
 # from trace_analysis.molecule import Molecule
 from trace_analysis.movie.sifx import SifxMovie
 from trace_analysis.movie.pma import PmaMovie
+from trace_analysis.movie.nsk import NskMovie
 from trace_analysis.movie.tif import TifMovie
 from trace_analysis.movie.nd2 import ND2Movie
 from trace_analysis.movie.binary import BinaryMovie
@@ -89,6 +90,7 @@ class File:
 
         self.importFunctions = {'.sifx': self.import_sifx_file,
                                 '.pma': self.import_pma_file,
+                                '.nsk': self.import_nsk_file,
                                 '.nd2': self.import_nd2_file,
                                 '.tif': self.import_tif_file,
                                 '.tiff': self.import_tif_file,
@@ -360,6 +362,12 @@ class File:
     def import_pma_file(self):
         imageFilePath = self.absoluteFilePath.with_suffix('.pma')
         self.movie = PmaMovie(imageFilePath)
+        # self.movie.number_of_channels = self.experiment.number_of_channels
+        self.number_of_frames = self.movie.number_of_frames
+
+    def import_nsk_file(self):
+        imageFilePath = self.absoluteFilePath.with_suffix('.nsk')
+        self.movie = NskMovie(imageFilePath)
         # self.movie.number_of_channels = self.experiment.number_of_channels
         self.number_of_frames = self.movie.number_of_frames
 
