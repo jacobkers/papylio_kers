@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 import yaml
 import skimage.transform
-from skimage.transform import AffineTransform, PolynomialTransform
+from skimage.transform import AffineTransform, PolynomialTransform, SimilarityTransform
 # import matplotlib.path as pth
 from shapely.geometry import Polygon, MultiPoint
 
@@ -49,7 +49,9 @@ class Mapping2:
 
     transformation_types = {'linear': AffineTransform,
                             'nonlinear': PolywarpTransform,
-                            'polynomial': PolynomialTransform}
+                            'polynomial': PolynomialTransform,
+                            'affine': AffineTransform,
+                            'similarity': SimilarityTransform}
 
     def __init__(self, source=None, destination=None, method=None,
                  transformation_type=None, initial_transformation=None,
@@ -87,7 +89,9 @@ class Mapping2:
         self.destination = np.array(destination) #destination=acceptor=right side image
         self._destination_vertices = None
         self.method = method
-        self.transformation_type = transformation_type
+
+
+        self._transformation_type = transformation_type
 
         if type(initial_transformation) is dict:
             initial_transformation = AffineTransform(**initial_transformation)
@@ -179,10 +183,26 @@ class Mapping2:
         return self.transform_coordinates(self.source)
 
     @property
-    def transform(self):
-        """type : Transform class based on the set transformation_type"""
+    def destination_to_source(self):
+        """Nx2 numpy.ndarray : Source coordinates transformed to the destination axis"""
 
-        return self.transformation_types[self.transformation_type]
+        return self.transform_coordinates(self.destination, inverse=True)
+
+    @property
+    def transformation_type(self):
+        return self._transformation_type
+
+    @transformation_type.setter
+    def transformation_type(self, value):
+        self._transformation_type = value
+        self.transform = self.transformation_types[self._transformation_type]
+
+    # @property
+    # def transform(self):
+    #     """type : Transform class based on the set transformation_type"""
+    #
+    #     return self.transformation_types[self.transformation_type]
+
 
     # @property
     # def source_vertices(self):
