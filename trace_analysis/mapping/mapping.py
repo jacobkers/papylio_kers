@@ -150,8 +150,16 @@ class Mapping2:
     #     return np.array([np.sign(self.transformation[0, 0]), np.sign(self.transformation[1, 1])])
 
     @property
-    def destination_distance_threshold(self):
-        return self.source_distance_threshold * np.max(self.transformation.scale)
+    def source_to_destination(self):
+        """Nx2 numpy.ndarray : Source coordinates transformed to the destination axis"""
+
+        return self.transform_coordinates(self.source)
+
+    @property
+    def destination_to_source(self):
+        """Nx2 numpy.ndarray : Source coordinates transformed to the destination axis"""
+
+        return self.transform_coordinates(self.destination, inverse=True)
 
     @property
     def source_vertices(self):
@@ -175,18 +183,140 @@ class Mapping2:
     def destination_vertices(self, vertices):
         self._destination_vertices = vertices
 
+    @property
+    def source_cropped_vertices(self): # or crop_vertices_in_source
+        return overlap_vertices(self.source_vertices, self.transform_coordinates(self.destination_vertices, inverse=True))
 
     @property
-    def source_to_destination(self):
-        """Nx2 numpy.ndarray : Source coordinates transformed to the destination axis"""
-
-        return self.transform_coordinates(self.source)
+    def source_cropped(self):
+        return crop_coordinates(self.source, self.source_cropped_vertices)
 
     @property
-    def destination_to_source(self):
-        """Nx2 numpy.ndarray : Source coordinates transformed to the destination axis"""
+    def destination_cropped_vertices(self): # or crop_vertices_in_destination
+        return overlap_vertices(self.transform_coordinates(self.source_vertices), self.destination_vertices)
 
-        return self.transform_coordinates(self.destination, inverse=True)
+    @property
+    def destination_cropped(self):
+        return crop_coordinates(self.destination, self.destination_cropped_vertices)
+
+    def get_source(self, crop=False, space='source'):
+        if crop in ['destination', False]:
+            source = self.source
+        elif crop in ['source', True]:
+            source = self.source_cropped
+
+        if space in ['destination', self.destination_name]:
+            source = self.transformation(source)
+
+        return source
+
+    def get_destination(self, crop=False, space='destination'):
+        if crop in ['source', False]:
+            destination = self.destination
+        elif crop in ['destination', True]:
+            destination = self.destination_cropped
+
+        if space in ['source', self.source_name]:
+            destination = self.transformation(destination, inverse=True)
+
+        return destination
+
+    def get_source_vertices(self, crop=False, space='source'):
+        if crop in ['destination', False]:
+            source_vertices = self.source_vertices
+        elif crop in ['source', True]:
+            source_vertices = self.source_cropped_vertices
+
+        if space in ['destination', self.destination_name]:
+            source_vertices = self.transformation(source_vertices)
+
+        return source_vertices
+
+    def get_destination_vertices(self, crop=False, space='source'):
+        if crop in ['destination', False]:
+            destination_vertices = self.destination_vertices
+        elif crop in ['source', True]:
+            destination_vertices = self.destination_cropped_vertices
+
+        if space in ['source', self.source_name]:
+            destination_vertices = self.transformation(destination_vertices, inverse=True)
+
+        return destination_vertices
+
+    @property
+    def destination_distance_threshold(self):
+        return self.source_distance_threshold * np.max(self.transformation.scale)
+
+
+    @property
+    def number_of_matched_points(self):
+        """Number of matched points determined by finding the two-way nearest neigbours that are closer than a distance
+        threshold.
+
+        Parameters
+        ----------
+        distance_threshold : float
+            Distance threshold for nearest neighbour match, i.e. only nearest neighbours with a distance smaller than
+            the distance threshold are used.
+
+        Returns
+        -------
+        int
+            Number of matched points
+
+        """
+        distances, source_indices, destination_indices = \
+            nearest_neighbor_pair(self.source_to_destination, self.destination)
+
+        return np.sum(distances < self.destination_distance_threshold)
+
+    def fraction_of_source_matched(self, crop=False):
+        return self.number_of_matched_points / self.get_source(crop).shape[0]
+
+    def fraction_of_destination_matched(self, crop=False):
+        return self.number_of_matched_points / self.get_destination(crop).shape[0]
+
+        # Possiblility to estimate area per point without source or destination vertices
+        # from scipy.spatial import ConvexHull, convex_hull_plot_2d
+        # hull = ConvexHull(points)
+        # number_of_vertices = n = hull.vertices.shape[0]
+        # number_of_points = hull.points.shape[0]
+        # corrected_number_of_points_in_hull = number_of_points-number_of_vertices/2-1
+        # area = hull.volume / corrected_number_of_points_in_hull * number_of_points
+        # # Number of vertices = nv
+        # # Sum of vertice angles = n*360
+        # # Sum of inner vertice angles = (nv-2)*180
+        # # Part of point area inside hull = (nv-2)*180/(nv*360)=(nv-2)/(2nv)
+        # # Points inside the hull = (nv-2)/(2nv)*nv+np-nv=nv/2-1+np-nv=np-nv/2-1
+
+        # Other method would be using voronoi diagrams, and calculating area of inner points
+
+    @property
+    def source_area(self):
+        return area(self.source_vertices)
+
+    @property
+    def source_in_destination_area(self):
+        return area(self.transformation(self.source_vertices))
+
+    @property
+    def source_cropped_area(self):
+        return area(self.source_cropped_vertices)
+
+    @property
+    def destination_area(self):
+        return area(self.destination_vertices)
+
+    @property
+    def destination_cropped_area(self):
+        return area(self.destination_cropped_vertices)
+
+    def get_source_area(self, crop=False, space='destination'):
+        return area(self.get_source_vertices(crop=crop, space=space))
+
+    def get_destination_area(self, crop=False, space='destination'):
+        return area(self.get_destination_vertices(crop=crop, space=space))
+
 
     @property
     def transformation_type(self):
@@ -351,7 +481,7 @@ class Mapping2:
                                                                             gaussian_width=gaussian_width, divider=divider, plot=plot)
 
         import scipy.ndimage.filters as filters
-        corrected_correlation = correlation - filters.minimum_filter(correlation, np.min(correlation.shape) / 200)
+        corrected_correlation = correlation - filters.minimum_filter(correlation, 2*gaussian_width)#np.min(correlation.shape) / 200)
         plt.figure()
         plt.imshow(corrected_correlation)
         plt.show()
@@ -369,27 +499,6 @@ class Mapping2:
         self.transformation_inverse = AffineTransform(matrix=self.transformation._inv_matrix)
         self.correlation_conversion_function = None
 
-    @property
-    def number_of_matched_points(self):
-        """Number of matched points determined by finding the two-way nearest neigbours that are closer than a distance
-        threshold.
-
-        Parameters
-        ----------
-        distance_threshold : float
-            Distance threshold for nearest neighbour match, i.e. only nearest neighbours with a distance smaller than
-            the distance threshold are used.
-
-        Returns
-        -------
-        int
-            Number of matched points
-
-        """
-        distances, source_indices, destination_indices = \
-            nearest_neighbor_pair(self.source_to_destination, self.destination)
-
-        return np.sum(distances < self.destination_distance_threshold)
 
     def show_mapping_transformation(self, figure=None, show_source=False, show_destination=False, crop=False,
                                     inverse=False, source_colour='forestgreen', destination_colour='r', save_path=None):
@@ -407,7 +516,8 @@ class Mapping2:
         if not figure:
             figure = plt.figure()
 
-        source, destination = self.source_and_destination(crop)
+        source = self.get_source(crop)
+        destination = self.get_destination(crop)
 
         axis = figure.gca()
 
@@ -544,66 +654,55 @@ class Mapping2:
 
         return skimage.transform.warp(image, current_transformation, preserve_range=True)
 
-    @property
-    def source_vertices_in_destination(self):
-        if self.source_vertices is not None:
-            return self.transform_coordinates(self.source_vertices)
-        else:
-            raise AttributeError('Source vertices not set')
 
-    @property
-    def destination_vertices_in_source(self):
-        if self.destination_vertices is not None:
-            return self.transform_coordinates(self.destination_vertices, inverse=True)
-        else:
-            raise AttributeError('Destination vertices not set')
+    def Ripleys_K(self, crop=True, space='destination'):
+        from scipy.spatial import cKDTree
+        # source_in_destination_kdtree = cKDTree(self.source_to_destination)
+        # destination_kdtree = cKDTree(self.destination)
 
-    @property
-    def source_cropped(self):
-        crop_vertices_in_source = overlap_vertices(self.source_vertices, self.destination_vertices_in_source)
-        return crop_coordinates(self.source, crop_vertices_in_source)
+        from scipy.spatial import distance_matrix
+        source = self.get_source(crop=crop, space=space)
+        destination = self.get_destination(crop=crop, space=space)
+        dm = distance_matrix(source, destination)
+        # point_set_joint = np.vstack([point_set_1, point_set_2])
+        # A = (point_set_joint.max(axis=0) - point_set_joint.min(axis=0)).prod()
 
-    @property
-    def destination_cropped(self):
-        crop_vertices_in_destination = overlap_vertices(self.source_vertices_in_destination, self.destination_vertices)
-        return crop_coordinates(self.destination, crop_vertices_in_destination)
+        # source_vertices = self.get_source_vertices(crop=crop, space=space)
+        # destination_vertices = self.get_destination_vertices(crop=crop, space=space)
 
-    def source_and_destination(self, crop):
-        if crop in ['destination', False]:
-            source = self.source
-        elif crop in ['source', True]:
-            source = self.source_cropped
+        area_source = self.get_source_area(crop=crop, space=space)
+        area_destination = self.get_destination_area(crop=crop, space=space)
 
-        if crop in ['source', False]:
-            destination = self.destination
-        elif crop in ['destination', True]:
-            destination = self.destination_cropped
+        density_source = source.shape[0] / area_source
+        density_destination = destination.shape[0] / area_destination
 
-        return source, destination
+        area_overlap = self.get_destination_area(crop=True, space=space)
 
-    def fraction_of_points_matched(self, crop=True):
-        number_of_matched_points = self.number_of_matched_points
-        source, destination = self.source_and_destination(crop)
+        d = dm.flatten()
+        d.sort()
 
-        fraction_source_matched = number_of_matched_points / source.shape[0]
-        fraction_destination_matched = number_of_matched_points / destination.shape[0]
+        K = np.arange(len(d)) / (density_source * density_destination * area_overlap)
 
-        return fraction_source_matched, fraction_destination_matched
+        return d, K
 
-        # Possiblility to estimate area per point without source or destination vertices
-        # from scipy.spatial import ConvexHull, convex_hull_plot_2d
-        # hull = ConvexHull(points)
-        # number_of_vertices = n = hull.vertices.shape[0]
-        # number_of_points = hull.points.shape[0]
-        # corrected_number_of_points_in_hull = number_of_points-number_of_vertices/2-1
-        # area = hull.volume / corrected_number_of_points_in_hull * number_of_points
-        # # Number of vertices = nv
-        # # Sum of vertice angles = n*360
-        # # Sum of inner vertice angles = (nv-2)*180
-        # # Part of point area inside hull = (nv-2)*180/(nv*360)=(nv-2)/(2nv)
-        # # Points inside the hull = (nv-2)/(2nv)*nv+np-nv=nv/2-1+np-nv=np-nv/2-1
+    def Ripleys_L_minus_d(self, crop=True, space='destination', plot=False):
+        d, K = self.Ripleys_K(crop=crop, space=space)
+        # K_random = np.pi * t ** 2
+        L = np.sqrt(K / np.pi)
 
-        # Other method would be using voronoi diagrams, and calculating area of inner points
+        if plot:
+            fig, ax = plt.subplots()
+            ax.plot(d, L - d)
+            ax.set_xlabel('Distance')
+            ax.set_ylabel('L-d')
+
+        return d, L-d
+
+    def Ripleys_L_minus_d_max(self, crop=True, space='destination'):
+        d, L_minus_d = self.Ripleys_L_minus_d(crop=crop, space=space)
+        max_L_minus_d = L_minus_d.max()
+        d_at_max = d[np.where(max_L_minus_d == L_minus_d)][0]
+        return d_at_max, max_L_minus_d
 
     def save(self, filepath, filetype='json'):
         """Save the current mapping in a file, so that it can be opened later.
@@ -668,6 +767,9 @@ def overlap_vertices(vertices_A, vertices_B):
     # return np.array(polygon_overlap.exterior.coords.xy).T[:-1]
     return np.array(polygon_overlap.boundary)[:-1]
 
+def area(vertices):
+    return Polygon(vertices).area
+
 def crop_coordinates_indices(coordinates, vertices):
     # return pth.Path(vertices).contains_points(coordinates)
     cropped_coordinates = crop_coordinates(coordinates, vertices)
@@ -690,12 +792,12 @@ if __name__ == "__main__":
     from trace_analysis.plugins.sequencing.point_set_simulation import simulate_mapping_test_point_set
 
     # Simulate source and destination point sets
-    number_of_source_points = 40
+    number_of_source_points = 100
     transformation = AffineTransform(translation=[256, 25])#, rotation=5 / 360 * 2 * np.pi, scale=[0.98, 0.98])
     source_bounds = ([0,0], [256, 512])
-    source_crop_bounds = [[50,150], [200,300]]
-    fraction_missing_source = 0
-    fraction_missing_destination = 0
+    source_crop_bounds = [[50,250], [200,400]]
+    fraction_missing_source = 0.5
+    fraction_missing_destination = 0.5
     maximum_error_source = 0
     maximum_error_destination = 0
     shuffle = True
@@ -712,12 +814,26 @@ if __name__ == "__main__":
     #mapping.source_vertices = np.array([[0,0],[0,512],[256,512],[256,0]])
     #smapping.destination_vertices = transformation(np.array([[50,150],[50,300],[200,300],[200,150]]))
 
+    mapping.transformation = AffineTransform()
+    mapping.show_mapping_transformation()
+
     mapping.cross_correlation()
+    mapping.save(r'J:\Ivo\20220125 - Computer\Mapping_after_correlation')
     # correlation_peak_coordinates = [244, 487]
     # mapping.set_correlation_peak_coordinates(correlation_peak_coordinates)
-    mapping.show_mapping_transformation(show_source=True)
+    mapping.show_mapping_transformation(show_source=False)
 
-    mapping.fraction_of_points_matched
+    # mapping.fraction_of_points_matched
+
+    mapping.Ripleys_L_minus_d(plot=True)
+    d, L_minus_d = mapping.Ripleys_L_minus_d_max()
+
+    mapping.transform = AffineTransform
+    mapping.nearest_neighbour_match(3)
+
+    mapping.show_mapping_transformation(show_source=False)
+    mapping.Ripleys_L_minus_d(plot=True)
+    d, L_minus_d = mapping.Ripleys_L_minus_d_max()
 
     # # Create a test image
     # image = np.zeros((512,512))
