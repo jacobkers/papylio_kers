@@ -94,10 +94,10 @@ def crop_point_set(coordinates, bounds):
     return coordinates[crop_selection]
 
 
-def simulate_mapping_test_point_set(number_of_source_points, transformation, source_bounds=([0, 0], [1, 1]),
-                                    source_crop_bounds=None,
-                                    fraction_missing_source=0, fraction_missing_destination=0,
-                                    maximum_error_source=0, maximum_error_destination=0, shuffle=True):
+def simulate_mapping_test_point_set(number_of_points, transformation, bounds=([0, 0], [1, 1]),
+                                    crop_bounds=(None, None),
+                                    fraction_missing=(0,0),
+                                    maximum_error=(0,0), shuffle=True):
     """Simulate test point set for mapping
 
     A source point set is randomly generated between the given source_bounds. To obtain a corresponding destination
@@ -143,44 +143,45 @@ def simulate_mapping_test_point_set(number_of_source_points, transformation, sou
         Coordinates of the destination point set
 
     """
-    source = simulate_point_set(number_of_source_points, source_bounds)
-    if source_crop_bounds is not None:
-        source_crop_bounds = np.array(source_crop_bounds)
-        destination = crop_point_set(source, source_crop_bounds)
-    else:
-        destination = source.copy()
+    number_of_point_sets = 2
 
-    destination = transformation(destination)
+    complete_point_set = simulate_point_set(number_of_points, bounds)
+    point_sets = []
+    for i in range(number_of_point_sets):
+        if crop_bounds[i] is not None:
+            crop_bound = np.array(crop_bounds[i])
+            point_set = crop_point_set(complete_point_set, crop_bound)
+        else:
+            point_set = complete_point_set.copy()
 
-    source = random_selection_from_point_set(source, 1 - fraction_missing_source)
-    destination = random_selection_from_point_set(destination, 1 - fraction_missing_destination)
+        point_set = random_selection_from_point_set(point_set, 1 - fraction_missing[i])
+        point_set = add_uncertainty_to_point_set(point_set, maximum_error[i])
 
-    # np.max(bounds[:, 1] - bounds[:, 0]) * fraction
-    source = add_uncertainty_to_point_set(source, maximum_error_source)
-    destination = add_uncertainty_to_point_set(destination, maximum_error_destination)
+        # We could also transform both source and destination
+        if i > 0:
+            point_set = transformation(point_set)
 
-    if shuffle:
-        random_generator = np.random.default_rng()
-        random_generator.shuffle(destination, axis=0)
+            if shuffle:
+                random_generator = np.random.default_rng()
+                random_generator.shuffle(point_set, axis=0)
 
-    return source, destination
+        point_sets.append(point_set)
+
+    return point_sets
 
 
 if __name__ == "__main__":
-    number_of_source_points = 100
+    number_of_points = 100
     transformation = AffineTransform(scale=[0.75, 0.75], rotation=4 / 360 * 2 * np.pi, translation=[100, 0])
-    source_bounds = [[0, 0], [100, 200]]
-    source_crop_bounds = ([25, 50], [100, 175])
-    fraction_missing_source = 0
-    fraction_missing_destination = 0
-    maximum_error_source = 0
-    maximum_error_destination = 0
+    bounds = [[0, 0], [100, 200]]
+    crop_bounds = (None, [[25, 50], [100, 175]])
+    fraction_missing = (0, 0)
+    maximum_error = (0, 0)
     shuffle = True
 
-    destination, source = simulate_mapping_test_point_set(number_of_source_points, transformation.inverse,
-                                                          source_bounds, source_crop_bounds,
-                                                          fraction_missing_source, fraction_missing_destination,
-                                                          maximum_error_source, maximum_error_destination, shuffle)
+    destination, source = simulate_mapping_test_point_set(number_of_points, transformation.inverse,
+                                                          bounds, crop_bounds, fraction_missing, maximum_error, shuffle)
+
     m = Mapping2(source, destination)
     m.transformation = transformation
     m.show_mapping_transformation(show_source=True)
