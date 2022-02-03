@@ -48,7 +48,7 @@ def random_selection_from_point_set(coordinates, fraction):
     return random_generator.choice(coordinates, size, replace=False, axis=0, shuffle=False)
 
 
-def add_uncertainty_to_point_set(coordinates, maximum_error):
+def add_uncertainty_to_point_set(coordinates, sigma=1):
     """ Add random errors to the coordinates of a point set.
     For each point an error is randomly chosen from within a circle with radius maximum_error.
 
@@ -65,10 +65,13 @@ def add_uncertainty_to_point_set(coordinates, maximum_error):
         Coordinates with error applied
     """
 
-    random_generator = np.random.default_rng()
-    error_magnitudes = random_generator.random(len(coordinates)) * maximum_error
-    error_angles = random_generator.random(len(coordinates)) * 2 * np.pi
-    errors = error_magnitudes[:, np.newaxis] * np.column_stack([np.cos(error_angles), np.sin(error_angles)])
+    # random_generator = np.random.default_rng()
+    # error_magnitudes = random_generator.random(len(coordinates)) * maximum_error
+    # error_angles = random_generator.random(len(coordinates)) * 2 * np.pi
+    # errors = error_magnitudes[:, np.newaxis] * np.column_stack([np.cos(error_angles), np.sin(error_angles)])
+
+    errors = np.random.normal(0, sigma, size=coordinates.shape)
+
     return coordinates + errors
 
 
@@ -97,7 +100,7 @@ def crop_point_set(coordinates, bounds):
 def simulate_mapping_test_point_set(number_of_points, transformation, bounds=([0, 0], [1, 1]),
                                     crop_bounds=(None, None),
                                     fraction_missing=(0,0),
-                                    maximum_error=(0,0), shuffle=True):
+                                    error_sigma=(0,0), shuffle=True):
     """Simulate test point set for mapping
 
     A source point set is randomly generated between the given source_bounds. To obtain a corresponding destination
@@ -155,7 +158,7 @@ def simulate_mapping_test_point_set(number_of_points, transformation, bounds=([0
             point_set = complete_point_set.copy()
 
         point_set = random_selection_from_point_set(point_set, 1 - fraction_missing[i])
-        point_set = add_uncertainty_to_point_set(point_set, maximum_error[i])
+        point_set = add_uncertainty_to_point_set(point_set, error_sigma[i])
 
         # We could also transform both source and destination
         if i > 0:
@@ -176,11 +179,11 @@ if __name__ == "__main__":
     bounds = [[0, 0], [100, 200]]
     crop_bounds = (None, [[25, 50], [100, 175]])
     fraction_missing = (0, 0)
-    maximum_error = (0, 0)
+    error_sigma = (0, 0)
     shuffle = True
 
     destination, source = simulate_mapping_test_point_set(number_of_points, transformation.inverse,
-                                                          bounds, crop_bounds, fraction_missing, maximum_error, shuffle)
+                                                          bounds, crop_bounds, fraction_missing, error_sigma, shuffle)
 
     m = Mapping2(source, destination)
     m.transformation = transformation
