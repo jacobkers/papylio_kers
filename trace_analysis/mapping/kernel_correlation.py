@@ -75,18 +75,54 @@ from trace_analysis.mapping.polywarp import PolywarpTransform
 #
 #     return AffineTransform(matrix=np.hstack([res.x, [0,0,1]]).reshape(3,3))
 
-# #
-
+#
+import time
 from skimage.transform import SimilarityTransform
 #from scipy.spatial import cKDTree
-from scipy.spatial import distance_matrix
+from scipy.spatial import distance_matrix, cKDTree
 def ComputeKC(transformation_parameters, source, destination, sigma=1, plot=False, axis=None):
+
     # transformation = AffineTransform(matrix=np.hstack([transformation_parameters, [0,0,1]]).reshape(3,3))
+    # t = []
+    # t.append(time.time())
     transformation = SimilarityTransform(scale=transformation_parameters[0], rotation=transformation_parameters[1],
                                          translation=transformation_parameters[2:4])
+    # t.append(time.time())
+    # print(t[-1]-t[-2])
+
     source_transformed = transformation(source)
-    distances = distance_matrix(source_transformed, destination, threshold=10)
-    KCVal = -np.exp(-distances**2/(4*sigma**2)).sum()
+    # t.append(time.time())
+    # print(t[-1]-t[-2])
+
+    # distances = distance_matrix(source_transformed, destination.data, threshold=1e9)
+    # t.append(time.time())
+    # print(t[-1]-t[-2])
+    #
+    # KCVal = -np.exp(-distances**2/(4*sigma**2)).sum()
+    # t.append(time.time())
+    # print(t[-1]-t[-2])
+    # print(KCVal)
+
+    #destination_tree = cKDTree(destination)
+    source_transformed_tree = cKDTree(source_transformed)
+    if isinstance(destination, cKDTree):
+        destination_tree = destination
+    else:
+        destination_tree = cKDTree(destination)
+
+    #distances2 = destination_tree.sparse_distance_matrix(source_tree, 3 * sigma, output_type='dok_matrix').values()
+    #distances2 = np.fromiter(destination_tree.sparse_distance_matrix(source_tree, 3 * sigma, output_type='dict').values(),
+                # dtype=float)
+    distances = destination_tree.sparse_distance_matrix(source_transformed_tree, 5 * sigma, output_type='ndarray')['v']
+    # t.append(time.time())
+    # print(t[-1]-t[-2])
+
+    KCVal = -np.exp(-distances ** 2 / (4 * sigma ** 2)).sum()
+    # t.append(time.time())
+    # print(t[-1]-t[-2])
+
+    print(KCVal)
+
 
     if plot:
         if axis is None:
@@ -101,16 +137,51 @@ def ComputeKC(transformation_parameters, source, destination, sigma=1, plot=Fals
     return KCVal
 
 
-
-def KCReg(source, destination, sigma=1, plot=False):
+from scipy.optimize import shgo, dual_annealing, differential_evolution, basinhopping
+def KCReg(source, destination, sigma=1, bounds=None, plot=False):
     # SceneKDE = ComputeKDE(S, h, min_val, max_val)
 
     initial_transformation = SimilarityTransform()
     # parameters = initial_transformation.params.flatten()[0:6]
     parameters = np.hstack([initial_transformation.scale, initial_transformation.rotation, initial_transformation.translation])
 
-    res = minimize(ComputeKC, parameters, args=(source, destination, sigma, plot), tol=1e-2, options={'maxiter': 100})
+    destination_cKDTree = cKDTree(destination)
 
+    # res = minimize(ComputeKC, parameters, args=(source, destination_cKDTree, sigma, plot), tol=1e-6,
+    #                bounds=bounds, method='L-BFGS-B',
+    #                options={'disp': None, 'maxcor': 20, 'ftol': 2.220446049250313e-09, 'gtol': 1e-05, 'eps': 1e-08,
+    #                         'maxfun': 15000, 'maxiter': 15000, 'iprint': - 1, 'maxls': 20, 'finite_diff_rel_step': None})
+    # res = minimize(ComputeKC, parameters, args=(source, destination_cKDTree, sigma, plot), tol=1e-6,
+    #                bounds=bounds, method='Powell',
+    #                options={'xtol': 0.00001, 'ftol': 0.000001, 'maxiter': None, 'maxfev': None,
+    #                         'disp': False, 'direc': None, 'return_all': False})
+
+    # res = minimize(ComputeKC, parameters, args=(source, destination_cKDTree, sigma, plot), tol=1e-9,
+    #                bounds=bounds, method='BFGS',
+    #                options={'gtol': 1e-09, 'norm': np.inf, 'eps': 1.4901161193847656e-03, 'maxiter': None, 'disp': False,
+    #                         'return_all': False, 'finite_diff_rel_step': None})
+
+    # res = shgo(ComputeKC, bounds, args=(source, destination_cKDTree, sigma, plot), constraints=None, n=None, iters=1,
+    #            callback=None, minimizer_kwargs={'method': 'Powell', 'options': {'ftol': 1e-9, 'gtol': 1e-5}},
+    #             options={'minimize_every_iter':False}, sampling_method='simplicial')
+    #
+    # res = dual_annealing(ComputeKC, bounds, args=(source, destination_cKDTree, sigma, plot),
+    #                      maxiter=50,
+    #                      local_search_options={}, initial_temp=5230,#5230.0,
+    #                      restart_temp_ratio=2e-05, visit=2.62, accept=- 5.0, maxfun=10000000.0, seed=None,
+    #                      no_local_search=False, callback=None, x0=None)
+
+    res = differential_evolution(ComputeKC, bounds, args=(source, destination_cKDTree, sigma, plot),
+                                 strategy='best1bin', maxiter=1000, popsize=50, tol=0.01,
+                                 mutation=0.25, recombination=0.7, seed=None, callback=None, disp=False,
+                                 polish=True, init='sobol', atol=0, updating='immediate', workers=1,
+                                 constraints=())
+
+    # res = basinhopping(ComputeKC, parameters, niter=100, T=1.0, stepsize=0.5, minimizer_kwargs={'args': (source, destination_cKDTree, sigma, plot)}, take_step=None,
+    #                    accept_test=None, callback=None, interval=50, disp=False, niter_success=None, seed=None)
+
+
+    print(res)
     # return AffineTransform(matrix=np.hstack([res.x, [0,0,1]]).reshape(3,3))
     return SimilarityTransform(scale=res.x[0], rotation=res.x[1], translation=res.x[2:4])
 
@@ -122,20 +193,20 @@ if __name__ == '__main__':
     from trace_analysis.plugins.sequencing.point_set_simulation import simulate_mapping_test_point_set
 
     # Simulate soure and destination point sets
-    number_of_source_points = 4000
-    transformation = AffineTransform(translation=[5,0], rotation=1/360*2*np.pi, scale=[0.98, 0.98])
-    source_bounds = ([0, 0], [256, 512])
-    source_crop_bounds = None
-    fraction_missing_source = 0.6
-    fraction_missing_destination = 0.95
-    maximum_error_source = 4
-    maximum_error_destination = 4
+    number_of_points = 10000
+    transformation = AffineTransform(translation=[10,-10], rotation=1/360*2*np.pi, scale=[0.98, 0.98])
+    bounds = ([0, 0], [256, 512])
+    crop_bounds = (None, None)
+    fraction_missing_source = 0.95
+    fraction_missing_destination = 0.6
+    maximum_error_source = 0.5
+    maximum_error_destination = 0.5
     shuffle = True
 
-    source, destination = simulate_mapping_test_point_set(number_of_source_points, transformation,
-                                                          source_bounds, source_crop_bounds,
-                                                          fraction_missing_source, fraction_missing_destination,
-                                                          maximum_error_source, maximum_error_destination, shuffle)
+    destination, source = simulate_mapping_test_point_set(number_of_points, transformation.inverse,
+                                                          bounds, crop_bounds,
+                                                          (fraction_missing_source, fraction_missing_destination),
+                                                          (maximum_error_source, maximum_error_destination), shuffle)
 
     from trace_analysis.mapping.mapping import Mapping2
     im = Mapping2(source, destination)
@@ -159,9 +230,10 @@ if __name__ == '__main__':
     # fig.add_axes([0, 0, 1, 1])
     # callback = partial(visualize, ax=fig.axes[0])
     #
-    # found_transformation = KCReg(source, destination, 5, display=callback) #callback)
-    plt.figure()
-    found_transformation = KCReg(source, destination, 5, plot=True)
+    # found_transformation = KCReg(source, destination, 5, display=False) #callback)
+    #plt.figure()
+    minimization_bounds = ((0.97,1.02),(-0.05,0.05),(-20,20),(-20,20))
+    found_transformation = KCReg(source, destination, 1, bounds=minimization_bounds, plot=False)
     fm = Mapping2(source, destination)
     fm.transformation = found_transformation
     fm.show_mapping_transformation()
@@ -177,3 +249,5 @@ if __name__ == '__main__':
     # transformation, transformation_inverse, distances, i = icp(source, destination, max_iterations, tolerance,
     #                                                            cutoff, cutoff_final, initial_transformation,
     #                                                            transform, transform_final, show_plot=True)
+
+
