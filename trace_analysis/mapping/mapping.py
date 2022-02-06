@@ -8,6 +8,8 @@ import json
 
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.lines as mlines
+from matplotlib.collections import PatchCollection
 from pathlib import Path
 import yaml
 import skimage.transform
@@ -54,10 +56,10 @@ class Mapping2:
                             'similarity': SimilarityTransform}
 
     def __init__(self, source=None, destination=None, method=None,
-                 transformation_type=None, initial_transformation=None,
+                 transformation_type='affine', initial_transformation=None,
                  source_name='source', destination_name='destination',
-                 source_unit=None, destination_unit=None, source_distance_threshold=0, name=None,
-                 load=None):
+                 source_unit=None, destination_unit=None, destination_distance_threshold=0,
+                 name=None, load=None):
         """Set passed object attributes
 
         Parameters
@@ -82,23 +84,24 @@ class Mapping2:
         self.source_name = source_name
         self.source = np.array(source) #source=donor=left side image
         self.source_unit = source_unit
-        self.source_distance_threshold = source_distance_threshold
+        # self.source_distance_threshold = source_distance_threshold
+        self.destination_distance_threshold = destination_distance_threshold
         self._source_vertices = None
         self.destination_name = destination_name
         self.destination_unit = destination_unit
         self.destination = np.array(destination) #destination=acceptor=right side image
         self._destination_vertices = None
         self.method = method
+        self.matched_pairs = np.empty((0,2), dtype=int)
 
-
-        self._transformation_type = transformation_type
+        self.transformation_type = transformation_type
 
         if type(initial_transformation) is dict:
             initial_transformation = AffineTransform(**initial_transformation)
         self.initial_transformation = initial_transformation
 
-        self.transformation = None
-        self.transformation_inverse = None
+        self.transformation = AffineTransform()
+        self.transformation_inverse = AffineTransform()
 
         # if (source is not None) and (destination is not None):
         #     if self.method is None: self.method = 'icp'
@@ -244,9 +247,23 @@ class Mapping2:
         return destination_vertices
 
     @property
-    def destination_distance_threshold(self):
-        return self.source_distance_threshold * np.max(self.transformation.scale)
+    def source_distance_threshold(self):
+        return self.destination_distance_threshold / np.max(self.transformation.scale)
 
+    def find_distance_threshold(self, method='single_match_optimization', **kwargs):
+        if method == 'single_match_optimization':
+            self.destination_distance_threshold = single_match_optimization(self.distance_matrix(crop=False), **kwargs)
+        else:
+            raise ValueError('Unknown method')
+
+    def determine_matched_pairs(self, distance_threshold=None):
+        #TODO: add crop
+        if distance_threshold is None:
+            distance_threshold = self.destination_distance_threshold
+
+        dm = self.distance_matrix(crop=False)
+
+        self.matched_pairs = determine_pairs_using_threshold(dm, distance_threshold)
 
     @property
     def number_of_matched_points(self):
@@ -500,8 +517,9 @@ class Mapping2:
         self.correlation_conversion_function = None
 
 
-    def show_mapping_transformation(self, figure=None, show_source=False, show_destination=False, crop=False,
-                                    inverse=False, source_colour='forestgreen', destination_colour='r', save_path=None):
+    def show_mapping_transformation(self, figure=None, show_source=False, show_destination=False, show_pairs=True,
+                                    crop=False, inverse=False, source_colour='forestgreen', destination_colour='r',
+                                    pair_colour='b', use_distance_threshold=True, save_path=None):
         """Show a point scatter of the source transformed to the destination points and the destination.
 
         Parameters
@@ -520,39 +538,46 @@ class Mapping2:
         destination = self.get_destination(crop)
 
         axis = figure.gca()
-
+        from matplotlib.patches import Circle
         if not inverse:
-            destination_from_source = self.transform_coordinates(source)
-            axis.scatter(destination_from_source[:, 0], destination_from_source[:, 1], facecolors='none',
-                         edgecolors=source_colour, linewidth=1, marker='o', label=f'{self.source_name} transformed')
+            transformed_coordinates = self.transform_coordinates(source)
+            transformed_coordinates_name = self.source_name
+            transformed_coordinates_colour = source_colour
+            distance_threshold = self.destination_distance_threshold
             show_destination = True
         else:
-            source_from_destination = self.transform_coordinates(destination, inverse=True)
-            axis.scatter(source_from_destination[:, 0], source_from_destination[:, 1], facecolors='none',
-                         edgecolors=destination_colour, linewidth=1, marker='o', label=f'{self.destination_name} transformed')
+            transformed_coordinates = self.transform_coordinates(source)
+            transformed_coordinates_name = self.destination_name
+            transformed_coordinates_colour = destination_colour
+            distance_threshold = self.source_distance_threshold
             show_source = True
 
-        if show_source:
-            axis.scatter(source[:, 0], source[:, 1], facecolors=source_colour, edgecolors='none', marker='.',
-                         label=self.source_name)
-            # axis.scatter(self.source[:, 0], self.source[:, 1], facecolors='none', edgecolors='g', s=70,
-            #            label=self.source_name)
-        # axis.scatter(destination_from_source[:, 0], destination_from_source[:, 1], facecolors='none',
-        #              edgecolors='forestgreen', linewidth=1, marker='o', label=f'{self.source_name} transformed')
-        # axis.scatter(self.destination[:, 0], self.destination[:, 1], facecolors='r', edgecolors='none', marker='.',
-        #              label=self.destination_name)
+        if distance_threshold > 0 and use_distance_threshold:
+            plot_circles(axis, transformed_coordinates, radius=distance_threshold, linewidth=1,
+                         facecolor='none', edgecolor=transformed_coordinates_colour)
+            if show_pairs:
+                plot_circles(axis, transformed_coordinates[self.matched_pairs[:,0]],
+                             radius=distance_threshold, linewidth=1,
+                                      facecolor='none', edgecolor=pair_colour)
+        else:
+            axis.scatter(*transformed_coordinates.T, facecolors='none', edgecolors=transformed_coordinates_colour,
+                         linewidth=1, marker='o', label=f'{transformed_coordinates_name} transformed')
+            if show_pairs:
+                axis.scatter(*transformed_coordinates[self.matched_pairs[:, 0]].T, facecolors='none',
+                             edgecolors=pair_colour, linewidth=1, marker='o', label=f'matched pairs')
 
-        # axis.scatter(destination_from_source[:, 0], destination_from_source[:, 1], facecolors='none',
-        #              edgecolors='forestgreen', linewidth=1, marker='o', label=f'{self.source_name} transformed')
-        # axis.scatter(self.destination[:, 0], self.destination[:, 1], facecolors='r', edgecolors='none', marker='.',
-        #              label=self.destination_name)
-        # axis.scatter(destination_from_source[:, 0], destination_from_source[:, 1], facecolors='none',
-        #              edgecolors='g', linewidth=1, marker='o', label=f'{self.source_name} transformed', s=70)
-        # axis.scatter(self.destination[:, 0], self.destination[:, 1], facecolors='none', edgecolors='r', marker='o',
-        #              label=self.destination_name, alpha=.5, s=60)
+        if show_source:
+            axis.scatter(*source.T, facecolors=source_colour, edgecolors='none', marker='.',
+                         label=self.source_name)
+            if show_pairs:
+                axis.scatter(*source[self.matched_pairs[:,0]].T, facecolors=pair_colour, edgecolors='none', marker='.')
+
         if show_destination:
-            axis.scatter(destination[:, 0], destination[:, 1], facecolors=destination_colour, edgecolors='none', marker='.',
+            axis.scatter(*destination.T, facecolors=destination_colour, edgecolors='none', marker='.',
                          label=self.destination_name)
+            if show_pairs:
+                axis.scatter(*destination[self.matched_pairs[:,1]].T, facecolors=pair_colour, edgecolors='none', marker='.',
+                             )# label='matched pairs')
 
         axis.set_aspect('equal')
 
@@ -564,7 +589,20 @@ class Mapping2:
         axis.set_title(self.name)
         axis.set_xlabel('x'+unit_label)
         axis.set_ylabel('y'+unit_label)
-        axis.legend()
+
+        legend_dict = {label: handle for handle, label in zip(*axis.get_legend_handles_labels())}
+        transformed_coordinates_marker = mlines.Line2D([], [], linewidth=0, markerfacecolor='none',
+                                         markeredgecolor=transformed_coordinates_colour, marker='o')
+        legend_dict[f'{transformed_coordinates_name} transformed'] = transformed_coordinates_marker
+
+        if show_pairs:
+            pair_marker1 = mlines.Line2D([], [], linewidth=0, markerfacecolor='none',
+                                         markeredgecolor=pair_colour, marker='o')
+            pair_marker2 = mlines.Line2D([], [], linewidth=0, markerfacecolor=pair_colour,
+                                         markeredgecolor='none', marker='.')
+            legend_dict['matched pairs'] = (pair_marker1, pair_marker2)
+
+        axis.legend(legend_dict.values(),legend_dict.keys())
 
         if save_path is not None:
             figure.savefig(save_path.joinpath(self.name+'.png'), bbox_inches='tight', dpi=250)
@@ -654,16 +692,18 @@ class Mapping2:
 
         return skimage.transform.warp(image, current_transformation, preserve_range=True)
 
+    def distance_matrix(self, crop=True, space='destination'):
+        from scipy.spatial import distance_matrix
+        source = self.get_source(crop=crop, space=space)
+        destination = self.get_destination(crop=crop, space=space)
+        return distance_matrix(source, destination)
 
     def Ripleys_K(self, crop=True, space='destination'):
         from scipy.spatial import cKDTree
         # source_in_destination_kdtree = cKDTree(self.source_to_destination)
         # destination_kdtree = cKDTree(self.destination)
 
-        from scipy.spatial import distance_matrix
-        source = self.get_source(crop=crop, space=space)
-        destination = self.get_destination(crop=crop, space=space)
-        dm = distance_matrix(source, destination)
+
         # point_set_joint = np.vstack([point_set_1, point_set_2])
         # A = (point_set_joint.max(axis=0) - point_set_joint.min(axis=0)).prod()
 
@@ -678,7 +718,7 @@ class Mapping2:
 
         area_overlap = self.get_destination_area(crop=True, space=space)
 
-        d = dm.flatten()
+        d = self.distance_matrix(crop=crop).flatten()
         d.sort()
 
         K = np.arange(len(d)) / (density_source * density_destination * area_overlap)
@@ -786,54 +826,109 @@ def crop_coordinates(coordinates, vertices):
 def determine_vertices(point_set, margin=0):
     return np.array(MultiPoint(point_set).convex_hull.buffer(margin, join_style=1).boundary)[:-1]
 
+def determine_pairs_using_threshold(distance_matrix_, distance_threshold):
+    match = distance_matrix_ < distance_threshold
+    match[match.sum(axis=1) != 1,:] = False
+    match[:, match.sum(axis=0) != 1] = False
+    return np.asarray(np.where(match)).T
+
+def single_match_optimization(distance_matrix_, r_max=20, plot=True):
+    radii = np.linspace(1, r_max, 100)
+    n = np.array([len(determine_pairs_using_threshold(distance_matrix_, r)) for r in radii])
+
+    # distance_threshold = np.sum(radii * n) / np.sum(n)
+    distance_threshold = radii[np.where(n==n.max())][0]
+
+    if plot:
+        figure, axis = plt.subplots()
+        axis.plot(radii, n)
+        axis.axvline(distance_threshold)
+        axis.set_xlabel('Radius')
+        axis.set_ylabel('Count')
+
+    return distance_threshold
+
+def plot_circles(axis, coordinates, radius=6, **kwargs):
+    circles = [plt.Circle((x, y), radius=radius) for x, y in coordinates]
+    c = PatchCollection(circles, **kwargs)
+    axis.add_collection(c)
 
 if __name__ == "__main__":
     # Create test point set (with some missing points)
     from trace_analysis.plugins.sequencing.point_set_simulation import simulate_mapping_test_point_set
 
     # Simulate source and destination point sets
-    number_of_source_points = 100
-    transformation = AffineTransform(translation=[256, 25])#, rotation=5 / 360 * 2 * np.pi, scale=[0.98, 0.98])
-    source_bounds = ([0,0], [256, 512])
-    source_crop_bounds = [[50,250], [200,400]]
-    fraction_missing_source = 0.5
-    fraction_missing_destination = 0.5
-    maximum_error_source = 0
-    maximum_error_destination = 0
+    number_of_points = 10000
+    transformation = AffineTransform(translation=[10,-10], rotation=1/360*2*np.pi, scale=[0.98, 0.98])
+    bounds = ([0, 0], [256, 512])
+    crop_bounds = (None, None)
+    fraction_missing_source = 0.95
+    fraction_missing_destination = 0.6
+    maximum_error_source = 0.5
+    maximum_error_destination = 0.5
     shuffle = True
 
-    source, destination = simulate_mapping_test_point_set(number_of_source_points, transformation,
-                                                          source_bounds, source_crop_bounds,
-                                                          fraction_missing_source, fraction_missing_destination,
-                                                          maximum_error_source, maximum_error_destination, shuffle)
+    destination, source = simulate_mapping_test_point_set(number_of_points, transformation.inverse,
+                                                          bounds, crop_bounds,
+                                                          (fraction_missing_source, fraction_missing_destination),
+                                                          (maximum_error_source, maximum_error_destination), shuffle)
+
 
     # Make a mapping object, perform the mapping and show the transformation
-    mapping = Mapping2(source, destination, transformation_type='linear', source_distance_threshold=5)
+    mapping = Mapping2(source, destination, transformation_type='linear', destination_distance_threshold=5)
+    mapping.transformation = transformation
+
+    mapping.find_distance_threshold()
+    mapping.determine_matched_pairs()
+    mapping.show_mapping_transformation()
+
+
+
+
     #mapping.method = 'icp'
     #mapping.perform_mapping()
     #mapping.source_vertices = np.array([[0,0],[0,512],[256,512],[256,0]])
     #smapping.destination_vertices = transformation(np.array([[50,150],[50,300],[200,300],[200,150]]))
 
-    mapping.transformation = AffineTransform()
-    mapping.show_mapping_transformation()
+    # mapping.transformation = AffineTransform()
+    # mapping.show_mapping_transformation()
+    #
+    # mapping.cross_correlation()
+    # mapping.save(r'J:\Ivo\20220125 - Computer\Mapping_after_correlation')
+    # # correlation_peak_coordinates = [244, 487]
+    # # mapping.set_correlation_peak_coordinates(correlation_peak_coordinates)
+    # mapping.show_mapping_transformation(show_source=False)
+    #
+    # # mapping.fraction_of_points_matched
+    #
+    # mapping.Ripleys_L_minus_d(plot=True)
+    # d, L_minus_d = mapping.Ripleys_L_minus_d_max()
+    # print(tuple(np.round(mapping.Ripleys_L_minus_d_max(), 3)))
+    #
+    # mapping.transform = AffineTransform
+    # mapping.nearest_neighbour_match(3)
+    #
+    # mapping.show_mapping_transformation(show_source=False)
+    # mapping.Ripleys_L_minus_d(plot=True)
+    # d, L_minus_d = mapping.Ripleys_L_minus_d_max()
+    # print(tuple(np.round(mapping.Ripleys_L_minus_d_max(), 3)))
+    #
+    #
+    #
+    # # After cross correlation
+    # mapping.transform = AffineTransform
+    # mapping.iterative_closest_point(30)
+    # mapping.show_mapping_transformation()
+    # mapping.Ripleys_L_minus_d(plot=True)
+    # print(tuple(np.round(mapping.Ripleys_L_minus_d_max(), 3)))
+    #
+    # # After cross correlation
+    # mapping.transform = SimilarityTransform
+    # mapping.iterative_closest_point(30)
+    # mapping.show_mapping_transformation()
+    # mapping.Ripleys_L_minus_d(plot=True)
+    # print(tuple(np.round(mapping.Ripleys_L_minus_d_max(), 3)))
 
-    mapping.cross_correlation()
-    mapping.save(r'J:\Ivo\20220125 - Computer\Mapping_after_correlation')
-    # correlation_peak_coordinates = [244, 487]
-    # mapping.set_correlation_peak_coordinates(correlation_peak_coordinates)
-    mapping.show_mapping_transformation(show_source=False)
-
-    # mapping.fraction_of_points_matched
-
-    mapping.Ripleys_L_minus_d(plot=True)
-    d, L_minus_d = mapping.Ripleys_L_minus_d_max()
-
-    mapping.transform = AffineTransform
-    mapping.nearest_neighbour_match(3)
-
-    mapping.show_mapping_transformation(show_source=False)
-    mapping.Ripleys_L_minus_d(plot=True)
-    d, L_minus_d = mapping.Ripleys_L_minus_d_max()
 
     # # Create a test image
     # image = np.zeros((512,512))
