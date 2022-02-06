@@ -20,6 +20,7 @@ from shapely.geometry import Polygon, MultiPoint
 from trace_analysis.mapping.icp import icp, nearest_neighbor_pair, nearest_neighbour_match, direct_match
 from trace_analysis.mapping.polywarp import PolywarpTransform
 from trace_analysis.mapping.polynomial import PolynomialTransform
+from trace_analysis.mapping.point_set_simulation import simulate_mapping_test_point_set
 
 class Mapping2:
     """Mapping class to find, improve, store and use the mapping between a source point set and a destination point set
@@ -49,6 +50,36 @@ class Mapping2:
 
     """
 
+    @classmethod
+    def simulate(cls, number_of_points=200, transformation=None,
+                 bounds=([0, 0], [256, 512]), crop_bounds=(None, None), fraction_missing=(0.1, 0.1),
+                 error_sigma=(0.5, 0.5), shuffle=True):
+
+        if transformation is None:
+            transformation = SimilarityTransform(translation=[256, 10], rotation=1/360*2*np.pi, scale=[0.98, 0.98])
+
+
+        source, destination = simulate_mapping_test_point_set(number_of_points, transformation,
+                                                              bounds, crop_bounds, fraction_missing,
+                                                              error_sigma,
+                                                              shuffle)
+
+        mapping = cls(source, destination)
+        mapping.transformation_correct = transformation
+
+        def show_correct_mapping_transformation(self, *args, **kwargs):
+            transformation_temp = self.transformation
+            self.transformation = self.transformation_correct
+            self.show_mapping_transformation(*args, **kwargs)
+            self.transformation = transformation_temp
+
+        mapping.show_correct_mapping_transformation = show_correct_mapping_transformation.__get__(mapping)
+        mapping.show_correct_mapping_transformation()
+
+        return mapping
+
+    #TODO: Make load a class method
+
     transformation_types = {'linear': AffineTransform,
                             'nonlinear': PolywarpTransform,
                             'polynomial': PolynomialTransform,
@@ -56,7 +87,7 @@ class Mapping2:
                             'similarity': SimilarityTransform}
 
     def __init__(self, source=None, destination=None, method=None,
-                 transformation_type='affine', initial_transformation=None,
+                 transformation_type='affine', initial_transformation=None, transformation=None, transformation_inverse=None,
                  source_name='source', destination_name='destination',
                  source_unit=None, destination_unit=None, destination_distance_threshold=0,
                  name=None, load=None):
@@ -100,8 +131,21 @@ class Mapping2:
             initial_transformation = AffineTransform(**initial_transformation)
         self.initial_transformation = initial_transformation
 
-        self.transformation = AffineTransform()
-        self.transformation_inverse = AffineTransform()
+        if transformation is None:
+            self.transformation = self.transform()
+            self.transformation_inverse = self.transform()
+        else:
+            if type(transformation) is dict:
+                transformation = self.transform(**transformation)
+            self.transformation = transformation
+
+            if transformation_inverse is None:
+                self.transformation_inverse = self.transform(matrix=self.transformation._inv_matrix)
+            else:
+                if type(transformation_inverse) is dict:
+                    transformation_inverse = self.transform(**transformation_inverse)
+                self.transformation_inverse = transformation_inverse
+
 
         # if (source is not None) and (destination is not None):
         #     if self.method is None: self.method = 'icp'
@@ -531,14 +575,18 @@ class Mapping2:
             If True then the source points are also displayed
 
         """
+        # Perhaps in case there is no transformation defined, we can show the source and destination, without transformed coordinates.
         if not figure:
             figure = plt.figure()
 
         source = self.get_source(crop)
         destination = self.get_destination(crop)
 
+        if len(self.matched_pairs) == 0:
+            show_pairs = False
+
         axis = figure.gca()
-        from matplotlib.patches import Circle
+
         if not inverse:
             transformed_coordinates = self.transform_coordinates(source)
             transformed_coordinates_name = self.source_name
@@ -564,7 +612,7 @@ class Mapping2:
                          linewidth=1, marker='o', label=f'{transformed_coordinates_name} transformed')
             if show_pairs:
                 axis.scatter(*transformed_coordinates[self.matched_pairs[:, 0]].T, facecolors='none',
-                             edgecolors=pair_colour, linewidth=1, marker='o', label=f'matched pairs')
+                             edgecolors=pair_colour, linewidth=1, marker='o')
 
         if show_source:
             axis.scatter(*source.T, facecolors=source_colour, edgecolors='none', marker='.',
@@ -576,8 +624,7 @@ class Mapping2:
             axis.scatter(*destination.T, facecolors=destination_colour, edgecolors='none', marker='.',
                          label=self.destination_name)
             if show_pairs:
-                axis.scatter(*destination[self.matched_pairs[:,1]].T, facecolors=pair_colour, edgecolors='none', marker='.',
-                             )# label='matched pairs')
+                axis.scatter(*destination[self.matched_pairs[:,1]].T, facecolors=pair_colour, edgecolors='none', marker='.')
 
         axis.set_aspect('equal')
 
@@ -854,33 +901,23 @@ def plot_circles(axis, coordinates, radius=6, **kwargs):
     axis.add_collection(c)
 
 if __name__ == "__main__":
-    # Create test point set (with some missing points)
-    from trace_analysis.plugins.sequencing.point_set_simulation import simulate_mapping_test_point_set
-
     # Simulate source and destination point sets
     number_of_points = 10000
     transformation = AffineTransform(translation=[10,-10], rotation=1/360*2*np.pi, scale=[0.98, 0.98])
     bounds = ([0, 0], [256, 512])
     crop_bounds = (None, None)
-    fraction_missing_source = 0.95
-    fraction_missing_destination = 0.6
-    maximum_error_source = 0.5
-    maximum_error_destination = 0.5
+    fraction_missing = (0.95, 0.6)
+    error_sigma = (0.5, 0.5)
     shuffle = True
 
-    destination, source = simulate_mapping_test_point_set(number_of_points, transformation.inverse,
-                                                          bounds, crop_bounds,
-                                                          (fraction_missing_source, fraction_missing_destination),
-                                                          (maximum_error_source, maximum_error_destination), shuffle)
+
+    mapping = Mapping2.simulate(number_of_points, transformation, bounds, crop_bounds, fraction_missing,
+                                error_sigma, shuffle)
 
 
-    # Make a mapping object, perform the mapping and show the transformation
-    mapping = Mapping2(source, destination, transformation_type='linear', destination_distance_threshold=5)
-    mapping.transformation = transformation
-
-    mapping.find_distance_threshold()
-    mapping.determine_matched_pairs()
-    mapping.show_mapping_transformation()
+    # mapping.find_distance_threshold()
+    # mapping.determine_matched_pairs()
+    # mapping.show_mapping_transformation()
 
 
 
