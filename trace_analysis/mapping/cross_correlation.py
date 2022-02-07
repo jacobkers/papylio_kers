@@ -3,8 +3,23 @@ import matplotlib.pyplot as plt
 from scipy.signal import fftconvolve
 from skimage.transform import AffineTransform
 
-from trace_analysis.trace_extraction import make_gaussian_mask
 
+
+def make_gaussian_mask(size, center=None, offset=(0, 0), sigma=1.291):
+    # TODO: Change this to a gaussian only
+    # This is actually not what we are looking for here, we just need a gaussian
+
+    x = np.arange(0, size, 1, float)
+    y = x[:, np.newaxis]
+
+    if center is None: center = [size // 2, size //2]
+
+    mask = np.exp(-((x - center[0] - offset[0]) ** 2 + (y - center[0] - offset[1]) ** 2) / sigma**2 / 2)
+    psf_single_photon = mask/np.sum(mask)
+    norm_factor = np.sum(np.multiply(mask, psf_single_photon))
+    mask = np.divide(mask, norm_factor)
+
+    return mask
 
 def coordinates_to_image(coordinates, gaussian_width=7, divider=5):
     gauss = make_gaussian_mask(gaussian_width)

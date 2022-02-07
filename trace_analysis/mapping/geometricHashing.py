@@ -12,9 +12,9 @@ from pathlib2 import Path
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.pyplot import cm
 import scipy.stats
-from trace_analysis.mapping.mapping import Mapping2
-from trace_analysis.coordinate_transformations import translate, rotate, magnify, reflect, transform
-from trace_analysis.plugins.sequencing.plotting import plot_sequencing_match
+from mapping import Mapping2
+from coordinate_transformations import translate, rotate, magnify, reflect, transform
+# from trace_analysis.plugins.sequencing.plotting import plot_sequencing_match
 
 
 def mapToPoint(pointSet,startPoints,endPoints,returnTransformationMatrix = False, tr = None, di = None, ro = None):
@@ -597,10 +597,10 @@ class SequencingDataMapping:
         figure.savefig(self.dataPath.joinpath(n + '_raw.pdf'), bbox_inches='tight')
         figure.savefig(self.dataPath.joinpath(n + '_raw.png'), bbox_inches='tight', dpi=1000)
 
-    def plot_match(self, match):
-        name = str(self.files[self.matches.index(match)].relativeFilePath)
-        print(name)
-        plot_sequencing_match(match, self.dataPath, name, unit='um')
+    # def plot_match(self, match):
+    #     name = str(self.files[self.matches.index(match)].relativeFilePath)
+    #     print(name)
+    #     plot_sequencing_match(match, self.dataPath, name, unit='um')
 
     def loop_through_matches(self, figure=None):
         if figure is None:

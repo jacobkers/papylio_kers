@@ -3,9 +3,9 @@ import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider
 from sklearn.neighbors import NearestNeighbors
 from skimage.transform import AffineTransform, PolynomialTransform
+from matplotlib.collections import LineCollection
 
-from trace_analysis.plotting import scatter_coordinates, show_point_connections
-from trace_analysis.mapping.polywarp import PolywarpTransform
+from polywarp import PolywarpTransform
 
 def best_fit_transform(A, B):
     '''
@@ -137,6 +137,24 @@ def mean_squared_error(source, destination, transformation):
     distances = np.linalg.norm(destination - transformation(source), axis=1)
     return np.mean(distances**2)
 
+def scatter_coordinates(pointsets, axis=None):
+    # Can probably be replaced
+    if not axis:
+        axis = plt.gca()
+    for pointset in pointsets:
+        axis.scatter(pointset[:,0], pointset[:,1])
+#
+# def show_point_connections(pointset1,pointset2):
+#     for coordinate1, coordinate2 in zip(pointset1, pointset2):
+#         plt.plot([coordinate1[0],coordinate2[0]],[coordinate1[1],coordinate2[1]], color='r')
+
+def show_point_connections(pointset1, pointset2, axis=None):
+    coordinate_pairs = np.swapaxes(np.dstack([pointset1, pointset2]), 1, 2)
+    line_segments = LineCollection(coordinate_pairs, linestyle='solid', color='r')
+    if not axis:
+        axis = plt.gca()
+    axis.add_collection(line_segments)
+    # axis.autoscale()
 
 def icp(source, destination, max_iterations=20, tolerance=0.001, distance_threshold=None, distance_threshold_final=None,
         initial_transformation=None, transform=AffineTransform, transform_final=None, show_plot=False, **kwargs):

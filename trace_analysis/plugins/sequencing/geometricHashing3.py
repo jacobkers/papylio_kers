@@ -8,7 +8,7 @@ import random
 from trace_analysis.mapping.geometricHashing import mapToPoint
 from trace_analysis.plugins.sequencing.geometricHashing2 import crop_coordinates, polygon_area
 from trace_analysis.mapping.mapping import Mapping2
-from trace_analysis.plotting import scatter_coordinates
+# from trace_analysis.mapping.icp import scatter_coordinates
 from skimage.transform import AffineTransform
 import time
 

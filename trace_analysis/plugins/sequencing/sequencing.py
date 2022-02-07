@@ -507,7 +507,7 @@ class File:
         plot_sequencing_match(self.sequencing_match, self.absoluteFilePath.parent, title, filename,
                               'um', MiSeq_pixels_to_um, Fluo_pixels_to_um)
 
-    # from trace_analysis.plotting import show_point_connections
+    # from trace_analysis.mapping.icp import show_point_connections
     # show_point_connections(self.coordinates[molecule_indices], sequence_coordinates_in_file[sequence_indices])
 
 
@@ -541,7 +541,7 @@ class File:
     #
     #     plt.figure()
     #     scatter_coordinates([tile_coordinates, self.sequence_match.destination, image_coordinates])
-    #     from trace_analysis.plotting import show_point_connections
+    #     from trace_analysis.mapping.icp import show_point_connections
     #     show_point_connections(image_coordinates[image_indices], tile_coordinates[tile_indices])
     #
     #     for molecule in self.molecules: molecule.sequence = np.array([], dtype=bytes)

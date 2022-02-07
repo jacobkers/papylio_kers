@@ -17,10 +17,10 @@ from skimage.transform import AffineTransform, PolynomialTransform, SimilarityTr
 # import matplotlib.path as pth
 from shapely.geometry import Polygon, MultiPoint
 
-from trace_analysis.mapping.icp import icp, nearest_neighbor_pair, nearest_neighbour_match, direct_match
-from trace_analysis.mapping.polywarp import PolywarpTransform
-from trace_analysis.mapping.polynomial import PolynomialTransform
-from trace_analysis.mapping.point_set_simulation import simulate_mapping_test_point_set
+from icp import icp, nearest_neighbor_pair, nearest_neighbour_match, direct_match
+from polywarp import PolywarpTransform
+from polynomial import PolynomialTransform
+from point_set_simulation import simulate_mapping_test_point_set
 
 class Mapping2:
     """Mapping class to find, improve, store and use the mapping between a source point set and a destination point set
@@ -931,68 +931,6 @@ if __name__ == "__main__":
 
     mapping.show_mapping_transformation()
 
-    # mapping.find_distance_threshold()
-    # mapping.determine_matched_pairs()
-    # mapping.show_mapping_transformation()
-
-
-
-
-    #mapping.method = 'icp'
-    #mapping.perform_mapping()
-    #mapping.source_vertices = np.array([[0,0],[0,512],[256,512],[256,0]])
-    #smapping.destination_vertices = transformation(np.array([[50,150],[50,300],[200,300],[200,150]]))
-
-    # mapping.transformation = AffineTransform()
-    # mapping.show_mapping_transformation()
-    #
-    # mapping.cross_correlation()
-    # mapping.save(r'J:\Ivo\20220125 - Computer\Mapping_after_correlation')
-    # # correlation_peak_coordinates = [244, 487]
-    # # mapping.set_correlation_peak_coordinates(correlation_peak_coordinates)
-    # mapping.show_mapping_transformation(show_source=False)
-    #
-    # # mapping.fraction_of_points_matched
-    #
-    # mapping.Ripleys_L_minus_d(plot=True)
-    # d, L_minus_d = mapping.Ripleys_L_minus_d_max()
-    # print(tuple(np.round(mapping.Ripleys_L_minus_d_max(), 3)))
-    #
-    # mapping.transform = AffineTransform
-    # mapping.nearest_neighbour_match(3)
-    #
-    # mapping.show_mapping_transformation(show_source=False)
-    # mapping.Ripleys_L_minus_d(plot=True)
-    # d, L_minus_d = mapping.Ripleys_L_minus_d_max()
-    # print(tuple(np.round(mapping.Ripleys_L_minus_d_max(), 3)))
-    #
-    #
-    #
-    # # After cross correlation
-    # mapping.transform = AffineTransform
-    # mapping.iterative_closest_point(30)
-    # mapping.show_mapping_transformation()
-    # mapping.Ripleys_L_minus_d(plot=True)
-    # print(tuple(np.round(mapping.Ripleys_L_minus_d_max(), 3)))
-    #
-    # # After cross correlation
-    # mapping.transform = SimilarityTransform
-    # mapping.iterative_closest_point(30)
-    # mapping.show_mapping_transformation()
-    # mapping.Ripleys_L_minus_d(plot=True)
-    # print(tuple(np.round(mapping.Ripleys_L_minus_d_max(), 3)))
-
-
-    # # Create a test image
-    # image = np.zeros((512,512))
-    # image[100:110,:]=1
-    # image[:,100:110]=1
-    #
-    # # Transform the image
-    # image_transformed = mapping.transform_image(image)
-    #
-    # # Show the original and transformed image
-    # plt.figure()
-    # plt.imshow(image)
-    # plt.figure()
-    # plt.imshow(image_transformed)
+    mapping.find_distance_threshold()
+    mapping.determine_matched_pairs()
+    mapping.show_mapping_transformation()
