@@ -2,11 +2,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider
 from sklearn.neighbors import NearestNeighbors
-from skimage.transform import AffineTransform, PolynomialTransform
+from skimage.transform import AffineTransform, PolynomialTransform, EuclideanTransform, SimilarityTransform
 from scipy.optimize import minimize
 
-from trace_analysis.plotting import scatter_coordinates, show_point_connections
-from trace_analysis.mapping.polywarp import PolywarpTransform
 
 # def ComputeKDE(P, resolution, min_val, max_val):
 #     grids = np.round((max_val-min_val)/resolution).astype(int)+20
@@ -77,7 +75,6 @@ from trace_analysis.mapping.polywarp import PolywarpTransform
 
 #
 import time
-from skimage.transform import SimilarityTransform
 #from scipy.spatial import cKDTree
 from scipy.spatial import distance_matrix, cKDTree
 def ComputeKC(transformation_parameters, source, destination, sigma=1, plot=False, axis=None):
@@ -85,8 +82,19 @@ def ComputeKC(transformation_parameters, source, destination, sigma=1, plot=Fals
     # transformation = AffineTransform(matrix=np.hstack([transformation_parameters, [0,0,1]]).reshape(3,3))
     # t = []
     # t.append(time.time())
-    transformation = SimilarityTransform(scale=transformation_parameters[0], rotation=transformation_parameters[1],
-                                         translation=transformation_parameters[2:4])
+    if len(transformation_parameters)==3:
+        transformation = EuclideanTransform(rotation=transformation_parameters[0],
+                                            translation=transformation_parameters[1:3])
+    elif len(transformation_parameters)==4:
+        transformation = SimilarityTransform(scale=transformation_parameters[0], rotation=transformation_parameters[1],
+                                             translation=transformation_parameters[2:4])
+    elif len(transformation_parameters)==5:
+        transformation = AffineTransform(scale=transformation_parameters[0], rotation=transformation_parameters[1],
+                                         shear=transformation_parameters[2], translation=transformation_parameters[3:5])
+    elif len(transformation_parameters)==6:
+        transformation = AffineTransform(scale=transformation_parameters[0:2], rotation=transformation_parameters[2],
+                                         shear=transformation_parameters[3], translation=transformation_parameters[4:6])
+
     # t.append(time.time())
     # print(t[-1]-t[-2])
 
@@ -136,14 +144,12 @@ def ComputeKC(transformation_parameters, source, destination, sigma=1, plot=Fals
 
     return KCVal
 
-
 from scipy.optimize import shgo, dual_annealing, differential_evolution, basinhopping
-def KCReg(source, destination, sigma=1, bounds=None, plot=False):
-    # SceneKDE = ComputeKDE(S, h, min_val, max_val)
-
-    initial_transformation = SimilarityTransform()
+def kernel_correlation(source, destination, bounds, sigma=1, plot=False, **kwargs):
+    # if transform is None:
+    #     initial_transformation = SimilarityTransform()
     # parameters = initial_transformation.params.flatten()[0:6]
-    parameters = np.hstack([initial_transformation.scale, initial_transformation.rotation, initial_transformation.translation])
+    # parameters = np.hstack([initial_transformation.scale, initial_transformation.rotation, initial_transformation.translation])
 
     destination_cKDTree = cKDTree(destination)
 
@@ -171,28 +177,24 @@ def KCReg(source, destination, sigma=1, bounds=None, plot=False):
     #                      restart_temp_ratio=2e-05, visit=2.62, accept=- 5.0, maxfun=10000000.0, seed=None,
     #                      no_local_search=False, callback=None, x0=None)
 
-    res = differential_evolution(ComputeKC, bounds, args=(source, destination_cKDTree, sigma, plot),
-                                 strategy='best1bin', maxiter=1000, popsize=50, tol=0.01,
-                                 mutation=0.25, recombination=0.7, seed=None, callback=None, disp=False,
-                                 polish=True, init='sobol', atol=0, updating='immediate', workers=1,
-                                 constraints=())
+    result = differential_evolution(ComputeKC, bounds, args=(source, destination_cKDTree, sigma, plot), **kwargs)
 
     # res = basinhopping(ComputeKC, parameters, niter=100, T=1.0, stepsize=0.5, minimizer_kwargs={'args': (source, destination_cKDTree, sigma, plot)}, take_step=None,
     #                    accept_test=None, callback=None, interval=50, disp=False, niter_success=None, seed=None)
 
 
-    print(res)
+    print(result)
     # return AffineTransform(matrix=np.hstack([res.x, [0,0,1]]).reshape(3,3))
-    return SimilarityTransform(scale=res.x[0], rotation=res.x[1], translation=res.x[2:4])
+    return SimilarityTransform(scale=result.x[0], rotation=result.x[1], translation=result.x[2:4]), result
 
 
 
 
 
 if __name__ == '__main__':
-    from trace_analysis.plugins.sequencing.point_set_simulation import simulate_mapping_test_point_set
+    from trace_analysis.mapping.point_set_simulation import simulate_mapping_test_point_set
 
-    # Simulate soure and destination point sets
+    # Simulate source and destination point sets
     number_of_points = 10000
     transformation = AffineTransform(translation=[10,-10], rotation=1/360*2*np.pi, scale=[0.98, 0.98])
     bounds = ([0, 0], [256, 512])
@@ -233,7 +235,12 @@ if __name__ == '__main__':
     # found_transformation = KCReg(source, destination, 5, display=False) #callback)
     #plt.figure()
     minimization_bounds = ((0.97,1.02),(-0.05,0.05),(-20,20),(-20,20))
-    found_transformation = KCReg(source, destination, 1, bounds=minimization_bounds, plot=False)
+    found_transformation, result = kernel_correlation(source, destination, minimization_bounds, 1, plot=False,
+                                 strategy='best1bin', maxiter=1000, popsize=50, tol=0.01,
+                                 mutation=0.25, recombination=0.7, seed=None, callback=None, disp=False,
+                                 polish=True, init='sobol', atol=0, updating='immediate', workers=1,
+                                 constraints=()
+                                 )
     fm = Mapping2(source, destination)
     fm.transformation = found_transformation
     fm.show_mapping_transformation()

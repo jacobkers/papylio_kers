@@ -378,7 +378,6 @@ class Mapping2:
     def get_destination_area(self, crop=False, space='destination'):
         return area(self.get_destination_vertices(crop=crop, space=space))
 
-
     @property
     def transformation_type(self):
         return self._transformation_type
@@ -532,6 +531,14 @@ class Mapping2:
         print(f'Iterative closest point match\n'
               f'Mean-squared error: {error}\n'
               f'Number of iterations: {number_of_iterations}')
+
+    def kernel_correlation(self, bounds=((0.97, 1.02), (-0.05, 0.05), (-10, 10), (-10, 10)), **kwargs):
+        from trace_analysis.mapping.kernel_correlation import kernel_correlation
+        transformation, result = kernel_correlation(self.transformation(self.source), self.destination,
+                                                 bounds, 1, plot=False, **kwargs)
+        self.transformation += transformation
+        self.transformation_inverse = type(self.transformation)(self.transformation._inv_matrix)
+        self.mapping_statistics = {'kernel_correlation_value': result.fun}
 
     def cross_correlation(self, peak_detection='auto', gaussian_width=7, divider=5, plot=False):
         from trace_analysis.mapping.cross_correlation import cross_correlate
@@ -914,6 +921,15 @@ if __name__ == "__main__":
     mapping = Mapping2.simulate(number_of_points, transformation, bounds, crop_bounds, fraction_missing,
                                 error_sigma, shuffle)
 
+    mapping.transformation = AffineTransform(rotation=1/360*2*np.pi, scale=1.01, translation=[5,5])
+
+    bounds = ((0.97, 1.1), (-0.05, 0.05), (-20, 20), (-20, 20))
+    mapping.kernel_correlation(bounds, strategy='best1bin', maxiter=1000, popsize=50, tol=0.01,
+                               mutation=0.25, recombination=0.7, seed=None, callback=None, disp=False,
+                               polish=True, init='sobol', atol=0, updating='immediate', workers=1,
+                               constraints=())
+
+    mapping.show_mapping_transformation()
 
     # mapping.find_distance_threshold()
     # mapping.determine_matched_pairs()

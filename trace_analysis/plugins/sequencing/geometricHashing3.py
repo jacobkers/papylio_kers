@@ -281,7 +281,7 @@ if __name__ == '__main__':
     #
     # match = ht.query(source, 15)
 
-    from trace_analysis.plugins.sequencing.point_set_simulation import simulate_mapping_test_point_set
+    from trace_analysis.mapping.point_set_simulation import simulate_mapping_test_point_set
 
     # Simulate source and destination point sets
     number_of_source_points = 4000
