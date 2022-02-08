@@ -192,7 +192,7 @@ def kernel_correlation(source, destination, bounds, sigma=1, plot=False, **kwarg
 
 
 if __name__ == '__main__':
-    from trace_analysis.mapping.point_set_simulation import simulate_mapping_test_point_set
+    from point_set_simulation import simulate_mapping_test_point_set
 
     # Simulate source and destination point sets
     number_of_points = 10000
@@ -210,7 +210,7 @@ if __name__ == '__main__':
                                                           (fraction_missing_source, fraction_missing_destination),
                                                           (maximum_error_source, maximum_error_destination), shuffle)
 
-    from trace_analysis.mapping.mapping import Mapping2
+    from mapping import Mapping2
     im = Mapping2(source, destination)
     im.transformation = transformation
     im.show_mapping_transformation()

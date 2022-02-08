@@ -21,6 +21,8 @@ from icp import icp, nearest_neighbor_pair, nearest_neighbour_match, direct_matc
 from polywarp import PolywarpTransform
 from polynomial import PolynomialTransform
 from point_set_simulation import simulate_mapping_test_point_set
+from kernel_correlation import kernel_correlation
+from cross_correlation import cross_correlate
 
 class Mapping2:
     """Mapping class to find, improve, store and use the mapping between a source point set and a destination point set
@@ -532,16 +534,15 @@ class Mapping2:
               f'Mean-squared error: {error}\n'
               f'Number of iterations: {number_of_iterations}')
 
-    def kernel_correlation(self, bounds=((0.97, 1.02), (-0.05, 0.05), (-10, 10), (-10, 10)), **kwargs):
-        from trace_analysis.mapping.kernel_correlation import kernel_correlation
+    def kernel_correlation(self, bounds=((0.97, 1.02), (-0.05, 0.05), (-10, 10), (-10, 10)), sigma=1, **kwargs):
         transformation, result = kernel_correlation(self.transformation(self.source), self.destination,
-                                                 bounds, 1, plot=False, **kwargs)
+                                                 bounds, sigma, plot=False, **kwargs)
         self.transformation += transformation
         self.transformation_inverse = type(self.transformation)(self.transformation._inv_matrix)
         self.mapping_statistics = {'kernel_correlation_value': result.fun}
 
     def cross_correlation(self, peak_detection='auto', gaussian_width=7, divider=5, plot=False):
-        from trace_analysis.mapping.cross_correlation import cross_correlate
+
         if self.transformation is None:
             self.transformation = AffineTransform()
             self.transformation_inverse = AffineTransform()
@@ -877,17 +878,20 @@ def crop_coordinates(coordinates, vertices):
     #             (coordinates[:, 1] > bounds[0, 1]) & (coordinates[:, 1] < bounds[1, 1])
     # return coordinates[selection]
 
+
 def determine_vertices(point_set, margin=0):
     return np.array(MultiPoint(point_set).convex_hull.buffer(margin, join_style=1).boundary)[:-1]
 
+
 def determine_pairs_using_threshold(distance_matrix_, distance_threshold):
-    match = distance_matrix_ < distance_threshold
-    match[match.sum(axis=1) != 1,:] = False
-    match[:, match.sum(axis=0) != 1] = False
-    return np.asarray(np.where(match)).T
+    matches = distance_matrix_ < distance_threshold
+    matches[matches.sum(axis=1) != 1, :] = False
+    matches[:, matches.sum(axis=0) != 1] = False
+    return np.asarray(np.where(matches)).T
+
 
 def single_match_optimization(distance_matrix_, r_max=20, plot=True):
-    radii = np.linspace(1, r_max, 100)
+    radii = np.linspace(0, r_max, 100)
     n = np.array([len(determine_pairs_using_threshold(distance_matrix_, r)) for r in radii])
 
     # distance_threshold = np.sum(radii * n) / np.sum(n)
@@ -902,10 +906,12 @@ def single_match_optimization(distance_matrix_, r_max=20, plot=True):
 
     return distance_threshold
 
+
 def plot_circles(axis, coordinates, radius=6, **kwargs):
     circles = [plt.Circle((x, y), radius=radius) for x, y in coordinates]
     c = PatchCollection(circles, **kwargs)
     axis.add_collection(c)
+
 
 if __name__ == "__main__":
     # Simulate source and destination point sets

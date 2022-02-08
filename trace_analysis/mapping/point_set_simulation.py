@@ -172,7 +172,7 @@ def simulate_mapping_test_point_set(number_of_points, transformation, bounds=([0
 
 
 if __name__ == "__main__":
-    from trace_analysis.mapping.mapping import Mapping2
+    from mapping import Mapping2
 
     number_of_points = 100
     transformation = AffineTransform(scale=[0.75, 0.75], rotation=4 / 360 * 2 * np.pi, translation=[100, 0])
