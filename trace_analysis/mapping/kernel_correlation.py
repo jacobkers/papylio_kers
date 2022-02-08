@@ -82,16 +82,19 @@ def ComputeKC(transformation_parameters, source, destination, sigma=1, plot=Fals
     # transformation = AffineTransform(matrix=np.hstack([transformation_parameters, [0,0,1]]).reshape(3,3))
     # t = []
     # t.append(time.time())
-    if len(transformation_parameters)==3:
+    if len(transformation_parameters) == 2:
+        transformation = EuclideanTransform(rotation=0,
+                                            translation=transformation_parameters[1:2])
+    elif len(transformation_parameters) == 3:
         transformation = EuclideanTransform(rotation=transformation_parameters[0],
                                             translation=transformation_parameters[1:3])
-    elif len(transformation_parameters)==4:
+    elif len(transformation_parameters) == 4:
         transformation = SimilarityTransform(scale=transformation_parameters[0], rotation=transformation_parameters[1],
                                              translation=transformation_parameters[2:4])
-    elif len(transformation_parameters)==5:
+    elif len(transformation_parameters) == 5:
         transformation = AffineTransform(scale=transformation_parameters[0], rotation=transformation_parameters[1],
                                          shear=transformation_parameters[2], translation=transformation_parameters[3:5])
-    elif len(transformation_parameters)==6:
+    elif len(transformation_parameters) == 6:
         transformation = AffineTransform(scale=transformation_parameters[0:2], rotation=transformation_parameters[2],
                                          shear=transformation_parameters[3], translation=transformation_parameters[4:6])
 

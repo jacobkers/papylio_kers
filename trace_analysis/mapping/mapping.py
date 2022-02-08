@@ -885,8 +885,10 @@ def determine_vertices(point_set, margin=0):
 
 def determine_pairs_using_threshold(distance_matrix_, distance_threshold):
     matches = distance_matrix_ < distance_threshold
-    matches[matches.sum(axis=1) != 1, :] = False
-    matches[:, matches.sum(axis=0) != 1] = False
+    sum_1 = matches.sum(axis=1) != 1
+    sum_0 = matches.sum(axis=0) != 1
+    matches[sum_1, :] = False
+    matches[:, sum_0] = False
     return np.asarray(np.where(matches)).T
 
 
