@@ -21,7 +21,7 @@ from icp import icp, nearest_neighbor_pair, nearest_neighbour_match, direct_matc
 from polywarp import PolywarpTransform
 from polynomial import PolynomialTransform
 from point_set_simulation import simulate_mapping_test_point_set
-from kernel_correlation import kernel_correlation
+from kernel_correlation import kernel_correlation, compute_kernel_correlation
 from cross_correlation import cross_correlate
 
 class Mapping2:
@@ -534,26 +534,30 @@ class Mapping2:
               f'Mean-squared error: {error}\n'
               f'Number of iterations: {number_of_iterations}')
 
-    def kernel_correlation(self, bounds=((0.97, 1.02), (-0.05, 0.05), (-10, 10), (-10, 10)), sigma=1, **kwargs):
-        transformation, result = kernel_correlation(self.transformation(self.source), self.destination,
+    def kernel_correlation(self, bounds=((0.97, 1.02), (-0.05, 0.05), (-10, 10), (-10, 10)), sigma=1, crop=False, **kwargs):
+        transformation, result = kernel_correlation(self.get_source(crop, space='destination'), self.get_destination(crop),
                                                  bounds, sigma, plot=False, **kwargs)
-        self.transformation += transformation
+        self.transformation = AffineTransform(matrix=(self.transformation + transformation).params)
         self.transformation_inverse = type(self.transformation)(self.transformation._inv_matrix)
         self.mapping_statistics = {'kernel_correlation_value': result.fun}
 
-    def cross_correlation(self, peak_detection='auto', gaussian_width=7, divider=5, plot=False):
+    def kernel_correlation_score(self, sigma=1, crop=False):
+        return compute_kernel_correlation(self.transformation, self.get_source(crop), self.get_destination(crop), sigma=sigma)
+
+    def cross_correlation(self, peak_detection='auto', gaussian_width=7, divider=5, crop=False, plot=False):
 
         if self.transformation is None:
             self.transformation = AffineTransform()
             self.transformation_inverse = AffineTransform()
-        correlation, self.correlation_conversion_function = cross_correlate(self.source_to_destination, self.destination,
+        correlation, self.correlation_conversion_function = cross_correlate(self.get_source(crop, 'destination'), self.get_destination(crop),
                                                                             gaussian_width=gaussian_width, divider=divider, plot=plot)
 
         import scipy.ndimage.filters as filters
         corrected_correlation = correlation - filters.minimum_filter(correlation, 2*gaussian_width)#np.min(correlation.shape) / 200)
-        plt.figure()
-        plt.imshow(corrected_correlation)
-        plt.show()
+        if plot:
+            plt.figure()
+            plt.imshow(corrected_correlation)
+            plt.show()
 
         if peak_detection == 'auto':
             correlation_peak_coordinates = np.array(np.where(corrected_correlation==corrected_correlation.max())).flatten()[::-1]
@@ -564,7 +568,7 @@ class Mapping2:
         if not hasattr(self, 'correlation_conversion_function') and self.correlation_conversion_function is not None:
             raise RuntimeError('Run cross_correlation first')
         transformation = self.correlation_conversion_function(correlation_peak_coordinates) # is this the correct direction
-        self.transformation += transformation
+        self.transformation = AffineTransform(matrix=(self.transformation + transformation).params)
         self.transformation_inverse = AffineTransform(matrix=self.transformation._inv_matrix)
         self.correlation_conversion_function = None
 
@@ -871,7 +875,10 @@ def crop_coordinates_indices(coordinates, vertices):
     return np.array([c in cropped_coordinates for c in coordinates])
 
 def crop_coordinates(coordinates, vertices):
-    return np.array(Polygon(vertices).intersection(MultiPoint(coordinates)))
+    if len(vertices) > 0:
+        return np.atleast_2d(Polygon(vertices).intersection(MultiPoint(coordinates)))
+    else:
+        return np.atleast_2d([])
 
     # bounds.sort(axis=0)
     # selection = (coordinates[:, 0] > bounds[0, 0]) & (coordinates[:, 0] < bounds[1, 0]) & \
@@ -918,25 +925,24 @@ def plot_circles(axis, coordinates, radius=6, **kwargs):
 if __name__ == "__main__":
     # Simulate source and destination point sets
     number_of_points = 10000
-    transformation = AffineTransform(translation=[10,-10], rotation=1/360*2*np.pi, scale=[0.98, 0.98])
+    transformation = AffineTransform(translation=[10, -10], rotation=1 / 360 * 2 * np.pi, scale=[0.98, 0.98])
     bounds = ([0, 0], [256, 512])
     crop_bounds = (None, None)
     fraction_missing = (0.95, 0.6)
     error_sigma = (0.5, 0.5)
     shuffle = True
 
-
     mapping = Mapping2.simulate(number_of_points, transformation, bounds, crop_bounds, fraction_missing,
                                 error_sigma, shuffle)
 
-    mapping.transformation = AffineTransform(rotation=1/360*2*np.pi, scale=1.01, translation=[5,5])
+    # mapping.transformation = AffineTransform(rotation=1/360*2*np.pi, scale=1.01, translation=[5,5])
+    mapping.show_mapping_transformation()
 
     bounds = ((0.97, 1.1), (-0.05, 0.05), (-20, 20), (-20, 20))
     mapping.kernel_correlation(bounds, strategy='best1bin', maxiter=1000, popsize=50, tol=0.01,
                                mutation=0.25, recombination=0.7, seed=None, callback=None, disp=False,
                                polish=True, init='sobol', atol=0, updating='immediate', workers=1,
                                constraints=())
-
     mapping.show_mapping_transformation()
 
     mapping.find_distance_threshold()

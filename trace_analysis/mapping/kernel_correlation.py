@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider
 from sklearn.neighbors import NearestNeighbors
-from skimage.transform import AffineTransform, PolynomialTransform, EuclideanTransform, SimilarityTransform
+from skimage.transform import AffineTransform, PolynomialTransform, EuclideanTransform, SimilarityTransform, ProjectiveTransform
 from scipy.optimize import minimize
 
 
@@ -77,11 +77,8 @@ from scipy.optimize import minimize
 import time
 #from scipy.spatial import cKDTree
 from scipy.spatial import distance_matrix, cKDTree
-def ComputeKC(transformation_parameters, source, destination, sigma=1, plot=False, axis=None):
 
-    # transformation = AffineTransform(matrix=np.hstack([transformation_parameters, [0,0,1]]).reshape(3,3))
-    # t = []
-    # t.append(time.time())
+def parameter_to_transformation(transformation_parameters):
     if len(transformation_parameters) == 2:
         transformation = EuclideanTransform(rotation=0,
                                             translation=transformation_parameters[1:2])
@@ -97,6 +94,15 @@ def ComputeKC(transformation_parameters, source, destination, sigma=1, plot=Fals
     elif len(transformation_parameters) == 6:
         transformation = AffineTransform(scale=transformation_parameters[0:2], rotation=transformation_parameters[2],
                                          shear=transformation_parameters[3], translation=transformation_parameters[4:6])
+    return transformation
+
+def compute_kernel_correlation(transformation, source, destination, sigma=1, plot=False, axis=None):
+
+    # transformation = AffineTransform(matrix=np.hstack([transformation_parameters, [0,0,1]]).reshape(3,3))
+    # t = []
+    # t.append(time.time())
+    if not isinstance(transformation, ProjectiveTransform):
+        transformation = parameter_to_transformation(transformation)
 
     # t.append(time.time())
     # print(t[-1]-t[-2])
@@ -156,39 +162,39 @@ def kernel_correlation(source, destination, bounds, sigma=1, plot=False, **kwarg
 
     destination_cKDTree = cKDTree(destination)
 
-    # res = minimize(ComputeKC, parameters, args=(source, destination_cKDTree, sigma, plot), tol=1e-6,
+    # res = minimize(compute_kernel_correlation, parameters, args=(source, destination_cKDTree, sigma, plot), tol=1e-6,
     #                bounds=bounds, method='L-BFGS-B',
     #                options={'disp': None, 'maxcor': 20, 'ftol': 2.220446049250313e-09, 'gtol': 1e-05, 'eps': 1e-08,
     #                         'maxfun': 15000, 'maxiter': 15000, 'iprint': - 1, 'maxls': 20, 'finite_diff_rel_step': None})
-    # res = minimize(ComputeKC, parameters, args=(source, destination_cKDTree, sigma, plot), tol=1e-6,
+    # res = minimize(compute_kernel_correlation, parameters, args=(source, destination_cKDTree, sigma, plot), tol=1e-6,
     #                bounds=bounds, method='Powell',
     #                options={'xtol': 0.00001, 'ftol': 0.000001, 'maxiter': None, 'maxfev': None,
     #                         'disp': False, 'direc': None, 'return_all': False})
 
-    # res = minimize(ComputeKC, parameters, args=(source, destination_cKDTree, sigma, plot), tol=1e-9,
+    # res = minimize(compute_kernel_correlation, parameters, args=(source, destination_cKDTree, sigma, plot), tol=1e-9,
     #                bounds=bounds, method='BFGS',
     #                options={'gtol': 1e-09, 'norm': np.inf, 'eps': 1.4901161193847656e-03, 'maxiter': None, 'disp': False,
     #                         'return_all': False, 'finite_diff_rel_step': None})
 
-    # res = shgo(ComputeKC, bounds, args=(source, destination_cKDTree, sigma, plot), constraints=None, n=None, iters=1,
+    # res = shgo(compute_kernel_correlation, bounds, args=(source, destination_cKDTree, sigma, plot), constraints=None, n=None, iters=1,
     #            callback=None, minimizer_kwargs={'method': 'Powell', 'options': {'ftol': 1e-9, 'gtol': 1e-5}},
     #             options={'minimize_every_iter':False}, sampling_method='simplicial')
     #
-    # res = dual_annealing(ComputeKC, bounds, args=(source, destination_cKDTree, sigma, plot),
+    # res = dual_annealing(compute_kernel_correlation, bounds, args=(source, destination_cKDTree, sigma, plot),
     #                      maxiter=50,
     #                      local_search_options={}, initial_temp=5230,#5230.0,
     #                      restart_temp_ratio=2e-05, visit=2.62, accept=- 5.0, maxfun=10000000.0, seed=None,
     #                      no_local_search=False, callback=None, x0=None)
 
-    result = differential_evolution(ComputeKC, bounds, args=(source, destination_cKDTree, sigma, plot), **kwargs)
+    result = differential_evolution(compute_kernel_correlation, bounds, args=(source, destination_cKDTree, sigma, plot), **kwargs)
 
-    # res = basinhopping(ComputeKC, parameters, niter=100, T=1.0, stepsize=0.5, minimizer_kwargs={'args': (source, destination_cKDTree, sigma, plot)}, take_step=None,
+    # res = basinhopping(compute_kernel_correlation, parameters, niter=100, T=1.0, stepsize=0.5, minimizer_kwargs={'args': (source, destination_cKDTree, sigma, plot)}, take_step=None,
     #                    accept_test=None, callback=None, interval=50, disp=False, niter_success=None, seed=None)
 
 
     print(result)
     # return AffineTransform(matrix=np.hstack([res.x, [0,0,1]]).reshape(3,3))
-    return SimilarityTransform(scale=result.x[0], rotation=result.x[1], translation=result.x[2:4]), result
+    return parameter_to_transformation(result.x), result
 
 
 
