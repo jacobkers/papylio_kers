@@ -186,7 +186,7 @@ class Movie:
             frame_out = np.zeros((self.height, self.width))
             for channel in channels:
                 frame_out[channel.boundaries[0, 1]:channel.boundaries[1, 1],
-                channel.boundaries[0, 0]:channel.boundaries[1, 0]] = frame.sel(channel=channel.index).values
+                          channel.boundaries[0, 0]:channel.boundaries[1, 0]] = frame.sel(channel=channel.index).values
 
         return frame_out
 

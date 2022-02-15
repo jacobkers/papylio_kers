@@ -186,7 +186,10 @@ class File:
             self.experiment.import_config_file()
             # number_of_frames = self.experiment.configuration['compute_image']['number_of_frames']
             configuration_show_movie = self.experiment.configuration['show_movie']
-            illumination = int(configuration_show_movie['illumination'])
+            if configuration_show_movie['illumination'] == 'None' or configuration_show_movie['illumination'] == 'none':
+                illumination = None
+            else:
+                illumination = int(configuration_show_movie['illumination'])
             first_frame = int(configuration_show_movie['frames_for_show_movie']['first_frame'])
             if configuration_show_movie['frames_for_show_movie']['last_frame'] == 'last':
                 last_frame = self.number_of_frames-1
@@ -194,7 +197,8 @@ class File:
                 last_frame = int(configuration_show_movie['frames_for_show_movie']['last_frame'])
             number_of_frames = last_frame-first_frame + 1
 
-            self._maximum_projection_image = self.movie.make_maximum_projection(number_of_frames=number_of_frames,
+            self._maximum_projection_image = self.movie.make_maximum_projection(start_frame=first_frame,
+                                                                                number_of_frames=number_of_frames,
                                                                                 illumination=illumination, write=True)
         return self._maximum_projection_image
 
