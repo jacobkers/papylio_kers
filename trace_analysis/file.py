@@ -725,13 +725,22 @@ class File:
         # self.experiment.dataset.drop_sel(file=str(self.relativeFilePath), errors='ignore')
 
         # if len(coordinates) !=0:
+
+        self.coordinates = coordinates
+
+        # self.molecules.export_pks_file(self.relativeFilePath.with_suffix('.pks'))
+
+    @property
+    def coordinates(self):
+        return self.dataset.coordinates
+
+    @coordinates.setter
+    def coordinates(self, coordinates):
         # Reset current .nc file
         self._init_dataset(len(coordinates.molecule))
 
         coordinates.to_netcdf(self.relativeFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
         self.extract_background()
-
-        # self.molecules.export_pks_file(self.relativeFilePath.with_suffix('.pks'))
 
     def extract_background(self, configuration=None):
         sys.stdout.write(f' Calculating background in {self}')
