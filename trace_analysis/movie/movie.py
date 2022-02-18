@@ -6,10 +6,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
 import xarray as xr
+import scipy.ndimage.filters as filters
 
 from trace_analysis.image_adapt.rolling_ball import rollingball
 from trace_analysis.image_adapt.find_threshold import remove_background, get_threshold
 from trace_analysis.timer import Timer
+
 
 class Movie:
     def __init__(self, filepath):  # , **kwargs):
@@ -413,15 +415,15 @@ class Movie:
         # note 2: do we need a different threshold for donor and acceptor?
 
     def determine_illumination_correction(self, filter_neighbourhood_size=10):
-        import scipy.ndimage.filters as filters
         illumination_intensity = np.zeros((self.number_of_frames, self.number_of_channels))
 
-        for i in range(self.number_of_frames):
-            frame = self.read_frame_raw(i)
+        with self:
+            for i in range(self.number_of_frames):
+                frame = self.read_frame_raw(i)
 
-            filtered_frame = filters.minimum_filter(frame, filter_neighbourhood_size)
-            illumination_intensity[i, 0] = np.sum(self.get_channel(filtered_frame, 'g'))
-            illumination_intensity[i, 1] = np.sum(self.get_channel(filtered_frame, 'r'))
+                filtered_frame = filters.minimum_filter(frame, filter_neighbourhood_size)
+                illumination_intensity[i, 0] = np.sum(self.get_channel(filtered_frame, 'g'))
+                illumination_intensity[i, 1] = np.sum(self.get_channel(filtered_frame, 'r'))
 
         # figure = plt.figure()
         # axis = figure.gca()
