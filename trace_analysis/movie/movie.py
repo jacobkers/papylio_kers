@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
 import xarray as xr
 import scipy.ndimage.filters as filters
+from skimage.transform import AffineTransform
 
 from trace_analysis.image_adapt.rolling_ball import rollingball
 from trace_analysis.image_adapt.find_threshold import remove_background, get_threshold
@@ -134,6 +135,12 @@ class Movie:
 
         categorical_columns = ['illumination', 'channel']
         self.frame_info[categorical_columns] = self.frame_info[categorical_columns].astype('category')
+
+    def pixel_to_stage_coordinates_transformation(self):
+        pixels_to_um = AffineTransform(scale=self.pixel_size)
+        pixels_um_to_stage_coordinates_um = AffineTransform(translation=np.flip(self.stage_coordinates))
+        pixels_to_stage_coordinates_um = pixels_to_um + pixels_um_to_stage_coordinates_um
+        return pixels_to_stage_coordinates_um
 
     def read_header(self):
         self._read_header()
