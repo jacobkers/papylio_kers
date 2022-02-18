@@ -378,6 +378,8 @@ class Experiment:
                 i = self.file_paths.find(file_path.absolute().relative_to(self.main_path))
                 self.files[i].add_extensions(extensions)
 
+        self.files.movie.rot90 = self.configuration['movie']['rot90']
+
     # def add_files(self, file_paths, test_duplicates=True):
     #     for file_path in file_paths:
     #         self.add_file(file_path, test_duplicates)

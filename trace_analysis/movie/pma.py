@@ -7,8 +7,8 @@ from trace_analysis.movie.movie import Movie
 class PmaMovie(Movie):
     extensions = ['.pma']
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, arg, *args, **kwargs):
+        super().__init__(arg, *args, **kwargs)
         
         self.writepath = self.filepath.parent
         self.name = self.filepath.with_suffix('').name

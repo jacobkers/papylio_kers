@@ -15,6 +15,7 @@ import warnings
 import sys
 # from trace_analysis.molecule import Molecule
 from trace_analysis.movie.movie import Movie
+from trace_analysis.movie.tif import TifMovie
 from trace_analysis.plotting import histogram
 from trace_analysis.mapping.mapping import Mapping2
 from trace_analysis.peak_finding import find_peaks
@@ -311,11 +312,10 @@ class File:
             filepath = self.absoluteFilePath.joinpath('Spooled files.sifx')
         else:
             filepath = self.absoluteFilePath.with_suffix(extension)
-        rot90 = self.configuration['movie']['rot90']
 
-        self.movie = Movie(filepath, rot90)
+        self.movie = Movie(filepath)
 
-        self.number_of_frames = self.movie.number_of_frames
+        # self.number_of_frames = self.movie.number_of_frames
 
     def import_coeff_file(self, extension):
         from skimage.transform import AffineTransform
