@@ -14,11 +14,7 @@ import skimage as ski
 import warnings
 import sys
 # from trace_analysis.molecule import Molecule
-from trace_analysis.movie.sifx import SifxMovie
-from trace_analysis.movie.pma import PmaMovie
-from trace_analysis.movie.tif import TifMovie
-from trace_analysis.movie.nd2 import ND2Movie
-from trace_analysis.movie.binary import BinaryMovie
+from trace_analysis.movie.movie import Movie
 from trace_analysis.plotting import histogram
 from trace_analysis.mapping.mapping import Mapping2
 from trace_analysis.peak_finding import find_peaks
@@ -81,14 +77,14 @@ class File:
         # TODO: Make an import_movie method and move the specific file type handling to the movie class (probably this should also include the log file)
         # TODO: Make an import_mapping method and move the specific mapping type handling (.map, .coeff) to the mapping class.
 
-        self.importFunctions = {'.sifx': self.import_sifx_file,
-                                '.pma': self.import_pma_file,
-                                '.nd2': self.import_nd2_file,
-                                '.tif': self.import_tif_file,
-                                '.tiff': self.import_tif_file,
-                                '.bin': self.import_bin_file,
-                                '.TIF': self.import_tif_file,
-                                '.TIFF': self.import_tif_file,
+        self.importFunctions = {'.sifx': self.import_movie,
+                                '.pma': self.import_movie,
+                                '.nd2': self.import_movie,
+                                '.tif': self.import_movie,
+                                '.tiff': self.import_movie,
+                                '.TIF': self.import_movie,
+                                '.TIFF': self.import_movie,
+                                '.bin': self.import_movie,
                                 '.coeff': self.import_coeff_file,
                                 '.map': self.import_map_file,
                                 '.mapping': self.import_mapping_file,
@@ -296,50 +292,32 @@ class File:
             extensions = [extensions]
         for extension in set(extensions)-self.extensions:
             if load:
-                self.importFunctions.get(extension, self.noneFunction)()
+                self.importFunctions.get(extension, self.noneFunction)(extension)
             if extension in self.importFunctions.keys():
                 self.extensions.add(extension)
         # or self.extensions = self.extensions | extensions
 
-    def noneFunction(self):
+    def noneFunction(self, *args, **kwargs):
         return
 
-    def import_log_file(self):
+    def import_log_file(self, extension):
         self.exposure_time = np.genfromtxt(f'{self.absoluteFilePath}.log', max_rows=1)[2]
         print(f'Exposure time set to {self.exposure_time} sec for {self.name}')
         self.log_details = open(f'{self.absoluteFilePath}.log').readlines()
         self.log_details = ''.join(self.log_details)
 
-    def import_sifx_file(self):
-        imageFilePath = self.absoluteFilePath.joinpath('Spooled files.sifx')
-        self.movie = SifxMovie(imageFilePath)
-        # self.movie.number_of_channels = self.experiment.number_of_channels
+    def import_movie(self, extension):
+        if extension == '.sifx':
+            filepath = self.absoluteFilePath.joinpath('Spooled files.sifx')
+        else:
+            filepath = self.absoluteFilePath.with_suffix(extension)
+        rot90 = self.configuration['movie']['rot90']
+
+        self.movie = Movie(filepath, rot90)
+
         self.number_of_frames = self.movie.number_of_frames
 
-    def import_pma_file(self):
-        imageFilePath = self.absoluteFilePath.with_suffix('.pma')
-        self.movie = PmaMovie(imageFilePath)
-        # self.movie.number_of_channels = self.experiment.number_of_channels
-        self.number_of_frames = self.movie.number_of_frames
-
-    def import_tif_file(self):
-        #TODO: Pass all image files to the Movie class and let the Movie class decide what to do
-        imageFilePath = self.absoluteFilePath.with_suffix('.tif')
-        self.movie = TifMovie(imageFilePath)
-        # # self.movie.number_of_channels = self.experiment.number_of_channels
-        # self.number_of_frames = self.movie.number_of_frames
-
-    def import_nd2_file(self):
-        imageFilePath = self.absoluteFilePath.with_suffix('.nd2')
-        self.movie = ND2Movie(imageFilePath)
-        self.number_of_frames = self.movie.number_of_frames
-
-    def import_bin_file(self):
-        imageFilePath = self.absoluteFilePath.with_suffix('.bin')
-        self.movie = BinaryMovie(imageFilePath)
-        self.number_of_frames = self.movie.number_of_frames
-
-    def import_coeff_file(self):
+    def import_coeff_file(self, extension):
         from skimage.transform import AffineTransform
         if self.mapping is None: # the following only works for 'linear'transformation_type
             file_content=np.genfromtxt(str(self.absoluteFilePath) + '.coeff')
@@ -377,7 +355,7 @@ class File:
     def export_mapping(self, filetype='yml'):
         self.mapping.save(self.absoluteFilePath, filetype)
 
-    def import_map_file(self):
+    def import_map_file(self, extension):
         from trace_analysis.mapping.polywarp import PolywarpTransform
         #coefficients = np.genfromtxt(self.absoluteFilePath.with_suffix('.map'))
         file_content=np.genfromtxt(self.absoluteFilePath.with_suffix('.map'))
@@ -424,8 +402,8 @@ class File:
         warnings.warn('The export_map_file method will be depricated, use export_mapping instead')
         self.export_mapping(filetype='classic')
 
-    def import_mapping_file(self):
-        self.mapping = Mapping2(load=self.absoluteFilePath.with_suffix('.mapping'))
+    def import_mapping_file(self, extension):
+        self.mapping = Mapping2(load=self.absoluteFilePath.with_suffix(extension))
 
     def find_coordinates(self, configuration=None):
         '''
@@ -763,7 +741,7 @@ class File:
         FRET.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
 
 
-    def import_pks_file(self):
+    def import_pks_file(self, extension):
         peaks = import_pks_file(self.absoluteFilePath.with_suffix('.pks'))
         peaks = split_dimension(peaks, 'peak', ('molecule', 'channel'), (-1, 2)).reset_index('molecule', drop=True)
         # peaks = split_dimension(peaks, 'molecule', ('molecule_in_file', 'file'), (-1, 1), (-1, [file]), to='multiindex')
@@ -783,7 +761,7 @@ class File:
         export_pks_file(peaks, self.absoluteFilePath.with_suffix('.pks'))
         self.extensions.add('.pks')
 
-    def import_traces_file(self):
+    def import_traces_file(self, extension):
         traces = import_traces_file(self.absoluteFilePath.with_suffix('.traces'))
         intensity = split_dimension(traces, 'trace', ('molecule', 'channel'), (-1, 2))\
             .reset_index(['molecule','frame'], drop=True)

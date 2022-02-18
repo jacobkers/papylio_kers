@@ -4,6 +4,8 @@ files:
   excluded_paths: [Analysis]
 compute_image:
     number_of_frames: all
+movie:
+    rot90: 0 # Needs to be set before loading the experiment
 show_movie:
     image: average_image
     annotate: False

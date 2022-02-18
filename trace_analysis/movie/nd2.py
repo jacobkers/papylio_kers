@@ -19,6 +19,8 @@ from trace_analysis.movie.movie import Movie
 
 
 class ND2Movie(Movie):
+    extensions = ['.nd2']
+
     def __init__(self, arg, *args, **kwargs):
         super().__init__(arg, *args, **kwargs)
 

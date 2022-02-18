@@ -6,7 +6,10 @@ import tifffile
 from trace_analysis.movie.movie import Movie
 from trace_analysis.timer import Timer
 
+
 class TifMovie(Movie):
+    extensions = ['.tif', '.tiff']
+
     def __init__(self, arg, *args, **kwargs):
         super().__init__(arg, *args, **kwargs)
         

@@ -8,6 +8,8 @@ from trace_analysis.movie.movie import Movie
 
 
 class SifxMovie(Movie):
+    extensions = ['.sifx']
+
     # Based on https://github.com/lightingghost/sifreader/blob/master/sifreader/sifreader.py
     def __init__(self, arg, *args, **kwargs):
         super().__init__(arg, *args, **kwargs)

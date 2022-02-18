@@ -3,9 +3,12 @@ import numpy as np
 
 from trace_analysis.movie.movie import Movie
 
+
 class PmaMovie(Movie):
-    def __init__(self, arg, *args, **kwargs):
-        super().__init__(arg, *args, **kwargs)
+    extensions = ['.pma']
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         
         self.writepath = self.filepath.parent
         self.name = self.filepath.with_suffix('').name
@@ -53,5 +56,5 @@ class PmaMovie(Movie):
 
 if __name__ == "__main__":
     movie = PmaMovie(r'.\Example_data\pma\movie.pma')
-    movie.intensity_range = (0, 120)
-    movie.make_projection_images()
+    # movie.intensity_range = (0, 120)
+    # movie.make_projection_images()

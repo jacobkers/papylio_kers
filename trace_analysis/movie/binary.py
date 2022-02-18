@@ -2,7 +2,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 from trace_analysis.movie.movie import Movie
 
+
 class BinaryMovie(Movie):
+    extensions = ['.bin']
+
     def __init__(self, arg, *args, **kwargs):
         super().__init__(arg, *args, **kwargs)
         

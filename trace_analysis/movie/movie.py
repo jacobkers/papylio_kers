@@ -15,7 +15,21 @@ from trace_analysis.timer import Timer
 
 
 class Movie:
-    def __init__(self, filepath):  # , **kwargs):
+    @classmethod
+    def type_dict(cls):
+        return {extension: subclass for subclass in cls.__subclasses__() for extension in subclass.extensions}
+
+    def __new__(cls, filepath, rot90=0):
+        if cls is Movie:
+            extension = Path(filepath).suffix.lower()
+            try:
+                return object.__new__(cls.type_dict()[extension])
+            except KeyError:
+                raise NotImplementedError('Filetype not supported')
+        else:
+            return object.__new__(cls)
+
+    def __init__(self, filepath, rot90=0):  # , **kwargs):
         self.header_is_read = False
         self.filepath = Path(filepath)
         # self.filepaths = [Path(filepath) for filepath in filepaths] # For implementing multiple files, e.g. two channels over two files
@@ -30,7 +44,7 @@ class Movie:
 
         self.channel_arrangement = np.array([[[0, 1]]]) #[[[0,1]]] # First level: frames, second level: y within frame, third level: x within frame
 
-        self.rot90 = 0
+        self.rot90 = rot90
 
         self._data_type = np.dtype(np.uint16)
         self.intensity_range = (np.iinfo(self.data_type).min, np.iinfo(self.data_type).max)
@@ -136,6 +150,7 @@ class Movie:
         categorical_columns = ['illumination', 'channel']
         self.frame_info[categorical_columns] = self.frame_info[categorical_columns].astype('category')
 
+    @property
     def pixel_to_stage_coordinates_transformation(self):
         pixels_to_um = AffineTransform(scale=self.pixel_size)
         pixels_um_to_stage_coordinates_um = AffineTransform(translation=np.flip(self.stage_coordinates))
@@ -579,4 +594,3 @@ def make_colour_map(colour, N=256):
         values[:, 0] = values[:, 1] = values[:, 2] = np.linspace(0, 1, N)
 
     return ListedColormap(values)
-
