@@ -1210,11 +1210,11 @@ class File:
 
             plt.show()
 
-    def show_coordinates_in_image(self, figure=None):
+    def show_coordinates_in_image(self, figure=None, **kwargs):
         if not figure:
             figure = plt.figure()
 
-        self.show_average_image(figure=figure)
+        self.show_image(figure=figure, **kwargs)
         self.show_coordinates(figure=figure)
         # plt.savefig(self.writepath.joinpath(self.name + '_ave_circles.png'), dpi=600)
 
