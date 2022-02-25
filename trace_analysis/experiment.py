@@ -378,3 +378,14 @@ class Experiment:
             # import wx.lib.inspection
             # wx.lib.inspection.InspectionTool().Show()
             app.MainLoop()
+
+    def export_number_of_molecules_per_file(self):
+        df = pd.DataFrame(columns=['Number of molecules'])
+        for i, file in enumerate(self.files):
+            n = str(file.relativeFilePath)
+            try:
+                nms = file.number_of_molecules
+            except FileNotFoundError:
+                nms = -1
+            df.loc[n] = nms
+        df.to_excel(self.main_path.joinpath('number_of_molecules'))
