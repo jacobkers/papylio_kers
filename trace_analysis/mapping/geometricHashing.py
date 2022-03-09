@@ -110,7 +110,7 @@ def pointHash(pointSet, bases='all', mode='similarity', hashTableRange = np.arra
         NbasisPoints = 1
     
     
-    if bases is 'all':
+    if bases == 'all':
         #bases = np.arange(testPointSet.shape[0])
         
         baseNumbersPerAxis = np.mgrid[[slice(pointSet.shape[0]) for i in range(NbasisPoints)]]
@@ -209,7 +209,7 @@ def findMatch(testPointSet, hashTable, bases = 'all', returnMatchedBases = False
         endPoints = np.array([[0,0]])
         NbasisPoints = 1
     
-    if bases is 'all':
+    if bases == 'all':
         #bases = np.arange(testPointSet.shape[0])
         
         baseNumbersPerAxis = np.mgrid[[slice(testPointSet.shape[0]) for i in range(NbasisPoints)]]
@@ -322,7 +322,7 @@ def pointHashTranslation(pointSet, bases='all'):
 
     #endPoints = np.array([[-0.5,0],[0.5,0]])
     
-    if bases is 'all':
+    if bases == 'all':
         bases = np.arange(pointSet.shape[0])
         
 #        basesX, basesY = np.mgrid[0:pointSet.shape[0],0:pointSet.shape[0]]
@@ -386,7 +386,7 @@ def findMatchTranslation(testPointSet, hashTable, bases = 'all', returnMatchedBa
     
     endPoints = np.array([[-0.5,0],[0.5,0]])
     
-    if bases is 'all':
+    if bases == 'all':
         bases = np.arange(testPointSet.shape[0])
 
     

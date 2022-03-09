@@ -29,6 +29,12 @@ class PmaMovie(Movie):
         self.read_header()
         self.create_frame_info()  # Possibly move to Movie later on
 
+    def open(self):
+        pass  # TODO: implement this
+
+    def close(self):
+        pass  # TODO: implement this
+
     def _read_header(self):
         statinfo = os.stat(self.filepath)       
                

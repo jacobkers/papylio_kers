@@ -38,6 +38,7 @@ def plugins(cls):
     except AttributeError:
         pass
 
+    # For using multiprocessing.Pool add '__module__': classes[-1].__module__}
     return type(cls.__name__, classes, {'__slots__': slots})
 
 

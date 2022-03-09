@@ -6,7 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
 import xarray as xr
-import scipy.ndimage.filters as filters
+from scipy.ndimage import minimum_filter
 from skimage.transform import AffineTransform
 
 from trace_analysis.image_adapt.rolling_ball import rollingball
@@ -29,6 +29,15 @@ class Movie:
         else:
             return object.__new__(cls)
 
+    def __getnewargs__(self):
+        return (self.filepath, )
+
+    def __getstate__(self):
+        return self.__dict__.copy()
+
+    def __setstate__(self, dict):
+        self.__dict__.update(dict)
+
     def __init__(self, filepath):  # , **kwargs):
         self.header_is_read = False
         self.filepath = Path(filepath)
@@ -45,10 +54,11 @@ class Movie:
         self.channel_arrangement = np.array([[[0, 1]]]) #[[[0,1]]] # First level: frames, second level: y within frame, third level: x within frame
 
         self.rot90 = 0
+        self.use_dask = False
 
         self._data_type = np.dtype(np.uint16)
         self.intensity_range = (np.iinfo(self.data_type).min, np.iinfo(self.data_type).max)
-        self.illumination_correction = None
+        # self.illumination_correction = None
 
         if not self.filepath.suffix == '.sifx':
             self.writepath = self.filepath.parent
@@ -157,6 +167,25 @@ class Movie:
         pixels_to_stage_coordinates_um = pixels_to_um + pixels_um_to_stage_coordinates_um
         return pixels_to_stage_coordinates_um
 
+    @property
+    def width_metric(self):
+        return self.width * self.pixel_size[0]
+
+    @property
+    def height_metric(self):
+        return self.height * self.pixel_size[1]
+
+    @property
+    def boundaries_metric(self):
+        # #         Formatted as two coordinates, with the lowest and highest x and y values respectively
+        horizontal_boundaries = np.array([0, self.width_metric])
+        vertical_boundaries = np.array([0, self.height_metric])
+        return np.vstack([horizontal_boundaries, vertical_boundaries]).T
+
+    @property
+    def boundaries_stage(self):
+        return self.pixel_to_stage_coordinates_transformation(self.channels[0].boundaries)
+
     def read_header(self):
         self._read_header()
         if not (self.rot90 % 2 == 0):
@@ -183,10 +212,10 @@ class Movie:
         channel_indices = self.get_channel_indices_from_names(channel)
         frame = frame.sel(channel=channel_indices)
 
-        if self.illumination_correction is not None:
-            for channel in channels:
-                frame = frame.astype(float)
-                frame.loc[{'channel': channel.index}] *= self.illumination_correction[frame_number, channel.index]
+        # if self.illumination_correction is not None:
+        #     for channel in channels:
+        #         frame = frame.astype(float)
+        #         frame.loc[{'channel': channel.index}] *= self.illumination_correction[frame_number, channel.index]
 
         frame_out = np.zeros((self.height, self.width))
         for channel in channels:
@@ -194,6 +223,27 @@ class Movie:
                       channel.boundaries[0, 0]:channel.boundaries[1, 0]] = frame.sel(channel=channel.index).values
 
         return frame_out
+
+    def read_frames_raw(self, frame_indices=None):
+        frames = self._read_frames(frame_indices)
+        if frame_indices is not None:
+            frames = frames[frame_indices]
+        images = np.rot90(frames, self.rot90, axes=(1, 2))
+
+        frames = xr.DataArray(np.stack([channel.crop_images(images) for channel in self.channels]),
+                             dims=('channel', 'frame', 'y', 'x'),
+                             coords={'channel': [channel.index for channel in self.channels]})\
+            .transpose('frame', 'channel',...)#.chunk({'frame': 100})
+
+        return frames
+
+    # def read_frames(self, frame_indices=None):
+    #     images = self.read_frames_raw(frame_indices=frame_indices)
+    #
+    #     if self.illumination_correction is not None:
+    #         images *= self.illumination_correction
+    #
+    #     return images
 
     def get_channel(self, image, channel='d'):
         if channel in [None, 'all']:
@@ -436,16 +486,49 @@ class Movie:
         # note: optionally a fixed threshold can be set, like with IDL
         # note 2: do we need a different threshold for donor and acceptor?
 
-    def determine_illumination_correction(self, filter_neighbourhood_size=10):
-        illumination_intensity = np.zeros((self.number_of_frames, self.number_of_channels))
+    # def determine_illumination_correction(self, filter_neighbourhood_size=10):
+    #
+    #     frames = self.read_frames_raw()
+    #     filtered_images = minimum_filter(frames, size=(1, 1, filter_neighbourhood_size, filter_neighbourhood_size))
+    #     filtered_images = xr.DataArray(filtered_images, coords=frames.coords)
+    #     illumination_intensity = filtered_images.sum(dim=('x','y'))
+    #     self.illumination_correction = illumination_intensity.max(dim='frame') / illumination_intensity
 
-        with self:
-            for i in range(self.number_of_frames):
-                frame = self.read_frame_raw(i)
+        # Frame per frame code
+        # frame_indices = range(self.number_of_frames)
+        # channel_indices = range(self.number_of_channels)
+        # illumination_intensity = xr.DataArray(np.zeros((self.number_of_frames, self.number_of_channels)),
+        #                                       dims=('frame','channel'),
+        #                                       coords={'frame': frame_indices, 'channel': channel_indices})
+        #
+        # with self:
+        #     for i in frame_indices:
+        #         frame = self.read_frame_raw(i)
+        #
+        #         filtered_frame = minimum_filter(frame, filter_neighbourhood_size)
+        #         illumination_intensity[i, 0] = np.sum(self.get_channel(filtered_frame, 'g'))
+        #         illumination_intensity[i, 1] = np.sum(self.get_channel(filtered_frame, 'r'))
+        #
+        # # figure = plt.figure()
+        # # axis = figure.gca()
+        # # axis.plot(illumination_intensity[:, 0], 'g', illumination_intensity[:, 1], 'r')
+        # # axis.set_title('Minimum filtered intensity sum per frame')
+        # # axis.set_xlabel('Frame (0.1s)')
+        # # axis.set_ylabel('Minimum filtered intensity sum')
+        # # axis.set_ylim((0, None))
+        #
+        # self.illumination_correction = illumination_intensity.max(dim='frame') / illumination_intensity
 
-                filtered_frame = filters.minimum_filter(frame, filter_neighbourhood_size)
-                illumination_intensity[i, 0] = np.sum(self.get_channel(filtered_frame, 'g'))
-                illumination_intensity[i, 1] = np.sum(self.get_channel(filtered_frame, 'r'))
+    # def determine_illumination_correction(self, filter_neighbourhood_size=10):
+    #     illumination_intensity = np.zeros((self.number_of_frames, self.number_of_channels))
+    #
+    #     with self:
+    #         for i in range(self.number_of_frames):
+    #             frame = self.read_frame_raw(i)
+    #
+    #             filtered_frame = minimum_filter(frame, filter_neighbourhood_size)
+    #             illumination_intensity[i, 0] = np.sum(self.get_channel(filtered_frame, 'g'))
+    #             illumination_intensity[i, 1] = np.sum(self.get_channel(filtered_frame, 'r'))
 
         # figure = plt.figure()
         # axis = figure.gca()
@@ -455,8 +538,7 @@ class Movie:
         # axis.set_ylabel('Minimum filtered intensity sum')
         # axis.set_ylim((0, None))
 
-        self.illumination_correction = illumination_intensity.max(axis=0) / illumination_intensity
-
+        # self.illumination_correction = illumination_intensity.max(axis=0) / illumination_intensity
 
 class Channel:
     def __init__(self, movie, name, short_name, other_names=None, colour_map=None):
@@ -527,6 +609,11 @@ class Channel:
     def crop_image(self, image):
         return image[self.boundaries[0, 1]:self.boundaries[1, 1],
                      self.boundaries[0, 0]:self.boundaries[1, 0]]
+
+    def crop_images(self, images):
+        return images[:, self.boundaries[0, 1]:self.boundaries[1, 1],
+                         self.boundaries[0, 0]:self.boundaries[1, 0]]
+
 
 class Illumination:
     def __init__(self, movie, name, short_name, other_names=None):

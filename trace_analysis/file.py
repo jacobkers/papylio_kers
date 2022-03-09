@@ -13,6 +13,8 @@ import xarray as xr
 import skimage as ski
 import warnings
 import sys
+import dask_image.ndfilters
+from scipy.ndimage import minimum_filter
 # from trace_analysis.molecule import Molecule
 from trace_analysis.movie.movie import Movie
 from trace_analysis.movie.tif import TifMovie
@@ -25,7 +27,7 @@ from trace_analysis.coordinate_optimization import  coordinates_within_margin, \
                                                     merge_nearby_coordinates, \
                                                     set_of_tuples_from_array, array_from_set_of_tuples, \
                                                     coordinates_within_margin_selection
-from trace_analysis.trace_extraction import extract_traces
+from trace_analysis.trace_extraction import extract_traces, extract_traces_old, extract_traces2
 from trace_analysis.mapping.coordinate_transformations import translate, transform # MD: we don't want to use this anymore I think, it is only linear
                                                                            # IS: We do! But we just need to make them usable with the nonlinear mapping
 from trace_analysis.background_subtraction import extract_background
@@ -70,7 +72,9 @@ class File:
         self.movie = None
         self.mapping = None
 
-        self.dataset_variables = ['molecule', 'coordinates', 'background', 'intensity', 'FRET', 'selected', 'molecule_in_file']
+        self.dataset_variables = ['molecule', 'coordinates', 'background', 'intensity', 'FRET', 'selected',
+                                  'molecule_in_file', 'illumination_correction']
+
 
         # I think it will be easier if we have import functions for specific data instead of specific files.
         # For example. the sifx, pma and tif files can better be handled in the Movie class. Here we then just have a method import_movie.
@@ -172,6 +176,17 @@ class File:
     #
     # @coordinates.setter
 
+    @property
+    def coordinates_metric(self):
+        return self.coordinates * self.movie.pixel_size
+
+    @property
+    def coordinates_stage(self):
+        coordinates = self.coordinates.sel(channel=0)
+        # coordinates = coordinates.stack(temp=('molecule', 'channel')).T
+        coordinates_stage = self.movie.pixel_to_stage_coordinates_transformation(coordinates)
+        return xr.DataArray(coordinates_stage, coords=coordinates.coords)
+
     def set_coordinates_of_channel(self, coordinates, channel):
         # TODO: make this usable for more than two channels
         channel_index = self.movie.get_channel_number(channel)  # Or possibly make it self.channels
@@ -202,6 +217,15 @@ class File:
             channel = {'d': 0, 'a': 1, 'g':0, 'r':1}[channel]
 
         return self.coordinates.sel(channel=channel)
+
+    def __getstate__(self):
+        d = self.__dict__.copy()
+        # d.pop('experiment')
+        # d.pop('importFunctions')
+        return d
+
+    def __setstate__(self, dict):
+        self.__dict__.update(dict)
 
     def __getattr__(self, item):
         if item == 'dataset_variables':
@@ -254,28 +278,13 @@ class File:
         return np.arange(0, self.number_of_frames)*self.exposure_time
 
     def _init_dataset(self, number_of_molecules):
-        dataset = xr.Dataset(
-            {
-                'selected': ('molecule', xr.DataArray(False, coords=[range(number_of_molecules)]))#,
-                # 'x': (('molecule', 'channel'), xr.DataArray(np.nan, coords=[molecule_multiindex, []])),
-                # 'y': (('molecule', 'channel'), xr.DataArray(np.nan, coords=[molecule_multiindex, []])),
-                # 'background': (('molecule', 'channel'), xr.DataArray(np.nan, coords=[molecule_multiindex, []])),
-                # 'intensity': (
-                # ('molecule', 'channel', 'frame'), xr.DataArray(np.nan, coords=[molecule_multiindex, [], []]))
-            },
-            coords=
-            {
-                'molecule': ('molecule', range(number_of_molecules)),
-                # # pd.MultiIndex.from_tuples([], names=['molecule_in_file', 'file'])),
-                # 'frame': ('frame', np.array([], dtype=int)),
-                # 'channel': ('channel', np.array([], dtype=int))
-            }
-        )
-        dataset = dataset.reset_index('molecule').rename(molecule_='molecule_in_file')
-        dataset = dataset.assign_coords({'file': ('molecule', [str(self.absoluteFilePath)]*number_of_molecules)})
-
+        selected = xr.DataArray(False, dims=('molecule',), coords={'molecule': range(number_of_molecules)}, name='selected')
+        dataset = selected.reset_index('molecule').rename(molecule_='molecule_in_file').to_dataset()
+        dataset = dataset.assign_coords({'file': ('molecule', [str(self.absoluteFilePath)] * number_of_molecules)})
         dataset.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='w')
         self.extensions.add('.nc')
+
+        # # pd.MultiIndex.from_tuples([], names=['molecule_in_file', 'file'])),
 
     def find_extensions(self):
         file_names = [file.name for file in self.experiment.main_path.joinpath(self.relativePath).glob(self.name + '*')]
@@ -648,6 +657,21 @@ class File:
         background = xr.DataArray(np.vstack(background_list).T, dims=['molecule', 'channel'], name='background')
         background.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
 
+    def determine_illumination_correction(self, frames=None, filter_neighbourhood_size=15):
+        if frames is None:
+            frames = self.movie.read_frames_raw()
+
+        if not frames.chunks:
+            filtered_images = minimum_filter(frames, size=(1, 1, filter_neighbourhood_size, filter_neighbourhood_size))
+        else:
+            filtered_images = dask_image.ndfilters.minimum_filter(frames.data, size=(1, 1, filter_neighbourhood_size, filter_neighbourhood_size))
+
+        filtered_images = xr.DataArray(filtered_images, coords=frames.coords, name='illumination_correction')
+        illumination_intensity = filtered_images.sum(dim=('x','y'))
+        illumination_correction = (illumination_intensity.max(dim='frame') / illumination_intensity).T
+        # illumination_correction = illumination_correction.reset_index('frame', drop=True)
+        illumination_correction.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
+
     def import_excel_file(self, filename=None):
         if filename is None:
             filename = f'{self.absoluteFilePath}_steps_data.xlsx'
@@ -688,13 +712,13 @@ class File:
 
     def extract_traces(self, configuration=None):
         # Refresh configuration
-        self.experiment.import_config_file()
+        # self.experiment.import_config_file()
 
         if self.movie is None: raise FileNotFoundError('No movie file was found')
 
         print(f'\n Extracting traces in {self}')
 
-        if configuration is None: configuration = self.experiment.configuration['trace_extraction']
+        if configuration is None: configuration = self.configuration['trace_extraction']
         channel = configuration['channel']  # Default was 'all'
         # gaussian_width = configuration['gaussian_width']  # Default was 11
         mask_size = configuration['mask_size']  # Default was 11
@@ -731,6 +755,97 @@ class File:
 
         #self.export_traces_file()
 
+    def extract_traces2(self, configuration=None):
+        # Refresh configuration
+        # self.experiment.import_config_file()
+
+        if self.movie is None: raise FileNotFoundError('No movie file was found')
+
+        print(f'\n Extracting traces in {self}')
+
+        if configuration is None: configuration = self.configuration['trace_extraction']
+        channel = configuration['channel']  # Default was 'all'
+        # gaussian_width = configuration['gaussian_width']  # Default was 11
+        mask_size = configuration['mask_size']  # Default was 11
+        neighbourhood_size = configuration['neighbourhood_size']  # Default was 11
+        subtract_background = configuration['subtract_background']
+        correct_illumination = configuration['correct_illumination']
+
+        if mask_size == 'TIR-T' or mask_size == 'TIR-V':
+            mask_size = 1.291
+
+        import time
+        from trace_analysis.trace_extraction import extract_traces2
+        start = time.time()
+        #self.movie.read_header()
+        frames = self.movie.read_frames_raw()
+
+        if subtract_background:
+            background = self.background
+        else:
+            background = 0
+
+        if correct_illumination:
+            if not hasattr(self.dataset, 'illumination_correction'):
+                self.determine_illumination_correction(frames=frames)
+            # frames = frames.astype(float)
+            # frames.loc[{'channel': channel.index}] *= self.illumination_correction[frame_number, channel.index]
+            frames = frames * self.illumination_correction
+
+        channel_offsets = xr.DataArray(np.vstack([channel.origin for channel in self.movie.channels]),
+                                       dims=('channel', 'dimension'),
+                                       coords={'channel': [channel.index for channel in self.movie.channels],
+                                               'dimension': ['x', 'y']}) # TODO: Move to Movie
+        coordinates = self.coordinates - channel_offsets
+
+        # if frames.chunks:
+        #     template = xr.DataArray(dims=('frame', 'channel', 'molecule'),
+        #                             coords={'frame': frames.frame, 'channel': frames.channel,
+        #                                     'molecule': coordinates.set_index(molecule=('file', 'molecule_in_file')).molecule})\
+        #                             .reset_index('molecule') \
+        #                             .chunk({'frame': frames.chunks[frames.dims.index('frame')], 'channel': frames.chunks[frames.dims.index('channel')]})
+        #                             #.chunk({'frame': frames.chunksizes['frame'], 'channel': frames.chunksizes['channel']})
+        #     intensity = xr.map_blocks(extract_traces2, frames, args=(coordinates, background),
+        #                                kwargs=dict(mask_size=mask_size, neighbourhood_size=neighbourhood_size),
+        #                                template=template)
+        # else:
+        intensity = extract_traces2(frames, coordinates, background, mask_size=mask_size,
+                                      neighbourhood_size=neighbourhood_size)
+        intensity.name = 'intensity'
+        # intensity = intensity.compute()
+        print(time.time()-start)
+
+
+        # old code
+        # if subtract_background:
+        #     background = self.background.stack(peak=('molecule', 'channel'))
+        # else:
+        #     background = None
+        #
+        # coordinates = self.coordinates.stack(peak=('molecule', 'channel')).T
+        #
+        # traces = extract_traces(self.movie, coordinates.values, background=background.values, channel=channel,
+        #                         mask_size=mask_size, neighbourhood_size=neighbourhood_size)
+        #
+        # intensity = xr.DataArray(traces, dims=['peak', 'frame'], name='intensity')\
+        #     .assign_coords({'peak': coordinates.peak.to_index()})\
+        #     .unstack('peak').reset_index('molecule', drop=True)\
+        #     .assign_coords(self.coordinates.sel(dimension='x', drop=True).coords)\
+        #     .transpose('molecule', 'channel', 'frame')
+        # # number_of_molecules = len(traces) // self.number_of_channels
+        # # traces = traces.reshape((number_of_molecules, self.number_of_channels, self.movie.number_of_frames)).swapaxes(0, 1)
+
+        if hasattr(self.movie, 'time'):
+            intensity.assign_coords(time=self.movie.time)
+
+        intensity = intensity.transpose('molecule','channel','frame') # .reset_index('frame', drop=True)
+
+        intensity.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
+
+        self.calculate_FRET()
+
+        #self.export_traces_file()
+
     def calculate_FRET(self):
         # TODO: Make suitable for mutliple colours
         # TODO: Implement corrections
@@ -739,6 +854,9 @@ class File:
         FRET = acceptor/(donor+acceptor)
         FRET.name = 'FRET'
         FRET.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
+
+    # def classify_traces(self):
+    #
 
 
     def import_pks_file(self, extension):
@@ -952,7 +1070,7 @@ class File:
                 file.mapping = self.mapping
                 file.is_mapping_file = False
 
-    def show_image(self, image_type='default', figure=None):
+    def show_image(self, image_type='default', figure=None, unit='pixel', **kwargs):
         # Refresh configuration
         if image_type == 'default':
             self.experiment.import_config_file()
@@ -970,12 +1088,21 @@ class File:
             image = self.maximum_projection_image
             axis.set_title('Maximum projection')
 
-        axis.imshow(image)
+        if unit == 'pixel':
+            unit_string = ' (pixels)'
+        elif unit == 'metric':
+            kwargs['extent'] = self.movie.boundaries_metric.T.flatten()[[0,1,3,2]]
+            unit_string = f' ({self.movie.pixel_size_unit})'
+
+        axis.imshow(image, **kwargs)
+        axis.set_title(self.relativeFilePath)
+        axis.set_xlabel('x'+unit_string)
+        axis.set_ylabel('y'+unit_string)
 
     def show_average_image(self, figure=None):
         self.show_image(image_type='average_image', figure=figure)
 
-    def show_coordinates(self, figure=None, annotate=None, **kwargs):
+    def show_coordinates(self, figure=None, annotate=None, unit='pixel', **kwargs):
         # Refresh configuration
         self.experiment.import_config_file()
 
@@ -987,7 +1114,14 @@ class File:
 
         if self.coordinates is not None:
             axis = figure.gca()
-            coordinates = self.coordinates.stack({'peak': ('molecule', 'channel')}).T.values
+            if unit == 'pixel':
+                coordinates = self.coordinates
+            elif unit == 'metric':
+                coordinates = self.coordinates_metric
+            else:
+                raise ValueError('Unit can be either "pixel" or "metric"')
+
+            coordinates = coordinates.stack({'peak': ('molecule', 'channel')}).T.values
             sc_coordinates = axis.scatter(coordinates[:, 0], coordinates[:, 1], facecolors='none', edgecolors='red', **kwargs)
             # marker='o'
 

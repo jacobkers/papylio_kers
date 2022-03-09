@@ -29,8 +29,10 @@ from trace_analysis.plotting import histogram
 from trace_analysis.plugin_manager import plugins
 
 import re  # Regular expressions
+import contextlib
 import warnings
-from joblib import Parallel, delayed
+import joblib.parallel
+from multiprocessing import Pool
 
 # import matplotlib.pyplot as plt #Provides a MATLAB-like plotting framework
 # import itertools #Functions creating iterators for efficient looping
@@ -56,17 +58,38 @@ class HiddenPrints:
         sys.stdout.close()
         sys.stdout = self._original_stdout
 
+# Following code snippet from https://stackoverflow.com/questions/24983493/tracking-progress-of-joblib-parallel-execution/58936697#58936697
+@contextlib.contextmanager
+def tqdm_joblib(tqdm_object):
+    """Context manager to patch joblib to report into tqdm progress bar given as argument"""
+    class TqdmBatchCompletionCallback(joblib.parallel.BatchCompletionCallBack):
+        def __call__(self, *args, **kwargs):
+            tqdm_object.update(n=self.batch_size)
+            return super().__call__(*args, **kwargs)
+
+    old_batch_callback = joblib.parallel.BatchCompletionCallBack
+    joblib.parallel.BatchCompletionCallBack = TqdmBatchCompletionCallback
+    try:
+        yield tqdm_object
+    finally:
+        joblib.parallel.BatchCompletionCallBack = old_batch_callback
+        tqdm_object.close()
+
+# def fun2(fun, arg, args, kwargs):
+#     return fun(arg, *args, **kwargs)
+
 class Collection(UserList):
     def __init__(self, data=[]):
         # self.data = data
         super(Collection, self).__setattr__('data', data)
-        super(Collection, self).__setattr__('parallel', 1)
+        super(Collection, self).__setattr__('parallel', 4)
         # super(Collection, self).__setattr__('parallel', multiprocessing.cpu_count())
 
     def __getattr__(self, item):
         # if inspect.ismethod(getattr(self.files[0], item))
         if callable(getattr(self.data[0], item)):
             if self.parallel == 1:
+                print('Single')
                 def f(*args, **kwargs):
                     with HiddenPrints():
                         output = [getattr(datum, item)(*args, **kwargs) if datum is not None else None
@@ -76,11 +99,21 @@ class Collection(UserList):
                             return Collection(output)
                 return f
             else:
+                print('Parallel')
                 def f(*args, **kwargs):
                     with HiddenPrints():
-                        output = Parallel(self.parallel, require='sharedmem')\
-                            (delayed(getattr(datum, item))(*args, **kwargs) if datum is not None else None
-                             for datum in tqdm(self.data, position=0, leave=True))
+                        # , require='sharedmem')
+                        with tqdm_joblib(tqdm(self.data, position=0, leave=True)):
+                            output = joblib.parallel.Parallel(self.parallel, verbose=10)\
+                                (joblib.parallel.delayed(getattr(datum, item))(*args, **kwargs) for datum in self.data)
+                        # fun = getattr(type(self.data[0]), item)
+                        #
+                        # # with Pool() as pool:
+                        # #     output = pool.starmap(fun2, [(fun, datum, args, kwargs) for datum in self.data])
+                        # #
+                        #
+                        # output = Parallel(self.parallel, verbose=10)\
+                        #     (delayed(fun)(datum, *args, **kwargs) for datum in self.data)
                     # output = Parallel(self.parallel)(
                     #     delayed(getattr(File, item))(datum, *args, **kwargs) if datum is not None else None for datum in
                     #     tqdm(self.data))
@@ -94,25 +127,35 @@ class Collection(UserList):
     def __setattr__(self, key, value):
         # if key == 'data':
         #     super(Collection, self).__setattr__(key, value)
-        if len(self.data)==0:
+        if len(self.data) == 0:
             raise IndexError('Collection is empty')
-        elif hasattr(self.data[0], key):
-            for datum in self.data:
-                setattr(datum, key, value)
-        else:
+        if key in self.__dict__.keys():
             super(Collection, self).__setattr__(key, value)
+        # elif hasattr(self.data[0], key):
+        else:
+            for datum in self.data:
+                if datum is not None:
+                    setattr(datum, key, value)
+
+    def set_values(self, key, values):
+        if len(self.data) == 0:
+            raise IndexError('Collection is empty')
+        for datum, value in zip(self.data, values):
+            setattr(datum, key, value)
 
     def __getitem__(self, item):
+        # type(self) is used instead of Collection to enable proper returning in child classes
         if isinstance(item, int):
             return self.data[item]
         elif isinstance(item, np.ndarray) or isinstance(item, list):
-            return Collection(np.array(self.data)[item].tolist())
+            return type(self)(np.array(self.data)[item].tolist())
             # if isinstance(data, list) and len(data) == 1:
             #     return data[0]
             # else:
             #     return Collection(data)
         else:
-            return Collection(self.data[item])
+            return type(self)(self.data[item])
+
 
     def __delitem__(self, key):
         self.data.pop(key)
@@ -134,7 +177,8 @@ class Collection(UserList):
         p = re.compile(pattern)
         return [True if p.search(string) else False for string in self.data]
 
-
+    def not_none(self):
+        return Collection([datum for datum in self.data if datum is not None])
 
 @plugins
 class Experiment:
@@ -210,6 +254,14 @@ class Experiment:
                 break
 
         print('\nInitialize experiment: \n' + str(self.main_path))
+
+    def __getstate__(self):
+        d = self.__dict__.copy()
+        d.pop('files')
+        return d
+
+    def __setstate__(self, dict):
+        self.__dict__.update(dict)
 
     def __repr__(self):
         return (f'{self.__class__.__name__}({self.name})')
