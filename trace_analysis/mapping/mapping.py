@@ -15,7 +15,8 @@ import yaml
 import skimage.transform
 from skimage.transform import AffineTransform, PolynomialTransform, SimilarityTransform
 # import matplotlib.path as pth
-from shapely.geometry import Polygon, MultiPoint
+from shapely.geometry import Polygon, MultiPoint, LineString
+from tqdm import tqdm
 
 from icp import icp, nearest_neighbor_pair, nearest_neighbour_match, direct_match
 from polywarp import PolywarpTransform
@@ -80,7 +81,11 @@ class Mapping2:
 
         return mapping
 
-    #TODO: Make load a class method
+    @classmethod
+    def load(cls, filepath):
+        # TODO: Move the load part in __init__ to here
+        return cls(load=filepath)
+
 
     transformation_types = {'linear': AffineTransform,
                             'nonlinear': PolywarpTransform,
@@ -114,6 +119,7 @@ class Mapping2:
         """
 
         self.name = name
+        self.label = ''
         self.source_name = source_name
         self.source = np.array(source) #source=donor=left side image
         self.source_unit = source_unit
@@ -126,6 +132,7 @@ class Mapping2:
         self._destination_vertices = None
         self.method = method
         self.matched_pairs = np.empty((0,2), dtype=int)
+        self.save_path = None
 
         self.transformation_type = transformation_type
 
@@ -172,6 +179,9 @@ class Mapping2:
                         pass
                 self.transformation = self.transform(self.transformation)
                 self.transformation_inverse = self.transform(self.transformation_inverse)
+
+            self.name = filepath.with_suffix('').name
+            self.save_path = filepath.parent
 
     # Function to make attributes from transformation available from the Mapping2 class
     def __getattr__(self, item):
@@ -255,7 +265,7 @@ class Mapping2:
             source = self.source_cropped
 
         if space in ['destination', self.destination_name]:
-            source = self.transformation(source)
+            source = self.transform_coordinates(source)
 
         return source
 
@@ -266,7 +276,7 @@ class Mapping2:
             destination = self.destination_cropped
 
         if space in ['source', self.source_name]:
-            destination = self.transformation(destination, inverse=True)
+            destination = self.transform_coordinates(destination, inverse=True)
 
         return destination
 
@@ -311,6 +321,35 @@ class Mapping2:
 
         self.matched_pairs = determine_pairs_using_threshold(dm, distance_threshold)
 
+    def pair_coordinates(self, point_set='destination', space='destination'):
+        if point_set == 'source':
+            return self.get_source(space=space)[self.matched_pairs[:,0]]
+        elif point_set == 'destination':
+            return self.get_destination(space=space)[self.matched_pairs[:,1]]
+
+    def pair_distances(self, space='destination', show=False, **kwargs):
+        xy_distances = self.pair_coordinates(point_set='source', space=space) - \
+                       self.pair_coordinates(point_set='destination', space=space)
+
+        pair_distances = np.linalg.norm(xy_distances, axis=1)
+
+        if show:
+            figure, axis = plt.subplots()
+            axis.hist(pair_distances, bins=100, **kwargs)
+            axis.set_xlabel('Distance'+self.get_unit_label(space))
+            axis.set_ylabel('Count')
+            axis.set_title('Pair distances')
+
+        return pair_distances
+
+    @property
+    def number_of_source_points(self):
+        return self.source.shape[0]
+
+    @property
+    def number_of_destination_points(self):
+        return self.destination.shape[0]
+
     @property
     def number_of_matched_points(self):
         """Number of matched points determined by finding the two-way nearest neigbours that are closer than a distance
@@ -328,10 +367,12 @@ class Mapping2:
             Number of matched points
 
         """
-        distances, source_indices, destination_indices = \
-            nearest_neighbor_pair(self.source_to_destination, self.destination)
+        # distances, source_indices, destination_indices = \
+        #     nearest_neighbor_pair(self.source_to_destination, self.destination)
+        #
+        # return np.sum(distances < self.destination_distance_threshold)
 
-        return np.sum(distances < self.destination_distance_threshold)
+        return self.matched_pairs.shape[0]
 
     def fraction_of_source_matched(self, crop=False):
         return self.number_of_matched_points / self.get_source(crop).shape[0]
@@ -572,10 +613,18 @@ class Mapping2:
         self.transformation_inverse = AffineTransform(matrix=self.transformation._inv_matrix)
         self.correlation_conversion_function = None
 
+    def get_unit(self, space):
+        return self.__getattribute__(f'{space}_unit')
+
+    def get_unit_label(self, space):
+        if self.get_unit(space) is not None:
+            return f' ({self.get_unit(space)})'
+        else:
+            return ''
 
     def show_mapping_transformation(self, figure=None, show_source=False, show_destination=False, show_pairs=True,
                                     crop=False, inverse=False, source_colour='forestgreen', destination_colour='r',
-                                    pair_colour='b', use_distance_threshold=True, save_path=None):
+                                    pair_colour='b', use_distance_threshold=True, save=False, save_path=None):
         """Show a point scatter of the source transformed to the destination points and the destination.
 
         Parameters
@@ -600,13 +649,15 @@ class Mapping2:
         axis = figure.gca()
 
         if not inverse:
+            all_transformed_coordinates = self.transform_coordinates(self.source)
             transformed_coordinates = self.transform_coordinates(source)
             transformed_coordinates_name = self.source_name
             transformed_coordinates_colour = source_colour
             distance_threshold = self.destination_distance_threshold
             show_destination = True
         else:
-            transformed_coordinates = self.transform_coordinates(source)
+            all_transformed_coordinates = self.transform_coordinates(self.destination)
+            transformed_coordinates = self.transform_coordinates(destination)
             transformed_coordinates_name = self.destination_name
             transformed_coordinates_colour = destination_colour
             distance_threshold = self.source_distance_threshold
@@ -616,33 +667,35 @@ class Mapping2:
             plot_circles(axis, transformed_coordinates, radius=distance_threshold, linewidth=1,
                          facecolor='none', edgecolor=transformed_coordinates_colour)
             if show_pairs:
-                plot_circles(axis, transformed_coordinates[self.matched_pairs[:,0]],
+                plot_circles(axis, all_transformed_coordinates[self.matched_pairs[:,0]],
                              radius=distance_threshold, linewidth=1,
-                                      facecolor='none', edgecolor=pair_colour)
+                             facecolor='none', edgecolor=pair_colour)
         else:
             axis.scatter(*transformed_coordinates.T, facecolors='none', edgecolors=transformed_coordinates_colour,
-                         linewidth=1, marker='o', label=f'{transformed_coordinates_name} transformed')
+                         linewidth=1, marker='o', label=f'{transformed_coordinates_name} transformed ({transformed_coordinates.shape[0]})')
             if show_pairs:
-                axis.scatter(*transformed_coordinates[self.matched_pairs[:, 0]].T, facecolors='none',
+                axis.scatter(*all_transformed_coordinates[self.matched_pairs[:, 0]].T, facecolors='none',
                              edgecolors=pair_colour, linewidth=1, marker='o')
 
         if show_source:
             axis.scatter(*source.T, facecolors=source_colour, edgecolors='none', marker='.',
-                         label=self.source_name)
+                         label=f'{self.source_name} ({source.shape[0]})')
             if show_pairs:
-                axis.scatter(*source[self.matched_pairs[:,0]].T, facecolors=pair_colour, edgecolors='none', marker='.')
+                axis.scatter(*self.source[self.matched_pairs[:,0]].T, facecolors=pair_colour, edgecolors='none', marker='.')
 
         if show_destination:
             axis.scatter(*destination.T, facecolors=destination_colour, edgecolors='none', marker='.',
-                         label=self.destination_name)
+                         label=f'{self.destination_name} ({destination.shape[0]})')
             if show_pairs:
-                axis.scatter(*destination[self.matched_pairs[:,1]].T, facecolors=pair_colour, edgecolors='none', marker='.')
+                axis.scatter(*self.destination[self.matched_pairs[:,1]].T, facecolors=pair_colour, edgecolors='none', marker='.')
 
         axis.set_aspect('equal')
 
-        if self.destination_unit is not None:
-            unit_label = f' ({self.destination_unit})'
-        else:
+        if show_source and not show_destination:
+            unit_label = self.get_unit_label('source')
+        elif not show_source and show_destination:
+            unit_label = self.get_unit_label('destination')
+        elif show_source and show_destination:
             unit_label = ''
 
         axis.set_title(self.name)
@@ -652,18 +705,21 @@ class Mapping2:
         legend_dict = {label: handle for handle, label in zip(*axis.get_legend_handles_labels())}
         transformed_coordinates_marker = mlines.Line2D([], [], linewidth=0, markerfacecolor='none',
                                          markeredgecolor=transformed_coordinates_colour, marker='o')
-        legend_dict[f'{transformed_coordinates_name} transformed'] = transformed_coordinates_marker
+        legend_dict[f'{transformed_coordinates_name} transformed ({transformed_coordinates.shape[0]})'] = transformed_coordinates_marker
 
         if show_pairs:
             pair_marker1 = mlines.Line2D([], [], linewidth=0, markerfacecolor='none',
                                          markeredgecolor=pair_colour, marker='o')
             pair_marker2 = mlines.Line2D([], [], linewidth=0, markerfacecolor=pair_colour,
                                          markeredgecolor='none', marker='.')
-            legend_dict['matched pairs'] = (pair_marker1, pair_marker2)
+            legend_dict[f'matched pairs ({self.number_of_matched_points})'] = (pair_marker1, pair_marker2)
 
         axis.legend(legend_dict.values(),legend_dict.keys())
 
-        if save_path is not None:
+        if save:
+            if save_path is None:
+                save_path = self.save_path
+            save_path = Path(save_path)
             figure.savefig(save_path.joinpath(self.name+'.png'), bbox_inches='tight', dpi=250)
 
     def get_transformation_direction(self, direction):
@@ -690,6 +746,9 @@ class Mapping2:
             raise ValueError('Wrong direction')
 
         return inverse
+
+    def calculate_inverse_transformation(self):
+        self.transformation_inverse = type(self.transformation)(matrix=self.transformation._inv_matrix)
 
     def transform_coordinates(self, coordinates, inverse=False, direction=None):
         """Transform coordinates using the transformation
@@ -757,6 +816,12 @@ class Mapping2:
         destination = self.get_destination(crop=crop, space=space)
         return distance_matrix(source, destination)
 
+    def density_source(self, crop=False, space='source'):
+        return self.get_source(crop).shape[0] / self.get_source_area(crop=crop, space=space)
+
+    def density_destination(self, crop=False, space='destination'):
+        return self.get_destination(crop).shape[0] / self.get_destination_area(crop=crop, space=space)
+
     def Ripleys_K(self, crop=True, space='destination'):
         from scipy.spatial import cKDTree
         # source_in_destination_kdtree = cKDTree(self.source_to_destination)
@@ -769,11 +834,8 @@ class Mapping2:
         # source_vertices = self.get_source_vertices(crop=crop, space=space)
         # destination_vertices = self.get_destination_vertices(crop=crop, space=space)
 
-        area_source = self.get_source_area(crop=crop, space=space)
-        area_destination = self.get_destination_area(crop=crop, space=space)
-
-        density_source = source.shape[0] / area_source
-        density_destination = destination.shape[0] / area_destination
+        density_source = self.density_source(crop=crop, space=space)
+        density_destination = self.density_destination(crop=crop, space=space)
 
         area_overlap = self.get_destination_area(crop=True, space=space)
 
@@ -803,7 +865,7 @@ class Mapping2:
         d_at_max = d[np.where(max_L_minus_d == L_minus_d)][0]
         return d_at_max, max_L_minus_d
 
-    def save(self, filepath, filetype='json'):
+    def save(self, save_path=None, filetype='json'):
         """Save the current mapping in a file, so that it can be opened later.
 
         Parameters
@@ -815,7 +877,15 @@ class Mapping2:
             Choose yml to export all object attributes in a yml text file
 
         """
-        filepath = Path(filepath)
+
+        if save_path is None and self.save_path is not None:
+            save_path = self.save_path
+        if save_path.suffix != '':
+            self.name = save_path.with_suffix('').name
+            save_path = save_path.parent
+
+        filepath = Path(save_path).joinpath(self.name)
+
         if filetype == 'classic':
             if self.transformation_type == 'linear':
                 coeff_filepath = filepath.with_suffix('.coeff')
@@ -858,16 +928,24 @@ class Mapping2:
                 with filepath.with_suffix('.mapping').open('w') as json_file:
                     json.dump(attributes, json_file, sort_keys=False)
 
+        self.save_path = save_path
 
 def overlap_vertices(vertices_A, vertices_B):
     polygon_A = Polygon(vertices_A)
     polygon_B = Polygon(vertices_B)
-    polygon_overlap = polygon_A.intersection(polygon_B)
+    if polygon_A.overlaps(polygon_B):
+        polygon_overlap = polygon_A.intersection(polygon_B)
     # return np.array(polygon_overlap.exterior.coords.xy).T[:-1]
-    return np.array(polygon_overlap.boundary)[:-1]
+
+        return np.array(polygon_overlap.boundary.coords)[:-1]
+    else:
+        return np.empty((0,2))
 
 def area(vertices):
-    return Polygon(vertices).area
+    if len(vertices) < 3:
+        return 0
+    else:
+        return Polygon(vertices).area
 
 def crop_coordinates_indices(coordinates, vertices):
     # return pth.Path(vertices).contains_points(coordinates)
@@ -875,10 +953,11 @@ def crop_coordinates_indices(coordinates, vertices):
     return np.array([c in cropped_coordinates for c in coordinates])
 
 def crop_coordinates(coordinates, vertices):
-    if len(vertices) > 0:
-        return np.atleast_2d(Polygon(vertices).intersection(MultiPoint(coordinates)))
+    if len(vertices) > 0 and len(np.atleast_2d(coordinates)) > 0:
+        # return np.atleast_2d(Polygon(vertices).intersection(MultiPoint(coordinates)))
+        return np.atleast_2d(LineString(Polygon(vertices).intersection(MultiPoint(coordinates)).geoms).coords)
     else:
-        return np.atleast_2d([])
+        return np.empty((0,2)) # np.atleast_2d([])
 
     # bounds.sort(axis=0)
     # selection = (coordinates[:, 0] > bounds[0, 0]) & (coordinates[:, 0] < bounds[1, 0]) & \
@@ -887,7 +966,7 @@ def crop_coordinates(coordinates, vertices):
 
 
 def determine_vertices(point_set, margin=0):
-    return np.array(MultiPoint(point_set).convex_hull.buffer(margin, join_style=1).boundary)[:-1]
+    return np.array(MultiPoint(point_set).convex_hull.buffer(margin, join_style=1).boundary.coords)[:-1]
 
 
 def determine_pairs_using_threshold(distance_matrix_, distance_threshold):
@@ -899,16 +978,22 @@ def determine_pairs_using_threshold(distance_matrix_, distance_threshold):
     return np.asarray(np.where(matches)).T
 
 
-def single_match_optimization(distance_matrix_, r_max=20, plot=True):
-    radii = np.linspace(0, r_max, 100)
-    n = np.array([len(determine_pairs_using_threshold(distance_matrix_, r)) for r in radii])
+def single_match_optimization(distance_matrices, maximum_radius=20, number_of_steps=100, plot=True):
+    if isinstance(distance_matrices, np.ndarray):
+        distance_matrices = [distance_matrices]
 
-    # distance_threshold = np.sum(radii * n) / np.sum(n)
-    distance_threshold = radii[np.where(n==n.max())][0]
+    radii = np.linspace(0, maximum_radius, number_of_steps)
+
+    number_of_pairs = np.vstack([np.array([len(determine_pairs_using_threshold(distance_matrix_, r)) for r in radii])
+                                 for distance_matrix_ in tqdm(distance_matrices)])
+    number_of_pairs_summed = number_of_pairs.sum(axis=0)
+
+    # distance_threshold = np.sum(radii * number_of_pairs_summed) / np.sum(number_of_pairs_summed)
+    distance_threshold = radii[np.where(number_of_pairs_summed == number_of_pairs_summed.max())][0]
 
     if plot:
         figure, axis = plt.subplots()
-        axis.plot(radii, n)
+        axis.plot(radii, number_of_pairs_summed)
         axis.axvline(distance_threshold)
         axis.set_xlabel('Radius')
         axis.set_ylabel('Count')
