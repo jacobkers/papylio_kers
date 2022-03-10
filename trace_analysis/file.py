@@ -693,21 +693,6 @@ class File:
                 mol.kon_boolean = np.array(k).astype(bool).reshape((4,3))
         return steps_data
 
-    def import_selected(self):
-        '''
-        Imports the selected molecules stored in {filename}_selected_molecules.txt
-        '''
-        pass
-        # try:
-        #     filename = f'{self.absoluteFilePath}_selected_molecules.txt'
-        #     selected = np.atleast_1d(np.loadtxt(filename, dtype=int))
-        # except FileNotFoundError:
-        #     return
-        # # print(selected, type(selected))
-        # for i in list(selected):
-        #     self.molecules[i-1].isSelected = True
-
-
     def extract_traces(self, configuration=None):
         # Refresh configuration
         # self.experiment.import_config_file()
