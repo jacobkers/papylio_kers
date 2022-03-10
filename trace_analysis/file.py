@@ -27,7 +27,7 @@ from trace_analysis.coordinate_optimization import  coordinates_within_margin, \
                                                     merge_nearby_coordinates, \
                                                     set_of_tuples_from_array, array_from_set_of_tuples, \
                                                     coordinates_within_margin_selection
-from trace_analysis.trace_extraction import extract_traces, extract_traces_old, extract_traces2
+from trace_analysis.trace_extraction import extract_traces, extract_traces_old, extract_traces2, extract_traces_final
 from trace_analysis.mapping.coordinate_transformations import translate, transform # MD: we don't want to use this anymore I think, it is only linear
                                                                            # IS: We do! But we just need to make them usable with the nonlinear mapping
 from trace_analysis.background_subtraction import extract_background
@@ -219,10 +219,7 @@ class File:
         return self.coordinates.sel(channel=channel)
 
     def __getstate__(self):
-        d = self.__dict__.copy()
-        # d.pop('experiment')
-        # d.pop('importFunctions')
-        return d
+        return self.__dict__.copy()
 
     def __setstate__(self, dict):
         self.__dict__.update(dict)
@@ -735,7 +732,7 @@ class File:
 
         coordinates = self.coordinates.stack(peak=('molecule', 'channel')).T
 
-        traces = extract_traces(self.movie, coordinates.values, background=background.values, channel=channel,
+        traces = extract_traces_old(self.movie, coordinates.values, background=background.values, channel=channel,
                                 mask_size=mask_size, neighbourhood_size=neighbourhood_size)
 
         intensity = xr.DataArray(traces, dims=['peak', 'frame'], name='intensity')\
@@ -845,6 +842,71 @@ class File:
         self.calculate_FRET()
 
         #self.export_traces_file()
+
+
+    def extract_traces_final(self, configuration=None):
+        # Refresh configuration
+        # self.experiment.import_config_file()
+
+        if self.movie is None: raise FileNotFoundError('No movie file was found')
+
+        print(f'\n Extracting traces in {self}')
+
+        if configuration is None: configuration = self.configuration['trace_extraction']
+        channel = configuration['channel']  # Default was 'all'
+        # gaussian_width = configuration['gaussian_width']  # Default was 11
+        mask_size = configuration['mask_size']  # Default was 11
+        neighbourhood_size = configuration['neighbourhood_size']  # Default was 11
+        subtract_background = configuration['subtract_background']
+        correct_illumination = configuration['correct_illumination']
+
+        if mask_size == 'TIR-T' or mask_size == 'TIR-V':
+            mask_size = 1.291
+
+        import time
+
+        start = time.time()
+        #self.movie.read_header()
+        # frames = self.movie.read_frames_raw()
+
+        if subtract_background:
+            background = self.background
+        else:
+            background = 0
+
+        # if correct_illumination:
+        #     if not hasattr(self.dataset, 'illumination_correction'):
+        #         self.determine_illumination_correction(frames=frames)
+        #     # frames = frames.astype(float)
+        #     # frames.loc[{'channel': channel.index}] *= self.illumination_correction[frame_number, channel.index]
+        #     frames = frames * self.illumination_correction
+
+        # channel_offsets = xr.DataArray(np.vstack([channel.origin for channel in self.movie.channels]),
+        #                                dims=('channel', 'dimension'),
+        #                                coords={'channel': [channel.index for channel in self.movie.channels],
+        #                                        'dimension': ['x', 'y']}) # TODO: Move to Movie
+        # coordinates = self.coordinates - channel_offsets
+
+        # if frames.chunks:
+        #     template = xr.DataArray(dims=('frame', 'channel', 'molecule'),
+        #                             coords={'frame': frames.frame, 'channel': frames.channel,
+        #                                     'molecule': coordinates.set_index(molecule=('file', 'molecule_in_file')).molecule})\
+        #                             .reset_index('molecule') \
+        #                             .chunk({'frame': frames.chunks[frames.dims.index('frame')], 'channel': frames.chunks[frames.dims.index('channel')]})
+        #                             #.chunk({'frame': frames.chunksizes['frame'], 'channel': frames.chunksizes['channel']})
+        #     intensity = xr.map_blocks(extract_traces2, frames, args=(coordinates, background),
+        #                                kwargs=dict(mask_size=mask_size, neighbourhood_size=neighbourhood_size),
+        #                                template=template)
+        # else:
+        intensity = extract_traces_final(self.movie, self.coordinates, background, mask_size=mask_size,
+                                      neighbourhood_size=neighbourhood_size)
+        intensity.name = 'intensity'
+        # intensity = intensity.compute()
+        print(time.time()-start)
+
+        intensity.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
+
+        self.calculate_FRET()
 
     def calculate_FRET(self):
         # TODO: Make suitable for mutliple colours
@@ -1062,7 +1124,7 @@ class File:
                 self.coordinates.to_netcdf(file.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf')
 
     def use_mapping_for_all_files(self):
-        print(f"\n{File} used as mapping")
+        print(f"\n{self} used as mapping")
         self.is_mapping_file = True
         #mapping = self.movie.use_for_mapping()
         for file in self.experiment.files:
