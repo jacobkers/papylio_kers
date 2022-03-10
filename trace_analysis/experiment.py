@@ -104,7 +104,7 @@ class Collection(UserList):
                     with HiddenPrints():
                         # , require='sharedmem')
                         with tqdm_joblib(tqdm(self.data, position=0, leave=True)):
-                            output = joblib.parallel.Parallel(self.parallel, verbose=10)\
+                            output = joblib.parallel.Parallel(self.parallel, verbose=0)\
                                 (joblib.parallel.delayed(getattr(datum, item))(*args, **kwargs) for datum in self.data)
                         # fun = getattr(type(self.data[0]), item)
                         #
