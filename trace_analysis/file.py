@@ -13,8 +13,6 @@ import xarray as xr
 import skimage as ski
 import warnings
 import sys
-import dask_image.ndfilters
-from scipy.ndimage import minimum_filter
 # from trace_analysis.molecule import Molecule
 from trace_analysis.movie.movie import Movie
 from trace_analysis.movie.tif import TifMovie
@@ -654,21 +652,6 @@ class File:
         background = xr.DataArray(np.vstack(background_list).T, dims=['molecule', 'channel'], name='background')
         background.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
 
-    def determine_illumination_correction(self, frames=None, filter_neighbourhood_size=15):
-        if frames is None:
-            frames = self.movie.read_frames_raw()
-
-        if not frames.chunks:
-            filtered_images = minimum_filter(frames, size=(1, 1, filter_neighbourhood_size, filter_neighbourhood_size))
-        else:
-            filtered_images = dask_image.ndfilters.minimum_filter(frames.data, size=(1, 1, filter_neighbourhood_size, filter_neighbourhood_size))
-
-        filtered_images = xr.DataArray(filtered_images, coords=frames.coords, name='illumination_correction')
-        illumination_intensity = filtered_images.sum(dim=('x','y'))
-        illumination_correction = (illumination_intensity.max(dim='frame') / illumination_intensity).T
-        # illumination_correction = illumination_correction.reset_index('frame', drop=True)
-        illumination_correction.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
-
     def import_excel_file(self, filename=None):
         if filename is None:
             filename = f'{self.absoluteFilePath}_steps_data.xlsx'
@@ -715,7 +698,7 @@ class File:
         if subtract_background:
             background = self.background
         else:
-            background = 0
+            background = None
 
         # if correct_illumination:
         #     if not hasattr(self.dataset, 'illumination_correction'):
@@ -730,14 +713,13 @@ class File:
         #                                        'dimension': ['x', 'y']}) # TODO: Move to Movie
         # coordinates = self.coordinates - channel_offsets
 
-        intensity = extract_traces(self.movie, self.coordinates, background, mask_size=mask_size,
-                                   neighbourhood_size=neighbourhood_size)
-        intensity.name = 'intensity'
+        traces = extract_traces(self.movie, self.coordinates, background, mask_size=mask_size,
+                                   neighbourhood_size=neighbourhood_size, correct_illumination=correct_illumination)
 
         # if hasattr(self.movie, 'time'):
         #     intensity.assign_coords(time=self.movie.time)
 
-        intensity.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
+        traces.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
 
         self.calculate_FRET()
 

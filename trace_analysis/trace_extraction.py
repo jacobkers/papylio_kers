@@ -1,7 +1,9 @@
+import PIL.ImageFilter
 import numpy as np
 import xarray as xr
 from tqdm import tqdm
-
+import dask_image.ndfilters
+import scipy.ndimage
 
 def make_gaussian_mask(size, offsets, sigma=1.291):
     # TODO: Explain calculation in docstring
@@ -21,7 +23,7 @@ def make_gaussian_mask(size, offsets, sigma=1.291):
     return masks
 
 
-def extract_traces(movie, coordinates, background=None, mask_size=1.291, neighbourhood_size=11):
+def extract_traces(movie, coordinates, background=None, mask_size=1.291, neighbourhood_size=11, correct_illumination=False):
     # go through all images, extract donor and acceptor signal
 
     with movie:
@@ -51,22 +53,36 @@ def extract_traces(movie, coordinates, background=None, mask_size=1.291, neighbo
 
         roi_indices = coordinates_floored + roi_indices_general
 
+        if correct_illumination:
+            illumination_correction = IlluminationCorrection(movie.number_of_frames,
+                                                             filter_function=scipy.ndimage.minimum_filter,
+                                                             size=15, mode='wrap')
 
         oneD_indices = (roi_indices.sel(dimension='y')*movie.width+roi_indices.sel(dimension='x')).stack(peak=('molecule','channel')).stack(i=('y','x'))
-        for frame_number in tqdm(range(movie.number_of_frames), desc=movie.name, leave=True):  # self.number_of_frames also works for pm, len(self.movie_file_object.filelist) not
+        for frame_index in tqdm(range(movie.number_of_frames), desc=movie.name, leave=True):  # self.number_of_frames also works for pm, len(self.movie_file_object.filelist) not
             # print(frame_number)
             # if frame_number % 13 == 0:
             #     sys.stdout.write(f'\r   Frame {frame_number} of {movie.number_of_frames}')
 
-            image = movie.read_frame(frame_number)
+            image = movie.read_frame(frame_index).astype('uint16')
             frame = xr.DataArray(image, dims=('y','x'))
 
-            #intensity[:, :, frame_number] = extract_intensity_from_frame(frame, background, roi_indices, twoD_gaussians)
-            intensity[:, :, frame_number] = extract_intensity_from_frame(frame, background, oneD_indices, twoD_gaussians)
+            # TODO: Proper background subtraction
+
+            if correct_illumination:
+                illumination_correction.add_frame(frame_index, frame)
+                # TODO: Determine how illumination correction is dependent on background
+
+            #intensity[:, :, frame_index] = extract_intensity_from_frame(frame, background, roi_indices, twoD_gaussians)
+            intensity[:, :, frame_index] = extract_intensity_from_frame(frame, background, oneD_indices, twoD_gaussians)
 
         # sys.stdout.write(f'\r   Frame {frame_number+1} of {movie.number_of_frames}\n')
+        dataset = intensity.to_dataset()
 
-    return intensity
+        if correct_illumination:
+            dataset['illumination_correction'] = illumination_correction.illumination_correction
+
+    return dataset
 
 # def extract_intensity_from_frame(frame, background, roi_indices, twoD_gaussians):
 #     intensities = frame.sel(x=roi_indices.sel(dimension='x'), y=roi_indices.sel(dimension='y'))
@@ -89,3 +105,36 @@ def extract_intensity_from_frame(frame, background, oneD_indices, twoD_gaussians
     weighted_intensities = intensities * twoD_gaussians.values
     intensity_in_frame = weighted_intensities.sum(axis=(2,3))
     return intensity_in_frame
+
+
+class IlluminationCorrection:
+    def __init__(self, number_of_frames, filter_function=scipy.ndimage.minimum_filter, **kwargs):
+        self.filter_function = filter_function
+        self.filter_kwargs = kwargs
+        self._illumination_correction = np.empty(number_of_frames)
+
+    def add_frame(self, index, frame):
+        filtered_frame = self.filter_function(np.array(frame), **self.filter_kwargs)
+        self._illumination_correction[index] = filtered_frame.sum()
+
+    @property
+    def illumination_correction(self):
+        correction = self._illumination_correction.max() / self._illumination_correction
+        return xr.DataArray(correction, dims=('frame',), name='illumination_correction')
+
+
+
+# def illumination_intensity_from_frames(frames=None, filter_neighbourhood_size=15):
+#     if frames is None:
+#         frames = self.movie.read_frames_raw()
+#
+#     if not frames.chunks:
+#         filtered_images = minimum_filter(frames, size=(1, 1, filter_neighbourhood_size, filter_neighbourhood_size))
+#     else:
+#         filtered_images = dask_image.ndfilters.minimum_filter(frames.data, size=(1, 1, filter_neighbourhood_size, filter_neighbourhood_size))
+#
+#     filtered_images = xr.DataArray(filtered_images, coords=frames.coords, name='illumination_correction')
+#     illumination_intensity = filtered_images.sum(dim=('x','y'))
+#     illumination_correction = (illumination_intensity.max(dim='frame') / illumination_intensity).T
+#     # illumination_correction = illumination_correction.reset_index('frame', drop=True)
+#     illumination_correction.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')

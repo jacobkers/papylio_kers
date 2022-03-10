@@ -71,7 +71,7 @@ class TifMovie(Movie):
             #     # return -1,0,0,0
             #     im = tifpage[0].asarray()
             if (self.number_of_frames - 1) >= frame_number:
-                im = self.file.pages[frame_number].asarray()
+                im = self.file.pages[frame_number].asarray().astype(self.data_type)
             else:
                 raise IndexError('Selected frame number larger than number of frames')
             #     im = tifpage[self.number_of_frames - 1].asarray()
