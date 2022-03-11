@@ -79,32 +79,42 @@ def tqdm_joblib(tqdm_object):
 #     return fun(arg, *args, **kwargs)
 
 class Collection(UserList):
-    def __init__(self, data=[]):
+    def __init__(self, data=[], use_parallel_processing=True, number_of_cores=None):
         # self.data = data
+        if number_of_cores is None:
+            number_of_cores = multiprocessing.cpu_count()
+
         super(Collection, self).__setattr__('data', data)
-        super(Collection, self).__setattr__('parallel', 4)
-        # super(Collection, self).__setattr__('parallel', multiprocessing.cpu_count())
+        # super(Collection, self).__setattr__('parallel', 4)
+        super(Collection, self).__setattr__('use_parallel_processing', use_parallel_processing)
+        super(Collection, self).__setattr__('number_of_cores', number_of_cores)
+
+    @property
+    def dict_without_data(self):
+        d = self.__dict__.copy()
+        d.pop('data')
+        return d
 
     def __getattr__(self, item):
         # if inspect.ismethod(getattr(self.files[0], item))
         if callable(getattr(self.data[0], item)):
-            if self.parallel == 1:
-                print('Single')
+            if not self.use_parallel_processing:
+                print('Serial processing')
                 def f(*args, **kwargs):
                     with HiddenPrints():
                         output = [getattr(datum, item)(*args, **kwargs) if datum is not None else None
                                   for datum in tqdm(self.data, position=0, leave=True)]
                     for o in output:
                         if o is not None:
-                            return Collection(output)
+                            return Collection(output, **self.dict_without_data)
                 return f
             else:
-                print('Parallel')
+                print('Parallel processing')
                 def f(*args, **kwargs):
                     with HiddenPrints():
                         # , require='sharedmem')
                         with tqdm_joblib(tqdm(self.data, position=0, leave=True)):
-                            output = joblib.parallel.Parallel(self.parallel, verbose=0)\
+                            output = joblib.parallel.Parallel(self.number_of_cores, verbose=0)\
                                 (joblib.parallel.delayed(getattr(datum, item))(*args, **kwargs) for datum in self.data)
                         # fun = getattr(type(self.data[0]), item)
                         #
@@ -112,27 +122,27 @@ class Collection(UserList):
                         # #     output = pool.starmap(fun2, [(fun, datum, args, kwargs) for datum in self.data])
                         # #
                         #
-                        # output = Parallel(self.parallel, verbose=10)\
+                        # output = Parallel(self.number_of_cores, verbose=10)\
                         #     (delayed(fun)(datum, *args, **kwargs) for datum in self.data)
-                    # output = Parallel(self.parallel)(
+                    # output = Parallel(self.number_of_cores)(
                     #     delayed(getattr(File, item))(datum, *args, **kwargs) if datum is not None else None for datum in
                     #     tqdm(self.data))
                     for o in output:
                         if o is not None:
-                            return Collection(output)
+                            return Collection(output, **self.dict_without_data)
                 return f
         else:
-            return Collection([getattr(datum, item) if datum is not None else None for datum in self.data])
+            return Collection([getattr(datum, item) if datum is not None else None for datum in self.data], **self.dict_without_data)
 
     def __setattr__(self, key, value):
         # if key == 'data':
         #     super(Collection, self).__setattr__(key, value)
-        if len(self.data) == 0:
-            raise IndexError('Collection is empty')
         if key in self.__dict__.keys():
             super(Collection, self).__setattr__(key, value)
         # elif hasattr(self.data[0], key):
         else:
+            if len(self.data) == 0:
+                raise IndexError('Collection is empty')
             for datum in self.data:
                 if datum is not None:
                     setattr(datum, key, value)
@@ -154,7 +164,7 @@ class Collection(UserList):
             # else:
             #     return Collection(data)
         else:
-            return type(self)(self.data[item])
+            return type(self)(self.data[item], **self.dict_without_data)
 
 
     def __delitem__(self, key):
@@ -171,14 +181,14 @@ class Collection(UserList):
 
     @property
     def str(self):
-        return Collection([str(datum) for datum in self.data])
+        return Collection([str(datum) for datum in self.data], **self.dict_without_data)
 
     def regex(self, pattern):
         p = re.compile(pattern)
         return [True if p.search(string) else False for string in self.data]
 
     def not_none(self):
-        return Collection([datum for datum in self.data if datum is not None])
+        return Collection([datum for datum in self.data if datum is not None], **self.dict_without_data)
 
 @plugins
 class Experiment:
