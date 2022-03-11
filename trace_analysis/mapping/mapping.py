@@ -15,7 +15,7 @@ import yaml
 import skimage.transform
 from skimage.transform import AffineTransform, PolynomialTransform, SimilarityTransform
 # import matplotlib.path as pth
-from shapely.geometry import Polygon, MultiPoint, LineString
+from shapely.geometry import Polygon, MultiPoint, LineString, Point
 from tqdm import tqdm
 
 from icp import icp, nearest_neighbor_pair, nearest_neighbour_match, direct_match
@@ -955,9 +955,16 @@ def crop_coordinates_indices(coordinates, vertices):
 def crop_coordinates(coordinates, vertices):
     if len(vertices) > 0 and len(np.atleast_2d(coordinates)) > 0:
         # return np.atleast_2d(Polygon(vertices).intersection(MultiPoint(coordinates)))
-        return np.atleast_2d(LineString(Polygon(vertices).intersection(MultiPoint(coordinates)).geoms).coords)
+        pointset_intersected = Polygon(vertices).intersection(MultiPoint(coordinates))
+        if isinstance(pointset_intersected, MultiPoint):
+            return np.atleast_2d(LineString(pointset_intersected.geoms).coords)
+        elif isinstance(pointset_intersected, Point) and len(pointset_intersected.coords) > 0:
+            return np.array(pointset_intersected.coords)
+        else:
+            return np.empty((0, 2))
+        # Hopefully shapely 2.0 will be more consistent
     else:
-        return np.empty((0,2)) # np.atleast_2d([])
+        return np.empty((0, 2)) # np.atleast_2d([])
 
     # bounds.sort(axis=0)
     # selection = (coordinates[:, 0] > bounds[0, 0]) & (coordinates[:, 0] < bounds[1, 0]) & \
