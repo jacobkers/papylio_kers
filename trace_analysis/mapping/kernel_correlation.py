@@ -138,7 +138,7 @@ def compute_kernel_correlation(transformation, source, destination, sigma=1, plo
     # t.append(time.time())
     # print(t[-1]-t[-2])
 
-    print(KCVal)
+    # print(KCVal)
 
 
     if plot:
@@ -192,7 +192,7 @@ def kernel_correlation(source, destination, bounds, sigma=1, plot=False, **kwarg
     #                    accept_test=None, callback=None, interval=50, disp=False, niter_success=None, seed=None)
 
 
-    print(result)
+    #print(result)
     # return AffineTransform(matrix=np.hstack([res.x, [0,0,1]]).reshape(3,3))
     return parameter_to_transformation(result.x), result
 

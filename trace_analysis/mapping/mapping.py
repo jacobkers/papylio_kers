@@ -933,11 +933,11 @@ class Mapping2:
 def overlap_vertices(vertices_A, vertices_B):
     polygon_A = Polygon(vertices_A)
     polygon_B = Polygon(vertices_B)
-    if polygon_A.overlaps(polygon_B):
-        polygon_overlap = polygon_A.intersection(polygon_B)
+    if polygon_A.intersects(polygon_B):
+        polygon_intersection = polygon_A.intersection(polygon_B)
     # return np.array(polygon_overlap.exterior.coords.xy).T[:-1]
 
-        return np.array(polygon_overlap.boundary.coords)[:-1]
+        return np.array(polygon_intersection.boundary.coords)[:-1]
     else:
         return np.empty((0,2))
 

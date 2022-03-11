@@ -71,14 +71,14 @@ class Movie:
     def __enter__(self):
         if self._with_counter == 0:
             self.open()
-            print('open')
+            #print('open')
         self._with_counter += 1
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self._with_counter -= 1
         if self._with_counter == 0:
             self.close()
-            print('close')
+            #print('close')
 
     def __repr__(self):
         return (f'{self.__class__.__name__}({str(self.filepath)})')
