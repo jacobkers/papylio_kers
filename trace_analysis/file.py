@@ -95,7 +95,6 @@ class File:
                                 '.traces': self.import_traces_file,
                                 '.log': self.import_log_file,
                                 '_steps_data.xlsx': self.import_excel_file,
-                                '_selected_molecules.txt': self.import_selected,
                                 '.nc': self.noneFunction
                                 }
 
