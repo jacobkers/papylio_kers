@@ -244,10 +244,12 @@ class Experiment:
     #             boundaries.append(np.zeros((2,2)))
     #     return np.sort(boundaries)
 
-    @property
-    def files_with_sequencing_match(self):
+    def files_with_sequencing_match(self, files=None):
+        if files is None:
+            files = self.files
         from trace_analysis.experiment import Collection
-        return Collection([file for file in self.files if file.sequencing_match.file_path.is_file()])
+        return Collection([file for file in files
+                           if file.absoluteFilePath.with_name(file.name + '_sequencing_match.mapping').is_file()])
 
     def sequencing_matches(self, files=None):
         if files is None:
