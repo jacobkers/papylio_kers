@@ -247,7 +247,7 @@ class Experiment:
     @property
     def files_with_sequencing_match(self):
         from trace_analysis.experiment import Collection
-        return Collection([file for file in self.files if file.sequencing_match is not None])
+        return Collection([file for file in self.files if file.sequencing_match.file_path.is_file()])
 
     def sequencing_matches(self, files=None):
         if files is None:

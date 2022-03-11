@@ -209,6 +209,10 @@ class Mapping2:
     #     return np.array([np.sign(self.transformation[0, 0]), np.sign(self.transformation[1, 1])])
 
     @property
+    def file_path(self):
+        return self.save_path.joinpath(self.name).with_suffix('.mapping')
+
+    @property
     def source_to_destination(self):
         """Nx2 numpy.ndarray : Source coordinates transformed to the destination axis"""
 
