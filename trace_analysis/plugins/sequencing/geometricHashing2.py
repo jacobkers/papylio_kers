@@ -6,9 +6,10 @@ from scipy.spatial import cKDTree
 import random
 from trace_analysis.mapping.geometricHashing import mapToPoint
 from trace_analysis.mapping.mapping import Mapping2, crop_coordinates
-from trace_analysis.plotting import scatter_coordinates
+# from trace_analysis.plotting import scatter_coordinates
 from skimage.transform import AffineTransform
 import time
+from tqdm import tqdm
 
 #
 class GeometricHashTable:
@@ -52,18 +53,65 @@ class GeometricHashTable:
         self.destination_KDTrees, self.destination_tuple_sets, self.destination_hash_table_KDTree, \
         self.destination_transformation_matrices = destination_hash_data
 
+        self.cumulative_tuples_per_destination = np.cumsum([0] + [len(point_tuples) for point_tuples in self.destination_tuple_sets])
 
-    def query(self, source, distance=15, alpha=0.9, sigma=10, K_threshold=10e9, hash_table_distance_threshold=0.01,
+
+    def query(self, sources, alpha=0.5, test_radius=2, K_threshold=10e9, hash_table_distance_threshold=0.01,
               magnification_range=None, rotation_range=None):
 
-        return find_match_after_hashing(source, self.maximum_distance_source, self.tuple_size, source_vertices,
-                                        self.destination_KDTrees, self.destination_tuple_sets,
-                                        self.destination_hash_table_KDTree,
-                                        hash_table_distance_threshold, alpha, sigma, K_threshold,
-                                        magnification_range, rotation_range)
+        if not isinstance(sources, list):
+            sources = [sources]
+
+        source_hash_data = geometric_hash(sources, self.maximum_distance_source, self.tuple_size)
+        source_KDTrees, source_tuple_sets, source_hash_table_KDTree, source_transformation_matrices = source_hash_data
+        tuple_matches = source_hash_table_KDTree.query_ball_tree(self.destination_hash_table_KDTree,
+                                                                 hash_table_distance_threshold)
+
+        cumulative_tuples_per_source = np.cumsum([0] + [len(point_tuples) for point_tuples in source_tuple_sets])
+
+        tuples_checked = 0
+        for source_tuple_index, destination_tuple_indices in enumerate(tuple_matches):
+            for destination_tuple_index in destination_tuple_indices:
+
+                # for tuple_match in tuple_matches:
+                destination_index = np.where((self.cumulative_tuples_per_destination[:-1] <= destination_tuple_index) &
+                                             (self.cumulative_tuples_per_destination[1:] > destination_tuple_index))[0][0]
+                tuple_index_in_destination_set = destination_tuple_index - self.cumulative_tuples_per_destination[destination_index]
+                destination_tuple = self.destination_tuple_sets[destination_index][tuple_index_in_destination_set]
+
+                source_index = np.where((cumulative_tuples_per_source[:-1] <= source_tuple_index) &
+                                             (cumulative_tuples_per_source[1:] > source_tuple_index))[0][0]
+                tuple_index_in_source_set = source_tuple_index - cumulative_tuples_per_source[source_index]
+                source_tuple = source_tuple_sets[source_index][tuple_index_in_source_set]
+                source = sources[source_index]
+
+                # Or list(itertools.chain.from_iterable(destination_tuple_sets))[destination_tuple_index]
+
+                tuples_checked += 1
+
+                destination_KDTree = self.destination_KDTrees[destination_index]
+                found_transformation = tuple_match(source, destination_KDTree, source_vertices, source_tuple, destination_tuple,
+                                                   alpha, test_radius, K_threshold, magnification_range, rotation_range)
+
+                if found_transformation:
+                    match = Mapping2(source=source, destination=destination_KDTree.data, method='Geometric hashing',
+                                     transformation_type='linear', initial_transformation=None)
+                    match.transformation = found_transformation
+                    match.destination_index = destination_index
+
+                    #match.hash_table_distance = distance
+                    # match.hash_table_distances_checked = hash_table_distances_checked
+                    match.tuples_checked = tuples_checked
+                    return match
+
+        # return find_match_after_hashing(source, self.maximum_distance_source, self.tuple_size, source_vertices,
+        #                                 self.destination_KDTrees, self.destination_tuple_sets,
+        #                                 self.destination_hash_table_KDTree,
+        #                                 hash_table_distance_threshold, alpha, sigma, K_threshold,
+        #                                 magnification_range, rotation_range)
 
     def query_tuple_transformations(self, sources, hash_table_distance_threshold=0.01, parameters=['rotation', 'scale'],
-                                    bins=200):
+                                    bins=200, eps=0.01, min_samples=10):
         # np.vstack(sources)
 
         source_hash_data = geometric_hash(sources, self.maximum_distance_source, self.tuple_size)
@@ -71,7 +119,7 @@ class GeometricHashTable:
 
         return compare_tuple_transformations(source_hash_table_KDTree, source_transformation_matrices,
                                               self.destination_hash_table_KDTree, self.destination_transformation_matrices,
-                                              hash_table_distance_threshold, parameters, bins)
+                                              hash_table_distance_threshold, parameters, bins, eps, min_samples)
 
     def test(self, sources, hash_table_distance_threshold=0.01, bins=50):
         # np.vstack(sources)
@@ -142,19 +190,23 @@ class GeometricHashTable:
 
 def compare_tuple_transformations(source_hash_table_KDTree, source_transformation_matrices, destination_hash_table_KDTree,
                                   destination_transformation_matrices, hash_table_distance_threshold=0.01,
-                                  parameters=['rotation', 'scale'], bins=200):
+                                  parameters=['rotation', 'scale'], bins=200, eps=0.01, min_samples=10):
     tuple_matches = source_hash_table_KDTree.query_ball_tree(destination_hash_table_KDTree, hash_table_distance_threshold)
 
-    # TODO: make this matrix multiplication
-    transformation_matrices = []
-    for source_index, destination_indices in enumerate(tuple_matches):
-        source_transformation_matrix = source_transformation_matrices[source_index]
-        # source_transformation_matrix = np.linalg.inv(source_transformation_matrix)
-        for destination_index in destination_indices:
-            destination_transformation_matrix = destination_transformation_matrices[destination_index]
-            destination_transformation_matrix_inverse = np.linalg.inv(destination_transformation_matrix)
-            transformation_matrices.append(destination_transformation_matrix_inverse @ source_transformation_matrix)
-    transformation_matrices = np.stack(transformation_matrices)
+    # # TODO: make this matrix multiplication
+    # transformation_matrices = []
+    # for source_index, destination_indices in tqdm(enumerate(tuple_matches)):
+    #     source_transformation_matrix = source_transformation_matrices[source_index]
+    #     # source_transformation_matrix = np.linalg.inv(source_transformation_matrix)
+    #     for destination_index in destination_indices:
+    #         destination_transformation_matrix = destination_transformation_matrices[destination_index]
+    #         destination_transformation_matrix_inverse = np.linalg.inv(destination_transformation_matrix)
+    #         transformation_matrices.append(destination_transformation_matrix_inverse @ source_transformation_matrix)
+    # transformation_matrices = np.stack(transformation_matrices)
+
+    source_tm_stacked = np.repeat(source_transformation_matrices, [len(tuple_match) for tuple_match in tuple_matches], axis=0)
+    destination_tm_stacked = destination_transformation_matrices[np.hstack(tuple_matches).astype(int)]
+    transformation_matrices = np.einsum('ijk,ikm->ijm', np.linalg.inv(destination_tm_stacked), source_tm_stacked)
 
     # plt.figure()
     # plt.hist(transformation_matrices[:, 0, 2], 100)
@@ -166,19 +218,32 @@ def compare_tuple_transformations(source_hash_table_KDTree, source_transformatio
 
     sample = np.vstack(list(parameter_values)).T
     # sample = transformation_matrices[:, :2, :].reshape(-1, 6)
+    sample = np.unique(sample, axis=0)
+    normalized_sample = (sample-sample.min(axis=0))/(sample.max(axis=0)-sample.min(axis=0))
 
-    h, edges = np.histogramdd(sample, bins=bins)
+    from sklearn.cluster import DBSCAN
+    clustering = DBSCAN(eps=eps, min_samples=min_samples).fit(normalized_sample)
+    labels = clustering.labels_
+    print(len(set(labels)) - (1 if -1 in labels else 0))
+    print([len(sample[labels == i]) for i in range(0,len(np.unique(labels)))])
+    # [(sample[labels == i]) for i in range(0, 10)]
+    # [np.std(sample[labels == i]) for i in range(0, 10)]
 
-    bin_centers = [(e[:-1]+e[1:])/2 for e in edges]
-    # found_transformation = np.array([bc[h_index] for bc, h_index in zip(bin_centers, np.where(h==h.max()))]).reshape(2,3)
-    # t = AffineTransform(np.vstack([found_transformation, [0, 0, 1]]))
-    hist_max_index = np.where(h == h.max())
-    if len(hist_max_index[0]) > 1:
-        raise RuntimeError('No optimal transformation found')
-    found_values = [bc[h_index][0] for bc, h_index in zip(bin_centers, hist_max_index)]
+    matches = [sample[labels == label].mean(axis=0).tolist() for label in range(0,(np.unique(labels)>=0).sum())]
 
-    parameter_dict = {parameter: found_values.pop(0) if parameter == 'rotation' else [found_values.pop(0), found_values.pop(0)]
-                      for parameter in parameters}
+    # h, edges = np.histogramdd(sample, bins=bins)
+    #
+    # bin_centers = [(e[:-1]+e[1:])/2 for e in edges]
+    # # found_transformation = np.array([bc[h_index] for bc, h_index in zip(bin_centers, np.where(h==h.max()))]).reshape(2,3)
+    # # t = AffineTransform(np.vstack([found_transformation, [0, 0, 1]]))
+    # hist_max_index = np.where(h == h.max())
+    # if len(hist_max_index[0]) > 1:
+    #     raise RuntimeError('No optimal transformation found')
+    # found_values = [bc[h_index][0] for bc, h_index in zip(bin_centers, hist_max_index)]
+
+    parameter_dicts = [{parameter: found_values.pop(0) if parameter == 'rotation' else [found_values.pop(0), found_values.pop(0)]
+                      for parameter in parameters} for found_values in matches]
+    # transformations = [AffineTransform(**parameter_dict) for parameter_dict in parameter_dicts]
 
     # found_transformation = AffineTransform(**parameter_dict)
 
@@ -209,7 +274,7 @@ def compare_tuple_transformations(source_hash_table_KDTree, source_transformatio
     # plt.figure()
     # plt.hist(rs, 100)
 
-    return parameter_dict
+    return parameter_dicts
 
 
 
@@ -269,6 +334,9 @@ def generate_point_tuples(point_set_KDTree, maximum_distance, tuple_size):
     return point_tuples
 
 def geometric_hash_table(point_set_KDTree, point_tuples):
+    if len(point_tuples) == 0:
+        raise RuntimeWarning('No point tuples found')
+        return None
     pt = np.array(point_tuples)
     d = point_set_KDTree.data[pt]
     d0 = np.array([[0,0],[1,1]])
@@ -585,17 +653,17 @@ def find_match(source, destination, source_vertices,
 
 
 if __name__ == '__main__':
-    from trace_analysis.plugins.sequencing.point_set_simulation import simulate_mapping_test_point_set
+    from trace_analysis.mapping.point_set_simulation import simulate_mapping_test_point_set
 
     # Simulate source and destination point sets
     number_of_source_points = 4000
     transformation = AffineTransform(translation=[128, 128], rotation=0 / 360 * 2 * np.pi, scale=[1, 1])
     source_bounds = np.array([[0, 0], [512, 512]])
-    source_crop_bounds = np.array([[0, 0], [50, 50]])
+    source_crop_bounds = np.array([[0, 0], [200, 200]])
     fraction_missing_source = 0
     fraction_missing_destination = 0
-    maximum_error_source = 0
-    maximum_error_destination = 0
+    maximum_error_source = 0.5
+    maximum_error_destination = 0.5
     shuffle = True
 
     destination, source = simulate_mapping_test_point_set(number_of_source_points, transformation,
@@ -637,165 +705,178 @@ if __name__ == '__main__':
     maximum_distance_source = 20
 
 
-    # ht = GeometricHashTable(destinations, source_vertices, initial_source_transformation=AffineTransform(),
-    #                  number_of_source_bases=20, number_of_destination_bases='all',
-    #                  tuple_size=4, maximum_distance_source=maximum_distance_source, maximum_distance_destination=maximum_distance_destination)
-    #
-    #
-    # # test = ht.query_tuple_transformations(source, hash_table_distance_threshold=0.1, parameters=['rotation'], bins=50)
+    ht = GeometricHashTable(destinations, source_vertices, initial_source_transformation=AffineTransform(),
+                     number_of_source_bases='all', number_of_destination_bases='all',
+                     tuple_size=4, maximum_distance_source=maximum_distance_source, maximum_distance_destination=maximum_distance_destination)
+
+    # test = ht.query(source, alpha=0, K_threshold=10e9, hash_table_distance_threshold=0.01,
+    #                 test_radius=1, magnification_range=None, rotation_range=None)
+
+    found = ht.query_tuple_transformations(source, hash_table_distance_threshold=0.01, parameters=['rotation', 'scale','translation'], bins=50,
+                                          eps=0.01, min_samples=10)
+    print(found)
+
+    from trace_analysis.mapping.mapping import Mapping2
+
+    found_mapping = Mapping2(source=source, destination=destinations[0])
+    found_mapping.transformation = AffineTransform(**found[0])
+    found_mapping.show_mapping_transformation()
+
+    # print(test)
+    # test.show_mapping_transformation()
     # plt.figure()
     # t = ht.test(source, hash_table_distance_threshold=0.01, bins=25)
 
 
 
-
-    import matplotlib.pyplot as plt
-    import matplotlib.tri as tri
-    import numpy as np
-
-    triang_source = tri.Triangulation(source[:, 0], source[:, 1])
-
-    triang_destination = tri.Triangulation(destination[:, 0], destination[:, 1])
-
-
-
-
-
-    def angles_from_triangles(pointset, triangles):
-        triangle_points = pointset[triangles.triangles]
-
-        side_lengths = np.linalg.norm(triangle_points[:, [0, 1, 2], :] - triangle_points[:, [1, 2, 0], :], axis=2)
-
-        a = side_lengths[:, 0]
-        b = side_lengths[:, 1]
-        c = side_lengths[:, 2]
-
-        # R = a * b * c / np.sqrt((a + b + c) * (a - b + c) * (a + b - c) * (b + c - a))
-        # angles = np.arcsin(side_lengths / (2 * R[:, np.newaxis]))
-
-        A = np.arccos((-a ** 2 + b ** 2 + c ** 2) / (2 * b * c))
-        B = np.arccos((a ** 2 - b ** 2 + c ** 2) / (2 * c * a))
-        C = np.arccos((a ** 2 + b ** 2 - c ** 2) / (2 * a * b))
-
-        A = (-a ** 2 + b ** 2 + c ** 2) / (2 * b * c)
-        B = (a ** 2 - b ** 2 + c ** 2) / (2 * c * a)
-        C = (a ** 2 + b ** 2 - c ** 2) / (2 * a * b)
-
-        angles = np.vstack([A, B, C]).T
-
-        return angles
-
-    angles_source = angles_from_triangles(source, triang_source)#/(2*np.pi)*360
-    angles_destination = angles_from_triangles(destination, triang_destination)#/(2*np.pi)*360
-
-    angles_source.sort()
-    angles_destination.sort()
-
-    hash_table_source = cKDTree(angles_source[:, :2])
-    hash_table_destination = cKDTree(angles_destination[:,:2])
-
-    matches = hash_table_source.query_ball_tree(hash_table_destination, 0.01)
-
-    [len(i) for i in test]
-
-    triang_source.triangles[51]
-
-    triangle_index = 0
-
-    source_neighbours = triang_source.neighbors[triangle_index]
-    source_neighbours_in_destination = [matches[source_triangle_index] if source_triangle_index >= 0 else [] for source_triangle_index in source_neighbours]
-    destination_triangles = matches[triangle_index]
-    destination_neighbours = triang_destination.neighbors[destination_triangles]
-
-    t2 = np.array(
-        [[dn in source_neighbours_in_destination[i] for dn in destination_neighbours[:, i]] for i in range(3)]).T
-
-    # fig1 = plt.figure()
-    fig1.clf()
-    plot_triangles(triang_source, highlight=[0], figure=fig1)
-    plot_triangles(triang_source, highlight=source_neighbours,
-                   highlight_kwargs={'c': 'r'}, figure=fig1)
-
-    # fig2 = plt.figure()
-    fig2.clf()
-    plot_triangles(triang_destination, highlight=matches[0], figure=fig2)
-    plot_triangles(triang_destination, highlight=destination_neighbours.flatten(),
-                   highlight_kwargs={'c': 'r'}, figure=fig2)
-
-    plot_triangles(triang_destination, highlight=np.hstack(source_neighbours_in_destination),
-                   highlight_kwargs={'c': 'k', 'marker': 'o'}, figure=fig2)
-
-
-
-
-    t2s = []
-    t2cs = []
-    for triangle_index, _ in enumerate(triang_source.triangles):
-        source_neighbours = triang_source.neighbors[triangle_index]
-        source_neighbours_in_destination = [matches[i] if i >= 0 else [] for i in source_neighbours]
-        destination_neighbours = triang_destination.neighbors[matches[triangle_index]]
-
-        t2 = np.array([[dn in source_neighbours_in_destination[i] for dn in destination_neighbours[:, i]] for i in range(3)]).T
-
-        t2 = t2.sum(axis=1)
-        t2u = np.unique(t2, return_counts=True)
-        t2c = np.zeros(4).astype(int)
-        print(t2u)
-        t2c[t2u[0]] = t2u[1]
-        print(t2)
-        t2cs.append(t2c)
-        if t2c[3]==1:
-            t2s.append((triangle_index, test[triangle_index][np.where(t2==3)[0][0]]))
-    t2s = np.vstack(t2s)
-    t2cs = np.array(t2cs)
-
-
-    tr = np.array(t2s)
-
-    mask = np.ones(len(triang_source.triangles)).astype(bool)
-    mask[tr[:,0]] = False
-
-    triang_source.set_mask(mask)
-
-    mask = np.ones(len(triang_destination.triangles)).astype(bool)
-    mask[tr[:,1]] = False
-
-    triang_destination.set_mask(mask)
-
-
-
-
-    fig2, ax2 = plt.subplots()
-    ax2.set_aspect('equal')
-    ax2.triplot(triang_destination, 'o-', lw=1)
-
-
-
-    def plot_triangles(triangulation, highlight=[], highlight_kwargs={'c': 'b'}, figure=None):
-        if not figure:
-            figure = plt.figure()
-        ax = figure.gca()
-        ax.set_aspect('equal')
-        ax.triplot(triangulation, '-', lw=1)
-
-        triangle_indices = highlight
-        point_indices = triangulation.triangles[triangle_indices]
-        x_mean = triangulation.x[point_indices].mean(axis=1)
-        y_mean = triangulation.y[point_indices].mean(axis=1)
-        ax.scatter(x_mean, y_mean, **highlight_kwargs)
-
-        return figure
-
-
-    match.show_mapping_transformation(show_source=True)
-
-    match = find_match_after_hashing(*source_hash_data, source_vertices, *destination_hash_data)
-
-    match = find_match(source, destination, source_vertices)
-    if match:
-        scatter_coordinates([source, destination, match(source), source_vertices, match(source_vertices)])
-
-
+    #
+    # import matplotlib.pyplot as plt
+    # import matplotlib.tri as tri
+    # import numpy as np
+    #
+    # triang_source = tri.Triangulation(source[:, 0], source[:, 1])
+    #
+    # triang_destination = tri.Triangulation(destination[:, 0], destination[:, 1])
+    #
+    #
+    #
+    #
+    #
+    # def angles_from_triangles(pointset, triangles):
+    #     triangle_points = pointset[triangles.triangles]
+    #
+    #     side_lengths = np.linalg.norm(triangle_points[:, [0, 1, 2], :] - triangle_points[:, [1, 2, 0], :], axis=2)
+    #
+    #     a = side_lengths[:, 0]
+    #     b = side_lengths[:, 1]
+    #     c = side_lengths[:, 2]
+    #
+    #     # R = a * b * c / np.sqrt((a + b + c) * (a - b + c) * (a + b - c) * (b + c - a))
+    #     # angles = np.arcsin(side_lengths / (2 * R[:, np.newaxis]))
+    #
+    #     A = np.arccos((-a ** 2 + b ** 2 + c ** 2) / (2 * b * c))
+    #     B = np.arccos((a ** 2 - b ** 2 + c ** 2) / (2 * c * a))
+    #     C = np.arccos((a ** 2 + b ** 2 - c ** 2) / (2 * a * b))
+    #
+    #     A = (-a ** 2 + b ** 2 + c ** 2) / (2 * b * c)
+    #     B = (a ** 2 - b ** 2 + c ** 2) / (2 * c * a)
+    #     C = (a ** 2 + b ** 2 - c ** 2) / (2 * a * b)
+    #
+    #     angles = np.vstack([A, B, C]).T
+    #
+    #     return angles
+    #
+    # angles_source = angles_from_triangles(source, triang_source)#/(2*np.pi)*360
+    # angles_destination = angles_from_triangles(destination, triang_destination)#/(2*np.pi)*360
+    #
+    # angles_source.sort()
+    # angles_destination.sort()
+    #
+    # hash_table_source = cKDTree(angles_source[:, :2])
+    # hash_table_destination = cKDTree(angles_destination[:,:2])
+    #
+    # matches = hash_table_source.query_ball_tree(hash_table_destination, 0.01)
+    #
+    # [len(i) for i in test]
+    #
+    # triang_source.triangles[51]
+    #
+    # triangle_index = 0
+    #
+    # source_neighbours = triang_source.neighbors[triangle_index]
+    # source_neighbours_in_destination = [matches[source_triangle_index] if source_triangle_index >= 0 else [] for source_triangle_index in source_neighbours]
+    # destination_triangles = matches[triangle_index]
+    # destination_neighbours = triang_destination.neighbors[destination_triangles]
+    #
+    # t2 = np.array(
+    #     [[dn in source_neighbours_in_destination[i] for dn in destination_neighbours[:, i]] for i in range(3)]).T
+    #
+    # # fig1 = plt.figure()
+    # fig1.clf()
+    # plot_triangles(triang_source, highlight=[0], figure=fig1)
+    # plot_triangles(triang_source, highlight=source_neighbours,
+    #                highlight_kwargs={'c': 'r'}, figure=fig1)
+    #
+    # # fig2 = plt.figure()
+    # fig2.clf()
+    # plot_triangles(triang_destination, highlight=matches[0], figure=fig2)
+    # plot_triangles(triang_destination, highlight=destination_neighbours.flatten(),
+    #                highlight_kwargs={'c': 'r'}, figure=fig2)
+    #
+    # plot_triangles(triang_destination, highlight=np.hstack(source_neighbours_in_destination),
+    #                highlight_kwargs={'c': 'k', 'marker': 'o'}, figure=fig2)
+    #
+    #
+    #
+    #
+    # t2s = []
+    # t2cs = []
+    # for triangle_index, _ in enumerate(triang_source.triangles):
+    #     source_neighbours = triang_source.neighbors[triangle_index]
+    #     source_neighbours_in_destination = [matches[i] if i >= 0 else [] for i in source_neighbours]
+    #     destination_neighbours = triang_destination.neighbors[matches[triangle_index]]
+    #
+    #     t2 = np.array([[dn in source_neighbours_in_destination[i] for dn in destination_neighbours[:, i]] for i in range(3)]).T
+    #
+    #     t2 = t2.sum(axis=1)
+    #     t2u = np.unique(t2, return_counts=True)
+    #     t2c = np.zeros(4).astype(int)
+    #     print(t2u)
+    #     t2c[t2u[0]] = t2u[1]
+    #     print(t2)
+    #     t2cs.append(t2c)
+    #     if t2c[3]==1:
+    #         t2s.append((triangle_index, test[triangle_index][np.where(t2==3)[0][0]]))
+    # t2s = np.vstack(t2s)
+    # t2cs = np.array(t2cs)
+    #
+    #
+    # tr = np.array(t2s)
+    #
+    # mask = np.ones(len(triang_source.triangles)).astype(bool)
+    # mask[tr[:,0]] = False
+    #
+    # triang_source.set_mask(mask)
+    #
+    # mask = np.ones(len(triang_destination.triangles)).astype(bool)
+    # mask[tr[:,1]] = False
+    #
+    # triang_destination.set_mask(mask)
+    #
+    #
+    #
+    #
+    # fig2, ax2 = plt.subplots()
+    # ax2.set_aspect('equal')
+    # ax2.triplot(triang_destination, 'o-', lw=1)
+    #
+    #
+    #
+    # def plot_triangles(triangulation, highlight=[], highlight_kwargs={'c': 'b'}, figure=None):
+    #     if not figure:
+    #         figure = plt.figure()
+    #     ax = figure.gca()
+    #     ax.set_aspect('equal')
+    #     ax.triplot(triangulation, '-', lw=1)
+    #
+    #     triangle_indices = highlight
+    #     point_indices = triangulation.triangles[triangle_indices]
+    #     x_mean = triangulation.x[point_indices].mean(axis=1)
+    #     y_mean = triangulation.y[point_indices].mean(axis=1)
+    #     ax.scatter(x_mean, y_mean, **highlight_kwargs)
+    #
+    #     return figure
+    #
+    #
+    # match.show_mapping_transformation(show_source=True)
+    #
+    # match = find_match_after_hashing(*source_hash_data, source_vertices, *destination_hash_data)
+    #
+    # match = find_match(source, destination, source_vertices)
+    # if match:
+    #     scatter_coordinates([source, destination, match(source), source_vertices, match(source_vertices)])
+    #
+    #
 
 
 
