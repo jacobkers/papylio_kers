@@ -21,16 +21,25 @@ class SequencingData:
                         'v2_nano':  {'number_of_tiles':  2, 'number_of_surfaces': 1},
                         'v3':       {'number_of_tiles': 19, 'number_of_surfaces': 2}}
 
+    # @classmethod
+    # def load(cls):
+    #     cls()
+
     def __init__(self, file_path=None, dataset=None, name='', reagent_kit='v3'):
         if file_path is not None:
-            data = pd.read_csv(file_path, delimiter='\t')
-            data.columns = data.columns.str.lower()
-            data = data.set_index(['tile', 'x', 'y'])
-            data.index.name = 'sequence'
-            self.dataset = xr.Dataset(data) #.reset_index('sequence', drop=True)
+            if file_path.suffix == '.nc':
+                dataset = xr.load_dataset(file_path)
+                self.dataset = dataset.set_index({'sequence': ('tile','x','y')})
+            else:
+                data = pd.read_csv(file_path, delimiter='\t')
+                data.columns = data.columns.str.lower()
+                data = data.set_index(['tile', 'x', 'y'])
+                data = data.drop_duplicates() # TODO: It would be better to do this when converting the sam file.
+                data.index.name = 'sequence' # Do this after drop_duplicates!
+                self.dataset = xr.Dataset(data) #.reset_index('sequence', drop=True)
 
-            if name == '':
-                name = Path(file_path).name
+                if name == '':
+                    name = Path(file_path).name
 
         elif dataset is not None:
             self.dataset = dataset
@@ -74,8 +83,14 @@ class SequencingData:
             self._tiles = [Tile(tile, tile_coordinates) for tile, tile_coordinates in self.coordinates.groupby('tile')]
         return self._tiles
 
+    def sel(self, *args, **kwargs):
+        return SequencingData(dataset=self.dataset.sel(*args, **kwargs))
+
     def plot_cluster_locations_per_tile(self, save_filepath=None):
         plot_cluster_locations_per_tile(self.dataset[['x','y']], **self.reagent_kit_info, save_filepath=save_filepath)
+
+    def save(self, filepath):
+        self.dataset.reset_index('sequence').to_netcdf(filepath, engine='h5netcdf', mode='w')
 
 class Tile:
     def __init__(self, number, coordinates):
@@ -86,6 +101,15 @@ class Tile:
     def __repr__(self):
         return (f'{self.__class__.__name__}({self.name})')
 
+
+# # For sam file import
+# samfile = pd.read_csv(r'O:\Ivo\20211011 - Sequencer (MiSeq)\Analysis\Alignment.sam', delimiter='\t', usecols=[0,])
+# samfile = samfile.iloc[3:]
+# test = samfile['@SQ'].str.split(':', expand=True)
+# test2 = test[[5,6]].astype(int)
+#
+# test3 = test[test[4]=='1101'][[5,6]].astype(int).to_numpy()
+# tttt = test[test.duplicated()]
 
 
 if __name__ == '__main__':

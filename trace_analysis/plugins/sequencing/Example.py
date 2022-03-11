@@ -3,10 +3,12 @@ from pathlib import Path # For efficient path manipulation
 import matplotlib.pyplot as plt
 from git import Repo
 import time
+import xarray as xr
 from skimage.transform import AffineTransform
 
 import trace_analysis as ta
 from trace_analysis.plugins.sequencing.fastqAnalysis import FastqData
+from trace_analysis.mapping.mapping import Mapping2
 
 # This part makes an analysis.txt file in the same directory as the this .py file. (please do not commit this)
 # This file contains the git commit used and all differences to this commit.
@@ -22,57 +24,200 @@ from trace_analysis.plugins.sequencing.fastqAnalysis import FastqData
 #     f.write('\n\n------------------------------------------\n\n')
 
 
+
+#####################################
+# SEQUENCING DATA PROCESSING
+#####################################
+
+# TODO: Make a python function to convert a complete bam/sam file to nc dataset with written out sequences
+
 # -----------------------------------
-# Load experiment
+# Open existing dataset
 # -----------------------------------
-experiment_path = r'D:\20200918 - Test data\Single-molecule data small'
+# sequencing_dataset_path = r'G:\Ivo\20211005 - Objective-type TIRF (BN)\Analysis\HJ_general_mapped.nc'
+# sequencing_dataset = xr.open_dataset(sequencing_dataset_path)
+# sequencing_dataset = sequencing_dataset.set_index(sequence=['tile', 'x', 'y'])
+#
+# sequencing_dataset['read_aligned'] = sequencing_dataset.read_aligned.astype(str)
+# sequencing_dataset['quality_aligned'] = sequencing_dataset.quality_aligned.astype(str)
+
+#####################################
+# SINGLE-MOLECULE DATA PROCESSING
+#####################################
+
+# experiment_path = r'O:\Ivo\20211005 - Objective-type TIRF (BN)'
+#experiment_path = r'H:\Desktop\20211105 - Test'
+# experiment_path = r'C:\Users\Ivo Severins\Desktop\20211005 - Test'
+experiment_path = r'C:\Users\severins\Desktop\20211005 - Test'
 exp = ta.Experiment(experiment_path)
 
-# In case movies are rotated
-for file in exp.files:
-    try:
-        file.movie.rot90 = 1
-    except AttributeError:
-        pass
+files_channel_mapping = exp.files[exp.files.name.regex('Mapping')]
+files_green_laser = exp.files[exp.files.name.regex('TIRF 561')]
+files_red_laser = exp.files[exp.files.name.regex('TIRF 642')]
 
 # -----------------------------------
-# Define files
+# Channel mapping
 # -----------------------------------
-files_green_laser = [file for file in exp.files if ('561' in file.name) and ('640' not in file.name)]
-files_red_laser = [file for file in exp.files if '642' in file.name]
+channel_mapping_file = files_channel_mapping[0]
+channel_mapping_file.perform_mapping()
 
-file_green = files_green_laser[0]
-file_red = files_red_laser[0]
-
-mapping_file = [file for file in exp.files if 'DUAL' in file.name][0]
-mapping_file.use_mapping_for_all_files()
+channel_mapping_file.show_average_image()
+channel_mapping_file.mapping.show_mapping_transformation(figure=plt.gcf(), show_source=True)
 
 # -----------------------------------
-# Load sequencing data
+# Find coordinates for sequence mapping
 # -----------------------------------
-# Possibly we can make something in the future that recognizes the R1, R2 and I1 tags in the filenames.
-fastq_files = sorted(Path(r'D:\20200918 - Test data\Sequencing data').glob('*.fastq'))
+exp.import_config_file()
+configuration = exp.configuration['find_coordinates'].copy()
+# configuration['peak_finding']['minimum_intensity_difference'] = 4000
+configuration['peak_finding']['minimum_times_background'] = 11 # First try was 7
+configuration['channels'] = ['acceptor']
+configuration['method'] = 'by_channel'
 
-FastqDataObjects = [FastqData(file_path) for file_path in fastq_files]
+files_red_laser.find_coordinates(configuration=configuration)
 
-for fastqData in FastqDataObjects:
-    print(len(fastqData))
+# -----------------------------------
+# Find coordinates, extract traces and determine kinetics
+# -----------------------------------
 
-R1=sum(FastqDataObjects[1::3])
-R2=sum(FastqDataObjects[2::3])
-I1=sum(FastqDataObjects[0::3])
+exp.import_config_file()
+configuration = exp.configuration['find_coordinates'].copy()
+# configuration['peak_finding']['minimum_intensity_difference'] = 4000
+configuration['peak_finding']['minimum_times_background'] = 1.2
+configuration['channels'] = ['donor', 'acceptor']
+configuration['method'] = 'sum_channels'
 
-sequencing_data = {
-    'Read1': R1,
-    'Read2': R2,
-    'Read1_HJ': R1,
-    'Read2_HJ': R2,
-    'Index1': I1,
-    'IndexL1': R1,
-    'IndexL2': R2
-}
+files_green_laser.find_coordinates(configuration=configuration)
+files_green_laser.show_coordinates_in_image()
 
-exp.sequencing_data = R1
+files_green_laser.extract_traces2()
+
+
+#####################################
+# SEQUENCING AND SINGLE-MOLECULE MAPPING
+#####################################
+
+mapping_sequence_name = 'MapSeq'
+# TODO: Select sequence from sequencing dataset
+
+filepath_sequencing_data_for_mapping = r'G:\Ivo\20211011 - Sequencer (MiSeq)\Analysis\sequencing_data_MapSeq.csv'
+exp.import_sequencing_data_for_mapping(filepath_sequencing_data_for_mapping, surface=0)
+exp.generate_tile_mappings(files_red_laser)
+
+# -----------------------------------
+# Finding rotation and scale with geometric hashing
+# -----------------------------------
+
+# TODO: Geometric hashing example here
+# TODO: Put geometric hashing in Mapping2
+
+
+
+# -----------------------------------
+# Finding translation with cross correlation
+# -----------------------------------
+
+# Previously found transformation
+# Transformation based on sm pixel to sequencing MiSeq mapping with
+# 'rotation': 0.006500218506032994, 'scale': [3.697153992993506, -3.697153992993506] using pixel size 0.125 µm
+# exp.tile_mappings.transformation = AffineTransform(scale=[29.57723194394805, -29.57723194394805], rotation=0.006500218506032994)
+exp.tile_mappings.transformation = AffineTransform(scale=[29.51, -29.51], rotation=0.003)
+
+
+exp.tile_mappings.cross_correlation(peak_detection='auto', gaussian_width=7, divider=20, plot=False)
+
+# bounds = ((0.98, 1.2), (-0.005, 0.005), (-250, 250), (-250, 250))
+# exp.tile_mappings.kernel_correlation(bounds, sigma=25, crop='source',
+#                                      strategy='best1bin', maxiter=1000, popsize=50, tol=0.01,
+#                                      mutation=0.25, recombination=0.7, seed=None, callback=None, disp=False,
+#                                      polish=False, init='sobol', atol=0, updating='immediate', workers=1,
+#                                      constraints=())
+
+exp.tile_mappings.save()
+exp.tile_mappings.show_mapping_transformation(crop='source', save=True)
+
+# -----------------------------------
+# Determine translations for all tiles
+# -----------------------------------
+exp.tile_mappings.scatter_parameters('translation', 'translation', 'x', 'y', save=True)  # To determine correct mapping indices
+exp.tile_mappings.estimate_translations(indices=np.arange(11), save=True)
+exp.tile_mappings.scatter_parameters('translation', 'translation', 'x', 'y', save=True) # Rename original file before saving
+exp.tile_mappings.save()
+exp.tile_mappings.show_mapping_transformation(crop='source', save=True)
+
+# -----------------------------------
+# Matching statistics
+# -----------------------------------
+
+# TODO: Show how to extract matching statics, i.e. numbers/percentages of points matched.
+
+# -----------------------------------
+# Import sequencing data
+# -----------------------------------
+
+filepath_sequencing_data = r'G:\Ivo\20211011 - Sequencer (MiSeq)\Analysis\sequencing_data_HJ_general.csv'
+exp.import_sequencing_data(filepath_sequencing_data, surface=0)
+
+# -----------------------------------
+# Obtain file sequencing data and generate sequencing match
+# -----------------------------------
+files = files_green_laser[0:14*30]
+
+# TODO: Make this automatically save the sequencing data
+# TODO: Automatic import and export when setting or getting sequencing data
+files_green_laser.get_sequencing_data(margin=5)
+files_green_laser.generate_sequencing_match(overlapping_points_threshold=25)
+
+# -----------------------------------
+# Finetune the sequencing matches
+# -----------------------------------
+
+sequencing_matches = exp.sequencing_matches(files_green_laser)
+#3087 & 3088 & 3434
+sequencing_matches.cross_correlation(divider=1/10, gaussian_width=7, crop=True, plot=False)
+
+
+sequencing_matches.transformation = AffineTransform()
+sequencing_matches.transformation_inverse = AffineTransform()
+bounds = ((0.97, 1.03), (-0.05, 0.05), (-5, 5), (-5, 5))
+sequencing_matches[3088].kernel_correlation(bounds, sigma=0.125, crop=True,
+                                         strategy='best1bin', maxiter=1000, popsize=50, tol=0.01,
+                                         mutation=0.25, recombination=0.7, seed=None, callback=None, disp=False,
+                                         polish=True, init='sobol', atol=0, updating='immediate', workers=1,
+                                         constraints=())
+
+# bounds = ((0.99, 1.01), (-0.01, 0.01), (-1, 1), (-1, 1))
+# sequencing_matches.kernel_correlation(bounds, sigma=0.125, crop=True,
+#                                          strategy='best1bin', maxiter=1000, popsize=50, tol=0.001,
+#                                          mutation=0.25, recombination=0.7, seed=None, callback=None, disp=False,
+#                                          polish=True, init='sobol', atol=0, updating='immediate', workers=1,
+#                                          constraints=())
+
+# -----------------------------------
+# Find pairs and insert sequencing data into file dataset
+# -----------------------------------
+
+sequencing_matches.find_distance_threshold(maximum_radius=2)
+sequencing_matches.determine_matched_pairs()
+plt.figure()
+plt.hist(np.hstack(sequencing_matches.pair_distances()), bins=100)
+
+sequencing_matches.destination_distance_threshold = 0.5  # 0.506
+sequencing_matches.determine_matched_pairs()
+sequencing_matches.save()
+
+sequencing_matches.show_mapping_transformation()
+
+#2000:
+files_green_laser[2000:3000].import_sequencing_data()
+files_green_laser[2000:3000].insert_sequencing_data_into_file_dataset()
+
+
+
+
+
+
+
 
 # -----------------------------------
 # Select sequencing data for mapping
