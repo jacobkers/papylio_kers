@@ -33,7 +33,9 @@ class Movie:
         return (self.filepath, )
 
     def __getstate__(self):
-        return self.__dict__.copy()
+        d = self.__dict__.copy()
+        d.pop('file', None)
+        return d
 
     def __setstate__(self, dict):
         self.__dict__.update(dict)
