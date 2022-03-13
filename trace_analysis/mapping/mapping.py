@@ -17,6 +17,7 @@ from skimage.transform import AffineTransform, PolynomialTransform, SimilarityTr
 # import matplotlib.path as pth
 from shapely.geometry import Polygon, MultiPoint, LineString, Point
 from tqdm import tqdm
+from scipy.spatial import distance_matrix, cKDTree
 
 from icp import icp, nearest_neighbor_pair, nearest_neighbour_match, direct_match
 from polywarp import PolywarpTransform
@@ -312,18 +313,28 @@ class Mapping2:
 
     def find_distance_threshold(self, method='single_match_optimization', **kwargs):
         if method == 'single_match_optimization':
-            self.destination_distance_threshold = single_match_optimization(self.distance_matrix(crop=False), **kwargs)
+            self.single_match_optimization(**kwargs)
         else:
             raise ValueError('Unknown method')
+
+    def number_of_single_matches_for_radii(self, radii):
+        distance_matrix_ = self.distance_matrix(crop=True)
+        number_of_pairs = np.array([len(singly_matched_pairs_within_radius(distance_matrix_, r)) for r in radii])
+        return number_of_pairs
+
+    def single_match_optimization(self, maximum_radius=20, number_of_steps=100, plot=True):
+        radii = np.linspace(0, maximum_radius, number_of_steps)
+        number_of_pairs = self.number_of_single_matches_for_radii(radii)
+        self.destination_distance_threshold = distance_threshold_from_number_of_matches(radii, number_of_pairs, plot=plot)
 
     def determine_matched_pairs(self, distance_threshold=None):
         #TODO: add crop
         if distance_threshold is None:
             distance_threshold = self.destination_distance_threshold
 
-        dm = self.distance_matrix(crop=False)
+        distance_matrix_ = self.distance_matrix(crop=False)
 
-        self.matched_pairs = determine_pairs_using_threshold(dm, distance_threshold)
+        self.matched_pairs = singly_matched_pairs_within_radius(distance_matrix_, distance_threshold)
 
     def pair_coordinates(self, point_set='destination', space='destination'):
         if point_set == 'source':
@@ -814,11 +825,17 @@ class Mapping2:
 
         return skimage.transform.warp(image, current_transformation, preserve_range=True)
 
-    def distance_matrix(self, crop=True, space='destination'):
-        from scipy.spatial import distance_matrix
+    def distance_matrix(self, crop=True, space='destination', max_distance=None, **kwargs):
         source = self.get_source(crop=crop, space=space)
         destination = self.get_destination(crop=crop, space=space)
-        return distance_matrix(source, destination)
+
+        if max_distance is None:
+            return distance_matrix(source, destination, **kwargs)
+        else:
+            source_tree = cKDTree(source)
+            destination_tree = cKDTree(destination)
+            return source_tree.sparse_distance_matrix(destination_tree, max_distance=max_distance, **kwargs).todense()
+
 
     def density_source(self, crop=False, space='source'):
         return self.get_source(crop).shape[0] / self.get_source_area(crop=crop, space=space)
@@ -979,8 +996,9 @@ def crop_coordinates(coordinates, vertices):
 def determine_vertices(point_set, margin=0):
     return np.array(MultiPoint(point_set).convex_hull.buffer(margin, join_style=1).boundary.coords)[:-1]
 
+import scipy.sparse
 
-def determine_pairs_using_threshold(distance_matrix_, distance_threshold):
+def singly_matched_pairs_within_radius(distance_matrix_, distance_threshold):
     matches = distance_matrix_ < distance_threshold
     sum_1 = matches.sum(axis=1) != 1
     sum_0 = matches.sum(axis=0) != 1
@@ -988,29 +1006,18 @@ def determine_pairs_using_threshold(distance_matrix_, distance_threshold):
     matches[:, sum_0] = False
     return np.asarray(np.where(matches)).T
 
-
-def single_match_optimization(distance_matrices, maximum_radius=20, number_of_steps=100, plot=True):
-    if isinstance(distance_matrices, np.ndarray):
-        distance_matrices = [distance_matrices]
-
-    radii = np.linspace(0, maximum_radius, number_of_steps)
-
-    number_of_pairs = np.vstack([np.array([len(determine_pairs_using_threshold(distance_matrix_, r)) for r in radii])
-                                 for distance_matrix_ in tqdm(distance_matrices)])
-    number_of_pairs_summed = number_of_pairs.sum(axis=0)
-
+def distance_threshold_from_number_of_matches(radii, number_of_pairs, plot=True):
     # distance_threshold = np.sum(radii * number_of_pairs_summed) / np.sum(number_of_pairs_summed)
-    distance_threshold = radii[np.where(number_of_pairs_summed == number_of_pairs_summed.max())][0]
+    distance_threshold = radii[np.where(number_of_pairs == number_of_pairs.max())][0]
 
     if plot:
         figure, axis = plt.subplots()
-        axis.plot(radii, number_of_pairs_summed)
+        axis.plot(radii, number_of_pairs)
         axis.axvline(distance_threshold)
         axis.set_xlabel('Radius')
         axis.set_ylabel('Count')
 
     return distance_threshold
-
 
 def plot_circles(axis, coordinates, radius=6, **kwargs):
     circles = [plt.Circle((x, y), radius=radius) for x, y in coordinates]

@@ -1,10 +1,12 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy import stats
+from tqdm import tqdm
 from matplotlib.ticker import MaxNLocator
 
 from trace_analysis.experiment import Collection
-from trace_analysis.mapping.mapping import single_match_optimization
+from trace_analysis.mapping.mapping import distance_threshold_from_number_of_matches
+
 
 # TODO: Make sure that the collection can only contain Mapping2 objects
 class MappingCollection(Collection):
@@ -163,6 +165,16 @@ class MappingCollection(Collection):
 
     def find_distance_threshold(self, method='single_match_optimization', **kwargs):
         if method == 'single_match_optimization':
-            self.destination_distance_threshold = single_match_optimization(self.distance_matrix(crop=False), **kwargs)
+            self.single_match_optimization(**kwargs)
         else:
             raise ValueError('Unknown method')
+
+    def single_matches_over_radius(self, maximum_radius=20, number_of_steps=100):
+        radii = np.linspace(0, maximum_radius, number_of_steps)
+        number_of_pairs = self.number_of_single_matches_for_radii(radii)
+        number_of_pairs_summed = np.vstack(number_of_pairs).sum(axis=0)
+        return radii, number_of_pairs_summed
+
+    def single_match_optimization(self, maximum_radius=20, number_of_steps=100, plot=True):
+        radii, number_of_pairs = self.single_matches_over_radius(maximum_radius, number_of_steps)
+        self.destination_distance_threshold = distance_threshold_from_number_of_matches(radii, number_of_pairs, plot=plot)
