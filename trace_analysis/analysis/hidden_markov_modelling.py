@@ -2,59 +2,99 @@ import xarray as xr
 import numpy as np
 from itertools import accumulate, groupby
 from hmmlearn import hmm
+from tqdm import tqdm
 import trace_analysis as ta
 
 
-exp = ta.Experiment(r'D:\20200918 - Test data\Single-molecule data small')
+# exp = ta.Experiment(r'D:\20200918 - Test data\Single-molecule data small')
 # exp = ta.Experiment(r'P:\SURFdrive\Promotie\Data\Test data')
 
-file_paths = [p for p in exp.nc_file_paths if '561' in str(p)]
 # ds = xr.open_mfdataset(file_paths, concat_dim='molecule', combine='nested')
-files = [file for file in exp.files if '561 ' in str(file.relativeFilePath)]
+# classification_background = ~(ds.intensity < 5000).any('channel')
 
-# file=exp.files[0]
-for file in files:
-    with xr.open_dataset(file.absoluteFilePath.with_suffix('.nc')) as ds:
-        traces = ds.FRET #ds.intensity.sel(channel=0, drop=True)
-        traces_sel = traces.sel(molecule=ds.sequence_name.str.contains('HJ'))
-        traces_sel.load()
-        # ds_sel = ds.sel(molecule=ds.sequence_name == 'HJ7_G')
+# file = files_green_laser[0]
+# for file in files:
+#
+#     traces = file.dataset.FRET #ds.intensity.sel(channel=0, drop=True)
 
-        # classification_background = ~(ds.intensity < 5000).any('channel')
+# n_components=2, covariance_type="full", n_iter=100
+
+def hmm_traces(traces, initial_boolean_classification=None, **kwargs):
+    if initial_boolean_classification is None:
+        initial_boolean_classification = [None]*len(traces)
+
+    classification = -xr.ones_like(traces).astype(int)
+    classification.name = 'classification'
+    hmm_transition_matrix = xr.DataArray(np.ones((len(traces.molecule), 2, 2))*np.nan, coords={},
+                                         dims=['molecule', 'from_state', 'to_state'], name='hmm_transition_matrix')
+    hmm_means = xr.DataArray(np.ones((len(traces.molecule), 2))*np.nan, coords={}, dims=['molecule','state'], name='hmm_means')
+    hmm_log_probs = xr.DataArray(np.ones(len(traces.molecule))*np.nan, coords={}, dims='molecule', name='hmm_log_probabilities')
+
+    for molecule in tqdm(traces.molecule.values):
+        hmm_transition_matrix[molecule],  hmm_means[molecule], classification[molecule], hmm_log_probs[molecule] = \
+            hmm_trace(traces[molecule], initial_boolean_classification=initial_boolean_classification[molecule], **kwargs)
+
+    return xr.merge([hmm_transition_matrix, hmm_means, hmm_log_probs, classification])
 
 
-        classification_background = xr.ones_like(traces).astype(bool)
+    # hmm_transition_matrix.name = 'hmm_transition_matrix'
+    # hmm_transition_matrix.to_netcdf(file.relativeFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
+    # hmm_means.name = 'hmm_means'
+    # hmm_means.to_netcdf(file.relativeFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
+    # classification.name = 'classification'
+    # classification.to_netcdf(file.relativeFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
 
-        classification = -xr.ones_like(traces).astype(int)
-        hmm_transition_matrix = xr.DataArray(np.ones((len(traces.molecule), 2, 2))*np.nan, coords={}, dims=['molecule', 'from_state', 'to_state'])
-        hmm_means = xr.DataArray(np.ones((len(traces.molecule), 2))*np.nan, coords={}, dims=['molecule','state'])
-        logprobs = xr.DataArray(np.ones(len(traces.molecule))*np.nan, coords={}, dims='molecule')
+    # nds = xr.Dataset({'hmm_transition_matrix': hmm_transition_matrix, 'hmm_means': hmm_means, 'classification': classification})
+    # nds.load()
+    # nds.to_netcdf(file.relativeFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
 
-        for molecule_index in traces_sel.molecule_in_file:
-            cbg = classification_background.sel(molecule=molecule_index).values
+def hmm_traces(traces, **kwargs):
+    hmm_transition_matrix, hmm_means, classification, hmm_log_probs =\
+        xr.apply_ufunc(
+            hmm_trace,
+            traces,
+            kwargs=kwargs,
+            input_core_dims=[['frame']],
+            output_core_dims=[['from_state','to_state'],['state'],['frame'],[]],
+            # dask="parallelized",
+            output_dtypes=[np.ndarray, np.ndarray, np.ndarray, float],
+            dask_gufunc_kwargs=dict(output_sizes={"from_state": 2, "to_state": 2, 'state': 2}),
+            vectorize=True
+        )
+    hmm_transition_matrix.name = 'hmm_transition_matrix'
+    hmm_means.name = 'hmm_means'
+    classification.name = 'classification'
+    hmm_log_probs.name = 'hmm_log_probabilities'
+    return xr.merge([hmm_transition_matrix, hmm_means, hmm_log_probs, classification])
 
-            FRET = np.atleast_2d(traces.sel(molecule=molecule_index)).T
-            segment_lengths = [sum(1 for _ in g) for v, g in groupby(cbg) if v]
 
-            model = hmm.GaussianHMM(n_components=2, covariance_type="full", n_iter=100)
-            model.fit(FRET[cbg], segment_lengths)
-            logprob, classification_HMM = model.decode(FRET)
-            classification_HMM[~cbg] = -1
+def hmm_trace(trace, initial_boolean_classification=None, **kwargs):
+    # TODO: Test handling of initial_boolean_classification
+    # print(trace)
+    # FRET = np.atleast_2d(traces.sel(molecule=molecule_index)).T
+    trace_ = np.array(trace).reshape(-1, 1)
+    # print(trace_)
+    if initial_boolean_classification is not None:
+        # initial_boolean_classification = np.ones_like(trace).astype(bool)
+        trace_ = trace_[initial_boolean_classification]
+        segment_lengths = [sum(1 for _ in group) for value, group in groupby(initial_boolean_classification) if value]
+    else:
+        segment_lengths = None
+    model = hmm.GaussianHMM(**kwargs)
+    model.fit(trace_, segment_lengths)
+    try:
+        log_prob, classification_HMM = model.decode(trace_)
+        #classification_HMM = xr.DataArray(classification_HMM, coords=trace.coords)
+        if initial_boolean_classification is not None:
+            classification_HMM[~initial_boolean_classification] = -1
+    except ValueError:
+        print('!!!')
+        log_prob = np.nan
+        classification_HMM = -np.ones_like(trace).astype(int)
 
-            hmm_transition_matrix[traces.molecule == molecule_index] = model.transmat_
-            hmm_means[traces.molecule == molecule_index] = model.means_.T
-            classification[traces.molecule == molecule_index] = classification_HMM
+    return model.transmat_, model.means_.squeeze(), classification_HMM, log_prob
 
-        # hmm_transition_matrix.name = 'hmm_transition_matrix'
-        # hmm_transition_matrix.to_netcdf(file.relativeFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
-        # hmm_means.name = 'hmm_means'
-        # hmm_means.to_netcdf(file.relativeFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
-        # classification.name = 'classification'
-        # classification.to_netcdf(file.relativeFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
 
-        nds = xr.Dataset({'hmm_transition_matrix': hmm_transition_matrix, 'hmm_means': hmm_means, 'classification': classification})
-        nds.load()
-    nds.to_netcdf(file.relativeFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
 
 # p_stay = np.diagonal(hmm_transition_matrix, axis1=1, axis2=2)
 #
