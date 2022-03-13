@@ -248,19 +248,20 @@ class Experiment:
                 break
         else:
             # check if the image file is nd2 file from Nikon
+            # it would be better to not put code specific for a movie format here. But the structure of nd2 files indeed makes this very difficult.
             nd2_file = list(self.main_path.glob(str(relativeFilePath) + '.nd2'))
             fov_info = {'number_of_fov': 1}  # fov=Field of View
             if nd2_file:  # check if the nd2 file has multiple fov data,
                 fov_info = self.get_fov_from_nd2(nd2_file[0])
 
-            if fov_info['number_of_fov'] > 1:
+            if fov_info['number_of_fov'] > 1:   # if the file is nd2 with multiple field of views
                 for fov_id in range(fov_info['number_of_fov']):
                     new_path = Path(str(relativeFilePath) + f'_fov{fov_id:03d}')
                     fov_info['fov_chosen'] = fov_id
                     new_file = File(new_path, self, fov_info=fov_info.copy())
                     if new_file.extensions:
                         self.files.append(new_file)
-            else:
+            else:   # if the file is 'not nd2' or 'nd2 with single fov'
                 new_file = File(relativeFilePath, self)
                 if new_file.extensions:
                     self.files.append(new_file)

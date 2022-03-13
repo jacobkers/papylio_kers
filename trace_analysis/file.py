@@ -761,6 +761,7 @@ class File:
             frames_for_background = [0, self.movie.number_of_frames-1]
 
         # --- get the averaged images for background extraction per illumination profile
+        # todo: In the following code, let's use 'illumination' instead of 'illuminations', similar to channel.
         if self.movie.illumination_arrangement is not None:
             image_for_background = [None] * len(self.movie.illumination_arrangement)
             illuminations_to_use = self.movie.illumination_arrangement
@@ -873,6 +874,7 @@ class File:
         else:
             number_illumination = 1
 
+        # todo: we do not have to pass "number_illumination" as an argument, because "self.movie" is also passed to the function.
         traces = extract_traces(self.movie, coordinates.values, background=background.values, channel=channel,
                                 mask_size=mask_size, neighbourhood_size=neighbourhood_size,
                                 number_illumination=number_illumination)

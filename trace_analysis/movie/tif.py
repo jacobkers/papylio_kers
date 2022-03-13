@@ -16,7 +16,8 @@ class TifMovie(Movie):
         self.threshold = {  'view':             (0,200),
                             'point-selection':  (45,25)
                             }
-        self.rot90 = 1  # set 1 for TIR-T, 0 for Kavli obj-TIRF setup
+        #  Todo: self.rot90 should be placed in the config file.
+        self.rot90 = 1  # For TIR-T, V and ObjTIR, check the image orientation setting of the measurement software (Solis or MetaMorph).
         self.read_header()
         self.create_frame_info()  # Possibly move to Movie later on
 
@@ -37,7 +38,7 @@ class TifMovie(Movie):
                                          coords={}, attrs={'units': 's'})
             else:
                 # This is for tiff images from TIR-T and TIR-V measured by Solis software
-                exposure_time = tif.pages[0].tags['AndorExposureTime'].value
+                exposure_time = tif.pages[0].tags['AndorExposureTime'].value # NOTE: "kinetic time (or cycle time)" is more accurate measure. But the difference is very small and often ignored.
                 time_vector = exposure_time * np.arange(0, self.number_of_frames)
                 self.time = xr.DataArray(time_vector, dims='frame', coords={}, attrs={'units': 's'})
 

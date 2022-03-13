@@ -74,7 +74,7 @@ def fit_twoD_gaussian(Z):
 
 def coordinates_after_gaussian_fit(coordinates, image, gaussian_width = 9):
     new_coordinates = []
-    if len(coordinates) == 0:
+    if len(coordinates) == 0:  # This statement may not be necessary. However, check the code thoroughly before you remove this.
         new_coordinates = coordinates
     else:
         coordinates = coordinates_within_margin(coordinates, image=image, margin=gaussian_width//2+1)

@@ -20,7 +20,7 @@ class Movie:
         self.is_mapping_movie = False
 
         self.illuminations = [Illumination(self, 'green', 'g')]
-        self._illumination_arrangement = None # np.array([0])
+        self._illumination_arrangement = None # TODO: np.array([0]) >> It would be good to have a default illumination_arrangement of np.array([0]), i.e. illumination 0 all the time?
         self._illumination = None
 
         self.channels = [Channel(self, 'green', 'g', other_names=['donor', 'd']),
@@ -181,7 +181,7 @@ class Movie:
                 frame.loc[{'channel': channel.index}] *= self.illumination_correction[frame_number, channel.index]
 
         if len(channels) == 1:
-            frame_out = frame.squeeze()
+            frame_out = frame.squeeze() # Todo: in principle, we should be able to run the code without squeezing, as it may be beneficial to know which channel it was later on, e.g. for combining channel images again. At the moment, however, callers in file.py and movie.py cannot handle the 3D DataArray.
         else:
             frame_out = np.zeros((self.height, self.width))
             for channel in channels:
