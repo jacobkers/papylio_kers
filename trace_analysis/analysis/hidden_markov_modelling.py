@@ -48,24 +48,24 @@ def hmm_traces(traces, initial_boolean_classification=None, **kwargs):
     # nds.load()
     # nds.to_netcdf(file.relativeFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
 
-def hmm_traces(traces, **kwargs):
-    hmm_transition_matrix, hmm_means, classification, hmm_log_probs =\
-        xr.apply_ufunc(
-            hmm_trace,
-            traces,
-            kwargs=kwargs,
-            input_core_dims=[['frame']],
-            output_core_dims=[['from_state','to_state'],['state'],['frame'],[]],
-            # dask="parallelized",
-            output_dtypes=[np.ndarray, np.ndarray, np.ndarray, float],
-            dask_gufunc_kwargs=dict(output_sizes={"from_state": 2, "to_state": 2, 'state': 2}),
-            vectorize=True
-        )
-    hmm_transition_matrix.name = 'hmm_transition_matrix'
-    hmm_means.name = 'hmm_means'
-    classification.name = 'classification'
-    hmm_log_probs.name = 'hmm_log_probabilities'
-    return xr.merge([hmm_transition_matrix, hmm_means, hmm_log_probs, classification])
+# def hmm_traces(traces, **kwargs):
+#     hmm_transition_matrix, hmm_means, classification, hmm_log_probs =\
+#         xr.apply_ufunc(
+#             hmm_trace,
+#             traces,
+#             kwargs=kwargs,
+#             input_core_dims=[['frame']],
+#             output_core_dims=[['from_state','to_state'],['state'],['frame'],[]],
+#             # dask="parallelized",
+#             output_dtypes=[np.ndarray, np.ndarray, np.ndarray, float],
+#             dask_gufunc_kwargs=dict(output_sizes={"from_state": 2, "to_state": 2, 'state': 2}),
+#             vectorize=True
+#         )
+#     hmm_transition_matrix.name = 'hmm_transition_matrix'
+#     hmm_means.name = 'hmm_means'
+#     classification.name = 'classification'
+#     hmm_log_probs.name = 'hmm_log_probabilities'
+#     return xr.merge([hmm_transition_matrix, hmm_means, hmm_log_probs, classification])
 
 
 def hmm_trace(trace, initial_boolean_classification=None, **kwargs):

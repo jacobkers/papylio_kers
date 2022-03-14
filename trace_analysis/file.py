@@ -29,6 +29,7 @@ from trace_analysis.trace_extraction import extract_traces
 from trace_analysis.mapping.coordinate_transformations import translate, transform # MD: we don't want to use this anymore I think, it is only linear
                                                                            # IS: We do! But we just need to make them usable with the nonlinear mapping
 from trace_analysis.background_subtraction import extract_background
+from trace_analysis.analysis.hidden_markov_modelling import hmm_traces
 # from trace_analysis.plugin_manager import PluginManager
 # from trace_analysis.plugin_manager import PluginMetaClass
 from trace_analysis.plugin_manager import plugins
@@ -731,9 +732,9 @@ class File:
         FRET.name = 'FRET'
         FRET.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
 
-    # def classify_traces(self):
-    #
-
+    def classify_traces(self):
+        ds = hmm_traces(self.FRET, n_components=2, covariance_type="full", n_iter=100)
+        ds.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
 
     def import_pks_file(self, extension):
         peaks = import_pks_file(self.absoluteFilePath.with_suffix('.pks'))
