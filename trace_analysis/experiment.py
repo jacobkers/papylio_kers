@@ -58,6 +58,7 @@ class HiddenPrints:
         sys.stdout.close()
         sys.stdout = self._original_stdout
 
+
 # Following code snippet from https://stackoverflow.com/questions/24983493/tracking-progress-of-joblib-parallel-execution/58936697#58936697
 @contextlib.contextmanager
 def tqdm_joblib(tqdm_object):
@@ -75,11 +76,17 @@ def tqdm_joblib(tqdm_object):
         joblib.parallel.BatchCompletionCallBack = old_batch_callback
         tqdm_object.close()
 
-# def fun2(fun, arg, args, kwargs):
-#     return fun(arg, *args, **kwargs)
+def fun2(fun, obj, *args, **kwargs):
+    fun_result = fun(obj, *args, **kwargs)
+    # if hasattr(obj, __getstate__):
+    #
+    #     return (obj.__getstate__, fun_result)
+    # if hasattr(__dict__)
+    # else:
+    return (obj, fun_result)
 
 class Collection(UserList):
-    def __init__(self, data=[], use_parallel_processing=True, number_of_cores=None):
+    def __init__(self, data=[], use_parallel_processing=True, number_of_cores=None, parallel_processing_kwargs=dict(verbose=0)):
         # self.data = data
         if number_of_cores is None:
             number_of_cores = multiprocessing.cpu_count()
@@ -88,6 +95,7 @@ class Collection(UserList):
         # super(Collection, self).__setattr__('parallel', 4)
         super(Collection, self).__setattr__('use_parallel_processing', use_parallel_processing)
         super(Collection, self).__setattr__('number_of_cores', number_of_cores)
+        super(Collection, self).__setattr__('parallel_processing_kwargs', parallel_processing_kwargs)
 
     @property
     def dict_without_data(self):
@@ -113,10 +121,14 @@ class Collection(UserList):
                 def f(*args, **kwargs):
                     with HiddenPrints():
                         # , require='sharedmem')
+                        # with tqdm_joblib(tqdm(self.data, position=0, leave=True)):
+                        #     output = joblib.parallel.Parallel(self.number_of_cores, **self.parallel_processing_kwargs)\
+                        #         (joblib.parallel.delayed(getattr(datum, item))(*args, **kwargs) for datum in self.data)
+                        fun = getattr(type(self.data[0]), item)
                         with tqdm_joblib(tqdm(self.data, position=0, leave=True)):
-                            output = joblib.parallel.Parallel(self.number_of_cores, verbose=0)\
-                                (joblib.parallel.delayed(getattr(datum, item))(*args, **kwargs) for datum in self.data)
-                        # fun = getattr(type(self.data[0]), item)
+                            results = joblib.parallel.Parallel(self.number_of_cores, **self.parallel_processing_kwargs)\
+                                (joblib.parallel.delayed(fun2)(fun, datum, *args, **kwargs) for datum in self.data)
+                        #
                         #
                         # # with Pool() as pool:
                         # #     output = pool.starmap(fun2, [(fun, datum, args, kwargs) for datum in self.data])
@@ -127,6 +139,15 @@ class Collection(UserList):
                     # output = Parallel(self.number_of_cores)(
                     #     delayed(getattr(File, item))(datum, *args, **kwargs) if datum is not None else None for datum in
                     #     tqdm(self.data))
+                    output = []
+                    for datum, (obj, out) in zip(self.data, results):
+                        obj.__dict__ = {key: value for key, value in obj.__dict__.items() if not hasattr(value, '_do_not_update')}
+                        if hasattr(datum, '__setstate__'):
+                            datum.__setstate__(obj.__getstate__())
+                        elif hasattr(datum, '__dict__'):
+                            datum.__dict__.update(obj.__dict__)
+                        output.append(out)
+
                     for o in output:
                         if o is not None:
                             return Collection(output, **self.dict_without_data)
@@ -267,7 +288,9 @@ class Experiment:
 
     def __getstate__(self):
         d = self.__dict__.copy()
-        d.pop('files')
+        # d.pop('files')
+        d['files'] = []
+        d['_do_not_update'] = None # This is for parallelization in Collection
         return d
 
     def __setstate__(self, dict):
