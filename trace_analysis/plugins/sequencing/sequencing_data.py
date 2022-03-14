@@ -27,6 +27,7 @@ class SequencingData:
 
     def __init__(self, file_path=None, dataset=None, name='', reagent_kit='v3'):
         if file_path is not None:
+            file_path = Path(file_path)
             if file_path.suffix == '.nc':
                 dataset = xr.load_dataset(file_path)
                 self.dataset = dataset.set_index({'sequence': ('tile','x','y')})
