@@ -352,6 +352,10 @@ class File:
         # if self.experiment.import_all is True:
         #     self.findAndAddExtensions()
 
+    def __getstate__(self):
+        self._sequencing_data = None
+        return super().__getstate__()
+
     @property
     def sequencing_match(self):
         if self._sequencing_match is None:
@@ -422,33 +426,46 @@ class File:
 
     def insert_sequencing_data_into_file_dataset(self):
         if self.sequencing_match is None:
-            return
-        #TODO: Empty sequences in file dataset
+            sequencing_dataset = xr.Dataset(
+                {
+                    'sequence': ('molecule', []),
+                    'sequence_quality': ('molecule', []),
+                    # 'distance_to_sequence':     ('molecule', distances_to_sequence),
+                    'sequence_tile': ('molecule', []),
+                    'sequence_coordinates': (('molecule', 'dimension'), np.empty((0, 2)))
+                },
+                coords=
+                {
+                    # 'sequence_name':    ('molecule', selected_sequencing_data.name),
+                    'molecule': ('molecule', []),
+                    'sequence_in_file': ('molecule', [])
+                }
+            )
+        else:
+            if self.sequencing_match.destination_distance_threshold == 0:
+                raise RuntimeError('No distance threshold set in sequencing match for pair determination')
 
-        if self.sequencing_match.destination_distance_threshold == 0:
-            raise RuntimeError('No distance threshold set in sequencing match for pair determination')
+            self.sequencing_match.determine_matched_pairs()
+            single_molecule_indices, sequence_indices = self.sequencing_match.matched_pairs.T
 
-        self.sequencing_match.determine_matched_pairs()
-        single_molecule_indices, sequence_indices = self.sequencing_match.matched_pairs.T
+            selected_sequencing_data = self.sequencing_data.dataset[dict(sequence=sequence_indices)]
+            sequencing_coordinates = selected_sequencing_data[['x', 'y']].to_array('dimension').T.values
 
-        selected_sequencing_data = self.sequencing_data.dataset[dict(sequence=sequence_indices)]
-        sequencing_coordinates = selected_sequencing_data[['x', 'y']].to_array('dimension').T.values
-
-        sequencing_dataset = xr.Dataset(
-            {
-                'sequence': ('molecule', selected_sequencing_data.read_aligned.data),
-                'sequence_quality': ('molecule', selected_sequencing_data.quality_aligned.data),
-                # 'distance_to_sequence':     ('molecule', distances_to_sequence),
-                'sequence_tile': ('molecule', selected_sequencing_data.tile.data),
-                'sequence_coordinates': (('molecule', 'dimension'), sequencing_coordinates.data)
-            },
-            coords=
-            {
-                # 'sequence_name':    ('molecule', selected_sequencing_data.name),
-                'molecule': ('molecule', single_molecule_indices.data),
-                'sequence_in_file': ('molecule', sequence_indices.data)
-            }
-        )
+            sequencing_dataset = xr.Dataset(
+                {
+                    'sequence': ('molecule', selected_sequencing_data.read_aligned.data),
+                    'sequence_quality': ('molecule', selected_sequencing_data.quality_aligned.data),
+                    # 'distance_to_sequence':     ('molecule', distances_to_sequence),
+                    'sequence_tile': ('molecule', selected_sequencing_data.tile.data),
+                    'sequence_coordinates': (('molecule', 'dimension'), sequencing_coordinates.data)
+                },
+                coords=
+                {
+                    # 'sequence_name':    ('molecule', selected_sequencing_data.name),
+                    'molecule': ('molecule', single_molecule_indices.data),
+                    'sequence_in_file': ('molecule', sequence_indices.data)
+                }
+            )
 
         sequencing_dataset = sequencing_dataset.reindex_like(
             self.dataset.molecule.set_index(molecule='molecule_in_file'),
