@@ -94,7 +94,7 @@ def extract_trace_values_from_image(image, coordinates, background, twoD_gaussia
     return trace_values
 
 
-def extract_traces(movie, coordinates, background=None, channel='all', mask_size=1.291, neighbourhood_size=11):
+def extract_traces(movie, coordinates, background=None, channel='all', mask_size=1.291, neighbourhood_size=11, number_illumination=1):
     # return donor and acceptor for the full data set
     #     root, name = os.path.split(self.filepath)
     #     traces_fn=os.path.join(root,name[:-4]+'-P.traces')
@@ -133,15 +133,16 @@ def extract_traces(movie, coordinates, background=None, channel='all', mask_size
     twoD_gaussians = [make_gaussian_mask(size=neighbourhood_size, offset=offsets[i], sigma=mask_size) for i in range(len(coordinates))]
 
     for frame_number in range(movie.number_of_frames):  # self.number_of_frames also works for pm, len(self.movie_file_object.filelist) not
-        # print(frame_number)
         if frame_number % 13 == 0:
             sys.stdout.write(f'\r   Frame {frame_number} of {movie.number_of_frames}')
 
         image = movie.read_frame(frame_number)
         image = movie.get_channel(image, channel)
-        trace_values_in_frame = extract_trace_values_from_image(image, coordinates, background, twoD_gaussians)
 
-        traces[:,frame_number] = trace_values_in_frame  # will multiply with gaussian, spot location is not drift compensated
+        current_background = background[frame_number % number_illumination]
+        trace_values_in_frame = extract_trace_values_from_image(image, coordinates, current_background, twoD_gaussians)
+
+        traces[:, frame_number] = trace_values_in_frame  # will multiply with gaussian, spot location is not drift compensated
     sys.stdout.write(f'\r   Frame {frame_number+1} of {movie.number_of_frames}\n')
     # t1=time.time()
     # elapsed_time=t1-t0; print(elapsed_time)
