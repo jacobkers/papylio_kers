@@ -4,7 +4,7 @@ from scipy import stats
 from tqdm import tqdm
 from matplotlib.ticker import MaxNLocator
 
-from trace_analysis.experiment import Collection
+from trace_analysis.collection import Collection
 from trace_analysis.mapping.mapping import distance_threshold_from_number_of_matches
 
 
