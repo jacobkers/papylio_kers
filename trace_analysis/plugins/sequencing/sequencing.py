@@ -346,6 +346,8 @@ class File:
         self._sequencing_match = None
         # self.sequencing_match_old = None
 
+        self.dataset_variables += ['sequence','sequence_coordinates','sequence_quality','sequence_tile','sequence_variable']
+
         # self.importFunctions['.fastq'] = self.import_sequencing_data
         self.importFunctions['_sequencing_match.mapping'] = self.import_sequencing_match
 
@@ -467,9 +469,13 @@ class File:
                 }
             )
 
+        # sequencing_dataset['sequence'] = sequencing_dataset['sequence'].astype('str')
+        # sequencing_dataset['sequence_quality'] = sequencing_dataset['sequence_quality'].astype('str')
+
+        empty_sequence = ''# '-'* 120#int(sequencing_dataset.sequence[0].str.len())
         sequencing_dataset = sequencing_dataset.reindex_like(
-            self.dataset.molecule.set_index(molecule='molecule_in_file'),
-            fill_value={'sequence': '', 'sequence_quality': '',
+            self.molecule.set_index(molecule='molecule_in_file'),
+            fill_value={'sequence': empty_sequence, 'sequence_quality': empty_sequence,
                         'sequence_tile': np.array(np.nan).astype(pd.UInt16Dtype),
                         'sequence_coordinates': np.array(np.nan).astype(pd.UInt16Dtype),
                         # 'sequence_name': '',
