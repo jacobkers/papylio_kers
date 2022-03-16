@@ -141,11 +141,12 @@ class Collection(UserList):
                     #     tqdm(self.data))
                     output = []
                     for datum, (obj, out) in zip(self.data, results):
-                        obj.__dict__ = {key: value for key, value in obj.__dict__.items() if not hasattr(value, '_do_not_update')}
-                        if hasattr(datum, '__setstate__'):
-                            datum.__setstate__(obj.__getstate__())
-                        elif hasattr(datum, '__dict__'):
-                            datum.__dict__.update(obj.__dict__)
+                        if hasattr(obj, '__dict__'):
+                            obj.__dict__ = {key: value for key, value in obj.__dict__.items() if not hasattr(value, '_do_not_update')}
+                            if hasattr(datum, '__setstate__'):
+                                datum.__setstate__(obj.__getstate__())
+                            elif hasattr(datum, '__dict__'):
+                                datum.__dict__.update(obj.__dict__)
                         output.append(out)
 
                     for o in output:
