@@ -2,9 +2,6 @@ import sys
 from pathlib import Path
 sys.path.append(str(Path(__file__).parents[1]))
 
-import matplotlib as mpl
-# mpl.use('WXAgg')
-
 from trace_analysis.experiment import Experiment
 from trace_analysis.file import File
 # from trace_analysis.molecule import Molecule
