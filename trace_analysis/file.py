@@ -406,6 +406,7 @@ class File:
         self.mapping.save(self.absoluteFilePath, filetype)
 
     def import_map_file(self, extension):
+        # TODO: Move this to the Mapping2 class
         from trace_analysis.mapping.polywarp import PolywarpTransform
         #coefficients = np.genfromtxt(self.absoluteFilePath.with_suffix('.map'))
         file_content=np.genfromtxt(self.absoluteFilePath.with_suffix('.map'))
@@ -500,6 +501,9 @@ class File:
         ------------------------------------
         ADD DESCRIPTIONS HERE!!!
         '''
+
+        # TODO: Add configuration to nc file
+        # TODO: Split method into multiple functions
 
         # --- Refresh configuration ----
         if not configuration:
@@ -803,6 +807,7 @@ class File:
         return steps_data
 
     def extract_traces(self, configuration=None):
+        # TODO: Add configuration to nc file
         if self.number_of_molecules == 0:
             print('   no traces available!!')
             return
