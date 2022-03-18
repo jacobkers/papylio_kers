@@ -29,7 +29,12 @@ class ND2Movie(Movie):
         self.writepath = self.filepath.parent
         self.name = self.filepath.with_suffix('').name
 
+        if 'fov' in self.name:
+            token_position = self.name.find('_fov')
+            self.name = self.name[:token_position]
+
         # setting for multi fov measurement
+        # TODO: Move fov info / fov selection here if possible
         self.fov_info = None
         if 'fov_info' in kwargs:
             self.fov_info = kwargs['fov_info']  # fov=Field of View

@@ -5,6 +5,8 @@ from trace_analysis.movie.movie import Movie
 
 
 class NskMovie(Movie):
+    extensions = ['.nsk']
+
     def __init__(self, arg, *args, **kwargs):
         super().__init__(arg, *args, **kwargs)
 
