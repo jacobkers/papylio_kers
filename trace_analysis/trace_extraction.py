@@ -22,7 +22,6 @@ def make_gaussian_mask(size, offsets, sigma=1.291):
     masks = masks/norm_factors
     return masks
 
-
 def extract_traces(movie, coordinates, background=None, mask_size=1.291, neighbourhood_size=11, correct_illumination=False):
     # go through all images, extract donor and acceptor signal
 
@@ -73,8 +72,16 @@ def extract_traces(movie, coordinates, background=None, mask_size=1.291, neighbo
                 illumination_correction.add_frame(frame_index, frame)
                 # TODO: Determine how illumination correction is dependent on background
 
+            if 'illumination_index' in background.dims:
+                # TODO: Make this work properly
+                # Do background subtraction on entire frame instead???
+                frame_background = background.sel(illumination_index=movie.illumination_indices.sel(frame=frame_index))
+                # frame_background = background[frame_number % number_illumination]
+            else:
+                frame_background = background
+
             #intensity[:, :, frame_index] = extract_intensity_from_frame(frame, background, roi_indices, twoD_gaussians)
-            intensity[:, :, frame_index] = extract_intensity_from_frame(frame, background, oneD_indices, twoD_gaussians)
+            intensity[:, :, frame_index] = extract_intensity_from_frame(frame, frame_background, oneD_indices, twoD_gaussians)
 
         # sys.stdout.write(f'\r   Frame {frame_number+1} of {movie.number_of_frames}\n')
         dataset = intensity.to_dataset()

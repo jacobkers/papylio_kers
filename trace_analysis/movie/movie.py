@@ -42,12 +42,14 @@ class Movie:
 
     def __init__(self, filepath):  # , **kwargs):
         self.header_is_read = False
+
         self.filepath = Path(filepath)
         # self.filepaths = [Path(filepath) for filepath in filepaths] # For implementing multiple files, e.g. two channels over two files
         self.is_mapping_movie = False
 
         self.illuminations = [Illumination(self, 'green', 'g')]
-        self.illumination_arrangement = np.array([0])
+        self.illumination_arrangement = np.array([0]) # TODO: np.array([0]) >> list of list It would be good to have a default illumination_arrangement of np.array([0]), i.e. illumination 0 all the time?
+        # self._illumination_per_frame = None
 
         self.channels = [Channel(self, 'green', 'g', other_names=['donor', 'd']),
                          Channel(self, 'red', 'r', other_names=['acceptor', 'a'])]
@@ -145,22 +147,52 @@ class Movie:
         self._data_type = data_type
         self.intensity_range = (np.iinfo(self.data_type).min, np.iinfo(self.data_type).max)
 
+    @property
+    def illumination_arrangement(self):
+        return self._illumination_arrangement
+
+    @illumination_arrangement.setter
+    def illumination_arrangement(self, illumination_arrangement):
+        self._illumination_arrangement = illumination_arrangement
+        illumination = self.illumination_arrangement.tolist() * (self.number_of_frames // self.illumination_arrangement.shape[0])
+        self._illumination = xr.DataArray(illumination, dims='frame', coords={}, name='illumination')
+
+    @property
+    def illumination(self):
+        # TODO: convert to illumination indices
+        return self._illumination
+
+    @illumination.setter
+    def illumination(self, illumination):
+        self._illumination = illumination
+        self._illumination_arrangement = None
+
     def create_frame_info(self):
+        # TODO: Use xarray instead of pandas
+        # Perhaps store time, illumination and channel separately
         # files = [0] # For implementing multiple files
         frames = range(self.number_of_frames)
 
         index = pd.Index(data=frames, name='frame')
-        self.frame_info = pd.DataFrame(index=index, columns=['time', 'illumination', 'channel'])
+        frame_info = pd.DataFrame(index=index, columns=['time', 'illumination', 'channel'])
         # self.frame_info['file'] = len(self.frame_info) * [list(range(2))] # For implementing multiple files
         # self.frame_info = self.frame_info.explode('file') # For implementing multiple files
-        self.frame_info['time'] = self.frame_info.index.to_frame()['frame'].values
-        self.frame_info['illumination'] = self.illumination_arrangement.tolist() * (self.number_of_frames // self.illumination_arrangement.shape[0])
-        self.frame_info['channel'] = self.channel_arrangement.tolist() * (self.number_of_frames // self.channel_arrangement.shape[0])
+        frame_info['time'] = frame_info.index.to_frame()['frame'].values
+        if self.illumination_arrangement is not None:
+            if len(self.illumination_arrangement)>1:
+                frame_info['illumination'] = self.illumination_arrangement.tolist() * (self.number_of_frames // self.illumination_arrangement.shape[0])
+            else:
+                frame_info['illumination'] = [0] * self.number_of_frames
+        else:
+            frame_info['illumination'] = [0] * self.number_of_frames
+        frame_info['channel'] = self.channel_arrangement.tolist() * (self.number_of_frames // self.channel_arrangement.shape[0])
 
-        self.frame_info = self.frame_info.explode('channel').explode('channel')
+        frame_info = frame_info.explode('channel').explode('channel')
 
         categorical_columns = ['illumination', 'channel']
-        self.frame_info[categorical_columns] = self.frame_info[categorical_columns].astype('category')
+        frame_info[categorical_columns] = frame_info[categorical_columns].astype('category')
+
+        self.frame_info = frame_info
 
     @property
     def pixel_to_stage_coordinates_transformation(self):
@@ -219,10 +251,13 @@ class Movie:
         #         frame = frame.astype(float)
         #         frame.loc[{'channel': channel.index}] *= self.illumination_correction[frame_number, channel.index]
 
-        frame_out = np.zeros((self.height, self.width))
-        for channel in channels:
-            frame_out[channel.boundaries[0, 1]:channel.boundaries[1, 1],
-                      channel.boundaries[0, 0]:channel.boundaries[1, 0]] = frame.sel(channel=channel.index).values
+        if len(channels) == 1:
+            frame_out = frame.squeeze() # Todo: in principle, we should be able to run the code without squeezing, as it may be beneficial to know which channel it was later on, e.g. for combining channel images again. At the moment, however, callers in file.py and movie.py cannot handle the 3D DataArray.
+        else:
+            frame_out = np.zeros((self.height, self.width))
+            for channel in channels:
+                frame_out[channel.boundaries[0, 1]:channel.boundaries[1, 1],
+                          channel.boundaries[0, 0]:channel.boundaries[1, 0]] = frame.sel(channel=channel.index).values
 
         return frame_out
 
@@ -272,7 +307,7 @@ class Movie:
 
         """
         for channel in self.channels:
-            if channel_name in channel.names:
+            if channel_name in channel.names or channel_name == channel:
                 return channel
         else:
             raise ValueError('Channel name not found')
@@ -294,6 +329,9 @@ class Movie:
         """
         if channel_names in [None, 'all']:
             return self.channels
+
+        if not isinstance(channel_names, list):
+            channel_names = [channel_names]
 
         return [self.get_channel_from_name(channel_name) for channel_name in channel_names]
 
@@ -390,7 +428,14 @@ class Movie:
             sys.stdout.write(f'\r   Processed frames {frame_indices[0]}-{frame_indices[-1]}\n')
 
         if write:
-            filename = self.name + '_'+projection_type[:3]+filename_addition # f'_{number_of_frames}fr'+
+            if hasattr(self, 'fov_info'):
+                if self.fov_info:
+                    filename_addition_fov = f'_fov{self.fov_info["fov_chosen"]:03d}'
+                else:
+                    filename_addition_fov = ''
+            else:
+                filename_addition_fov = ''
+            filename = self.name + filename_addition_fov + '_'+projection_type[:3]+f'_{number_of_frames}fr'+filename_addition
             filepath = self.writepath.joinpath(filename)
             TIFF.imwrite(filepath.with_suffix('.tif'), image)
             # plt.imsave(filepath.with_suffix('.tif'), image, format='tif', cmap=colour_map, vmin=self.intensity_range[0], vmax=self.intensity_range[1])
@@ -401,18 +446,15 @@ class Movie:
 
     def make_projection_images(self, projection_type='average', start_frame=0, number_of_frames=20):
         illumination_indices, channel_indices = \
-            self.frame_info[['illumination','channel']].drop_duplicates().sort_values(by=['channel','illumination']).values.T
+            self.frame_info[['illumination','channel']].drop_duplicates().sort_values(by=['illumination','channel']).values.T
 
         # for illumination_index in np.unique(illumination_indices):
         #     self.make_projection_image(projection_type, start_frame, number_of_frames, illumination_index, write=True)
 
         images = []
         for illumination_index, channel_index in zip(illumination_indices, channel_indices):
-            self.make_projection_image(projection_type, start_frame, number_of_frames,
-                                       illumination_index, channel_index, write=True)
-
             image = self.make_projection_image(projection_type, start_frame, number_of_frames,
-                                               illumination_index, channel_index, return_image=True)
+                                               illumination_index, channel_index, write=True, return_image=True)
             image = (image - self.intensity_range[0]) / (self.intensity_range[1]-self.intensity_range[0])
             images.append(self.channels[channel_index].colour_map(image, bytes=True))
 
@@ -420,7 +462,7 @@ class Movie:
         filepath = self.writepath.joinpath(self.name + '_' + projection_type[:3] + f'_{number_of_frames}fr')
         plt.imsave(filepath.with_suffix('.png'), images_combined)
 
-    def make_average_image(self, start_frame=0, number_of_frames=20, write=False):
+    def make_average_image(self, start_frame=0, number_of_frames=20, illumination=None, write=False):
         """ Construct an average image
         Determine average image for a number_of_frames starting at start_frame.
         i.e. [start_frame, start_frame + number_of_frames)
@@ -441,9 +483,9 @@ class Movie:
 
         """
         return self.make_projection_image('average', start_frame=start_frame, number_of_frames=number_of_frames,
-                                          write=write)
+                                          illumination=illumination, write=write)
 
-    def make_maximum_projection(self, start_frame=0, number_of_frames=20, write=False):
+    def make_maximum_projection(self, start_frame=0, number_of_frames=20, illumination=None, write=False):
         """ Construct a maximum projection image
         Determine maximum projection image for a number_of_frames starting at start_frame.
         i.e. [start_frame, start_frame + number_of_frames)
@@ -464,7 +506,7 @@ class Movie:
         """
 
         return self.make_projection_image('maximum', start_frame=start_frame, number_of_frames=number_of_frames,
-                                          write=write)
+                                          illumination=illumination, write=write)
 
     def show(self):
         return MoviePlotter(self)
@@ -618,7 +660,7 @@ class Channel:
 
 
 class Illumination:
-    def __init__(self, movie, name, short_name, other_names=None):
+    def __init__(self, movie, name, short_name='', other_names=None):
         self.movie = movie
         self.name = name
         self.short_name = short_name

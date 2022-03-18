@@ -71,9 +71,12 @@ class File:
         self.movie = None
         self.mapping = None
 
+
         self.dataset_variables = ['molecule', 'coordinates', 'background', 'intensity', 'FRET', 'selected',
                                   'molecule_in_file', 'illumination_correction']
 
+        if 'fov_info' in kwargs:
+            self.nd2_fov_info = kwargs['fov_info']  # fov = Field of View
 
         # I think it will be easier if we have import functions for specific data instead of specific files.
         # For example. the sifx, pma and tif files can better be handled in the Movie class. Here we then just have a method import_movie.
@@ -150,21 +153,48 @@ class File:
 
     @property
     def average_image(self):
-        number_of_frames = self.configuration['compute_image']['number_of_frames']
+        # TODO: Move most of this to movie and make file names consistent
+        configuration_show_movie = self.experiment.configuration['show_movie']
+        if configuration_show_movie['illumination'] == 'None' or configuration_show_movie['illumination'] == 'none':
+            illumination = None
+        else:
+            illumination = int(configuration_show_movie['illumination'])
+        first_frame = int(configuration_show_movie['frames_for_show_movie']['first_frame'])
+        if configuration_show_movie['frames_for_show_movie']['last_frame'] == 'last':
+            last_frame = self.number_of_frames - 1
+        else:
+            last_frame = int(configuration_show_movie['frames_for_show_movie']['last_frame'])
+        number_of_frames = last_frame - first_frame + 1
+
         try:
-            image_file_path = self.absoluteFilePath.with_name(self.name+f'_ave.tif') #_{number_of_frames}fr.tif')
+            image_file_path = self.absoluteFilePath.with_name(self.name+f'_ave_frames_{first_frame}-{last_frame}_illumination_{illumination}.tif') #_{number_of_frames}fr.tif')
             return io.imread(image_file_path, as_gray=True)
         except FileNotFoundError:
-            return self.movie.make_average_image(number_of_frames=number_of_frames, write=True)
+            return self.movie.make_average_image(start_frame=first_frame,
+                                                 number_of_frames=number_of_frames,
+                                                 illumination=illumination, write=True)
 
     @property
     def maximum_projection_image(self):
-        number_of_frames = self.configuration['compute_image']['number_of_frames']
+        # TODO: Move most of this to movie and make file names consistent
+        configuration_show_movie = self.experiment.configuration['show_movie']
+        if configuration_show_movie['illumination'] == 'None' or configuration_show_movie['illumination'] == 'none':
+            illumination = None
+        else:
+            illumination = int(configuration_show_movie['illumination'])
+        first_frame = int(configuration_show_movie['frames_for_show_movie']['first_frame'])
+        if configuration_show_movie['frames_for_show_movie']['last_frame'] == 'last':
+            last_frame = self.number_of_frames - 1
+        else:
+            last_frame = int(configuration_show_movie['frames_for_show_movie']['last_frame'])
+        number_of_frames = last_frame - first_frame + 1
+
         try:
-            image_file_path = self.absoluteFilePath.with_name(self.name+f'_max.tif') #_{number_of_frames}fr.tif')
+            image_file_path = self.absoluteFilePath.with_name(self.name+f'_max_frames_{first_frame}-{last_frame}.tif') #_{number_of_frames}fr.tif')
             return io.imread(image_file_path, as_gray=True)
         except FileNotFoundError:
-            return self.movie.make_maximum_projection(number_of_frames=number_of_frames, write=True)
+            return self.movie.make_maximum_projection(start_frame=first_frame, number_of_frames=number_of_frames,
+                                                      illumination=illumination, write=True)
 
     # @property
     # def coordinates(self):
@@ -269,7 +299,11 @@ class File:
     @property
     def time(self):  # the time axis of the experiment, if not found in log it will be asked as input
         if self.exposure_time is None:
-            self.exposure_time = float(input(f'Exposure time for {self.name}: '))
+            # SHK modification for debuging. Should be set back to original code later
+            print('exposure_time is set to 0.1s (see file.time())')
+            self.exposure_time = 0.1
+            # original code:
+            # self.exposure_time = float(input(f'Exposure time for {self.name}: '))
         return np.arange(0, self.number_of_frames)*self.exposure_time
 
     def _init_dataset(self, number_of_molecules):
@@ -287,6 +321,12 @@ class File:
         # For the special case of a sifx file, which is located inside a folder
         if '' in extensions:
             extensions[extensions.index('')] = '.sifx'
+        elif 'fov' in self.name:
+            # TODO: Check whether this works
+            token_position = self.name.find('_fov')
+            file_keyword = self.name[:token_position]
+            if self.absoluteFilePath.with_name(file_keyword).with_suffix('.nd2').is_file():
+                extensions.append('.nd2')
         return extensions
 
     def find_and_add_extensions(self):
@@ -314,6 +354,12 @@ class File:
     def import_movie(self, extension):
         if extension == '.sifx':
             filepath = self.absoluteFilePath.joinpath('Spooled files.sifx')
+        elif extension == '.nd2' and '_fov' in self.name:
+            # TODO: Make this working
+            token_position = self.name.find('_fov')
+            movie_name = self.name[:token_position]
+            filepath = self.absoluteFilePath.with_name(movie_name).with_suffix(extension)
+            # self.movie = ND2Movie(imageFilePath, fov_info=self.nd2_fov_info)
         else:
             filepath = self.absoluteFilePath.with_suffix(extension)
 
@@ -465,16 +511,35 @@ class File:
         method = configuration['method']
         peak_finding_configuration = configuration['peak_finding']
         projection_image_type = configuration['projection_image_type']
-        minimal_point_separation = configuration['minimal_point_separation']
-        window_size = configuration['window_size']
-        use_sliding_window = bool(configuration['use_sliding_window'])
+
+        sliding_window = configuration['sliding_window']
+        use_sliding_window = bool(sliding_window['use_sliding_window'])
+        window_size = sliding_window['window_size']
+        minimal_point_separation = sliding_window['minimal_point_separation']
+
+        frames_for_peak_finding = configuration['frames_for_peak_finding']
+        if frames_for_peak_finding['last_frame'] == 'last':
+            frames_for_peak_finding['last_frame'] = self.movie.number_of_frames-1
+
+        # --- set illumination configuration
+        #  An integer number for choosing one of the laser lines (the order of it first appeared)
+        #  ex. Two laser lines (532 and 640) in Alex mode starting with 532 excitation: 0 for green and 1 for red
+        #  None for simple average of the frames regardless of the order of illumination profile.
+        illumination = None
+        if 'illumination' in configuration:
+            if configuration['illumination'] == 'None':
+                illumination = None
+            else:
+                illumination = configuration['illumination']
+                print(f'  frames with "{self.movie.illuminations[illumination]}" were chosen for peak finding')
 
         # --- make the windows
         # (if no sliding windows, just a single window is made to make it compatible with next bit of code) ----
         if use_sliding_window:
             window_start_frames = [i * window_size for i in range(self.number_of_frames // window_size)]
         else:
-            window_start_frames = [0]
+            window_start_frames = [int(frames_for_peak_finding['first_frame'])]
+            window_size = int(frames_for_peak_finding['last_frame']) - frames_for_peak_finding['first_frame'] + 1
 
         # coordinates = set()
         if method == 'by_channel':
@@ -493,10 +558,12 @@ class File:
         for window_start_frame in window_start_frames:
 
             # --- allowed to apply sliding window to either the max projection OR the averages ----
-            # image = self.movie.make_projection_image(projection_type=projection_image_type, start_frame=window_start_frame,
-            #                                          number_of_frames=window_size, return_image=True)
-            image = self.average_image
+            image = self.movie.make_projection_image(projection_type=projection_image_type, start_frame=window_start_frame,
+                                                     number_of_frames=window_size, illumination=illumination)
+            # TODO: Make new function get_projection_image
+            # image = self.average_image
             self.movie.read_header()
+
             # Do we need a separate image?
             # # --- we output the "sum of these images" ----
             # find_coords_img += image
@@ -551,10 +618,12 @@ class File:
         for coordinate_set in coordinate_sets:
             if len(coordinate_set) == 0:
                 # Reset current .nc file
-                self._init_dataset(0)
+                self._init_dataset(0) # SHK: Creating a dummy dataset tp avoid errors in the downstream analysis
+                # This actually creates an empty dataset.
                 coordinates = xr.DataArray(np.empty((0, 2, 2)), dims=('molecule', 'channel', 'dimension'),
                                     coords={'channel': [0, 1], 'dimension': ['x', 'y']}, name='coordinates')
                 coordinates.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
+                print('no peaks found')
                 return
 
         # --- correct for photon shot noise / stage drift ---
@@ -620,7 +689,6 @@ class File:
         peaks = xr.DataArray(coordinates, dims=("peak", 'dimension'),
                      coords={'peak': range(len(coordinates)), 'dimension': ['x', 'y']}, name='coordinates')
 
-
         coordinates = split_dimension(peaks, 'peak', ('molecule', 'channel'), (-1, 2)).reset_index('molecule', drop=True)
         # file = str(self.relativeFilePath)
         # #coordinates = split_dimension(coordinates, 'molecule', ('molecule_in_file', 'file'), (-1, 1), (-1, [file]), to='multiindex')
@@ -632,6 +700,18 @@ class File:
             coordinates = xr.DataArray(np.empty((0, 2, 2)), dims=('molecule', 'channel', 'dimension'),
                                        coords={'channel': [0, 1], 'dimension': ['x', 'y']}, name='coordinates')
 
+        # if len(coordinates) !=0:
+
+        self.coordinates = coordinates
+
+        # self.molecules.export_pks_file(self.relativeFilePath.with_suffix('.pks'))
+
+    @property
+    def coordinates(self):
+        return self.dataset.coordinates
+
+    @coordinates.setter
+    def coordinates(self, coordinates):
         # Reset current .nc file
         self._init_dataset(len(coordinates.molecule))
 
@@ -640,17 +720,63 @@ class File:
 
         # self.molecules.export_pks_file(self.absoluteFilePath.with_suffix('.pks'))
 
-    def extract_background(self):
-        print(f' Calculating background in {self}')
-        background_list = []
-        for i, channel in enumerate(self.movie.channels):
-            channel_image = self.movie.get_channel(self.average_image, i)
-            channel_coordinates = self.coordinates_from_channel(i).values-self.movie.channels[i].vertices[0]
-            #TODO: enable setting method from configuration file
-            background_list.append(extract_background(channel_image, channel_coordinates, method='ROI_minimum'))
+    def extract_background(self, configuration=None):
+        sys.stdout.write(f' Calculating background in {self}')
+        # --- Refresh configuration ----
+        if not configuration:
+            self.experiment.import_config_file()
+            configuration = self.experiment.configuration['background']
 
-        background = xr.DataArray(np.vstack(background_list).T, dims=['molecule', 'channel'], name='background')
+        # --- get settings from configuration file ----
+        if 'frames_for_background' in configuration.keys():
+            frames_for_background = configuration['frames_for_background']
+            if frames_for_background['last_frame'] == 'last':
+                frames_for_background['last_frame'] = self.movie.number_of_frames-1
+            frames_for_background = [int(frames_for_background['first_frame']),
+                                     int(frames_for_background['last_frame']) - frames_for_background['first_frame'] + 1]
+        else:
+            print('configurations for the background subtraction is not found. All the frames will be used.')
+            frames_for_background = [0, self.movie.number_of_frames-1]
+
+        # --- get the averaged images for background extraction per illumination profile
+        # todo: In the following code, let's use 'illumination' instead of 'illuminations', similar to channel.
+        if self.movie.illumination_arrangement is not None:
+            image_for_background = [None] * len(self.movie.illumination_arrangement)
+            illuminations_to_use = self.movie.illumination_arrangement
+        else:
+            image_for_background = [None]
+            illuminations_to_use = [None]
+        for illumination_id, illumination in enumerate(illuminations_to_use):
+            image_for_background[illumination_id] = \
+                        self.movie.make_projection_image(projection_type='average',
+                                                         start_frame=frames_for_background[0],
+                                                         number_of_frames=frames_for_background[1],
+                                                         illumination=illumination)
+
+        # START of original code
+        # background_list = []
+        # for i, channel in enumerate(self.movie.channels):
+        #     channel_image = self.movie.get_channel(image_for_background[illumination_id], i)
+        #     channel_coordinates = self.coordinates_from_channel(i).values-self.movie.channels[i].vertices[0]
+        #     background_list.append(extract_background(channel_image, channel_coordinates, method=configuration['method']))
+        #
+        # background = xr.DataArray(np.vstack(background_list).T, dims=['molecule','channel'], name='background')
+
+
+        # END of original, START modified
+        background_list = []
+        for illumination_id, illumination in enumerate(illuminations_to_use):
+            tmp_background_list = []
+            for i, channel in enumerate(self.movie.channels):
+                channel_image = self.movie.get_channel(image_for_background[illumination_id], i)
+                channel_coordinates = self.coordinates_from_channel(i).values-self.movie.channels[i].vertices[0]
+                tmp_background_list.append(extract_background(channel_image, channel_coordinates, method=configuration['method']))
+            background_list.append(np.vstack(tmp_background_list).T)
+        background = xr.DataArray(background_list, dims=['illumination', 'molecule', 'channel'], name='background')
+        # END modified
+
         background.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
+        sys.stdout.write(f'\r   background calculated {self}\n')
 
     def import_excel_file(self, filename=None):
         if filename is None:
@@ -677,16 +803,19 @@ class File:
         return steps_data
 
     def extract_traces(self, configuration=None):
+        if self.number_of_molecules == 0:
+            print('   no traces available!!')
+            return
+
         # Refresh configuration
         # self.experiment.import_config_file()
 
         if self.movie is None: raise FileNotFoundError('No movie file was found')
 
-        print(f'\n Extracting traces in {self}')
+        print(f'  Extracting traces in {self}')
 
         if configuration is None: configuration = self.configuration['trace_extraction']
         channel = configuration['channel']  # Default was 'all'
-        # gaussian_width = configuration['gaussian_width']  # Default was 11
         mask_size = configuration['mask_size']  # Default was 11
         neighbourhood_size = configuration['neighbourhood_size']  # Default was 11
         subtract_background = configuration['subtract_background']
@@ -694,6 +823,10 @@ class File:
 
         if mask_size == 'TIR-T' or mask_size == 'TIR-V':
             mask_size = 1.291
+        elif mask_size == 'TIR-S 1.5x 2x2':
+            mask_size = 0.8
+        elif mask_size == 'TIR-S 1x 2x2':
+            mask_size = 0.55
 
         if subtract_background:
             background = self.background
@@ -713,13 +846,16 @@ class File:
         #                                        'dimension': ['x', 'y']}) # TODO: Move to Movie
         # coordinates = self.coordinates - channel_offsets
 
-        traces = extract_traces(self.movie, self.coordinates, background, mask_size=mask_size,
+        intensity = extract_traces(self.movie, self.coordinates, background, mask_size=mask_size,
                                    neighbourhood_size=neighbourhood_size, correct_illumination=correct_illumination)
 
-        # if hasattr(self.movie, 'time'):
-        #     intensity.assign_coords(time=self.movie.time)
+        if hasattr(self.movie, 'time'):
+            intensity = intensity.assign_coords(time=self.movie.time)
 
-        traces.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
+        if self.movie.illumination is not None:
+            intensity = intensity.assign_coords(illumination=self.movie.illumination_per_frame)
+
+        intensity.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
 
         self.calculate_FRET()
 
@@ -965,6 +1101,7 @@ class File:
             image = self.maximum_projection_image
             axis.set_title('Maximum projection')
 
+
         if unit == 'pixel':
             unit_string = ' (pixels)'
         elif unit == 'metric':
@@ -975,6 +1112,20 @@ class File:
         axis.set_title(self.relativeFilePath)
         axis.set_xlabel('x'+unit_string)
         axis.set_ylabel('y'+unit_string)
+
+        # TODO: Remove following commented out code
+        # as the vmin and vmax can now be set by passing the kwargs to imshow.
+        #
+        # image_handle = axis.imshow(image)
+        #
+        # # process keyword arguments
+        # colorscale = list(image_handle.get_clim())
+        # if 'vmin' in kwargs:
+        #     colorscale[0] = kwargs['vmin']
+        # if 'vmax' in kwargs:
+        #     colorscale[1] = kwargs['vmax']
+        # image_handle.set_clim(colorscale)
+
 
     def show_average_image(self, figure=None):
         self.show_image(image_type='average_image', figure=figure)
@@ -1047,11 +1198,11 @@ class File:
 
             plt.show()
 
-    def show_coordinates_in_image(self, figure=None):
+    def show_coordinates_in_image(self, figure=None, **kwargs):
         if not figure:
             figure = plt.figure()
 
-        self.show_average_image(figure=figure)
+        self.show_image(figure=figure, **kwargs)
         self.show_coordinates(figure=figure)
         # plt.savefig(self.writepath.joinpath(self.name + '_ave_circles.png'), dpi=600)
 

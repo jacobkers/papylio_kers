@@ -20,7 +20,9 @@ class TifMovie(Movie):
         self.threshold = {  'view':             (0,200),
                             'point-selection':  (45,25)
                             }
+
         self.file = None # Note this is for the tif file, not the File class.
+
         # self.read_header()
         # self.create_frame_info()  # Possibly move to Movie later on
 
@@ -43,9 +45,16 @@ class TifMovie(Movie):
             # self.number_of_frames = len(tif.pages) # very slow
             self.data_type = np.dtype(f"uint{tif_tags['BitsPerSample']}")
 
-            #self.datetime = pd.to_datetime([page.tags['DateTime'].value for page in tif.pages])
-            #self.time = xr.DataArray((self.datetime-self.datetime[0]).total_seconds(), dims='frame',
-            #                         coords={}, attrs={'units': 's'})
+            if 'DateTime' in self.file.pages[0].tags:
+                self.datetime = pd.to_datetime([page.tags['DateTime'].value for page in self.file.pages])
+                self.time = xr.DataArray((self.datetime-self.datetime[0]).total_seconds(), dims='frame',
+                                         coords={}, attrs={'units': 's'})
+            else:
+                # This is for tiff images from TIR-T and TIR-V measured by Solis software
+                exposure_time = self.file.pages[0].tags['AndorExposureTime'].value # NOTE: "kinetic time (or cycle time)" is more accurate measure. But the difference is very small and often ignored.
+                time_vector = exposure_time * np.arange(0, self.number_of_frames)
+                self.time = xr.DataArray(time_vector, dims='frame', coords={}, attrs={'units': 's'})
+
             try:
                 if self.file.metaseries_metadata:
                     self.number_of_frames = self.file.metaseries_metadata['SetInfo']['number-of-planes']
