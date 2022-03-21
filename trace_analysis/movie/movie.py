@@ -19,7 +19,7 @@ class Movie:
     def type_dict(cls):
         return {extension: subclass for subclass in cls.__subclasses__() for extension in subclass.extensions}
 
-    def __new__(cls, filepath):
+    def __new__(cls, filepath, rot90=0):
         if cls is Movie:
             extension = Path(filepath).suffix.lower()
             try:
@@ -30,7 +30,7 @@ class Movie:
             return object.__new__(cls)
 
     def __getnewargs__(self):
-        return (self.filepath, )
+        return (self.filepath, self.rot90)
 
     def __getstate__(self):
         d = self.__dict__.copy()
@@ -40,12 +40,14 @@ class Movie:
     def __setstate__(self, dict):
         self.__dict__.update(dict)
 
-    def __init__(self, filepath):  # , **kwargs):
+    def __init__(self, filepath, rot90=0):  # , **kwargs):
         self.header_is_read = False
 
         self.filepath = Path(filepath)
         # self.filepaths = [Path(filepath) for filepath in filepaths] # For implementing multiple files, e.g. two channels over two files
         self.is_mapping_movie = False
+
+        self.rot90 = rot90
 
         self.illuminations = [Illumination(self, 'green', 'g')]
         self.illumination_arrangement = np.array([0]) # TODO: np.array([0]) >> list of list It would be good to have a default illumination_arrangement of np.array([0]), i.e. illumination 0 all the time?
@@ -57,7 +59,6 @@ class Movie:
 
         self.channel_arrangement = np.array([[[0, 1]]]) #[[[0,1]]] # First level: frames, second level: y within frame, third level: x within frame
 
-        self.rot90 = 0
         self.use_dask = False
 
         self._data_type = np.dtype(np.uint16)
@@ -88,12 +89,14 @@ class Movie:
         return (f'{self.__class__.__name__}({str(self.filepath)})')
 
     def __getattr__(self, item):
-        if '_initialized' in self.__dict__ and not self.header_is_read:
+        # if '_initialized' in self.__dict__ and not self.header_is_read:
         # if item != 'header_is_read' and not self.header_is_read:
+        if not self.header_is_read:
+            print(item)
             self.read_header()
-            return getattr(self, item)
-        else:
-            return super().__getattribute__(item)
+            # return getattr(self, item)
+        # else:
+        return super().__getattribute__(item)
 
     @property
     def pixels_per_frame(self):
@@ -377,6 +380,9 @@ class Movie:
         np.ndarray
             2d image array with the projected image
         """
+
+        # TODO: Make this always save the image with configuration added to filename
+
         if not self.header_is_read:
             self.read_header()
 

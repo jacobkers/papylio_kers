@@ -75,8 +75,8 @@ class File:
         self.dataset_variables = ['molecule', 'coordinates', 'background', 'intensity', 'FRET', 'selected',
                                   'molecule_in_file', 'illumination_correction']
 
-        if 'fov_info' in kwargs:
-            self.nd2_fov_info = kwargs['fov_info']  # fov = Field of View
+        # if 'fov_info' in kwargs:
+        #     self.nd2_fov_info = kwargs['fov_info']  # fov = Field of View
 
         # I think it will be easier if we have import functions for specific data instead of specific files.
         # For example. the sifx, pma and tif files can better be handled in the Movie class. Here we then just have a method import_movie.
@@ -363,7 +363,8 @@ class File:
         else:
             filepath = self.absoluteFilePath.with_suffix(extension)
 
-        self.movie = Movie(filepath)
+        rot90 = self.configuration['movie']['rot90']
+        self.movie = Movie(filepath, rot90)
 
         # self.number_of_frames = self.movie.number_of_frames
 

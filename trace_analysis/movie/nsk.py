@@ -18,8 +18,10 @@ class NskMovie(Movie):
 
         self.data_type = np.dtype(np.uint16)
 
-        self.read_header()
+        # self.read_header()
         self.create_frame_info()  # Possibly move to Movie later on
+
+        # self._initialized = True
 
     def _read_header(self):
         with self.filepath.open('rb') as fid:

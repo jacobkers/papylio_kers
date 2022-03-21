@@ -52,11 +52,13 @@ class ND2Movie(Movie):
             self.f_obj.iter_axes = 'tc'
         else:
             self.f_obj.iter_axes = 't'
-        self.read_header()
+        # self.read_header()
 
         # self.time = self.time[self.fov_info['first_frame_of_each_fov'][self.fov_info['fov_chosen']]:(self.fov_info['last_frame_of_each_fov'][self.fov_info['fov_chosen']]+1)]
         # self.illumination = self.illumination[self.fov_info['first_frame_of_each_fov'][self.fov_info['fov_chosen']]:(self.fov_info['last_frame_of_each_fov'][self.fov_info['fov_chosen']]+1)]
         self.create_frame_info()  # Possibly move to Movie later on
+
+        # self._initialized = True
 
     def _read_header(self):
         with ND2Reader(str(self.filepath)) as images:

@@ -26,8 +26,10 @@ class PmaMovie(Movie):
                             'point-selection':  (45,25)
                             }
 
-        self.read_header()
+        # self.read_header()
         self.create_frame_info()  # Possibly move to Movie later on
+
+
 
     def open(self):
         pass  # TODO: implement this

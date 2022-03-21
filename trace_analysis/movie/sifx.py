@@ -25,6 +25,8 @@ class SifxMovie(Movie):
                             }
         self.create_frame_info()  # Possibly move to Movie later on
 
+        # self._initialized = True
+
     def find_filelist(self):
         self.filelist=[p.relative_to(self.filepath.parent) for p in self.filepath.parent.glob('*spool.dat')]
         

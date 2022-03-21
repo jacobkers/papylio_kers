@@ -26,7 +26,7 @@ class BinaryMovie(Movie):
         self.illumination_arrangement = np.array([1, 0])
         self.channel_arrangement = np.array([[[1]], [[0]]])
 
-        self.read_header()
+        # self.read_header()
 
         self.create_frame_info() # Possibly move to Movie later on
 

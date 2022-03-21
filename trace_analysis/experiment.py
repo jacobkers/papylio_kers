@@ -285,7 +285,7 @@ class Experiment:
                 new_file_paths_and_extensions.append([file_path.parent, extensions])
                 # file_paths_and_extensions[i, 0] = file_paths_and_extensions[i, 0].parent
             elif '.nd' in extensions and not 'fov' in file_path:
-                fov_info = self.get_fov_from_nd2(nd2_file)
+                fov_info = self.get_fov_from_nd2(file_path)
                 if fov_info['number_of_fov'] > 1:  # if the file is nd2 with multiple field of views
                     for fov_id in range(fov_info['number_of_fov']):
                         new_path = Path(str(file_path) + f'_fov{fov_id:03d}')
@@ -312,8 +312,6 @@ class Experiment:
             else:
                 i = self.file_paths.find(file_path.absolute().relative_to(self.main_path))
                 self.files[i].add_extensions(extensions)
-
-        self.files.movie.rot90 = self.configuration['movie']['rot90']
 
         # nd2_file = list(self.main_path.glob(str(relativeFilePath) + '.nd2'))
         # fov_info = {'number_of_fov': 1}  # fov=Field of View

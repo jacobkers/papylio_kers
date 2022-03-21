@@ -26,7 +26,7 @@ class TifMovie(Movie):
         # self.read_header()
         # self.create_frame_info()  # Possibly move to Movie later on
 
-        self._initialized = True
+        # self._initialized = True
 
     def open(self):
         self.file = tifffile.TiffFile(self.filepath)
