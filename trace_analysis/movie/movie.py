@@ -160,6 +160,7 @@ class Movie:
         illumination = self.illumination_arrangement.tolist() * (self.number_of_frames // self.illumination_arrangement.shape[0])
         self._illumination = xr.DataArray(illumination, dims='frame', coords={}, name='illumination')
 
+    # TODO: Rename illumination to illumination_per_frame and make it a bool array for each laser
     @property
     def illumination(self):
         # TODO: convert to illumination indices

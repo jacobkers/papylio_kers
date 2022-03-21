@@ -859,7 +859,7 @@ class File:
             intensity = intensity.assign_coords(time=self.movie.time)
 
         if self.movie.illumination is not None:
-            intensity = intensity.assign_coords(illumination=self.movie.illumination_per_frame)
+            intensity = intensity.assign_coords(illumination=self.movie.illumination)
 
         intensity.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
 

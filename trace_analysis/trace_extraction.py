@@ -72,10 +72,10 @@ def extract_traces(movie, coordinates, background=None, mask_size=1.291, neighbo
                 illumination_correction.add_frame(frame_index, frame)
                 # TODO: Determine how illumination correction is dependent on background
 
-            if 'illumination_index' in background.dims:
-                # TODO: Make this work properly
+            if 'illumination' in background.dims:
+                # TODO: Make this work properly and rename illumination in Movie
                 # Do background subtraction on entire frame instead???
-                frame_background = background.sel(illumination_index=movie.illumination_indices.sel(frame=frame_index))
+                frame_background = background.sel(illumination=movie.illumination.sel(frame=frame_index))
                 # frame_background = background[frame_number % number_illumination]
             else:
                 frame_background = background
