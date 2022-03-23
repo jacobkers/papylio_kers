@@ -13,6 +13,7 @@ import xarray as xr
 import skimage as ski
 import warnings
 import sys
+import wx
 # from trace_analysis.molecule import Molecule
 from trace_analysis.movie.movie import Movie
 from trace_analysis.movie.tif import TifMovie
@@ -33,6 +34,7 @@ from trace_analysis.analysis.hidden_markov_modelling import hmm_traces
 # from trace_analysis.plugin_manager import PluginManager
 # from trace_analysis.plugin_manager import PluginMetaClass
 from trace_analysis.plugin_manager import plugins
+from trace_analysis.trace_plot import TraceAnalysisFrame
 
 @plugins
 class File:
@@ -309,7 +311,7 @@ class File:
     def _init_dataset(self, number_of_molecules):
         selected = xr.DataArray(False, dims=('molecule',), coords={'molecule': range(number_of_molecules)}, name='selected')
         dataset = selected.reset_index('molecule').rename(molecule_='molecule_in_file').to_dataset()
-        dataset = dataset.assign_coords({'file': ('molecule', [str(self.absoluteFilePath)] * number_of_molecules)})
+        dataset = dataset.assign_coords({'file': ('molecule', [str(self.relativeFilePath)] * number_of_molecules)})
         dataset.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='w')
         self.extensions.add('.nc')
 
@@ -1211,6 +1213,20 @@ class File:
         self.show_image(figure=figure, **kwargs)
         self.show_coordinates(figure=figure)
         # plt.savefig(self.writepath.joinpath(self.name + '_ave_circles.png'), dpi=600)
+
+    def show_traces(self, plot_variables=['intensity', 'FRET']):
+        dataset = self.dataset
+        save_path = self.experiment.main_path.joinpath('Trace_plots')
+        if not save_path.is_dir():
+            save_path.mkdir()
+
+        app = wx.App(False)
+        frame = TraceAnalysisFrame(None, dataset, "Sample editor", plot_variables=plot_variables, #'classification'],
+                 ylims=[(0, 1000), (0, 1), (-1,2)], colours=[('g', 'r'), ('b'), ('k')], save_path=save_path)
+        app.MainLoop()
+        # We could also save the whole dataset, but since currently only alterations are made to selected.
+        dataset.selected.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
+
 
 
 def import_pks_file(pks_filepath):

@@ -12,17 +12,23 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg as FigureCanvas
 from matplotlib.backends.backend_wxagg import NavigationToolbar2WxAgg as NavigationToolbar
 import numpy as np
+from pathlib2 import Path
 
 
 class TraceAnalysisFrame(wx.Frame):
     def __init__(self, parent=None, dataset=None, title='Traces', plot_variables=['intensity', 'FRET'],
-                 ylims=[(0, 35000), (0, 1)], colours=[('g', 'r'), ('b')]):
+                 ylims=[(0, 35000), (0, 1)], colours=[('g', 'r'), ('b')], save_path=None):
         wx.Frame.__init__(self, parent, title=title, size=(1400, 700))
         self.parent = parent
         self.dataset = dataset
         self.plot_variables = plot_variables
         self.ylims = ylims
         self.colours = colours
+
+        if save_path is None:
+            self.save_path = save_path
+        else:
+            self.save_path = Path(save_path)
         #self.Bind(wx.EVT_CLOSE, self.OnClose)
         self.trace_panel = TraceAnalysisPanel(parent=self)
         # self.control_panel = ControlPanel(parent=self)
@@ -58,6 +64,9 @@ class TraceAnalysisFrame(wx.Frame):
         if self.molecule_index > 0:
             self.molecule_index -= 1
 
+    def update_current_molecule(self):
+        self.molecule_index = self.molecule_index
+
     @property
     def molecule(self):
         return self.panel.molecule
@@ -68,12 +77,16 @@ class TraceAnalysisFrame(wx.Frame):
 
     def OnNavigationKey(self, event):
         key_code = event.GetKeyCode()
-        # print(key_code)
-        if key_code == 316:
+        print(key_code)
+        if key_code == 316: # Right arrow
             self.next_molecule()
-        elif key_code == 314:
+        elif key_code == 314: # Left arrow
             self.previous_molecule()
-
+        elif key_code == 32: # Spacebar
+            self.dataset.selected[dict(molecule=self.molecule_index)] = ~self.dataset.selected[dict(molecule=1)]
+            self.update_current_molecule()
+        elif key_code == 83: # S
+            self.trace_panel.save()
 
 # class ControlPanel(wx.Panel):
 # To file/molecule
@@ -201,7 +214,12 @@ class TraceAnalysisPanel(wx.Panel):
 
         for i, plot_variable in enumerate(self.parent.plot_variables):
             data = np.atleast_2d(molecule[plot_variable])
-            self.title_artist.set_text(f'File: {molecule.file.values} | Molecule: {molecule.molecule_in_file.values}')#| Sequence: {molecule.sequence_name.values}')
+            if self._molecule.selected.item():
+                selection_string = ' | Selected'
+            else:
+                selection_string = ''
+
+            self.title_artist.set_text(f'File: {molecule.file.values} | Molecule: {molecule.molecule_in_file.values}' + selection_string)#| Sequence: {molecule.sequence_name.values}')
             for j in range(len(data)):
                 self.plot_artists[plot_variable][j].set_ydata(data[j])
                 n, _ = np.histogram(data[j], 50, range=self.plot_axes[plot_variable].get_ylim())
@@ -270,6 +288,13 @@ class TraceAnalysisPanel(wx.Panel):
         # self.sizer.Add(wx.Button(self, -1, "Button 2"), 0, wx.EXPAND | wx.ALL, 10)
         # self.SetSizer(self.sizer)
 
+    def save(self):
+        if self.parent.save_path is not None:
+            file_name = self.molecule.file.item().replace('\\' ,' - ')+f' - mol {self.molecule.molecule_in_file.item()}.png'
+            file_path = self.parent.save_path.joinpath(file_name)
+            self.figure.savefig(file_path, bbox_inches='tight')
+        else:
+            raise ValueError('No save_path set')
 
 class BlitManager:
     def __init__(self, canvas, animated_artists=()):
