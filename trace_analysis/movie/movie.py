@@ -49,16 +49,6 @@ class Movie:
 
         self.rot90 = rot90
 
-        self.illuminations = [Illumination(self, 'green', 'g')]
-        self.illumination_arrangement = np.array([0]) # TODO: np.array([0]) >> list of list It would be good to have a default illumination_arrangement of np.array([0]), i.e. illumination 0 all the time?
-        # self._illumination_per_frame = None
-
-        self.channels = [Channel(self, 'green', 'g', other_names=['donor', 'd']),
-                         Channel(self, 'red', 'r', other_names=['acceptor', 'a'])]
-
-
-        self.channel_arrangement = np.array([[[0, 1]]]) #[[[0,1]]] # First level: frames, second level: y within frame, third level: x within frame
-
         self.use_dask = False
 
         self._data_type = np.dtype(np.uint16)
@@ -72,6 +62,15 @@ class Movie:
         # self.create_frame_info()
 
         self._with_counter = 0
+
+        self.channels = [Channel(self, 'green', 'g', other_names=['donor', 'd']),
+                         Channel(self, 'red', 'r', other_names=['acceptor', 'a'])]
+        self.channel_arrangement = np.array(
+            [[[0, 1]]])  # [[[0,1]]] # First level: frames, second level: y within frame, third level: x within frame
+
+        self.illuminations = [Illumination(self, 'green', 'g')]
+        self.illumination_arrangement = np.array([0]) # TODO: np.array([0]) >> list of list It would be good to have a default illumination_arrangement of np.array([0]), i.e. illumination 0 all the time?
+        # self._illumination_per_frame = None
 
     def __enter__(self):
         if self._with_counter == 0:
@@ -91,6 +90,8 @@ class Movie:
     def __getattr__(self, item):
         # if '_initialized' in self.__dict__ and not self.header_is_read:
         # if item != 'header_is_read' and not self.header_is_read:
+        # if item == '_with_counter':
+        #     raise ValueError()
         if not self.header_is_read:
             print(item)
             self.read_header()
@@ -157,13 +158,15 @@ class Movie:
     @illumination_arrangement.setter
     def illumination_arrangement(self, illumination_arrangement):
         self._illumination_arrangement = illumination_arrangement
-        illumination = self.illumination_arrangement.tolist() * (self.number_of_frames // self.illumination_arrangement.shape[0])
-        self._illumination = xr.DataArray(illumination, dims='frame', coords={}, name='illumination')
+        self._illumination = None
 
     # TODO: Rename illumination to illumination_per_frame and make it a bool array for each laser
     @property
     def illumination(self):
         # TODO: convert to illumination indices
+        if self._illumination_arrangement is not None and self._illumination is None:
+            illumination = self._illumination_arrangement.tolist() * (self.number_of_frames // self._illumination_arrangement.shape[0])
+            self._illumination = xr.DataArray(illumination, dims='frame', coords={}, name='illumination')
         return self._illumination
 
     @illumination.setter
@@ -598,7 +601,7 @@ class Channel:
         self.short_name = short_name
         self.other_names = other_names
         if colour_map is None:
-            channel_colour = list({'green', 'red', 'blue'}.intersection(self.names))[0]
+            channel_colour = list({'green', 'red', 'blue'}.intersection([self.name, self.short_name] + self.other_names))[0]
             self.colour_map = make_colour_map(channel_colour)
 
     def __repr__(self):
