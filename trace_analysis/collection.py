@@ -46,12 +46,17 @@ def fun2(fun, obj, *args, **kwargs):
     return (obj, fun_result)
 
 class Collection(UserList):
-    def __init__(self, data=[], use_parallel_processing=True, number_of_cores=None, parallel_processing_kwargs=dict(verbose=0)):
+    def __init__(self, data=None, use_parallel_processing=True, number_of_cores=None, parallel_processing_kwargs=dict(verbose=0)):
         # self.data = data
+
         if number_of_cores is None:
             number_of_cores = multiprocessing.cpu_count()
 
-        super(Collection, self).__setattr__('data', data)
+        if data is None:
+            super(Collection, self).__setattr__('data', [])
+        else:
+            super(Collection, self).__setattr__('data', data)
+
         # super(Collection, self).__setattr__('parallel', 4)
         super(Collection, self).__setattr__('use_parallel_processing', use_parallel_processing)
         super(Collection, self).__setattr__('number_of_cores', number_of_cores)
