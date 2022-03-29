@@ -4,9 +4,14 @@
 source ~/miniconda3/etc/profile.d/conda.sh
 conda activate sequence_analysis
 
-bowtie2-build Reference.fasta Reference
+# bowtie2-build Reference.fasta Reference
 
-bowtie2 -x Reference -U *R1_001.fastq -S Alignment.sam --local --np 0
+# bowtie2 -x Reference -U *R1_001.fastq -S Alignment.sam --local --np 0 --very-sensitive-local --n-ceil L,0,1 --threads 4 --score-min G,20,4 --norc
+
+cat *R1_001.fastq > Read1.fastq
+
+bwa index Reference.fasta
+bwa mem Reference.fasta Read1.fastq -k 5 -T 15 -Y -L 10 -t 12 > Alignment.sam
 
 # samtools view -o Alignment.bam Alignment.sam  # use the -c option to just count alignment records
 # samtools sort Alignment.bam -o Alignment.sorted.bam
