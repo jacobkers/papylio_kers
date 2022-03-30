@@ -66,10 +66,10 @@ class SequencingData:
             raise AttributeError
             # super(SequencingData, self).__getattribute__(item)
 
-        try:
-            return getattr(self.dataset, item)
-        except AttributeError:
-            super().__getattribute__(item)
+        # try:
+        #     return getattr(self.dataset, item)
+        # except AttributeError:
+        #     super().__getattribute__(item)
 
     def __getitem__(self, item):
         return SequencingData(dataset=self.dataset.sel(sequence=item))
