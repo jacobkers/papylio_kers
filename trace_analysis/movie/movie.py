@@ -93,7 +93,7 @@ class Movie:
         # if item == '_with_counter':
         #     raise ValueError()
         if not self.header_is_read:
-            print(item)
+            # print(item)
             self.read_header()
             # return getattr(self, item)
         # else:
