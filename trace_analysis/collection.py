@@ -56,6 +56,7 @@ class Collection(UserList):
             super(Collection, self).__setattr__('data', [])
         else:
             super(Collection, self).__setattr__('data', data)
+        # super(Collection, self).__init__(data)
 
         # super(Collection, self).__setattr__('parallel', 4)
         super(Collection, self).__setattr__('use_parallel_processing', use_parallel_processing)
@@ -69,6 +70,10 @@ class Collection(UserList):
         return d
 
     def __getattr__(self, item):
+        if 'data' not in self.__dict__.keys():
+            raise AttributeError
+        # if item == 'data':
+        #     super(Collection, self).__getattribute__(item)
         # if inspect.ismethod(getattr(self.files[0], item))
         if callable(getattr(self.data[0], item)):
             if not self.use_parallel_processing:
@@ -145,12 +150,12 @@ class Collection(UserList):
         if isinstance(item, int):
             return self.data[item]
         elif isinstance(item, np.ndarray) or isinstance(item, list):
-            return type(self)(np.array(self.data)[item].tolist())
+            return type(self)(np.array(self.data)[item].tolist(), **self.dict_without_data)
             # if isinstance(data, list) and len(data) == 1:
             #     return data[0]
             # else:
             #     return Collection(data)
-        else:
+        else: # For slicing
             return type(self)(self.data[item], **self.dict_without_data)
 
 

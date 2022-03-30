@@ -56,6 +56,16 @@ class SequencingData:
 
 
     def __getattr__(self, item):
+        #try:
+        print('seqdata=' + item)
+        if 'dataset' in self.__dict__.keys() and hasattr(self.dataset, item):
+            return getattr(self.dataset, item)
+        #except AttributeError:
+        #    super().__getattribute__(item)
+        else:
+            raise AttributeError
+            # super(SequencingData, self).__getattribute__(item)
+
         try:
             return getattr(self.dataset, item)
         except AttributeError:

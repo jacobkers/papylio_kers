@@ -121,6 +121,8 @@ class Experiment:
         d = self.__dict__.copy()
         # d.pop('files')
         d['files'] = []
+        excluded_keys = ['files', 'sequencing_data', '_tile_mappings'] #TODO: Move sequencing related terms to sequencing.py
+        d = {key: value for key, value in self.__dict__.items() if key not in excluded_keys}
         d['_do_not_update'] = None # This is for parallelization in Collection
         return d
 
