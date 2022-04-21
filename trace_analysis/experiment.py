@@ -258,7 +258,7 @@ class Experiment:
         """
 
         if isinstance(paths, str) or isinstance(paths, Path):
-            paths = paths.glob('**/*')
+            paths = paths.glob('**/?*.*') # At least one character in front of the extension to prevent using hidden folders
 
         # TODO: Merge with method find_file_paths
         file_paths_and_extensions = \
@@ -266,17 +266,17 @@ class Experiment:
              for p in paths
              if (
                  # Use only files
-                     p.is_file() &
-                     # Exclude stings in filename
-                     all(name not in p.with_suffix('').name for name in
-                         self.configuration['files']['excluded_names']) &
-                     # Exclude strings in path
-                     all(path not in str(p.relative_to(self.main_path).parent) for path in
-                         self.configuration['files']['excluded_paths']) &
-                     # Exclude hidden folders
-                     ('.' not in [s[0] for s in p.parts]) &
-                     # Exclude file extensions
-                     (p.suffix[1:] not in self.configuration['files']['excluded_extensions'])
+                 # p.is_file() &
+                 # Exclude stings in filename
+                 all(name not in p.with_suffix('').name for name in
+                     self.configuration['files']['excluded_names']) &
+                 # Exclude strings in path
+                 all(path not in str(p.relative_to(self.main_path).parent) for path in
+                     self.configuration['files']['excluded_paths']) &
+                 # Exclude hidden folders
+                 ('.' not in [s[0] for s in p.parts]) &
+                 # Exclude file extensions
+                 (p.suffix[1:] not in self.configuration['files']['excluded_extensions'])
              )
              ]
 
