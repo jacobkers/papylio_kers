@@ -346,10 +346,7 @@ class File:
         self._sequencing_match = None
         # self.sequencing_match_old = None
 
-        self.dataset_variables += ['sequence','sequence_coordinates','sequence_quality','sequence_tile','sequence_variable']
-
-        # self.importFunctions['.fastq'] = self.import_sequencing_data
-        self.importFunctions['_sequencing_match.mapping'] = self.import_sequencing_match
+        self.dataset_variables += ['sequence', 'sequence_coordinates', 'sequence_quality', 'sequence_tile', 'sequence_variable']
 
         # if self.experiment.import_all is True:
         #     self.findAndAddExtensions()
