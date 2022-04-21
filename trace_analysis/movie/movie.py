@@ -41,9 +41,11 @@ class Movie:
         self.__dict__.update(dict)
 
     def __init__(self, filepath, rot90=0):  # , **kwargs):
-        self.header_is_read = False
-
         self.filepath = Path(filepath)
+        self._with_counter = 0
+
+
+
         # self.filepaths = [Path(filepath) for filepath in filepaths] # For implementing multiple files, e.g. two channels over two files
         self.is_mapping_movie = False
 
@@ -61,8 +63,6 @@ class Movie:
 
         # self.create_frame_info()
 
-        self._with_counter = 0
-
         self.channels = [Channel(self, 'green', 'g', other_names=['donor', 'd']),
                          Channel(self, 'red', 'r', other_names=['acceptor', 'a'])]
         self.channel_arrangement = np.array(
@@ -71,6 +71,7 @@ class Movie:
         self.illuminations = [Illumination(self, 'green', 'g')]
         self.illumination_arrangement = np.array([0]) # TODO: np.array([0]) >> list of list It would be good to have a default illumination_arrangement of np.array([0]), i.e. illumination 0 all the time?
         # self._illumination_per_frame = None
+        self.header_is_read = False
 
     def __enter__(self):
         if self._with_counter == 0:
@@ -92,12 +93,15 @@ class Movie:
         # if item != 'header_is_read' and not self.header_is_read:
         # if item == '_with_counter':
         #     raise ValueError()
-        if not self.header_is_read:
-            # print(item)
+        print(item)
+
+        if 'header_is_read' in self.__dict__.keys() and not self.header_is_read:
+            print(item+'2')
             self.read_header()
-            # return getattr(self, item)
-        # else:
-        return super().__getattribute__(item)
+            return getattr(self, item)
+        else:
+            raise AttributeError
+        #return super().__getattribute__(item)
 
     @property
     def pixels_per_frame(self):
