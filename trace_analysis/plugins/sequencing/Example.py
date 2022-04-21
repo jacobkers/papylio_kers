@@ -46,9 +46,10 @@ from trace_analysis.mapping.mapping import Mapping2
 #####################################
 
 # experiment_path = r'O:\Ivo\20211005 - Objective-type TIRF (BN)'
-#experiment_path = r'H:\Desktop\20211105 - Test'
+experiment_path = r'H:\Desktop\20211105 - Test'
 # experiment_path = r'C:\Users\Ivo Severins\Desktop\20211005 - Test'
-experiment_path = r'C:\Users\severins\Desktop\20211005 - Test'
+# experiment_path = r'C:\Users\severins\Desktop\20211005 - Test'
+experiment_path = r'N:\tnw\BN\CMJ\Shared\Ivo\PhD_data\20211005 - Objective-type TIRF (BN)'
 exp = ta.Experiment(experiment_path)
 
 files_channel_mapping = exp.files[exp.files.name.regex('Mapping')]
@@ -180,18 +181,18 @@ sequencing_matches.cross_correlation(divider=1/10, gaussian_width=7, crop=True, 
 sequencing_matches.transformation = AffineTransform()
 sequencing_matches.transformation_inverse = AffineTransform()
 bounds = ((0.97, 1.03), (-0.05, 0.05), (-5, 5), (-5, 5))
-sequencing_matches[3088].kernel_correlation(bounds, sigma=0.125, crop=True,
+sequencing_matches.kernel_correlation(bounds, sigma=0.125, crop=True,
                                          strategy='best1bin', maxiter=1000, popsize=50, tol=0.01,
                                          mutation=0.25, recombination=0.7, seed=None, callback=None, disp=False,
                                          polish=True, init='sobol', atol=0, updating='immediate', workers=1,
                                          constraints=())
 
-# bounds = ((0.99, 1.01), (-0.01, 0.01), (-1, 1), (-1, 1))
-# sequencing_matches.kernel_correlation(bounds, sigma=0.125, crop=True,
-#                                          strategy='best1bin', maxiter=1000, popsize=50, tol=0.001,
-#                                          mutation=0.25, recombination=0.7, seed=None, callback=None, disp=False,
-#                                          polish=True, init='sobol', atol=0, updating='immediate', workers=1,
-#                                          constraints=())
+bounds = ((0.99, 1.01), (-0.01, 0.01), (-1, 1), (-1, 1))
+sequencing_matches.kernel_correlation(bounds, sigma=0.125, crop=True,
+                                         strategy='best1bin', maxiter=1000, popsize=50, tol=0.001,
+                                         mutation=0.25, recombination=0.7, seed=None, callback=None, disp=False,
+                                         polish=True, init='sobol', atol=0, updating='immediate', workers=1,
+                                         constraints=())
 
 # -----------------------------------
 # Find pairs and insert sequencing data into file dataset
@@ -202,15 +203,13 @@ sequencing_matches.determine_matched_pairs()
 plt.figure()
 plt.hist(np.hstack(sequencing_matches.pair_distances()), bins=100)
 
-sequencing_matches.destination_distance_threshold = 0.5  # 0.506
+sequencing_matches.destination_distance_threshold = 0.2  # 0.506
 sequencing_matches.determine_matched_pairs()
 sequencing_matches.save()
 
 sequencing_matches.show_mapping_transformation()
 
-#2000:
-files_green_laser[2000:3000].import_sequencing_data()
-files_green_laser[2000:3000].insert_sequencing_data_into_file_dataset()
+files_green_laser.insert_sequencing_data_into_file_dataset()
 
 
 
