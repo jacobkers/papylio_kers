@@ -63,10 +63,17 @@ class Collection(UserList):
         super(Collection, self).__setattr__('number_of_cores', number_of_cores)
         super(Collection, self).__setattr__('parallel_processing_kwargs', parallel_processing_kwargs)
 
+        # data_types = {type(datum) for datum in self.data}
+        # data_types.discard(type(None))
+        # if len(data_types) > 1:
+        #     raise NotImplementedError('At the moment only a single data type within a Collection is allowed')
+        # super(Collection, self).__setattr__('data_type', list(data_types)[0])
+
     @property
     def dict_without_data(self):
         d = self.__dict__.copy()
         d.pop('data')
+        # d.pop('data_type')
         return d
 
     def __getattr__(self, item):
@@ -75,7 +82,13 @@ class Collection(UserList):
         # if item == 'data':
         #     super(Collection, self).__getattribute__(item)
         # if inspect.ismethod(getattr(self.files[0], item))
-        if callable(getattr(self.data[0], item)):
+
+        for datum in self.data:
+            if datum is not None:
+                first_not_none = datum
+                break
+
+        if callable(getattr(first_not_none, item)):
             if not self.use_parallel_processing:
                 print('Serial processing')
                 def f(*args, **kwargs):
