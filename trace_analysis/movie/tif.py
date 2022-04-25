@@ -46,6 +46,8 @@ class TifMovie(Movie):
             self.data_type = np.dtype(f"uint{tif_tags['BitsPerSample']}")
 
             if 'DateTime' in self.file.pages[0].tags:
+                # For which files is this?
+                # Note that looping over tif pages will be slow.
                 self.datetime = pd.to_datetime([page.tags['DateTime'].value for page in self.file.pages])
                 self.time = xr.DataArray((self.datetime-self.datetime[0]).total_seconds(), dims='frame',
                                          coords={}, attrs={'units': 's'})
