@@ -20,6 +20,7 @@ matplotlib.use('WXAgg')
 
 import matplotlib.pyplot as plt  # Provides a MATLAB-like plotting framework
 import xarray as xr
+from collections import UserDict
 
 from trace_analysis.file import File
 # from trace_analysis.molecule import Molecules
@@ -40,6 +41,60 @@ from nd2reader import ND2Reader
 # import pandas as pd
 # from threshold_analysis_v2 import stepfinder
 # import pickle
+
+class Configuration(UserDict):
+    def __init__(self, filepath):
+        self.reload_block = 0
+        self.filepath = Path(filepath)
+        self.previous_file_modification_time = 0
+
+        # Load custom config file or otherwise load the default config file
+        if self.filepath.is_file():
+            self.load()
+        else:
+            self.load(Path(__file__).with_name('default_configuration.yml'))
+            self.save()
+
+    @property
+    def data(self):
+        self.load()
+        return self._data
+
+    @data.setter
+    def data(self, data):
+        self._data = data
+
+    @property
+    def file_modification_time(self):
+        return self.filepath.stat().st_mtime
+
+    def __enter__(self):
+        self.load()
+        self.reload_block += 1
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.reload_block -= 1
+
+    @property
+    def reload(self):
+        return self.reload_block == 0
+
+    def __getitem__(self, item):
+        return self.data[item]
+
+    def load(self, filepath=None):
+        if self.reload:
+            file_modification_time = self.file_modification_time
+            if file_modification_time != self.previous_file_modification_time:
+                self.previous_file_modification_time = file_modification_time
+                if filepath is None:
+                    filepath = self.filepath
+                with filepath.open('r') as yml_file:
+                    self._data = yaml.load(yml_file, Loader=yaml.SafeLoader)
+
+    def save(self):
+        with self.filepath.open('w') as yml_file:
+            yaml.dump(self._data, yml_file, sort_keys=False)
 
 
 @plugins
@@ -91,23 +146,15 @@ class Experiment:
         self._pairs = [[c1, c2] for i1, c1 in enumerate(channels) for i2, c2 in enumerate(channels) if i2 > i1]
 
         # Load custom config file or otherwise load the default config file
-        if self.main_path.joinpath('config.yml').is_file():
-            self.import_config_file()
-        else:
-            with Path(__file__).with_name('default_configuration.yml').open('r') as yml_file:
-                self.configuration = yaml.load(yml_file, Loader=yaml.SafeLoader)
-            try:
-                self.export_config_file()
-            except:
-                FileNotFoundError
-                pass
+        self.configuration = Configuration(self.main_path.joinpath('config.yml'))
 
         os.chdir(main_path)
 
         # file_paths = self.find_file_paths()
         # self.add_files(file_paths, test_duplicates=False)
 
-        self.add_files(self.main_path, test_duplicates=False)
+        with self.configuration:
+            self.add_files(self.main_path, test_duplicates=False)
 
         # Find mapping file
         for file in self.files:
@@ -189,16 +236,6 @@ class Experiment:
     @property
     def nc_file_paths(self):
         return [file.relativeFilePath.with_suffix('.nc') for file in self.files if '.nc' in file.extensions]
-
-    def import_config_file(self):
-        """Import configuration file from main folder into the configuration property."""
-        with self.main_path.joinpath('config.yml').open('r') as yml_file:
-            self.configuration = yaml.load(yml_file, Loader=yaml.SafeLoader)
-
-    def export_config_file(self):
-        """Export from the configuration property into the configuration file in main folder"""
-        with self.main_path.joinpath('config.yml').open('w') as yml_file:
-            yaml.dump(self.configuration, yml_file, sort_keys=False)
 
     def find_file_paths(self):
         """Find unique files in all subfolders and add them to the experiment

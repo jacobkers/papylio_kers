@@ -69,7 +69,6 @@ channel_mapping_file.mapping.show_mapping_transformation(figure=plt.gcf(), show_
 # -----------------------------------
 # Find coordinates for sequence mapping
 # -----------------------------------
-exp.import_config_file()
 configuration = exp.configuration['find_coordinates'].copy()
 # configuration['peak_finding']['minimum_intensity_difference'] = 4000
 configuration['peak_finding']['minimum_times_background'] = 11 # First try was 7
@@ -82,7 +81,6 @@ files_red_laser.find_coordinates(configuration=configuration)
 # Find coordinates, extract traces and determine kinetics
 # -----------------------------------
 
-exp.import_config_file()
 configuration = exp.configuration['find_coordinates'].copy()
 # configuration['peak_finding']['minimum_intensity_difference'] = 4000
 configuration['peak_finding']['minimum_times_background'] = 1.2

@@ -127,7 +127,6 @@ class File:
 
     @property
     def configuration(self):
-        self.experiment.import_config_file()
         return self.experiment.configuration
 
     # @property
@@ -510,7 +509,6 @@ class File:
 
         # --- Refresh configuration ----
         if not configuration:
-            self.experiment.import_config_file()
             configuration = self.experiment.configuration['find_coordinates']
 
         # --- Get settings from configuration file ----
@@ -731,7 +729,6 @@ class File:
         sys.stdout.write(f' Calculating background in {self}')
         # --- Refresh configuration ----
         if not configuration:
-            self.experiment.import_config_file()
             configuration = self.experiment.configuration['background']
 
         # --- get settings from configuration file ----
@@ -814,9 +811,6 @@ class File:
         if self.number_of_molecules == 0:
             print('   no traces available!!')
             return
-
-        # Refresh configuration
-        # self.experiment.import_config_file()
 
         if self.movie is None: raise FileNotFoundError('No movie file was found')
 
@@ -986,10 +980,6 @@ class File:
             input("Press enter to continue")
 
     def perform_mapping(self, configuration = None):
-        # Refresh configuration
-        if not configuration:
-            self.experiment.import_config_file()
-
         image = self.average_image
         if configuration is None:
             configuration = self.experiment.configuration['mapping']
@@ -1094,7 +1084,6 @@ class File:
     def show_image(self, image_type='default', figure=None, unit='pixel', **kwargs):
         # Refresh configuration
         if image_type == 'default':
-            self.experiment.import_config_file()
             image_type = self.experiment.configuration['show_movie']['image']
 
         if figure is None:
@@ -1139,9 +1128,6 @@ class File:
         self.show_image(image_type='average_image', figure=figure)
 
     def show_coordinates(self, figure=None, annotate=None, unit='pixel', **kwargs):
-        # Refresh configuration
-        self.experiment.import_config_file()
-
         if not figure:
             figure = plt.figure()
 
