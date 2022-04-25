@@ -46,10 +46,11 @@ from trace_analysis.mapping.mapping import Mapping2
 #####################################
 
 # experiment_path = r'O:\Ivo\20211005 - Objective-type TIRF (BN)'
-experiment_path = r'H:\Desktop\20211105 - Test'
+#experiment_path = r'H:\Desktop\20211105 - Test'
 # experiment_path = r'C:\Users\Ivo Severins\Desktop\20211005 - Test'
 # experiment_path = r'C:\Users\severins\Desktop\20211005 - Test'
 experiment_path = r'N:\tnw\BN\CMJ\Shared\Ivo\PhD_data\20211005 - Objective-type TIRF (BN)'
+
 exp = ta.Experiment(experiment_path)
 
 files_channel_mapping = exp.files[exp.files.name.regex('Mapping')]
@@ -91,7 +92,7 @@ configuration['method'] = 'sum_channels'
 files_green_laser.find_coordinates(configuration=configuration)
 files_green_laser.show_coordinates_in_image()
 
-files_green_laser.extract_traces2()
+files_green_laser.extract_traces()
 
 
 #####################################
@@ -156,7 +157,8 @@ exp.tile_mappings.show_mapping_transformation(crop='source', save=True)
 # Import sequencing data
 # -----------------------------------
 
-filepath_sequencing_data = r'G:\Ivo\20211011 - Sequencer (MiSeq)\Analysis\sequencing_data_HJ_general.csv'
+# filepath_sequencing_data = r'G:\Ivo\20211011 - Sequencer (MiSeq)\Analysis\sequencing_data_HJ_general.csv'
+filepath_sequencing_data = r'N:\tnw\BN\CMJ\Shared\Ivo\PhD_data\20211011 - Sequencer (MiSeq)\Analysis\sequencing_data_HJ_general.csv'
 exp.import_sequencing_data(filepath_sequencing_data, surface=0)
 
 # -----------------------------------
@@ -174,7 +176,7 @@ files_green_laser.generate_sequencing_match(overlapping_points_threshold=25)
 # -----------------------------------
 
 sequencing_matches = exp.sequencing_matches(files_green_laser)
-#3087 & 3088 & 3434
+
 sequencing_matches.cross_correlation(divider=1/10, gaussian_width=7, crop=True, plot=False)
 
 
@@ -209,8 +211,8 @@ sequencing_matches.save()
 
 sequencing_matches.show_mapping_transformation()
 
-files_green_laser.insert_sequencing_data_into_file_dataset()
 
+files_green_laser.insert_sequencing_data_into_file_dataset()
 
 
 
