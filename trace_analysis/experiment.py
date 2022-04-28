@@ -15,8 +15,9 @@ from pathlib import Path  # For efficient path manipulation
 import yaml
 import numpy as np
 import pandas as pd
-import matplotlib
-matplotlib.use('WXAgg')
+import wx
+from matplotlib import use
+use('WXAgg')
 
 import matplotlib.pyplot as plt  # Provides a MATLAB-like plotting framework
 import xarray as xr
@@ -96,6 +97,15 @@ class Configuration(UserDict):
         with self.filepath.open('w') as yml_file:
             yaml.dump(self._data, yml_file, sort_keys=False)
 
+def get_path():
+    app = wx.App(None)
+    dlg = wx.DirDialog(None, message="Choose a folder")
+    if dlg.ShowModal() == wx.ID_OK:
+        path = dlg.GetPath()
+    else:
+        path = None
+    dlg.Destroy()
+    return path
 
 @plugins
 class Experiment:
@@ -119,7 +129,7 @@ class Experiment:
         If false, then files are detected, but not imported.
     """
     # TODO: Add presets for specific microscopes
-    def __init__(self, main_path, channels=['g', 'r'], import_all=True):
+    def __init__(self, main_path=None, channels=['g', 'r'], import_all=True):
         """Init method for the Experiment class
 
         Loads config file if it locates one in the main directory, otherwise it exports the default config file to the main directory.
@@ -135,6 +145,10 @@ class Experiment:
             If true, then all files in the main folder are automatically imported. \n
             If false, then files are detected, but not imported.
         """
+        if main_path is None:
+            main_path = get_path()
+            if main_path is None:
+                raise ValueError('No folder selected')
 
         self.name = os.path.basename(main_path)
         self.main_path = Path(main_path).absolute()

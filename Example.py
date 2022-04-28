@@ -3,29 +3,17 @@ import numpy as np
 from matplotlib import pyplot as plt
 from sys import platform
 
-if platform == "darwin":
-    from matplotlib import use
-    use('WXAgg')
-import wx  # cross-platform GUI API
+# if platform == "darwin":
+#     from matplotlib import use
+#     use('WXAgg')
 from trace_analysis import Experiment
-from trace_analysis import InteractivePlot
+# from trace_analysis import InteractivePlot
 from trace_analysis.image_adapt.autoconfig import autoconfig_AND_perform_mapping, autoconfig
 
 
 # Define path to data, replace by your own directory
-def get_path():
-    app = wx.App(None)
-    dlg = wx.DirDialog(None, message="Choose a folder")
-    if dlg.ShowModal() == wx.ID_OK:
-        path = dlg.GetPath()
-    else:
-        path = None
-    dlg.Destroy()
-    return path
-
-
 # mainPath = r'D:\pathToDataFolder'
-mainPath = get_path()
+mainPath = None # If mainPath is None, a window will appear to select a directory
 
 # Initialize an experiment
 exp = Experiment(mainPath)
