@@ -16,8 +16,8 @@ import yaml
 import numpy as np
 import pandas as pd
 import wx
-from matplotlib import use
-use('WXAgg')
+import matplotlib
+matplotlib.use('WXAgg')
 
 import matplotlib.pyplot as plt  # Provides a MATLAB-like plotting framework
 import xarray as xr
@@ -101,7 +101,7 @@ def get_path():
     if not 'app' in globals().keys():
         global app
         app = wx.App(None)
-    dlg = wx.DirDialog(None, message="Choose a folder")
+    dlg = wx.DirDialog(None, message="Choose a folder", defaultPath="")
     if dlg.ShowModal() == wx.ID_OK:
         path = dlg.GetPath()
     else:
@@ -524,7 +524,6 @@ class Experiment:
 
     def plot_trace(self, files=None, query={}):
         from trace_analysis.trace_plot import TraceAnalysisFrame
-        import wx
 
         if files is None:
             files = self.files
@@ -533,7 +532,9 @@ class Experiment:
 
         with xr.open_mfdataset(file_paths, concat_dim='molecule', combine='nested') as ds:
             ds_sel = ds.query(query)  # HJ1_WT, HJ7_G116T
-            app = wx.App(False)
+            if not 'app' in globals().keys():
+                global app
+                app = wx.App(None)
             # app = wit.InspectableApp()
             frame = TraceAnalysisFrame(None, ds_sel, "Sample editor")
             # frame.molecules = exp.files[1].molecules

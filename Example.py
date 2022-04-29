@@ -1,12 +1,14 @@
 import os
 import numpy as np
+from trace_analysis import Experiment # Import before matplotlib
+
 from matplotlib import pyplot as plt
 from sys import platform
 
 # if platform == "darwin":
 #     from matplotlib import use
 #     use('WXAgg')
-from trace_analysis import Experiment
+
 # from trace_analysis import InteractivePlot
 from trace_analysis.image_adapt.autoconfig import autoconfig_AND_perform_mapping, autoconfig
 
@@ -32,7 +34,7 @@ if perform_new_mapping:
     mapping_file.perform_mapping()
     figure_mapping = plt.figure(101)
     mapping_file.show_image(figure=figure_mapping)
-    mapping_file.mapping.show_mapping_transformation(figure=figure_mapping)
+    mapping_file.mapping.show_mapping_transformation(figure=figure_mapping, show_source=True)
     plt.show(block=False)
     plt.pause(0.1)
 
