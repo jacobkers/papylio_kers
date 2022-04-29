@@ -178,6 +178,7 @@ class Mapping2:
                         setattr(self, key, value)
                     except AttributeError:
                         pass
+                self.transform = self.transformation_types[self.transformation_type]
                 self.transformation = self.transform(self.transformation)
                 self.transformation_inverse = self.transform(self.transformation_inverse)
 
@@ -901,7 +902,7 @@ class Mapping2:
 
         if save_path is None and self.save_path is not None:
             save_path = self.save_path
-        if save_path.suffix != '':
+        if not save_path.is_dir(): # save_path.suffix != '':
             self.name = save_path.with_suffix('').name
             save_path = save_path.parent
 
