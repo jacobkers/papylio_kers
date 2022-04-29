@@ -98,7 +98,9 @@ class Configuration(UserDict):
             yaml.dump(self._data, yml_file, sort_keys=False)
 
 def get_path():
-    # app = wx.App(None)
+    if not 'app' in globals().keys():
+        global app
+        app = wx.App(None)
     dlg = wx.DirDialog(None, message="Choose a folder")
     if dlg.ShowModal() == wx.ID_OK:
         path = dlg.GetPath()

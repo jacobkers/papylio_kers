@@ -544,7 +544,7 @@ class HyperTreeListPlus(HTL.HyperTreeList):
                 self.CheckItem3(child, checked = checked)
 
 
-
+global app
 app = wx.App(False)
 frame = MainFrame(None, "MainFrame")
 app.MainLoop()
