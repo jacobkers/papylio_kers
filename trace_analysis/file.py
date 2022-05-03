@@ -153,6 +153,10 @@ class File:
         return self.molecule[self.selected]
 
     @property
+    def number_of_selected_molecules(self):
+        return len(self.selected_molecules)
+
+    @property
     def average_image(self):
         # TODO: Move most of this to movie and make file names consistent
         configuration_show_movie = self.experiment.configuration['show_movie']
@@ -269,8 +273,11 @@ class File:
 
     @property
     def dataset(self):
-        with xr.open_dataset(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf') as dataset:
-            return dataset.load()
+        if self.absoluteFilePath.with_suffix('.nc').exists():
+            with xr.open_dataset(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf') as dataset:
+                return dataset.load()
+        else:
+            return None
 
     # def get_coordinates(self, selected=False):
     #     if selected:

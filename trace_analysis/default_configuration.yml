@@ -31,7 +31,8 @@ find_coordinates:
       method: local-maximum
       minimum_intensity_difference: 100
       maximum_intensity_difference: 1000000  # Optional
-      filter_neighbourhood_size: 10  # Optional
+      filter_neighbourhood_size_min: 10  # Optional
+      filter_neighbourhood_size_max: 10  # Optional
   coordinate_optimization:
       coordinates_within_margin:  # Optional
           margin: 20
@@ -55,11 +56,13 @@ mapping:
         donor:
             method: local-maximum
             minimum_intensity_difference: 100
-            filter_neighbourhood_size: 10
+            filter_neighbourhood_size_min: 10  # Optional
+            filter_neighbourhood_size_max: 10  # Optional
         acceptor:
             method: local-maximum
             minimum_intensity_difference: 100
-            filter_neighbourhood_size: 10
+            filter_neighbourhood_size_min: 10  # Optional
+            filter_neighbourhood_size_max: 10  # Optional
     coordinate_optimization:
         coordinates_after_gaussian_fit:  # Optional
             gaussian_width: 9

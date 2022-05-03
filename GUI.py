@@ -70,16 +70,16 @@ class MainFrame(wx.Frame):
 
         # Analysis menu in Menu bar
         analysisMenu = wx.Menu()
-        self.analysisMenuInteractiveAnalysis = analysisMenu.Append(wx.ID_ANY,
-                        "&Interactive Analysis", "Interactive Analysis")
-        self.analysisMenuAnalyzeSteps = analysisMenu.Append(wx.ID_ANY,
-                            "&Analyze Steps Data", "Analyze Steps Data")
-        self.analysisMenuPlotDistributions = analysisMenu.Append(wx.ID_ANY,
-                                "&Dwelltime Analysis", "Dwelltime Analysis")
+        # self.analysisMenuInteractiveAnalysis = analysisMenu.Append(wx.ID_ANY,
+        #                 "&Interactive Analysis", "Interactive Analysis")
+        # self.analysisMenuAnalyzeSteps = analysisMenu.Append(wx.ID_ANY,
+        #                     "&Analyze Steps Data", "Analyze Steps Data")
+        # self.analysisMenuPlotDistributions = analysisMenu.Append(wx.ID_ANY,
+        #                         "&Dwelltime Analysis", "Dwelltime Analysis")
 
-        self.Bind(wx.EVT_MENU, self.OnInteractiveSelection, self.analysisMenuInteractiveAnalysis)
-        self.Bind(wx.EVT_MENU, self.OnAnalyzeStepsSelection, self.analysisMenuAnalyzeSteps)
-        self.Bind(wx.EVT_MENU, self.OnPlotDistributionsSelection, self.analysisMenuPlotDistributions)
+        # self.Bind(wx.EVT_MENU, self.OnInteractiveSelection, self.analysisMenuInteractiveAnalysis)
+        # self.Bind(wx.EVT_MENU, self.OnAnalyzeStepsSelection, self.analysisMenuAnalyzeSteps)
+        # self.Bind(wx.EVT_MENU, self.OnPlotDistributionsSelection, self.analysisMenuPlotDistributions)
 
         # Menu bar
         menuBar = wx.MenuBar()
@@ -99,25 +99,26 @@ class MainFrame(wx.Frame):
         self.movie = MoviePanel(parent=self)
 
         self.histogram = HistogramPanel(parent=self)
-        self.interactive = InteractiveAnalysisPanel(self)
-        self.distributions = DwelltimeAnalysisPanel(self)
+        # self.interactive = InteractiveAnalysisPanel(self)
+        # self.distributions = DwelltimeAnalysisPanel(self)
 
         self.Show(True)
 
 
     # File menu event handlers
     def OnOpen(self,event):
-        self.experimentPath = ''
-        dlg = wx.DirDialog(self, "Choose a directory", self.experimentPath)
-        if dlg.ShowModal() == wx.ID_OK:
-            experimentPath = dlg.GetPath()
-            self.experiment = Experiment(experimentPath)
+        # self.experimentPath = ''
+        # dlg = wx.DirDialog(self, "Choose a directory", self.experimentPath)
+        # if dlg.ShowModal() == wx.ID_OK:
+        #     experimentPath = dlg.GetPath()
+        main_path = r'D:\SURFdrive\Promotie\Code\Python\traceAnalysis\twoColourExampleData\20141017 - Holliday junction - Copy'
+        self.experiment = Experiment()
 
-            self.tree.AddExperiment(self.experiment)
+        self.tree.AddExperiment(self.experiment)
 
-            self.experiment.histogram(self.histogram.panel.axis, fileSelection = True)
+        self.experiment.histogram(self.histogram.panel.axis, fileSelection=True)
 
-            print(self.experiment.files[0].movie)
+        print(self.experiment.files[0].movie)
 
 #
 #            self.tree.AppendColumn('Files')
@@ -436,10 +437,16 @@ class HyperTreeListPlus(HTL.HyperTreeList):
         for item in self.FileItems:
             itemData = item.GetData()
             if type(itemData) is File:
-                self.SetItemText(item, str(len(itemData.molecules)), 1) # Should be in a different method
-                self.SetItemText(item, str(len(itemData.selectedMolecules)), 2)
-                N_analyzed_molecules = len([mol for mol in itemData.molecules if mol.steps is not None])
-                self.SetItemText(item, str(N_analyzed_molecules), 3)
+                if itemData.dataset is None:
+                    number_of_molecules = number_of_selected_molecules = 0
+                else:
+                    number_of_molecules = itemData.number_of_molecules
+                    number_of_selected_molecules = itemData.number_of_selected_molecules
+
+                self.SetItemText(item, str(number_of_molecules), 1) # Should be in a different method
+                self.SetItemText(item, str(number_of_selected_molecules), 2)
+                # N_analyzed_molecules = len([mol for mol in itemData.molecules if mol.steps is not None])
+                # self.SetItemText(item, str(N_analyzed_molecules), 3)
 
     def OnItemActivated(self, event):
         item = event.GetItem()
@@ -537,6 +544,7 @@ class HyperTreeListPlus(HTL.HyperTreeList):
                 self.CheckItem3(child, checked = checked)
 
 
+global app
 app = wx.App(False)
 frame = MainFrame(None, "MainFrame")
 app.MainLoop()

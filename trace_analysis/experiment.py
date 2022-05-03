@@ -15,6 +15,7 @@ from pathlib import Path  # For efficient path manipulation
 import yaml
 import numpy as np
 import pandas as pd
+import wx
 import matplotlib
 matplotlib.use('WXAgg')
 
@@ -96,6 +97,17 @@ class Configuration(UserDict):
         with self.filepath.open('w') as yml_file:
             yaml.dump(self._data, yml_file, sort_keys=False)
 
+def get_path():
+    if not 'app' in globals().keys():
+        global app
+        app = wx.App(None)
+    dlg = wx.DirDialog(None, message="Choose a folder", defaultPath="")
+    if dlg.ShowModal() == wx.ID_OK:
+        path = dlg.GetPath()
+    else:
+        path = None
+    dlg.Destroy()
+    return path
 
 @plugins
 class Experiment:
@@ -119,7 +131,7 @@ class Experiment:
         If false, then files are detected, but not imported.
     """
     # TODO: Add presets for specific microscopes
-    def __init__(self, main_path, channels=['g', 'r'], import_all=True):
+    def __init__(self, main_path=None, channels=['g', 'r'], import_all=True):
         """Init method for the Experiment class
 
         Loads config file if it locates one in the main directory, otherwise it exports the default config file to the main directory.
@@ -135,6 +147,10 @@ class Experiment:
             If true, then all files in the main folder are automatically imported. \n
             If false, then files are detected, but not imported.
         """
+        if main_path is None:
+            main_path = get_path()
+            if main_path is None:
+                raise ValueError('No folder selected')
 
         self.name = os.path.basename(main_path)
         self.main_path = Path(main_path).absolute()
@@ -508,7 +524,6 @@ class Experiment:
 
     def plot_trace(self, files=None, query={}):
         from trace_analysis.trace_plot import TraceAnalysisFrame
-        import wx
 
         if files is None:
             files = self.files
@@ -517,7 +532,9 @@ class Experiment:
 
         with xr.open_mfdataset(file_paths, concat_dim='molecule', combine='nested') as ds:
             ds_sel = ds.query(query)  # HJ1_WT, HJ7_G116T
-            app = wx.App(False)
+            if not 'app' in globals().keys():
+                global app
+                app = wx.App(None)
             # app = wit.InspectableApp()
             frame = TraceAnalysisFrame(None, ds_sel, "Sample editor")
             # frame.molecules = exp.files[1].molecules
