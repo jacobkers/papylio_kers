@@ -1,6 +1,7 @@
 import numpy as np
 from pathlib import Path # For efficient path manipulation
 import matplotlib.pyplot as plt
+import tqdm
 from git import Repo
 import time
 import xarray as xr
@@ -213,7 +214,69 @@ sequencing_matches.show_mapping_transformation()
 files_green_laser.insert_sequencing_data_into_file_dataset()
 
 
+folder = Path(r'N:\tnw\BN\CMJ\Shared\Ivo\PhD_data\20211005 - Objective-type TIRF (BN)\Datasets per sequence')
+for group, value in tqdm.tqdm(ds.groupby('sequence_variable')):
+    if '-' not in group and group != '':
+        d = value.to_netcdf(folder.joinpath(group).with_suffix('.nc'), engine='h5netcdf')
 
+
+# ds = xr.open_mfdataset([file.relativeFilePath.with_suffix('.nc') for file in files_green_laser[0:300]], combine='nested', concat_dim='molecule',
+#                        data_vars='minimal', coords='minimal', compat='override', engine='h5netcdf')#, parallel=True)#, chunks={'molecule': 100})
+import time
+start = time.time()
+ds = xr.open_mfdataset([file.relativeFilePath.with_suffix('.nc') for file in files_green_laser], combine='nested', concat_dim='molecule',
+                       data_vars='minimal', coords='minimal', compat='override', engine='h5netcdf', parallel=False)
+print(time.time()-start)
+
+import time
+start = time.time()
+ds.to_netcdf(r'N:\tnw\BN\CMJ\Shared\Ivo\PhD_data\20211005 - Objective-type TIRF (BN)\complete_dataset.nc', engine='h5netcdf')
+print(time.time()-start)
+
+def read_netcdfs(files, dim, transform_func=None):
+    paths = files #sorted(glob(files))
+    datasets = []
+    for path in paths:
+        with xr.open_dataset(path, engine='h5netcdf') as ds:
+            if transform_func is not None:
+                ds = transform_func(ds)
+            if len(ds.molecule)>0:
+                ds.load()
+                datasets.append(ds)
+    combined = xr.concat(datasets, dim)
+    return combined
+
+def ff(ds):
+    return ds.sel(molecule=(ds.sequence_variable == 'CAGCAGCA'))
+
+filepaths = files_green_laser.absoluteFilePath.with_suffix('.nc')
+start = time.time()
+test = read_netcdfs(filepaths, 'molecule', transform_func=ff)
+print(time.time()-start)
+
+
+for file in tqdm.tqdm(files_green_laser):
+    ds = file.dataset
+
+    # s = ds['sequence']==''
+    # ds['sequence'][s]='-'*120
+    # ds['sequence_quality'][s]=' '*120
+    # ds = ds.drop_vars('distance_to_sequence', errors='ignore')
+    # for i, index in enumerate([30,31,56,57,82,83,108,109]):
+    #     if i == 0:
+    #         sequence_variable = ds.sequence.str.get(index)
+    #     else:
+    #         sequence_variable += ds.sequence.str.get(index)
+    #
+    # ds['sequence_variable'] = sequence_variable
+
+    # keys = ['file','dimension','sequence','sequence_quality','sequence_variable']
+    # for key in keys:
+    #     ds[key] = ds[key].astype('|S')
+
+    encoding = {'file': {'dtype': '|S'}, 'dimension': {'dtype': '|S'}, 'sequence': {'dtype': '|S'},
+                'sequence_quality': {'dtype': '|S'}, 'sequence_variable': {'dtype': '|S'}}
+    ds.to_netcdf(file.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='w', encoding=encoding)
 
 
 
