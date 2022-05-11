@@ -1,5 +1,6 @@
 import numpy as np
 from pathlib import Path # For efficient path manipulation
+import trace_analysis as ta
 import matplotlib.pyplot as plt
 import tqdm
 from git import Repo
@@ -7,7 +8,6 @@ import time
 import xarray as xr
 from skimage.transform import AffineTransform
 
-import trace_analysis as ta
 from trace_analysis.plugins.sequencing.fastqAnalysis import FastqData
 from trace_analysis.mapping.mapping import Mapping2
 

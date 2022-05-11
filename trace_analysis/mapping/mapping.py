@@ -640,7 +640,7 @@ class Mapping2:
 
     def show_mapping_transformation(self, figure=None, show_source=False, show_destination=False, show_pairs=True,
                                     crop=False, inverse=False, source_colour='forestgreen', destination_colour='r',
-                                    pair_colour='b', use_distance_threshold=True, save=False, save_path=None):
+                                    pair_colour='b', use_distance_threshold=True, save=False, save_path=None, legend_off=False):
         """Show a point scatter of the source transformed to the destination points and the destination.
 
         Parameters
@@ -730,7 +730,8 @@ class Mapping2:
                                          markeredgecolor='none', marker='.')
             legend_dict[f'matched pairs ({self.number_of_matched_points})'] = (pair_marker1, pair_marker2)
 
-        axis.legend(legend_dict.values(),legend_dict.keys())
+        if not legend_off:
+            axis.legend(legend_dict.values(), legend_dict.keys())
 
         if save:
             if save_path is None:
@@ -905,8 +906,10 @@ class Mapping2:
         if not save_path.is_dir(): # save_path.suffix != '':
             self.name = save_path.with_suffix('').name
             save_path = save_path.parent
-
-        filepath = Path(save_path).joinpath(self.name)
+        if self.name is None:
+            filepath = Path(save_path)
+        else:
+            filepath = Path(save_path).joinpath(self.name)
 
         if filetype == 'classic':
             if self.transformation_type == 'linear':
@@ -939,7 +942,7 @@ class Mapping2:
                     attributes[key] = value.params.tolist()
 #TODO: solve issue with nonlinear mapping.transformation_type, which spits out a tuple of two arrays (4x4) instead np.shape(value.params.tolist())== (2, 15) 
                 elif type(value).__module__ == np.__name__:
-                    attributes[key] = value.tolist();
+                    attributes[key] = value.tolist()
                 else:
                     attributes.pop(key)
 

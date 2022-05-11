@@ -63,6 +63,10 @@ class TifMovie(Movie):
                     #TODO: Make sure this goes well when movie is rotated
                     pixel_size_x = self.file.metaseries_metadata['PlaneInfo']['spatial-calibration-x']
                     pixel_size_y = self.file.metaseries_metadata['PlaneInfo']['spatial-calibration-y']
+                    if 'Ti2 Optical Zoom' in self.file.metaseries_metadata['PlaneInfo'].keys():
+                        microscope_optical_zoom = float(self.file.metaseries_metadata['PlaneInfo']['Ti2 Optical Zoom'][:-1])
+                        pixel_size_x /= microscope_optical_zoom
+                        pixel_size_y /= microscope_optical_zoom
                     self.pixel_size = np.array([pixel_size_x, pixel_size_y])
                     self.pixel_size_unit = self.file.metaseries_metadata['PlaneInfo']['spatial-calibration-units'].replace('um', 'µm')
                     #TODO: Make sure this goes well when movie is rotated
