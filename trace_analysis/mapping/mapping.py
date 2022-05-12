@@ -907,9 +907,9 @@ class Mapping2:
             self.name = save_path.with_suffix('').name
             save_path = save_path.parent
         if self.name is None:
-            filepath = Path(save_path)
-        else:
-            filepath = Path(save_path).joinpath(self.name)
+            self.name = 'mapping'
+
+        filepath = Path(save_path).joinpath(self.name)
 
         if filetype == 'classic':
             if self.transformation_type == 'linear':
