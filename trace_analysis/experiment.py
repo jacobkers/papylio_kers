@@ -53,7 +53,10 @@ class Configuration(UserDict):
         if self.filepath.is_file():
             self.load()
         else:
-            self.load(Path(__file__).with_name('default_configuration.yml'))
+            filepath = Path(__file__).with_name('default_configuration.yml')
+            with filepath.open('r') as yml_file:
+                self._data = yaml.load(yml_file, Loader=yaml.SafeLoader)
+            # self.load(Path(__file__).with_name('default_configuration.yml'))
             self.save()
 
     @property
@@ -87,11 +90,11 @@ class Configuration(UserDict):
         if self.reload:
             file_modification_time = self.file_modification_time
             if file_modification_time != self.previous_file_modification_time:
-                self.previous_file_modification_time = file_modification_time
                 if filepath is None:
                     filepath = self.filepath
                 with filepath.open('r') as yml_file:
                     self._data = yaml.load(yml_file, Loader=yaml.SafeLoader)
+                self.previous_file_modification_time = file_modification_time
 
     def save(self):
         with self.filepath.open('w') as yml_file:
