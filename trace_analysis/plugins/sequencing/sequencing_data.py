@@ -343,6 +343,37 @@ def get_aligned_sequence_from_row(df_row, reference_range=None):
     first_base_position = df_row['first_base_position']
     return get_aligned_sequence(read_sequence, read_quality, cigar_string, first_base_position, reference_range)
 
+########### Code to dynamically get aligned bases froj
+# def get_aligned_position(index, cigar_string, first_base_position):
+#     if cigar_string == '*':
+#         return -1
+#
+#     # cigar_string.split('(?<=M|I|D|N|S|H|P|=|X)')
+#     # split_cigar_string = re.findall(r'[0-9]*[MIDNSHP=X]', cigar_string)
+#     cigar_string_split = [(int(s[:-1]), s[-1]) for s in re.findall(r'[0-9]*[MIDNSHP=X]', cigar_string)]
+#     query_index = 0 # in read_sequence
+#     reference_index = first_base_position-1
+#     for length, code in cigar_string_split:
+#         if code in ['M','I','S','=','X']:
+#             query_index += length
+#         if code in ['M','D','N','=','X']:
+#             reference_index += length
+#         #print(f'Reference index: {reference_index}')
+#         #print(f'Query index: {query_index}')
+#         if reference_index > index:
+#             return query_index-reference_index+index
+#     return -1
+#
+# def get_aligned_position_from_row(df_row, index):
+#     cigar_string = df_row['cigar_string']
+#     first_base_position = df_row['first_base_position']
+#     return get_aligned_position(index, cigar_string, first_base_position)
+#
+#     a = np.array(re.findall(r'[0-9]*(?=[MIS=X])', cigar_string)).astype(int).cumsum()
+#     b = np.array([first_base_position-1]+re.findall(r'[0-9]*(?=[MDN=X])', cigar_string)).astype(int).cumsum()
+#     return aligned_sequence, aligned_quality
+
+
 def extract_positions(series, indices):
     for i, index in enumerate(indices):
         if i == 0:
