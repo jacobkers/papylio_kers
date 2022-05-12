@@ -263,7 +263,7 @@ class Movie:
         #         frame.loc[{'channel': channel.index}] *= self.illumination_correction[frame_number, channel.index]
 
         if len(channels) == 1:
-            frame_out = frame.squeeze() # Todo: in principle, we should be able to run the code without squeezing, as it may be beneficial to know which channel it was later on, e.g. for combining channel images again. At the moment, however, callers in file.py and movie.py cannot handle the 3D DataArray.
+            frame_out = frame.values.squeeze() # Todo: in principle, we should be able to run the code without squeezing, as it may be beneficial to know which channel it was later on, e.g. for combining channel images again. At the moment, however, callers in file.py and movie.py cannot handle the 3D DataArray.
         else:
             frame_out = np.zeros((self.height, self.width))
             for channel in channels:

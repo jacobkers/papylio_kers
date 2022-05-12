@@ -222,6 +222,7 @@ class File:
 
     def set_coordinates_of_channel(self, coordinates, channel):
         # TODO: make this usable for more than two channels
+        # TODO: Make this work for xarray DataArrays
         channel_index = self.movie.get_channel_number(channel)  # Or possibly make it self.channels
         if channel_index == 0:
             coordinates_in_main_channel = coordinates
@@ -675,8 +676,8 @@ class File:
         # TODO: Use set_coordinates_of_channel
         coordinates_in_main_channel = coordinates
         coordinates_list = [coordinates]
-        for i in range(self.number_of_channels)[1:]: # This for loop will only be useful once we make this usable for more than two channels
-            if self.number_of_channels > 2:
+        for i in range(self.movie.number_of_channels)[1:]: # This for loop will only be useful once we make this usable for more than two channels
+            if self.movie.number_of_channels > 2:
                 raise NotImplementedError()
             coordinates_in_other_channel = self.mapping.transform_coordinates(coordinates_in_main_channel, direction='Donor2Acceptor')
             coordinates_list.append(coordinates_in_other_channel)
@@ -701,7 +702,7 @@ class File:
         peaks = xr.DataArray(coordinates, dims=("peak", 'dimension'),
                      coords={'peak': range(len(coordinates)), 'dimension': ['x', 'y']}, name='coordinates')
 
-        coordinates = split_dimension(peaks, 'peak', ('molecule', 'channel'), (-1, 2)).reset_index('molecule', drop=True)
+        coordinates = split_dimension(peaks, 'peak', ('molecule', 'channel'), (-1, self.movie.number_of_channels)).reset_index('molecule', drop=True)
         # file = str(self.relativeFilePath)
         # #coordinates = split_dimension(coordinates, 'molecule', ('molecule_in_file', 'file'), (-1, 1), (-1, [file]), to='multiindex')
         # coordinates = coordinates.reset_index('molecule').rename(molecule_='molecule_in_file')
@@ -866,7 +867,8 @@ class File:
 
         intensity.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
 
-        self.calculate_FRET()
+        if self.movie.number_of_channels > 1:
+            self.calculate_FRET()
 
     def calculate_FRET(self):
         # TODO: Make suitable for mutliple colours
