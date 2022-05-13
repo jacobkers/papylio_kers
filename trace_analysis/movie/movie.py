@@ -14,9 +14,18 @@ from trace_analysis.image_adapt.find_threshold import remove_background, get_thr
 from trace_analysis.timer import Timer
 
 
+
 class Movie:
     @classmethod
     def type_dict(cls):
+        # It is important to import all movie files to recognize them by subclasses.
+        # Perhaps we can make this more elegant in some way.
+        from trace_analysis.movie.sifx import SifxMovie
+        from trace_analysis.movie.pma import PmaMovie
+        from trace_analysis.movie.tif import TifMovie
+        from trace_analysis.movie.nd2 import ND2Movie
+        from trace_analysis.movie.nsk import NskMovie
+        from trace_analysis.movie.binary import BinaryMovie
         return {extension: subclass for subclass in cls.__subclasses__() for extension in subclass.extensions}
 
     def __new__(cls, filepath, rot90=0):
@@ -426,19 +435,21 @@ class Movie:
         if projection_type == 'average':
             if len(frame_indices) > 100:
                 print(f'\n Making average image of {self.name}')
-            for i, frame_index in enumerate(frame_indices):
-                if len(frame_indices) > 100 and i % 13 == 0:
-                    sys.stdout.write(f'\r   Processing frame {frame_index} in {frame_indices[0]}-{frame_indices[-1]}')
-                frame = self.read_frame(frame_number=frame_index, channel=channel).astype(float)
-                image = image + frame
+            with self:
+                for i, frame_index in enumerate(frame_indices):
+                    if len(frame_indices) > 100 and i % 13 == 0:
+                        sys.stdout.write(f'\r   Processing frame {frame_index} in {frame_indices[0]}-{frame_indices[-1]}')
+                    frame = self.read_frame(frame_number=frame_index, channel=channel).astype(float)
+                    image = image + frame
             image = (image / number_of_frames).astype(self.data_type)
         elif projection_type == 'maximum':
             print(f'\n Making maximum projection image of {self.name}')
-            for i, frame_index in enumerate(frame_indices):
-                if i % 13 == 0:
-                    sys.stdout.write(f'\r   Processing frame {frame_index} in {frame_indices[0]}-{frame_indices[-1]}')
-                frame = self.read_frame(frame_number=frame_index)
-                image = np.maximum(image, frame)
+            with self:
+                for i, frame_index in enumerate(frame_indices):
+                    if i % 13 == 0:
+                        sys.stdout.write(f'\r   Processing frame {frame_index} in {frame_indices[0]}-{frame_indices[-1]}')
+                    frame = self.read_frame(frame_number=frame_index)
+                    image = np.maximum(image, frame)
             sys.stdout.write(f'\r   Processed frames {frame_indices[0]}-{frame_indices[-1]}\n')
 
         if write:

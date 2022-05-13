@@ -77,8 +77,6 @@ class File:
         self.dataset_variables = ['molecule', 'coordinates', 'background', 'intensity', 'FRET', 'selected',
                                   'molecule_in_file', 'illumination_correction']
 
-        # if 'fov_info' in kwargs:
-        #     self.nd2_fov_info = kwargs['fov_info']  # fov = Field of View
 
         # I think it will be easier if we have import functions for specific data instead of specific files.
         # For example. the sifx, pma and tif files can better be handled in the Movie class. Here we then just have a method import_movie.
@@ -330,12 +328,12 @@ class File:
         # For the special case of a sifx file, which is located inside a folder
         if '' in extensions:
             extensions[extensions.index('')] = '.sifx'
-        elif 'fov' in self.name:
-            # TODO: Check whether this works
-            token_position = self.name.find('_fov')
-            file_keyword = self.name[:token_position]
-            if self.absoluteFilePath.with_name(file_keyword).with_suffix('.nd2').is_file():
-                extensions.append('.nd2')
+        # elif 'fov' in self.name:
+        #     # TODO: Check whether this works
+        #     token_position = self.name.find('_fov')
+        #     file_keyword = self.name[:token_position]
+        #     if self.absoluteFilePath.with_name(file_keyword).with_suffix('.nd2').is_file():
+        #         extensions.append('.nd2')
         return extensions
 
     def find_and_add_extensions(self):
@@ -363,11 +361,11 @@ class File:
     def import_movie(self, extension):
         if extension == '.sifx':
             filepath = self.absoluteFilePath.joinpath('Spooled files.sifx')
-        elif extension == '.nd2' and '_fov' in self.name:
-            # TODO: Make this working
-            token_position = self.name.find('_fov')
-            movie_name = self.name[:token_position]
-            filepath = self.absoluteFilePath.with_name(movie_name).with_suffix(extension)
+        # elif extension == '.nd2' and '_fov' in self.name:
+        #     # TODO: Make this working
+        #     token_position = self.name.find('_fov')
+        #     movie_name = self.name[:token_position]
+        #     filepath = self.absoluteFilePath.with_name(movie_name).with_suffix(extension)
             # self.movie = ND2Movie(imageFilePath, fov_info=self.nd2_fov_info)
         else:
             filepath = self.absoluteFilePath.with_suffix(extension)

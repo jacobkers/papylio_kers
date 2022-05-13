@@ -256,48 +256,7 @@ class Experiment:
     def nc_file_paths(self):
         return [file.relativeFilePath.with_suffix('.nc') for file in self.files if '.nc' in file.extensions]
 
-    def find_file_paths(self):
-        """Find unique files in all subfolders and add them to the experiment
-
-        Get all files in all subfolders of the main_path and remove their suffix (extensions), and add them to the experiment.
-
-        Note
-        ----
-        Non-relevant files are excluded e.g. files with underscores or 'Analysis' in their name, or files with dat, db,
-        ini, py and yml extensions.
-
-        Note
-        ----
-        Since sifx files made using spooling are all called 'Spooled files' the parent folder is used as file instead of the sifx file
-
-        """
-
-        file_paths = [p.relative_to(self.main_path).with_suffix('') for p in self.main_path.glob('**/*')
-                      if (
-                          # Use only files
-                              p.is_file() &
-                              # Exclude stings in filename
-                              all(name not in p.with_suffix('').name for name in
-                                  self.configuration['files']['excluded_names']) &
-                              # Exclude strings in path
-                              all(path not in str(p.relative_to(self.main_path).parent) for path in
-                                  self.configuration['files']['excluded_paths']) &
-                              # Exclude hidden folders
-                              ('.' not in [s[0] for s in p.parts]) &
-                              # Exclude file extensions
-                              (p.suffix[1:] not in self.configuration['files']['excluded_extensions'])
-                      )
-                      ]
-
-        for i, file_path in enumerate(file_paths):
-            if (file_path.name == 'Spooled files'):
-                file_path[i] = file_path[i].parent
-
-        unique_file_paths = np.unique(file_paths)
-
-        return unique_file_paths
-
-    def add_files(self, paths, test_duplicates=True):
+    def find_file_paths_and_extensions(self, paths):
         """Find unique files in all subfolders and add them to the experiment
 
         Get all files in all subfolders of the main_path and remove their suffix (extensions), and add them to the experiment.
@@ -314,9 +273,9 @@ class Experiment:
         """
 
         if isinstance(paths, str) or isinstance(paths, Path):
-            paths = paths.glob('**/?*.*') # At least one character in front of the extension to prevent using hidden folders
+            paths = paths.glob(
+                '**/?*.*')  # At least one character in front of the extension to prevent using hidden folders
 
-        # TODO: Merge with method find_file_paths
         file_paths_and_extensions = \
             [[p.relative_to(self.main_path).with_suffix(''), p.suffix]
              for p in paths
@@ -324,15 +283,15 @@ class Experiment:
                  # Use only files
                  # p.is_file() &
                  # Exclude stings in filename
-                 all(name not in p.with_suffix('').name for name in
-                     self.configuration['files']['excluded_names']) &
-                 # Exclude strings in path
-                 all(path not in str(p.relative_to(self.main_path).parent) for path in
-                     self.configuration['files']['excluded_paths']) &
-                 # Exclude hidden folders
-                 ('.' not in [s[0] for s in p.parts]) &
-                 # Exclude file extensions
-                 (p.suffix[1:] not in self.configuration['files']['excluded_extensions'])
+                     all(name not in p.with_suffix('').name for name in
+                         self.configuration['files']['excluded_names']) &
+                     # Exclude strings in path
+                     all(path not in str(p.relative_to(self.main_path).parent) for path in
+                         self.configuration['files']['excluded_paths']) &
+                     # Exclude hidden folders
+                     ('.' not in [s[0] for s in p.parts]) &
+                     # Exclude file extensions
+                     (p.suffix[1:] not in self.configuration['files']['excluded_extensions'])
              )
              ]
 
@@ -342,10 +301,11 @@ class Experiment:
             if (file_path.name == 'Spooled files'):
                 new_file_paths_and_extensions.append([file_path.parent, extensions])
                 # file_paths_and_extensions[i, 0] = file_paths_and_extensions[i, 0].parent
-            elif '.nd' in extensions and not 'fov' in file_path:
-                fov_info = self.get_fov_from_nd2(file_path)
-                if fov_info['number_of_fov'] > 1:  # if the file is nd2 with multiple field of views
-                    for fov_id in range(fov_info['number_of_fov']):
+            elif '.nd2' in extensions and not 'fov' in str(file_path):
+                from trace_analysis.movie.movie import Movie
+                nd2_movie = Movie(file_path.with_suffix('.nd2'))
+                if nd2_movie.number_of_fov > 1:  # if the file is nd2 with multiple field of views
+                    for fov_id in range(nd2_movie.number_of_fov):
                         new_path = Path(str(file_path) + f'_fov{fov_id:03d}')
                         new_file_paths_and_extensions.append([new_path, extensions])
                         # fov_info['fov_chosen'] = fov_id
@@ -364,7 +324,25 @@ class Experiment:
         unique_file_paths, indices = np.unique(file_paths_and_extensions[:, 0], return_index=True)
         extensions_per_filepath = np.split(file_paths_and_extensions[:, 1], indices[1:])
 
-        for file_path, extensions in zip(unique_file_paths, extensions_per_filepath):
+        return unique_file_paths, extensions_per_filepath
+
+    def add_files(self, paths, test_duplicates=True):
+        """Find unique files in all subfolders and add them to the experiment
+
+        Get all files in all subfolders of the main_path and remove their suffix (extensions), and add them to the experiment.
+
+        Note
+        ----
+        Non-relevant files are excluded e.g. files with underscores or 'Analysis' in their name, or files with dat, db,
+        ini, py and yml extensions.
+
+        Note
+        ----
+        Since sifx files made using spooling are all called 'Spooled files' the parent folder is used as file instead of the sifx file
+
+        """
+
+        for file_path, extensions in zip(*self.find_file_paths_and_extensions(paths)):
             if not test_duplicates or (file_path.absolute().relative_to(self.main_path) not in self.file_paths):
                 self.files.append(File(file_path, extensions, self))
             else:
@@ -429,32 +407,6 @@ class Experiment:
     #     else:
     #         i = self.file_paths.find(file_path.absolute().relative_to(self.main_path))
     #         self.files[i].findAndAddExtensions()
-
-    def get_fov_from_nd2(self, nd2_fullpath):
-        images = ND2Reader(str(nd2_fullpath))
-        y_positions = images._parser._raw_metadata.y_data   # nikon sample stage position
-        x_positions = images._parser._raw_metadata.x_data   # nikon sample stage position
-
-        # set the image data order in the nd2 file
-        if 'c' in images.axes:
-            images.iter_axes = 'tc'  # for alex measurements
-        else:
-            images.iter_axes = 't'
-
-        n_illumination = len(images.metadata["channels"])
-        n_frames = len(x_positions)
-        position_tolerance = 10  # xy tol = tolerance in um
-        first_frame_of_each_fov = [0]
-        last_frame_of_each_fov = []
-        for fri in range(n_frames - 1):
-            if abs(x_positions[fri] - x_positions[fri + 1]) > position_tolerance or abs(y_positions[fri] - y_positions[fri + 1]) > position_tolerance:
-                first_frame_of_each_fov.append(fri + 1)
-                last_frame_of_each_fov.append(fri)
-        last_frame_of_each_fov.append(n_frames-1)
-        fov_info = {'number_of_fov': len(first_frame_of_each_fov),
-                    'first_frame_of_each_fov': first_frame_of_each_fov,
-                    'last_frame_of_each_fov': last_frame_of_each_fov}
-        return fov_info
 
 
     def histogram(self, axis=None, bins=100, parameter='E', molecule_averaging=False,
