@@ -16,8 +16,8 @@ import yaml
 import numpy as np
 import pandas as pd
 import wx
-import matplotlib
-matplotlib.use('WXAgg')
+# import matplotlib
+# matplotlib.use('WXAgg')
 
 import matplotlib.pyplot as plt  # Provides a MATLAB-like plotting framework
 import xarray as xr

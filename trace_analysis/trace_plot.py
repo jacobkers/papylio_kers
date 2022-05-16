@@ -6,8 +6,8 @@ Created on Fri Sep 14 15:44:52 2018
 """
 import wx
 import wx.lib.mixins.inspection as wit
-import matplotlib as mpl
-mpl.use('WXAgg')
+# import matplotlib as mpl
+# mpl.use('WXAgg')
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg as FigureCanvas
 from matplotlib.backends.backend_wxagg import NavigationToolbar2WxAgg as NavigationToolbar
