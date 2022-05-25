@@ -42,7 +42,6 @@ class TifMovie(Movie):
                 tif_tags[name] = value
             self.width = tif_tags['ImageWidth']
             self.height = tif_tags['ImageLength']
-            # self.number_of_frames = len(tif.pages) # very slow
             self.data_type = np.dtype(f"uint{tif_tags['BitsPerSample']}")
 
             if 'DateTime' in self.file.pages[0].tags:
@@ -76,7 +75,7 @@ class TifMovie(Movie):
                     self.stage_coordinates_in_pixels = self.stage_coordinates / self.pixel_size
 
             except AttributeError:
-                pass
+                self.number_of_frames = len(self.file.pages)
 
             self.create_frame_info()  # Possibly move to Movie later on
 
