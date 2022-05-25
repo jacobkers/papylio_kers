@@ -102,10 +102,10 @@ class Movie:
         # if item != 'header_is_read' and not self.header_is_read:
         # if item == '_with_counter':
         #     raise ValueError()
-        print(item)
+        # print(item)
 
         if 'header_is_read' in self.__dict__.keys() and not self.header_is_read:
-            print(item+'2')
+            # print(item+'2')
             self.read_header()
             return getattr(self, item)
         else:
