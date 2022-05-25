@@ -273,16 +273,16 @@ class Experiment:
         """
 
         if isinstance(paths, str) or isinstance(paths, Path):
-            paths = paths.glob(
-                '**/?*.*')  # At least one character in front of the extension to prevent using hidden folders
+            paths = paths.glob('**/*')
+                #'**/?*.*')  # At least one character in front of the extension to prevent using hidden folders
 
         file_paths_and_extensions = \
             [[p.relative_to(self.main_path).with_suffix(''), p.suffix]
              for p in paths
              if (
-                 # Use only files
-                 # p.is_file() &
-                 # Exclude stings in filename
+                     # Use only files
+                     p.is_file() & # Make this faster?
+                     # Exclude stings in filename
                      all(name not in p.with_suffix('').name for name in
                          self.configuration['files']['excluded_names']) &
                      # Exclude strings in path
