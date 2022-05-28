@@ -9,15 +9,15 @@ Created on Fri Sep 14 15:24:46 2018
 # if platform == "darwin":
 #     from matplotlib import use
 #     use('WXAgg')
-
+import PySide2
 import os  # Miscellaneous operating system interfaces - to be able to switch from Mac to Windows
 from pathlib import Path  # For efficient path manipulation
 import yaml
 import numpy as np
 import pandas as pd
 import wx
-# import matplotlib
-# matplotlib.use('WXAgg')
+import matplotlib
+matplotlib.use('Qt5Agg')
 
 import matplotlib.pyplot as plt  # Provides a MATLAB-like plotting framework
 import xarray as xr
@@ -100,16 +100,29 @@ class Configuration(UserDict):
         with self.filepath.open('w') as yml_file:
             yaml.dump(self._data, yml_file, sort_keys=False)
 
+from PyQt5.QtWidgets import QFileDialog
+def get_QApplication():
+    from PySide2 import QtWidgets
+    app = QtWidgets.QApplication.instance()
+    if app is None:
+        # if it does not exist then a QApplication is created
+        app = QtWidgets.QApplication([])
+    return app
+
 def get_path():
-    if not 'app' in globals().keys():
-        global app
-        app = wx.App(None)
-    dlg = wx.DirDialog(None, message="Choose a folder", defaultPath="")
-    if dlg.ShowModal() == wx.ID_OK:
-        path = dlg.GetPath()
-    else:
-        path = None
-    dlg.Destroy()
+    # if not 'app' in globals().keys():
+    #     global app
+    #     app = wx.App(None)
+    # dlg = wx.DirDialog(None, message="Choose a folder", defaultPath="")
+    # if dlg.ShowModal() == wx.ID_OK:
+    #     path = dlg.GetPath()
+    # else:
+    #     path = None
+    # dlg.Destroy()
+
+    app = get_QApplication()
+    from PySide2.QtWidgets import QFileDialog, QMainWindow
+    path = QFileDialog.getExistingDirectory(QMainWindow(), 'Choose directory')
     return path
 
 @plugins
