@@ -6,7 +6,7 @@ dependencies:
 - pip=22.0
 - numpy=1.22
 - wxpython=4.1
-- matplotlib=3.4
+- matplotlib-base=3.5
 - matplotlib-venn=0.11
 - pathlib2=2.3
 - opencv=4.5
