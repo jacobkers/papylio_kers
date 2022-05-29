@@ -719,7 +719,10 @@ class File:
 
     @property
     def coordinates(self):
-        return self.dataset.coordinates
+        if self.dataset is not None and hasattr(self.dataset, 'coordinates'):
+            return self.dataset.coordinates
+        else:
+            return None
 
     @coordinates.setter
     def coordinates(self, coordinates):

@@ -1,9 +1,13 @@
 import sys
-
+import PySide2
 from PySide2.QtCore import QDir
 from PySide2.QtWidgets import QTreeView, QFileSystemModel, QApplication, QLabel, QMainWindow, QMenu
 from PySide2.QtCore import QAbstractItemModel, QModelIndex
 from PySide2 import QtCore
+import matplotlib as mpl
+from matplotlib.backends.backend_qtagg import (
+    FigureCanvas, NavigationToolbar2QT as NavigationToolbar)
+
 
 from trace_analysis import Experiment, File
 
@@ -200,16 +204,9 @@ from trace_analysis import Experiment, File
 
 
 import sys
-from collections import deque
 from PySide2.QtWidgets import *
 from PySide2.QtGui import *
 from PySide2.QtCore import *
-
-
-class FileItemModel(QStandardItemModel):
-    def __init__(self):
-        super().__init__()
-
 
 class MainWindow(QMainWindow):
     # def __init__(self):
@@ -233,29 +230,79 @@ class MainWindow(QMainWindow):
         super().__init__()
 
         from trace_analysis import Experiment
-        experiment = Experiment(
+        self.experiment = Experiment(
             r'D:\SURFdrive\Promotie\Code\Python\traceAnalysis\twoColourExampleData\20141017 - Holliday junction - Copy')
 
         self.tree = QTreeView(self)
         layout = QVBoxLayout(self)
         layout.addWidget(self.tree)
-        self.model = FileItemModel()
+        self.model = QStandardItemModel()
         self.root = self.model.invisibleRootItem()
         self.model.setHorizontalHeaderLabels(['Name', 'Count'])
         self.tree.header().setDefaultSectionSize(180)
         self.tree.setModel(self.model)
-        self.addExperiment(experiment)
+        self.addExperiment(self.experiment)
         self.tree.expandAll()
 
         self.model.itemChanged.connect(self.onItemChange)
 
-        self.setCentralWidget(self.tree)
+
+        self.image_canvas = ImageCanvas(self, width=5, height=4, dpi=100)
+
+        # Create toolbar, passing canvas as first parament, parent (self, the MainWindow) as second.
+        image_toolbar = NavigationToolbar(self.image_canvas, self)
+
+        image_layout = QVBoxLayout()
+        image_layout.addWidget(image_toolbar)
+        image_layout.addWidget(self.image_canvas)
+
+        # Create a placeholder widget to hold our toolbar and canvas.
+        self.image = QWidget()
+        self.image.setLayout(image_layout)
+
+        controls_layout = QGridLayout()
+        controls_layout.addWidget(QLabel('Minimum intensity difference'), 0, 0)
+        mid = QLineEdit(str(self.experiment.configuration['find_coordinates']['peak_finding']['minimum_intensity_difference']))
+        mid.textChanged.connect(self.midChange)
+        controls_layout.addWidget(mid, 0, 1)
+        find_molecules_button = QPushButton('Find coordinates')
+        find_molecules_button.clicked.connect(self.find_coordinates)
+        controls_layout.addWidget(find_molecules_button, 1, 0, 1, 2)
+
+        self.controls = QWidget()
+        self.controls.setLayout(controls_layout)
+
+
+
+        layout = QHBoxLayout()
+        layout.addWidget(self.tree)
+        layout.addWidget(self.image)
+        layout.addWidget(self.controls)
+
+        widget = QWidget()
+        widget.setLayout(layout)
+        self.setCentralWidget(widget)
+
+
+    def midChange(self, input):
+        input = int(input)
+        self.experiment.configuration['find_coordinates']['peak_finding']['minimum_intensity_difference'] = input
+        self.experiment.configuration.save()
+
+    def find_coordinates(self):
+        selected_files = self.experiment.selectedFiles
+        if selected_files:
+            selected_files.find_coordinates()
+            self.image_canvas.refresh()
+
 
     def onItemChange(self, item):
         if isinstance(item.data(), File):
             file = item.data()
             file.isSelected = (True if item.checkState() == Qt.Checked else False)
             print(f'{file}: {file.isSelected}')
+
+            self.image_canvas.file = (self.experiment.selectedFiles + [None])[0]
         else:
             for i in range(item.rowCount()):
                 item.child(i).setCheckState(item.checkState())
@@ -315,6 +362,34 @@ class MainWindow(QMainWindow):
         # self.insertDataIntoColumns(item)
 
         return item
+
+
+
+class ImageCanvas(FigureCanvas):
+    def __init__(self, parent=None, width=14, height=7, dpi=100):
+        self.figure = mpl.figure.Figure(figsize=(width, height), dpi=dpi, constrained_layout=True)  # , figsize=(2, 2))
+        super().__init__(self.figure)
+        self.parent = parent
+
+        # self.axis = self.figure.gca()
+
+        self._file = None
+
+    @property
+    def file(self):
+        return self._file
+
+    @file.setter
+    def file(self, file):
+        if file is not None and file is not self._file:
+            self._file = file
+            self.refresh()
+
+    def refresh(self):
+        self.figure.clf()
+        self._file.show_coordinates_in_image(figure=self.figure)
+        self.draw()
+
 
 app = QApplication(sys.argv)
 

@@ -243,7 +243,7 @@ class Experiment:
     @property
     def selectedFiles(self):
         """list of File : List of selected files"""
-        return [file for file in self.files if file.isSelected]
+        return self.files[self.files.isSelected]
 
     # @property
     # def selectedMoleculesInSelectedFiles(self):

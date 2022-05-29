@@ -83,13 +83,17 @@ class Collection(UserList):
         #     super(Collection, self).__getattribute__(item)
         # if inspect.ismethod(getattr(self.files[0], item))
 
+        # first_not_none = None
         for datum in self.data:
             if datum is not None:
                 first_not_none = datum
                 break
 
+        # if first_not_none is not None:
+        #     raise ValueError('Empty collection')
+
         if callable(getattr(first_not_none, item)):
-            if not self.use_parallel_processing:
+            if not self.use_parallel_processing or len(self.data) == 1:
                 print('Serial processing')
                 def f(*args, **kwargs):
                     with HiddenPrints():
@@ -162,7 +166,7 @@ class Collection(UserList):
         # type(self) is used instead of Collection to enable proper returning in child classes
         if isinstance(item, int):
             return self.data[item]
-        elif isinstance(item, np.ndarray) or isinstance(item, list):
+        elif isinstance(item, np.ndarray) or isinstance(item, list) or isinstance(item, Collection):
             return type(self)(np.array(self.data)[item].tolist(), **self.dict_without_data)
             # if isinstance(data, list) and len(data) == 1:
             #     return data[0]
