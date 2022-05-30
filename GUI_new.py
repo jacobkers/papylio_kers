@@ -261,17 +261,28 @@ class MainWindow(QMainWindow):
         self.image.setLayout(image_layout)
 
         controls_layout = QGridLayout()
-        controls_layout.addWidget(QLabel('Minimum intensity difference'), 0, 0)
-        mid = QLineEdit(str(self.experiment.configuration['find_coordinates']['peak_finding']['minimum_intensity_difference']))
-        mid.textChanged.connect(self.midChange)
-        controls_layout.addWidget(mid, 0, 1)
+        controls_layout.setAlignment(Qt.AlignTop)
+
+        # controls_layout.addWidget(QLabel('Minimum intensity difference'), 0, 0)
+        # mid = QLineEdit(str(self.experiment.configuration['find_coordinates']['peak_finding']['minimum_intensity_difference']))
+        # mid.textChanged.connect(self.midChange)
+        # controls_layout.addWidget(mid, 0, 1)
+
+        perform_mapping_button = QPushButton('Perform mapping')
+        perform_mapping_button.clicked.connect(self.perform_mapping)
+        controls_layout.addWidget(perform_mapping_button, 1, 0, 1, 2)
+
         find_molecules_button = QPushButton('Find coordinates')
         find_molecules_button.clicked.connect(self.find_coordinates)
-        controls_layout.addWidget(find_molecules_button, 1, 0, 1, 2)
+        controls_layout.addWidget(find_molecules_button, 2, 0, 1, 2)
+
+        extract_traces_button = QPushButton('Extract traces')
+        extract_traces_button.clicked.connect(self.extract_traces)
+        controls_layout.addWidget(extract_traces_button, 3, 0, 1, 2)
 
         self.controls = QWidget()
         self.controls.setLayout(controls_layout)
-
+        self.controls.setMinimumWidth(200)
 
 
         layout = QHBoxLayout()
@@ -289,10 +300,23 @@ class MainWindow(QMainWindow):
         self.experiment.configuration['find_coordinates']['peak_finding']['minimum_intensity_difference'] = input
         self.experiment.configuration.save()
 
+    def perform_mapping(self, t):
+        print(t)
+        selected_files = self.experiment.selectedFiles
+        if selected_files:
+            selected_files.perform_mapping()
+            self.image_canvas.refresh()
+
     def find_coordinates(self):
         selected_files = self.experiment.selectedFiles
         if selected_files:
             selected_files.find_coordinates()
+            self.image_canvas.refresh()
+
+    def extract_traces(self):
+        selected_files = self.experiment.selectedFiles
+        if selected_files:
+            selected_files.extract_traces()
             self.image_canvas.refresh()
 
 
