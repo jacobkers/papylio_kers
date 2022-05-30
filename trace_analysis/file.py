@@ -169,10 +169,12 @@ class File:
             last_frame = int(configuration_show_movie['frames_for_show_movie']['last_frame'])
         number_of_frames = last_frame - first_frame + 1
 
-        try:
-            image_file_path = self.absoluteFilePath.with_name(self.name+f'_ave_frames_{first_frame}-{last_frame}_illumination_{illumination}.tif') #_{number_of_frames}fr.tif')
+        # TODO: make Movie export the same filename
+        image_file_path = self.absoluteFilePath.with_name(
+            self.name + f'_ave_frames_{first_frame}-{last_frame}_illumination_{illumination}.tif')  # _{number_of_frames}fr.tif')
+        if image_file_path.is_file():
             return io.imread(image_file_path, as_gray=True)
-        except FileNotFoundError:
+        else:
             return self.movie.make_average_image(start_frame=first_frame,
                                                  number_of_frames=number_of_frames,
                                                  illumination=illumination, write=True)
