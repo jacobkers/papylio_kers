@@ -243,6 +243,7 @@ class MainWindow(QMainWindow):
         self.tree.setModel(self.model)
         self.addExperiment(self.experiment)
         self.tree.expandAll()
+        self.update = True
 
         self.model.itemChanged.connect(self.onItemChange)
 
@@ -326,11 +327,14 @@ class MainWindow(QMainWindow):
             file.isSelected = (True if item.checkState() == Qt.Checked else False)
             print(f'{file}: {file.isSelected}')
 
-            self.image_canvas.file = (self.experiment.selectedFiles + [None])[0]
         else:
+            self.update = False
             for i in range(item.rowCount()):
                 item.child(i).setCheckState(item.checkState())
+            self.update = True
 
+        if self.update:
+            self.image_canvas.file = (self.experiment.selectedFiles + [None])[0]
 
     def addExperiment(self, experiment):
 
@@ -408,6 +412,10 @@ class ImageCanvas(FigureCanvas):
         if file is not None and file is not self._file:
             self._file = file
             self.refresh()
+        elif file is None:
+            self._file = None
+            self.figure.clf()
+            self.draw()
 
     def refresh(self):
         self.figure.clf()
