@@ -44,6 +44,27 @@ class TifMovie(Movie):
             self.height = tif_tags['ImageLength']
             self.data_type = np.dtype(f"uint{tif_tags['BitsPerSample']}")
 
+            if self.file.metaseries_metadata:
+                self.number_of_frames = self.file.metaseries_metadata['SetInfo']['number-of-planes']
+                # TODO: Make sure this goes well when movie is rotated
+                pixel_size_x = self.file.metaseries_metadata['PlaneInfo']['spatial-calibration-x']
+                pixel_size_y = self.file.metaseries_metadata['PlaneInfo']['spatial-calibration-y']
+                if 'Ti2 Optical Zoom' in self.file.metaseries_metadata['PlaneInfo'].keys():
+                    microscope_optical_zoom = float(
+                        self.file.metaseries_metadata['PlaneInfo']['Ti2 Optical Zoom'][:-1])
+                    pixel_size_x /= microscope_optical_zoom
+                    pixel_size_y /= microscope_optical_zoom
+                self.pixel_size = np.array([pixel_size_x, pixel_size_y])
+                self.pixel_size_unit = self.file.metaseries_metadata['PlaneInfo'][
+                    'spatial-calibration-units'].replace('um', 'µm')
+                # TODO: Make sure this goes well when movie is rotated
+                stage_position_x = self.file.metaseries_metadata['PlaneInfo']['stage-position-x']
+                stage_position_y = self.file.metaseries_metadata['PlaneInfo']['stage-position-y']
+                self.stage_coordinates = np.array([[stage_position_x, stage_position_y]])
+                self.stage_coordinates_in_pixels = self.stage_coordinates / self.pixel_size
+            else:
+                self.number_of_frames = len(self.file.pages)
+
             if 'DateTime' in self.file.pages[0].tags:
                 # For which files is this?
                 # Note that looping over tif pages will be slow.
@@ -55,27 +76,6 @@ class TifMovie(Movie):
                 exposure_time = self.file.pages[0].tags['AndorExposureTime'].value # NOTE: "kinetic time (or cycle time)" is more accurate measure. But the difference is very small and often ignored.
                 time_vector = exposure_time * np.arange(0, self.number_of_frames)
                 self.time = xr.DataArray(time_vector, dims='frame', coords={}, attrs={'units': 's'})
-
-            try:
-                if self.file.metaseries_metadata:
-                    self.number_of_frames = self.file.metaseries_metadata['SetInfo']['number-of-planes']
-                    #TODO: Make sure this goes well when movie is rotated
-                    pixel_size_x = self.file.metaseries_metadata['PlaneInfo']['spatial-calibration-x']
-                    pixel_size_y = self.file.metaseries_metadata['PlaneInfo']['spatial-calibration-y']
-                    if 'Ti2 Optical Zoom' in self.file.metaseries_metadata['PlaneInfo'].keys():
-                        microscope_optical_zoom = float(self.file.metaseries_metadata['PlaneInfo']['Ti2 Optical Zoom'][:-1])
-                        pixel_size_x /= microscope_optical_zoom
-                        pixel_size_y /= microscope_optical_zoom
-                    self.pixel_size = np.array([pixel_size_x, pixel_size_y])
-                    self.pixel_size_unit = self.file.metaseries_metadata['PlaneInfo']['spatial-calibration-units'].replace('um', 'µm')
-                    #TODO: Make sure this goes well when movie is rotated
-                    stage_position_x = self.file.metaseries_metadata['PlaneInfo']['stage-position-x']
-                    stage_position_y = self.file.metaseries_metadata['PlaneInfo']['stage-position-y']
-                    self.stage_coordinates = np.array([[stage_position_x, stage_position_y]])
-                    self.stage_coordinates_in_pixels = self.stage_coordinates / self.pixel_size
-
-            except AttributeError:
-                self.number_of_frames = len(self.file.pages)
 
             self.create_frame_info()  # Possibly move to Movie later on
 
