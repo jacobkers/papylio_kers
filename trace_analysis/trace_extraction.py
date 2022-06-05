@@ -24,7 +24,7 @@ def make_gaussian_mask(size, offsets, sigma=1.291):
 
 def extract_traces(movie, coordinates, background=None, mask_size=1.291, neighbourhood_size=11, correct_illumination=False):
     # go through all images, extract donor and acceptor signal
-
+    coordinates['dimension'] = coordinates.dimension.astype('U')
     with movie:
         movie.read_header()
 
