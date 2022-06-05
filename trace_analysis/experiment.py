@@ -286,15 +286,20 @@ class Experiment:
         """
 
         if isinstance(paths, str) or isinstance(paths, Path):
-            paths = paths.glob('**/*')
+            #paths = paths.glob('**/*')
                 #'**/?*.*')  # At least one character in front of the extension to prevent using hidden folders
+
+            # The following approach is faster than checking each file separately using is_file() for network drives. (not tested for regular drives)
+            files_and_folders = set(paths.glob('**/*'))
+            folders = set(paths.glob('**'))
+            paths = files_and_folders - folders
 
         file_paths_and_extensions = \
             [[p.relative_to(self.main_path).with_suffix(''), p.suffix]
              for p in paths
              if (
                      # Use only files
-                     p.is_file() & # Make this faster?
+                     #p.is_file() &
                      # Exclude stings in filename
                      all(name not in p.with_suffix('').name for name in
                          self.configuration['files']['excluded_names']) &
