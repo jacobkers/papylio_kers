@@ -230,8 +230,9 @@ class MainWindow(QMainWindow):
         super().__init__()
 
         from trace_analysis import Experiment
-        self.experiment = Experiment(
-            r'D:\SURFdrive\Promotie\Code\Python\traceAnalysis\twoColourExampleData\20141017 - Holliday junction - Copy')
+        # self.experiment = Experiment(
+        #     r'D:\SURFdrive\Promotie\Code\Python\traceAnalysis\twoColourExampleData\20141017 - Holliday junction - Copy')
+        self.experiment = Experiment()
 
         self.tree = QTreeView(self)
         layout = QVBoxLayout(self)
@@ -423,9 +424,13 @@ class ImageCanvas(FigureCanvas):
         self.draw()
 
 
-app = QApplication(sys.argv)
+if __name__ == '__main__':
+    from multiprocessing import Process, freeze_support
+    freeze_support()
 
-window = MainWindow()
-window.show()
+    app = QApplication(sys.argv)
 
-app.exec_()
+    window = MainWindow()
+    window.show()
+
+    app.exec_()
