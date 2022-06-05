@@ -39,7 +39,8 @@ def plugins(cls):
         pass
 
     # For using multiprocessing.Pool add '__module__': classes[-1].__module__}
-    return type(cls.__name__, classes, {'__slots__': slots})
+    # return type(cls.__name__, classes, {'__slots__': slots})
+    return type(cls.__name__, classes, {'__slots__': slots, '__module__': classes[-1].__module__})
 
 
 
