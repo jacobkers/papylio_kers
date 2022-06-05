@@ -731,7 +731,7 @@ class File:
         # Reset current .nc file
         self._init_dataset(len(coordinates.molecule))
 
-        coordinates.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
+        coordinates.drop('file').to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
         self.extract_background()
 
         # self.molecules.export_pks_file(self.absoluteFilePath.with_suffix('.pks'))
