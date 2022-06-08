@@ -32,6 +32,10 @@ def extract_traces(movie, coordinates, background=None, mask_size=1.291, neighbo
                                  dims=['molecule', 'channel', 'frame'],
                                  coords=coordinates.drop('dimension').coords, name='intensity')
 
+        background_correction = xr.DataArray(np.empty((len(coordinates.molecule), len(coordinates.channel), movie.number_of_frames)),
+                                 dims=['molecule', 'channel', 'frame'],
+                                 coords=coordinates.drop('dimension').coords, name='background_correction')
+
         # channel_offsets = xr.DataArray(np.vstack([channel.origin for channel in movie.channels]),
         #                                dims=('channel', 'dimension'),
         #                                coords={'channel': [channel.index for channel in movie.channels],
@@ -57,6 +61,10 @@ def extract_traces(movie, coordinates, background=None, mask_size=1.291, neighbo
                                                              filter_function=scipy.ndimage.minimum_filter,
                                                              size=15, mode='wrap')
 
+        background_per_frame = background.sel(illumination=movie.illumination)
+        background_correction[:] = weighed_background(background_per_frame, twoD_gaussians).transpose((1,2,0))
+
+
         oneD_indices = (roi_indices.sel(dimension='y')*movie.width+roi_indices.sel(dimension='x')).stack(peak=('molecule','channel')).stack(i=('y','x'))
         for frame_index in tqdm(range(movie.number_of_frames), desc=movie.name, leave=True):  # self.number_of_frames also works for pm, len(self.movie_file_object.filelist) not
             # print(frame_number)
@@ -72,22 +80,29 @@ def extract_traces(movie, coordinates, background=None, mask_size=1.291, neighbo
                 illumination_correction.add_frame(frame_index, frame)
                 # TODO: Determine how illumination correction is dependent on background
 
-            if 'illumination' in background.dims:
-                # TODO: Make this work properly and rename illumination in Movie
-                # Do background subtraction on entire frame instead???
-                frame_background = background.sel(illumination=movie.illumination.sel(frame=frame_index))
-                # frame_background = background[frame_number % number_illumination]
-            else:
-                frame_background = background
+            # if 'illumination' in background.dims:
+            #     # TODO: Make this work properly and rename illumination in Movie
+            #     # Do background subtraction on entire frame instead???
+            #     frame_background = background.sel(illumination=movie.illumination.sel(frame=frame_index))
+            #     # frame_background = background[frame_number % number_illumination]
+            # else:
+            #     frame_background = background
 
             #intensity[:, :, frame_index] = extract_intensity_from_frame(frame, background, roi_indices, twoD_gaussians)
-            intensity[:, :, frame_index] = extract_intensity_from_frame(frame, frame_background, oneD_indices, twoD_gaussians)
+            # intensity[:, :, frame_index] = extract_intensity_from_frame(frame, frame_background, oneD_indices, twoD_gaussians)
+            intensity[:, :, frame_index] = extract_intensity_from_frame(frame, oneD_indices, twoD_gaussians)
+
 
         # sys.stdout.write(f'\r   Frame {frame_number+1} of {movie.number_of_frames}\n')
         dataset = intensity.to_dataset()
+        # dataset['intensity_raw'] = dataset.intensity.copy()
 
         if correct_illumination:
             dataset['illumination_correction'] = illumination_correction.illumination_correction
+            dataset['intensity'] *= dataset['illumination_correction']
+
+        dataset['background_correction'] = background_correction
+        dataset['intensity'] -= dataset['background_correction'].sel(frame=0, drop=True)
 
     return dataset
 
@@ -106,13 +121,16 @@ def extract_traces(movie, coordinates, background=None, mask_size=1.291, neighbo
 #     intensity_in_frame = weighted_intensities.sum(axis=(2,3))
 #     return intensity_in_frame
 
-def extract_intensity_from_frame(frame, background, oneD_indices, twoD_gaussians):  # extract traces
+def extract_intensity_from_frame(frame, oneD_indices, twoD_gaussians):  # extract traces
     intensities = frame.values.take(oneD_indices.values).reshape(twoD_gaussians.shape)
-    intensities = intensities - background.values[:,:,None,None]
+    # intensities = intensities - background.values[:,:,None,None]
     weighted_intensities = intensities * twoD_gaussians.values
     intensity_in_frame = weighted_intensities.sum(axis=(2,3))
     return intensity_in_frame
 
+def weighed_background(background, twoD_gaussians):
+    weighed_background_intensity = background.values[:, :, :, None, None] * twoD_gaussians.values[None, :, :, :, :]
+    return weighed_background_intensity.sum(axis=(3, 4))
 
 class IlluminationCorrection:
     def __init__(self, number_of_frames, filter_function=scipy.ndimage.minimum_filter, **kwargs):
