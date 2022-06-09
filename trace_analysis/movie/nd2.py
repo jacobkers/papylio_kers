@@ -102,6 +102,7 @@ class ND2Movie(Movie):
 
             self.width = self.file.metadata['width']
             self.height = self.file.metadata['height']
+            self.pixel_size = np.array([self.file.metadata['pixel_microns'], self.file.metadata['pixel_microns']])
 
             # self.number_of_fields_of_view = len(images.metadata["experiment"]["loops"])  # number of fov is now available from self.fov_info
             self.number_of_frames = len(self.file)
@@ -115,6 +116,10 @@ class ND2Movie(Movie):
             else:
                 self.frame_offset = 0
                 frame_end = self.number_of_frames
+
+                self.stage_coordinates = np.array([[x_positions[0], y_positions[0]]])
+                self.stage_coordinates_in_pixels = self.stage_coordinates / self.pixel_size
+
 
             self.illumination_arrangement = np.arange(len(self.illuminations))
 
