@@ -46,22 +46,19 @@ from trace_analysis.mapping.mapping import Mapping2
 # SINGLE-MOLECULE DATA PROCESSING
 #####################################
 
-# experiment_path = r'O:\Ivo\20211005 - Objective-type TIRF (BN)'
-#experiment_path = r'H:\Desktop\20211105 - Test'
-# experiment_path = r'C:\Users\Ivo Severins\Desktop\20211005 - Test'
-# experiment_path = r'C:\Users\severins\Desktop\20211005 - Test'
-experiment_path = r'N:\tnw\BN\CMJ\Shared\Ivo\PhD_data\20211005 - Objective-type TIRF (BN)'
+experiment_path = r'N:\tnw\BN\CMJ\Shared\Ivo\PhD_data\20220602 - Objective-type TIRF (BN)'
 
 exp = ta.Experiment(experiment_path)
 
-files_channel_mapping = exp.files[exp.files.name.regex('Mapping')]
-files_green_laser = exp.files[exp.files.name.regex('TIRF 561')]
-files_red_laser = exp.files[exp.files.name.regex('TIRF 642')]
+files_channel_mapping = exp.files[exp.files.relativeFilePath.str.regex('Bead slide')]
+files_green_laser = exp.files[exp.files.relativeFilePath.str.regex('Scan.*TIRF 561')]
+files_red_laser_after = exp.files[exp.files.relativeFilePath.str.regex('TIRF 642 after')]
+files_red_laser_before = exp.files[exp.files.relativeFilePath.str.regex('TIRF 642 before')]
 
 # -----------------------------------
 # Channel mapping
 # -----------------------------------
-channel_mapping_file = files_channel_mapping[0]
+channel_mapping_file = files_channel_mapping[-1]
 channel_mapping_file.perform_mapping()
 
 channel_mapping_file.show_average_image()
@@ -72,11 +69,12 @@ channel_mapping_file.mapping.show_mapping_transformation(figure=plt.gcf(), show_
 # -----------------------------------
 configuration = exp.configuration['find_coordinates'].copy()
 # configuration['peak_finding']['minimum_intensity_difference'] = 4000
-configuration['peak_finding']['minimum_times_background'] = 11 # First try was 7
+configuration['peak_finding']['minimum_times_background'] = 4 # First try was 7
 configuration['channels'] = ['acceptor']
 configuration['method'] = 'by_channel'
 
-files_red_laser.find_coordinates(configuration=configuration)
+files_red_laser_before.find_coordinates(configuration=configuration)
+# files_red_laser_before[7000].show_coordinates_in_image()
 
 # -----------------------------------
 # Find coordinates, extract traces and determine kinetics
@@ -89,7 +87,7 @@ configuration['channels'] = ['donor', 'acceptor']
 configuration['method'] = 'sum_channels'
 
 files_green_laser.find_coordinates(configuration=configuration)
-files_green_laser.show_coordinates_in_image()
+files_green_laser[7000].show_coordinates_in_image()
 
 files_green_laser.extract_traces()
 
@@ -217,7 +215,7 @@ files_green_laser.insert_sequencing_data_into_file_dataset()
 folder = Path(r'N:\tnw\BN\CMJ\Shared\Ivo\PhD_data\20211005 - Objective-type TIRF (BN)\Datasets per sequence')
 for group, value in tqdm.tqdm(ds.groupby('sequence_variable')):
     if '-' not in group and group != '':
-        d = value.to_netcdf(folder.joinpath(group).with_suffix('.nc'), engine='h5netcdf')
+        value.to_netcdf(folder.joinpath(group).with_suffix('.nc'), engine='h5netcdf')
 
 
 # ds = xr.open_mfdataset([file.relativeFilePath.with_suffix('.nc') for file in files_green_laser[0:300]], combine='nested', concat_dim='molecule',
@@ -277,6 +275,7 @@ for file in tqdm.tqdm(files_green_laser):
     encoding = {'file': {'dtype': '|S'}, 'dimension': {'dtype': '|S'}, 'sequence': {'dtype': '|S'},
                 'sequence_quality': {'dtype': '|S'}, 'sequence_variable': {'dtype': '|S'}}
     ds.to_netcdf(file.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='w', encoding=encoding)
+
 
 
 
