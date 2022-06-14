@@ -4,6 +4,7 @@ import xarray as xr
 import sys
 import pandas as pd
 import matplotlib.pyplot as plt
+import scipy.optimize
 import seaborn as sns
 
 def dwell_frames_from_classification(classification):
@@ -24,17 +25,34 @@ def determine_dwell_means(traces_flattened, dwell_frames):
     dwell_means = np.diff(values_cumsum[oneD_indices]) / dwell_frames + mean_trace
     return dwell_means
 
-def set_states_at_trace_edges(dwell_molecules, dwell_states, to_values=-2):
+def set_states(dwell_molecules, dwell_states, at_trace_edges=True, around_negative_states=True, to_state=-2):
+    states_to_set = np.zeros(len(dwell_states)).astype(bool)
+
     switched_molecule = np.diff(dwell_molecules).astype(bool)
-    start_and_end_trace = np.logical_or(np.concatenate([[True], switched_molecule]), np.concatenate([switched_molecule, [True]]))
-    dwell_states[start_and_end_trace] = to_values
+    start_and_end_trace = np.concatenate([[True], switched_molecule]) | np.concatenate([switched_molecule, [True]])
+
+    negative_states = dwell_states < 0
+
+    if at_trace_edges:
+        states_to_set |= start_and_end_trace
+
+    if around_negative_states:
+        negative_state_neighbours = np.concatenate([[False], negative_states[:-1]]) | \
+                                    np.concatenate([negative_states[1:], [False]])
+        states_to_set |= negative_state_neighbours & ~start_and_end_trace
+
+    states_to_set[negative_states] = False
+
+    dwell_states[states_to_set] = to_state
     return dwell_states
 
 
-def dwell_times_from_classification(classification, traces=None, cycle_time=None, inactivate_trace_start_and_end=True):
+def dwell_times_from_classification(classification, traces=None, cycle_time=None, inactivate_start_and_end_states=True):
+    if isinstance(classification, xr.DataArray):
+        classification = classification.values
     dwell_molecules, dwell_states, dwell_frames = dwell_frames_from_classification(classification)
-    if inactivate_trace_start_and_end:
-        dwell_states = set_states_at_trace_edges(dwell_molecules, dwell_states)
+    if inactivate_start_and_end_states:
+        dwell_states = set_states(dwell_molecules, dwell_states)
 
     ds = xr.Dataset({'molecule': ('dwell', dwell_molecules),
                      'state': ('dwell', dwell_states),
@@ -45,13 +63,46 @@ def dwell_times_from_classification(classification, traces=None, cycle_time=None
         ds['duration'] = xr.DataArray(dwell_times, dims=['dwell'])
 
     if traces is not None:
+        if isinstance(traces, xr.DataArray):
+            traces = traces.values
         dwell_means = determine_dwell_means(traces.flatten(), dwell_frames)
         ds['mean'] = xr.DataArray(dwell_means, dims=['dwell'])
 
     return ds
 
+
+def single_decaying_exponential(t, A, tau):
+    return A * np.exp(-t/tau)
+
+def analyze_dwells(dwells, fit_function, cycle_time=1, plot=False, axes=None):
+    states = np.unique(dwells.state)
+    positive_states = states[states>=0]
+
+    bins=50
+
+    if plot and axes is None:
+        fig, axes = plt.subplots(1,len(positive_states), figsize=(len(positive_states)*3, 2), tight_layout=True, sharey=True)
+
+    fit_values = {}
+    for i, state in enumerate(positive_states):
+        dwells_with_state = dwells.sel(dwell=dwells.state==state)
+        c, t_edges = np.histogram(dwells_with_state.duration, bins=bins+1, range=[-cycle_time/2, (bins+1/2)*cycle_time])
+        t = (t_edges[:-1]+t_edges[1:])/2
+        popt, pcov = scipy.optimize.curve_fit(fit_function, t[1:], c[1:])
+
+        if plot:
+            axes[i].bar(t, c, width=cycle_time)
+            axes[i].plot(t, fit_function(t, *popt), c='r')
+            axes[i].set_title(str(np.round(popt[-1],3))+ ',' + str(np.round(dwells_with_state['mean'].mean().item(),3)))
+
+        fit_values[state] = popt
+
+    return fit_values
+
+
+
 if __name__ == '__main__':
-    classification = np.array([-1,-1,2,2,2,2,1,1,2,2,2,1,1,1,2,2,0,0,0,0,0,0,0,0,0,0,-1,-1,0,0,0,0,0])
+    classification = np.array([-1,-1,2,2,2,2,1,1,2,2,2,1,1,1,-1,-1,0,0,0,0,0,0,0,0,0,0,2,2,0,0,0,0,0])
     classification = np.repeat(classification[None,:], 5, axis=0)
     traces = np.random.random(classification.shape)
 
