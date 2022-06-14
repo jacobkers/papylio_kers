@@ -8,7 +8,14 @@ conda activate sequence_analysis
 
 # bowtie2 -x Reference -U *R1_001.fastq -S Alignment.sam --local --np 0 --very-sensitive-local --n-ceil L,0,1 --threads 4 --score-min G,20,4 --norc
 
-cat *R1_001.fastq > Read1.fastq
+zcat *R1_001.fastq.gz > Read1.fastq
+zcat *I1_001.fastq.gz > Index1.fastq
+
+# cat *R1_001.fastq.gz > Read1.fastq.gz
+# cat *I1_001.fastq.gz > Index1.fastq.gz
+
+# gzip -d Read1.fastq.gz
+# gzip -d Index1.fastq.gz
 
 bwa index Reference.fasta
 bwa mem Reference.fasta Read1.fastq -k 5 -T 15 -Y -L 10 -t 12 > Alignment.sam
@@ -17,22 +24,22 @@ bwa mem Reference.fasta Read1.fastq -k 5 -T 15 -Y -L 10 -t 12 > Alignment.sam
 # samtools sort Alignment.bam -o Alignment.sorted.bam
 # samtools index Alignment.sorted.bam
 
-while IFS="" read -r line || [ -n "$line" ]; do
-  if  [[ $line == \>* ]];
-  then
-    name=${line#">"}
-    name=$(tr -dc '[[:print:]]' <<< "$name")
-    read sequence
-    sequence=$(tr -dc '[[:print:]]' <<< "$sequence")
-    echo Working on $name
-    samtools view Alignment.sam | awk -v refname="$name" -v refseq="$sequence" -f ./Align_string.awk > sequencing_data_$name.csv
-  fi
-done <./Reference.fasta
+# while IFS="" read -r line || [ -n "$line" ]; do
+  # if  [[ $line == \>* ]];
+  # then
+    # name=${line#">"}
+    # name=$(tr -dc '[[:print:]]' <<< "$name")
+    # read sequence
+    # sequence=$(tr -dc '[[:print:]]' <<< "$sequence")
+    # echo Working on $name
+    # samtools view Alignment.sam | awk -v refname="$name" -v refseq="$sequence" -f ./Align_string.awk > sequencing_data_$name.csv
+  # fi
+# done <./Reference.fasta
 
-# To extract specific positions
-# gawk -v pos_string="31 32 56 57 82 83 108 109" -f ./Extract_section.awk -i inplace sequencing_data_HJ_general.csv
+# # To extract specific positions
+# # gawk -v pos_string="31 32 56 57 82 83 108 109" -f ./Extract_section.awk -i inplace sequencing_data_HJ_general.csv
 
-read -p 'Press Enter to continue...' var
+# read -p 'Press Enter to continue...' var
 
 # samtools mpileup -f Reference.fasta Alignment.sorted.bam -l Position\ list.BED -o test.txt --output-extra QNAME -O
 
