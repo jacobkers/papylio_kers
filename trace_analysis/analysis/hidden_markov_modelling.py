@@ -2,8 +2,16 @@ import xarray as xr
 import numpy as np
 from itertools import accumulate, groupby
 from hmmlearn import hmm
-from tqdm import tqdm
+import tqdm
 import trace_analysis as ta
+
+def decode_traces(model, dataarray):
+    classifications = []
+    for i in tqdm.tqdm(dataarray.molecule):
+        d_i = dataarray.sel(molecule=i).values.T
+        log_prob, classification_HMM = model.decode(d_i)
+        classifications.append(classification_HMM)
+    return xr.DataArray(np.vstack(classifications), dims=('molecule','frame'))
 
 
 # exp = ta.Experiment(r'D:\20200918 - Test data\Single-molecule data small')
