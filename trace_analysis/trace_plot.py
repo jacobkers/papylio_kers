@@ -58,7 +58,7 @@ class TracePlotWindow(QMainWindow):
         else:
             self.save_path = Path(save_path)
 
-        self.canvas = TracePlotCanvas(self, width=5, height=4, dpi=100)
+        self.canvas = TracePlotCanvas(self, width=14, height=7, dpi=100)
 
         # Create toolbar, passing canvas as first parament, parent (self, the MainWindow) as second.
         toolbar = NavigationToolbar(self.canvas, self)
@@ -115,7 +115,7 @@ class TracePlotWindow(QMainWindow):
             self.dataset.selected[dict(molecule=self.molecule_index)] = ~self.dataset.selected[dict(molecule=self.molecule_index)]
             self.update_current_molecule()
         elif key == Qt.Key_S: # S
-            self.trace_panel.save()
+            self.canvas.save()
 
 
 class TracePlotCanvas(FigureCanvas):
@@ -124,8 +124,8 @@ class TracePlotCanvas(FigureCanvas):
     def __init__(self, parent=None, width=14, height=7, dpi=100):
         self.figure = mpl.figure.Figure(figsize=(width, height), dpi=dpi, constrained_layout=True)  # , figsize=(2, 2))
         super().__init__(self.figure)
-        self.parent = parent
-        plot_variables = self.parent.plot_variables
+        self.parent_window = parent
+        plot_variables = self.parent_window.plot_variables
 
         grid = self.figure.add_gridspec(len(plot_variables), 2, width_ratios=[10, 1]) #, height_ratios=(2, 7),
                          # left=0.1, right=0.9, bottom=0.1, top=0.9,
@@ -142,7 +142,7 @@ class TracePlotCanvas(FigureCanvas):
                 plot.sharex(self.plot_axes[plot_variables[0]])
                 # histogram.sharex(self.histogram_axes[plot_variables[0]])
 
-            plot.set_ylim(self.parent.ylims[i])
+            plot.set_ylim(self.parent_window.ylims[i])
             plot.set_ylabel(plot_variable)
 
             if i == len(plot_variables)-1:
@@ -179,22 +179,23 @@ class TracePlotCanvas(FigureCanvas):
     @molecule.setter
     def molecule(self, molecule):
         self._molecule = molecule
+        self._molecule['file'] = self._molecule['file'].astype(str)
 
         # g = molecule.intensity.sel(channel=0).values
         # r = molecule.intensity.sel(channel=1).values
         # e = molecule.FRET.values
 
         if not self.plot_artists:
-            for i, plot_variable in enumerate(self.parent.plot_variables):
+            for i, plot_variable in enumerate(self.parent_window.plot_variables):
                 self.plot_artists[plot_variable] = self.plot_axes[plot_variable].plot(molecule[plot_variable].T)
                 if i==0:
                     self.title_artist = self.plot_axes[plot_variable].set_title('')
                 for j, plot_artist in enumerate(self.plot_artists[plot_variable]):
-                    plot_artist.set_color(self.parent.colours[i][j])
-                #molecule.intensity.plot.line(x='frame', ax=self.plot_axes[plot_variable], color=self.parent.colours[i])
+                    plot_artist.set_color(self.parent_window.colours[i][j])
+                #molecule.intensity.plot.line(x='frame', ax=self.plot_axes[plot_variable], color=self.parent_window.colours[i])
                 self.histogram_artists[plot_variable] = self.histogram_axes[plot_variable].hist(molecule[plot_variable].T,
                                 bins=50, orientation='horizontal', range=self.plot_axes[plot_variable].get_ylim(),
-                                                                    color=self.parent.colours[i], alpha=0.5)[2]
+                                                                    color=self.parent_window.colours[i], alpha=0.5)[2]
                 if not isinstance(self.histogram_artists[plot_variable], list):
                     self.histogram_artists[plot_variable] = [self.histogram_artists[plot_variable]]
 
@@ -219,7 +220,7 @@ class TracePlotCanvas(FigureCanvas):
         # for axis in self.axes:
         #     axis.cla()
 
-        for i, plot_variable in enumerate(self.parent.plot_variables):
+        for i, plot_variable in enumerate(self.parent_window.plot_variables):
             data = np.atleast_2d(molecule[plot_variable])
             if self._molecule.selected.item():
                 selection_string = ' | Selected'
@@ -296,9 +297,9 @@ class TracePlotCanvas(FigureCanvas):
         # self.SetSizer(self.sizer)
 
     def save(self):
-        if self.parent.save_path is not None:
+        if self.parent_window.save_path is not None:
             file_name = self.molecule.file.item().replace('\\' ,' - ')+f' - mol {self.molecule.molecule_in_file.item()}.png'
-            file_path = self.parent.save_path.joinpath(file_name)
+            file_path = self.parent_window.save_path.joinpath(file_name)
             self.figure.savefig(file_path, bbox_inches='tight')
         else:
             raise ValueError('No save_path set')
