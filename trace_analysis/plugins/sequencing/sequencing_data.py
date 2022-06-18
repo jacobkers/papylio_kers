@@ -4,6 +4,7 @@ import h5py
 import re
 import pandas as pd
 import netCDF4
+import h5netcdf
 from tqdm import tqdm
 from contextlib import ExitStack
 import xarray as xr
@@ -22,12 +23,14 @@ class SequencingData:
     # def load(cls):
     #     cls()
 
-    def __init__(self, file_path=None, dataset=None, name='', reagent_kit='v3'):
+    def __init__(self, file_path=None, dataset=None, name='', reagent_kit='v3', file_kwargs={}):
         if file_path is not None:
             file_path = Path(file_path)
             if file_path.suffix == '.nc':
-                with xr.open_dataset(file_path.with_suffix('.nc'), engine='h5netcdf') as dataset:
-                    self.dataset = dataset.load().set_index({'sequence': ('tile','x','y')})
+                # with xr.open_dataset(file_path.with_suffix('.nc'), engine='h5netcdf') as dataset:
+                #     self.dataset = dataset.load().set_index({'sequence': ('tile','x','y')})
+                self.dataset = xr.open_dataset(file_path.with_suffix('.nc'), engine='netcdf4', chunks=10000)
+                # self.dataset = self.dataset.set_index({'sequence': ('tile', 'x', 'y')})
             else:
                 data = pd.read_csv(file_path, delimiter='\t')
                 data.columns = data.columns.str.lower()
@@ -146,7 +149,7 @@ def read_sam(sam_filepath, add_aligned_sequence=False, extract_sequence_subset=F
 
 
 def parse_sam(sam_filepath, remove_duplicates=True, add_aligned_sequence=False, extract_sequence_subset=False,
-              chunksize=10000, write_csv=False, write_nc=True):
+              chunksize=10000, write_csv=False, write_nc=True, write_filepath=None):
     sam_filepath = Path(sam_filepath)
 
     # Check number of header lines:
@@ -183,18 +186,21 @@ def parse_sam(sam_filepath, remove_duplicates=True, add_aligned_sequence=False, 
                     df['quality_subset'] = extract_positions(df['read_quality_aligned'],
                                                                        extract_sequence_subset)
 
+                if write_filepath is None:
+                    write_filepath = sam_filepath.with_suffix('')
+
                 if write_csv:
                     if i == 0:
-                        csv_filepath = sam_filepath.with_suffix('.csv')
+                        csv_filepath = write_filepath.with_suffix('.csv')
                         df.to_csv(csv_filepath, header=True, mode='w')
                     else:
                         df.to_csv(csv_filepath, header=False, mode='a')
 
                 if write_nc:
                     if i == 0:
-                        with netCDF4.Dataset(sam_filepath.with_suffix('.nc'),'w'):
+                        with netCDF4.Dataset(write_filepath.with_suffix('.nc'),'w'):
                             pass # If we create the file with h5netcdf we cannot write to it with netCDF4.
-                        nc_filepath = sam_filepath.with_suffix('.nc')
+                        nc_filepath = write_filepath.with_suffix('.nc')
                         nc_file = stack.enter_context(h5netcdf.File(nc_filepath, 'a'))
                         nc_file.dimensions = {'sequence': None}
                         for name, datatype in df.dtypes.items():
@@ -207,6 +213,30 @@ def parse_sam(sam_filepath, remove_duplicates=True, add_aligned_sequence=False, 
                     added_data_slice = slice(old_size, new_size)
                     for name in df.columns:
                         nc_file[name][added_data_slice] = df[name].values
+
+
+
+    #
+    # encoding = {key: {'dtype': '|S'} for key in ds.keys() if ds[key].dtype == 'object'}
+    #
+    # keys = ['instrument', 'run', 'flowcell', 'lane', 'tile', 'x', 'y', 'sam_flag', 'contig_name', 'first_base_position', 'mapping_quality', 'cigar_string', 'mate_name', 'mate_position', 'template_length', 'read_sequence', 'read_quality', 'read_sequence_aligned', 'read_quality_aligned', 'sequence_subset', 'quality_subset', 'index1_sequence', 'index1_quality']
+    # with xr.open_dataset(
+    #         r'N:\tnw\BN\CMJ\Shared\Ivo\PhD_data\20220607 - Sequencer (MiSeq)\Analysis\sequencing_data.nc') as ds:
+    #     keys = list(ds.keys())
+    # for key in keys:
+    #     print(key)
+    #     with xr.open_dataset(r'N:\tnw\BN\CMJ\Shared\Ivo\PhD_data\20220607 - Sequencer (MiSeq)\Analysis\sequencing_data.nc') as ds:
+    #         da = ds[key].load()
+    #         if da.dtype == 'object':
+    #             encoding = {key: {'dtype': '|S'}}
+    #         else:
+    #             encoding = {}
+    #         da.to_netcdf(r'N:\tnw\BN\CMJ\Shared\Ivo\PhD_data\20220607 - Sequencer (MiSeq)\Analysis\sequencing_data_S.nc', engine='h5netcdf', mode='a', encoding=encoding)
+
+
+# for key in ds.keys():
+#     if ds[key].dtype == 'object':
+#         print(key)
 
 
 def fastq_data(fastq_filepath):
@@ -383,9 +413,27 @@ def extract_positions(series, indices):
     return combined
 
 
+def make_sequencing_dataset(file_path, index1_file_path=None, remove_duplicates=True, add_aligned_sequence=True,
+                            extract_sequence_subset=False, chunksize=10000):
 
+    file_path = Path(file_path)
 
+    nc_file_path = file_path.with_name('sequencing_data.nc')
+    if file_path.suffix == '.sam':
+        parse_sam(file_path, remove_duplicates=remove_duplicates, add_aligned_sequence=add_aligned_sequence,
+                  extract_sequence_subset=extract_sequence_subset, chunksize=chunksize, write_csv=False, write_nc=True,
+                  write_filepath=nc_file_path)
+    else:
+        raise ValueError('Wrong file type')
 
+    if index1_file_path is not None:
+        index1_file_path = Path(index1_file_path)
+        if index1_file_path.suffix == '.fastq':
+            add_sequence_data_to_dataset(nc_file_path, index1_file_path, 'index1')
+        else:
+            raise ValueError('Wrong file type for index1')
+
+    return nc_file_path
 
 
 
