@@ -50,6 +50,12 @@ experiment_path = r'N:\tnw\BN\CMJ\Shared\Ivo\PhD_data\20220602 - Objective-type 
 
 exp = ta.Experiment(experiment_path)
 
+# alignment_sam_file_path = r'N:\tnw\BN\CMJ\Shared\Ivo\PhD_data\20220607 - Sequencer (MiSeq)\Analysis\Alignment.sam'
+# index1_fastq_file_path = r'N:\tnw\BN\CMJ\Shared\Ivo\PhD_data\20220607 - Sequencer (MiSeq)\Analysis\Index1.fastq' # Can be None
+# extract_sequence_subset = [30, 31, 56, 57, 82, 83, 108, 109]
+# exp.import_sequencing_data(alignment_sam_file_path, index1_file_path=index1_fastq_file_path, remove_duplicates=True,
+#                            add_aligned_sequence=True, extract_sequence_subset=extract_sequence_subset, chunksize=10000)
+
 files_channel_mapping = exp.files[exp.files.relativeFilePath.str.regex('Bead slide')]
 files_green_laser = exp.files[exp.files.relativeFilePath.str.regex('Scan.*TIRF 561')]
 files_red_laser_after = exp.files[exp.files.relativeFilePath.str.regex('TIRF 642 after')]
