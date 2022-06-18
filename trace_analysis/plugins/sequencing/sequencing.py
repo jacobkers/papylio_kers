@@ -7,6 +7,7 @@ from pathlib import Path
 from skimage.transform import AffineTransform, SimilarityTransform
 import pandas as pd
 import xarray as xr
+import os.path
 # from trace_analysis.experiment import Experiment
 # from trace_analysis.file import File
 from trace_analysis.mapping.geometricHashing import SequencingDataMapping
@@ -17,16 +18,23 @@ from .geometricHashing2 import geometric_hash, find_match_after_hashing
 from .geometricHashing3 import GeometricHashTable
 from .plotting import plot_sequencing_match, plot_matched_files_in_tile
 from trace_analysis.mapping.icp import icp, nearest_neighbor_pair
-from .sequencing_data import SequencingData
+from .sequencing_data import SequencingData, make_sequencing_dataset
 
 
 class Experiment:
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.sequencing_data_for_mapping = None
+        self.sequencing_data_for_mapping = None # To be removed
         self.files_for_mapping = None
         self._tile_mappings = None
+
+        if 'sequencing' in self.configuration.keys():
+            sequencing_data_relative_file_path = self.configuration['sequencing']['data_file_path']
+            sequencing_data_file_path = self.main_path.joinpath(sequencing_data_relative_file_path)
+            if sequencing_data_file_path is not None:
+                self.sequencing_data = SequencingData(sequencing_data_file_path)
+                print(f"\nImport sequencing data:\n{sequencing_data_relative_file_path}")
 
     @property
     def tile_mappings(self):
@@ -41,7 +49,22 @@ class Experiment:
     def tile_mappings_dict(self):
         return {mapping.label: mapping for mapping in self.tile_mappings}
 
-    def import_sequencing_data(self, file_path, surface=0):
+    def import_sequencing_data(self, file_path, index1_file_path=None, surface=0, remove_duplicates=True,
+                               add_aligned_sequence=True, extract_sequence_subset=False, chunksize=10000):
+        file_path = Path(file_path)
+        if file_path.suffix == '.csv':
+            raise ValueError('Wrong file type for sequencing data, if you would like to import the old .csv files, use "import_sequencing_data_old" ')
+
+        nc_file_path = make_sequencing_dataset(file_path, index1_file_path=index1_file_path,
+                                               remove_duplicates=remove_duplicates,
+                                               add_aligned_sequence=add_aligned_sequence,
+                                               extract_sequence_subset=extract_sequence_subset, chunksize=chunksize)
+
+        relative_nc_file_path = os.path.relpath(nc_file_path, start=self.main_path)
+        self.configuration['sequencing'] = {'data_file_path': relative_nc_file_path}
+
+    def import_sequencing_data_old(self):
+        raise DeprecationWarning('import_sequencing_data_old will be removed')
         seqdata = SequencingData(file_path)
         if surface == 0:
             seqdata = seqdata[seqdata.tile < 2000]
@@ -53,7 +76,8 @@ class Experiment:
         self.sequencing_data = seqdata
 
     def import_sequencing_data_for_mapping(self, file_path, surface=0):
-        #TODO: Merge with import_sequencing_data to obtain single method
+        #TODO: Merge with import_sequencing_data to obtain single
+        raise DeprecationWarning('import_sequencing_data_for_mapping will be removed')
         seqdata = SequencingData(file_path)
         if surface == 0:
             seqdata = seqdata[seqdata.tile < 2000]
@@ -64,11 +88,21 @@ class Experiment:
 
         self.sequencing_data_for_mapping = seqdata
 
-    def generate_tile_mappings(self, files_for_mapping):
+    def generate_tile_mappings(self, files_for_mapping, sequence_name=None, surface=0):
         self.files_for_mapping = files_for_mapping
 
         coordinates_sm = xr.concat(files_for_mapping.coordinates_stage, dim='molecule')
-        coordinates_seq = self.sequencing_data_for_mapping.coordinates
+        if self.sequencing_data_for_mapping is not None and sequence_name is None:
+            coordinates_seq = self.sequencing_data_for_mapping.coordinates ## To be removed
+        else:
+            selection = (self.sequencing_data.dataset.contig_name == 'MapSeq')
+            if surface == 0:
+                selection &= self.sequencing_data.dataset.tile < 2000
+            elif surface == 1:
+                selection &= self.sequencing_data.dataset.tile > 2000
+            else:
+                raise ValueError('Surface can be either 0 or 1')
+            coordinates_seq = self.sequencing_data[selection].coordinates
 
         tile_mappings = []
         for tile, coordinates_tile in coordinates_seq.groupby('tile'):
