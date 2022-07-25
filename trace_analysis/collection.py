@@ -76,6 +76,62 @@ class Collection(UserList):
         # d.pop('data_type')
         return d
 
+    def map(self, fun):
+        if not self.use_parallel_processing or len(self.data) == 1:
+            print('Serial processing')
+
+            def f(*args, **kwargs):
+                with HiddenPrints():
+                    # output = [getattr(datum, item)(*args, **kwargs) if datum is not None else None
+                    #           for datum in tqdm(self.data, position=0, leave=True)]
+                    output = [fun(datum, *args, **kwargs) if datum is not None else None
+                              for datum in tqdm(self.data, position=0, leave=True)]
+                for o in output:
+                    if o is not None:
+                        return Collection(output, **self.dict_without_data)
+
+            return f
+        else:
+            print('Parallel processing')
+
+            def f(*args, **kwargs):
+                with HiddenPrints():
+                    # , require='sharedmem')
+                    # with tqdm_joblib(tqdm(self.data, position=0, leave=True)):
+                    #     output = joblib.parallel.Parallel(self.number_of_cores, **self.parallel_processing_kwargs)\
+                    #         (joblib.parallel.delayed(getattr(datum, item))(*args, **kwargs) for datum in self.data)
+
+                    with tqdm_joblib(tqdm(self.data, position=0, leave=True)):
+                        results = joblib.parallel.Parallel(self.number_of_cores, **self.parallel_processing_kwargs) \
+                            (joblib.parallel.delayed(fun2)(fun, datum, *args, **kwargs) for datum in self.data)
+                    #
+                    #
+                    # # with Pool() as pool:
+                    # #     output = pool.starmap(fun2, [(fun, datum, args, kwargs) for datum in self.data])
+                    # #
+                    #
+                    # output = Parallel(self.number_of_cores, verbose=10)\
+                    #     (delayed(fun)(datum, *args, **kwargs) for datum in self.data)
+                # output = Parallel(self.number_of_cores)(
+                #     delayed(getattr(File, item))(datum, *args, **kwargs) if datum is not None else None for datum in
+                #     tqdm(self.data))
+                output = []
+                for datum, (obj, out) in zip(self.data, results):
+                    if hasattr(obj, '__dict__'):
+                        obj.__dict__ = {key: value for key, value in obj.__dict__.items() if
+                                        not hasattr(value, '_do_not_update')}
+                        if hasattr(datum, '__setstate__'):
+                            datum.__setstate__(obj.__getstate__())
+                        elif hasattr(datum, '__dict__'):
+                            datum.__dict__.update(obj.__dict__)
+                    output.append(out)
+
+                for o in output:
+                    if o is not None:
+                        return Collection(output, **self.dict_without_data)
+
+            return f
+
     def __getattr__(self, item):
         if 'data' not in self.__dict__.keys():
             raise AttributeError
@@ -93,53 +149,8 @@ class Collection(UserList):
         #     raise ValueError('Empty collection')
 
         if callable(getattr(first_not_none, item)):
-            if not self.use_parallel_processing or len(self.data) == 1:
-                print('Serial processing')
-                def f(*args, **kwargs):
-                    with HiddenPrints():
-                        output = [getattr(datum, item)(*args, **kwargs) if datum is not None else None
-                                  for datum in tqdm(self.data, position=0, leave=True)]
-                    for o in output:
-                        if o is not None:
-                            return Collection(output, **self.dict_without_data)
-                return f
-            else:
-                print('Parallel processing')
-                def f(*args, **kwargs):
-                    with HiddenPrints():
-                        # , require='sharedmem')
-                        # with tqdm_joblib(tqdm(self.data, position=0, leave=True)):
-                        #     output = joblib.parallel.Parallel(self.number_of_cores, **self.parallel_processing_kwargs)\
-                        #         (joblib.parallel.delayed(getattr(datum, item))(*args, **kwargs) for datum in self.data)
-                        fun = getattr(type(self.data[0]), item)
-                        with tqdm_joblib(tqdm(self.data, position=0, leave=True)):
-                            results = joblib.parallel.Parallel(self.number_of_cores, **self.parallel_processing_kwargs)\
-                                (joblib.parallel.delayed(fun2)(fun, datum, *args, **kwargs) for datum in self.data)
-                        #
-                        #
-                        # # with Pool() as pool:
-                        # #     output = pool.starmap(fun2, [(fun, datum, args, kwargs) for datum in self.data])
-                        # #
-                        #
-                        # output = Parallel(self.number_of_cores, verbose=10)\
-                        #     (delayed(fun)(datum, *args, **kwargs) for datum in self.data)
-                    # output = Parallel(self.number_of_cores)(
-                    #     delayed(getattr(File, item))(datum, *args, **kwargs) if datum is not None else None for datum in
-                    #     tqdm(self.data))
-                    output = []
-                    for datum, (obj, out) in zip(self.data, results):
-                        if hasattr(obj, '__dict__'):
-                            obj.__dict__ = {key: value for key, value in obj.__dict__.items() if not hasattr(value, '_do_not_update')}
-                            if hasattr(datum, '__setstate__'):
-                                datum.__setstate__(obj.__getstate__())
-                            elif hasattr(datum, '__dict__'):
-                                datum.__dict__.update(obj.__dict__)
-                        output.append(out)
-
-                    for o in output:
-                        if o is not None:
-                            return Collection(output, **self.dict_without_data)
-                return f
+            fun = getattr(type(self.data[0]), item)
+            return self.map(fun)
         else:
             return Collection([getattr(datum, item) if datum is not None else None for datum in self.data], **self.dict_without_data)
 
