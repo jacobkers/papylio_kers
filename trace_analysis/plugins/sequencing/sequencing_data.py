@@ -29,8 +29,8 @@ class SequencingData:
             if file_path.suffix == '.nc':
                 # with xr.open_dataset(file_path.with_suffix('.nc'), engine='h5netcdf') as dataset:
                 #     self.dataset = dataset.load().set_index({'sequence': ('tile','x','y')})
-                self.dataset = xr.open_dataset(file_path.with_suffix('.nc'), engine='netcdf4', chunks=10000)
-                # self.dataset = self.dataset.set_index({'sequence': ('tile', 'x', 'y')})
+                self.dataset = xr.open_dataset(file_path.with_suffix('.nc'), engine='netcdf4')#, chunks=10000)
+                self.dataset = self.dataset.set_index({'sequence': ('tile', 'x', 'y')})
             else:
                 data = pd.read_csv(file_path, delimiter='\t')
                 data.columns = data.columns.str.lower()
