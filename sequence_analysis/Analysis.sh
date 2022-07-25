@@ -1,3 +1,11 @@
+# Steps to follow:
+# 1. Copy everything from the sequence_analysis folder to the folder with your sequencing data (not on network location)
+# 2. Rename the sequencing file to Read1
+# 3. Adjust the sequences in the reference file
+# 4. Open Ubuntu
+# 5. Navigate to the folder with your sequencing data 
+# 6. Run the lines below
+
 # CONDA_BASE=$(conda info --base)
 # source $CONDA_BASE/etc/profile.d/conda.sh
 # CONDA=$(conda info --base)"/condabin/conda"
@@ -5,7 +13,6 @@ source ~/miniconda3/etc/profile.d/conda.sh
 conda activate sequence_analysis
 
 # bowtie2-build Reference.fasta Reference
-
 # bowtie2 -x Reference -U *R1_001.fastq -S Alignment.sam --local --np 0 --very-sensitive-local --n-ceil L,0,1 --threads 4 --score-min G,20,4 --norc
 
 zcat *R1_001.fastq.gz > Read1.fastq
