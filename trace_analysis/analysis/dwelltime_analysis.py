@@ -74,7 +74,8 @@ def dwell_times_from_classification(classification, traces=None, cycle_time=None
 def single_decaying_exponential(t, A, tau):
     return A * np.exp(-t/tau)
 
-def analyze_dwells(dwells, fit_function, cycle_time=1, plot=False, axes=None):
+def analyze_dwells(dwells, fit_function=single_decaying_exponential, cycle_time=1, plot=False,
+                   axes=None, state_names={1: 'Low FRET state', 2: 'High FRET state'}):
     states = np.unique(dwells.state)
     positive_states = states[states>=0]
 
@@ -88,12 +89,36 @@ def analyze_dwells(dwells, fit_function, cycle_time=1, plot=False, axes=None):
         dwells_with_state = dwells.sel(dwell=dwells.state==state)
         c, t_edges = np.histogram(dwells_with_state.duration, bins=bins+1, range=[-cycle_time/2, (bins+1/2)*cycle_time])
         t = (t_edges[:-1]+t_edges[1:])/2
-        popt, pcov = scipy.optimize.curve_fit(fit_function, t[1:], c[1:])
+        try:
+            popt, pcov = scipy.optimize.curve_fit(fit_function, t[1:], c[1:])
+        except RuntimeError:
+            popt = None
+
 
         if plot:
             axes[i].bar(t, c, width=cycle_time)
-            axes[i].plot(t, fit_function(t, *popt), c='r')
-            axes[i].set_title(str(np.round(popt[-1],3))+ ',' + str(np.round(dwells_with_state['mean'].mean().item(),3)))
+            # axes[i].set_title(+ ',' + str())
+            if popt is not None:
+                axes[i].plot(t, fit_function(t, *popt), c='r', label=r'$count = Ae^{-\frac{t}{\tau}}$')
+                text_string = f'A={popt[0]:.5}\nτ={popt[-1]:.5}\nmean={dwells_with_state["mean"].mean().item():.5}'
+            else:
+                text_string = 'No fit found'
+
+            text_string = state_names[state] + '\n' + text_string
+
+            # axes[i].text(0.95, 0.95, text_string, transform=axes[i].transAxes, fontsize=14,
+            #     verticalalignment='top')# , bbox=props)
+            axes[i].annotate(text_string, (0.55, 0.9), xycoords='axes fraction', fontsize=9,
+                        verticalalignment='top')
+
+
+            if axes[i].get_subplotspec().is_last_row():
+                axes[i].set_xlabel('Dwell time (s)')
+            axes[i].set_xlim([-cycle_time/2,30*cycle_time])
+            if axes[i].get_subplotspec().is_first_col():
+                axes[i].set_ylabel('Dwell count')
+            # if axes[i].get_subplotspec().is_last_col():
+            #     axes[i].legend()
 
         fit_values[state] = popt
 
