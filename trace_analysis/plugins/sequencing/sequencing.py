@@ -19,6 +19,7 @@ from .geometricHashing3 import GeometricHashTable
 from .plotting import plot_sequencing_match, plot_matched_files_in_tile
 from trace_analysis.mapping.icp import icp, nearest_neighbor_pair
 from .sequencing_data import SequencingData, make_sequencing_dataset
+from .mapping_collection import MappingCollection
 
 
 class Experiment:
@@ -26,7 +27,6 @@ class Experiment:
         super().__init__(*args, **kwargs)
 
         self.sequencing_data_for_mapping = None # To be removed
-        self.files_for_mapping = None
         self._tile_mappings = None
 
         if 'sequencing' in self.configuration.keys():
@@ -38,18 +38,24 @@ class Experiment:
 
     @property
     def tile_mappings(self):
-        from .mapping_collection import MappingCollection
-
         if self._tile_mappings is None:
+            tile_mappings_path = self.main_path.joinpath('Analysis').joinpath('Tile mappings')
             self._tile_mappings = MappingCollection([Mapping2.load(filepath) for filepath in
-                                    self.main_path.joinpath('Analysis').joinpath('Tile mappings').glob('*.mapping')])
+                                                     tile_mappings_path.glob('*.mapping')])
+
         return self._tile_mappings
 
     @property
     def tile_mappings_dict(self):
-        return {mapping.label: mapping for mapping in self.tile_mappings}
+        d = {}
+        for mapping in self.tile_mappings:
+            name = mapping.name[:-12]
+            if name not in d.keys():
+                d[name] = {}
+            d[name][mapping.label] = mapping
+        return d
 
-    def import_sequencing_data(self, file_path, index1_file_path=None, surface=0, remove_duplicates=True,
+    def import_sequencing_data(self, file_path, index1_file_path=None, remove_duplicates=True,
                                add_aligned_sequence=True, extract_sequence_subset=False, chunksize=10000):
         file_path = Path(file_path)
         if file_path.suffix == '.csv':
@@ -88,14 +94,12 @@ class Experiment:
 
         self.sequencing_data_for_mapping = seqdata
 
-    def generate_tile_mappings(self, files_for_mapping, sequence_name=None, surface=0):
-        self.files_for_mapping = files_for_mapping
-
+    def generate_tile_mappings(self, files_for_mapping, mapping_sequence_name=None, surface=0, name='All files'):
         coordinates_sm = xr.concat(files_for_mapping.coordinates_stage, dim='molecule')
-        if self.sequencing_data_for_mapping is not None and sequence_name is None:
+        if self.sequencing_data_for_mapping is not None and mapping_sequence_name is None:
             coordinates_seq = self.sequencing_data_for_mapping.coordinates ## To be removed
         else:
-            selection = (self.sequencing_data.dataset.contig_name == 'MapSeq')
+            selection = (self.sequencing_data.dataset.contig_name == mapping_sequence_name.encode())
             if surface == 0:
                 selection &= self.sequencing_data.dataset.tile < 2000
             elif surface == 1:
@@ -103,6 +107,9 @@ class Experiment:
             else:
                 raise ValueError('Surface can be either 0 or 1')
             coordinates_seq = self.sequencing_data[selection].coordinates
+
+        tile_mapping_path = self.main_path.joinpath('Analysis').joinpath('Tile mappings')
+        tile_mapping_path.mkdir(parents=True, exist_ok=True)
 
         tile_mappings = []
         for tile, coordinates_tile in coordinates_seq.groupby('tile'):
@@ -115,17 +122,21 @@ class Experiment:
             mapping.destination_name = 'Sequencing data'
             mapping.source_unit = 'µm'
             mapping.destination_unit = 'MiSeq'
-            mapping.save(self.main_path.joinpath('Analysis').joinpath('Tile mappings').joinpath(f'Tile {tile}.mapping'))
+            mapping.save(tile_mapping_path.joinpath(f'{name} - Tile {tile}.mapping'))
             tile_mappings.append(mapping)
-        from .mapping_collection import MappingCollection
-        self._tile_mappings = MappingCollection(tile_mappings)
+        self._tile_mappings = None
 
     def transform_sequencing_to_single_molecule_coordinates(self):
-        coordinates_sm = xr.full_like(self.sequencing_data.coordinates.astype(float), np.nan)
+        coords = self.sequencing_data.coordinates.coords
+        coordinates_sm = xr.DataArray(dims=['mapping_name','sequence','dimension'],
+                                      coords={'mapping_name': list(self.tile_mappings_dict.keys()), 'sequence':coords['sequence'], 'dimension': coords['dimension']})
+        tile_mappings_dict = self.tile_mappings_dict
         for tile, coordinates in self.sequencing_data.coordinates.groupby('tile'):
-            coordinates_sm[coordinates_sm.tile == tile] = \
-                self.tile_mappings_dict[tile].transformation_inverse(coordinates)
-            # coordinates_sm.append(mapping.transform_coordinates(coordinates, inverse=True))
+            for mapping_name, tile_mappings in tile_mappings_dict.items():
+                if tile in tile_mappings.keys():
+                    coordinates_sm.loc[dict(mapping_name=mapping_name, sequence=(coordinates_sm.tile == tile))] = \
+                       tile_mappings[tile].transformation_inverse(coordinates)
+                # coordinates_sm.append(mapping.transform_coordinates(coordinates, inverse=True))
 
         self.sequencing_data.dataset['x_sm'] = coordinates_sm.sel(dimension='x')
         self.sequencing_data.dataset['y_sm'] = coordinates_sm.sel(dimension='y')
@@ -413,7 +424,7 @@ class File:
         self._sequencing_data = value
         self.export_sequencing_data()
 
-    def get_sequencing_data(self, margin=1):
+    def get_sequencing_data(self, margin=1, mapping_name='All files'):
         sequencing_dataset = self.experiment.sequencing_data
 
         data_var_names = sequencing_dataset.dataset.data_vars.keys()
@@ -422,15 +433,22 @@ class File:
 
         x_lims, y_lims = self.movie.boundaries_stage.T
 
-        selection = (sequencing_dataset.x_sm > (x_lims[0] - margin)) & (sequencing_dataset.x_sm < (x_lims[1] + margin)) & \
-                    (sequencing_dataset.y_sm > (y_lims[0] - margin)) & (sequencing_dataset.y_sm < (y_lims[1] + margin))
+        x_sm = sequencing_dataset.x_sm.sel(mapping_name=mapping_name)
+        y_sm = sequencing_dataset.y_sm.sel(mapping_name=mapping_name)
+
+        selection = (x_sm > (x_lims[0] - margin)) & (x_sm < (x_lims[1] + margin)) & \
+                    (y_sm > (y_lims[0] - margin)) & (y_sm < (y_lims[1] + margin))\
+                        .reset_coords('mapping_name', drop=True)
 
         if selection.any():
-            self.sequencing_data = sequencing_dataset[selection]
+            sequencing_data = sequencing_dataset[selection.values]
+            sequencing_data.dataset = sequencing_data.dataset.sel(mapping_name=mapping_name)
+            self.sequencing_data = sequencing_data
         else:
             self.sequencing_data = None
 
     def generate_sequencing_match(self, overlapping_points_threshold=25, plot=False):
+        # TODO: Add selection for sequencing data???
         if self.sequencing_data is None:
             # raise AttributeError('Sequencing data not defined, run get_sequencing_data() first')
             self.sequencing_match = None
@@ -459,21 +477,7 @@ class File:
 
     def insert_sequencing_data_into_file_dataset(self):
         if self.sequencing_match is None:
-            sequencing_dataset = xr.Dataset(
-                {
-                    'sequence': ('molecule', []),
-                    'sequence_quality': ('molecule', []),
-                    # 'distance_to_sequence':     ('molecule', distances_to_sequence),
-                    'sequence_tile': ('molecule', []),
-                    'sequence_coordinates': (('molecule', 'dimension'), np.empty((0, 2)))
-                },
-                coords=
-                {
-                    # 'sequence_name':    ('molecule', selected_sequencing_data.name),
-                    'molecule': ('molecule', []),
-                    'sequence_in_file': ('molecule', [])
-                }
-            )
+            selected_sequencing_data = None
         else:
             if self.sequencing_match.destination_distance_threshold == 0:
                 raise RuntimeError('No distance threshold set in sequencing match for pair determination')
@@ -482,12 +486,36 @@ class File:
             single_molecule_indices, sequence_indices = self.sequencing_match.matched_pairs.T
 
             selected_sequencing_data = self.sequencing_data.dataset[dict(sequence=sequence_indices)]
+
+        if selected_sequencing_data is None or (len(selected_sequencing_data.sequence) == 0):
+            sequencing_dataset = xr.Dataset(
+                {
+                    'sequence_name': ('molecule', np.empty((0,)).astype('S')),
+                    'sequence': ('molecule', np.empty((0,)).astype('S')),
+                    'sequence_quality': ('molecule', np.empty((0,)).astype('S')),
+                    'sequence_subset': ('molecule', np.empty((0,)).astype('S')),
+                    'sequence_quality_subset': ('molecule', np.empty((0,)).astype('int64')),
+                    # 'distance_to_sequence':     ('molecule', []),
+                    'sequence_tile': ('molecule', np.empty((0,)).astype('int64')),
+                    'sequence_coordinates': (('molecule', 'dimension'), np.empty((0, 2)).astype('int64'))
+                },
+                coords=
+                {
+                    # 'sequence_name':    ('molecule', selected_sequencing_data.name),
+                    'molecule': ('molecule', np.empty((0,)).astype('int64')),
+                    'sequence_in_file': ('molecule', np.empty((0,)).astype('int64'))
+                }
+            )
+        else:
             sequencing_coordinates = selected_sequencing_data[['x', 'y']].to_array('dimension').T.values
 
             sequencing_dataset = xr.Dataset(
                 {
-                    'sequence': ('molecule', selected_sequencing_data.read_aligned.data),
-                    'sequence_quality': ('molecule', selected_sequencing_data.quality_aligned.data),
+                    'sequence_name': ('molecule', selected_sequencing_data.contig_name.data),
+                    'sequence': ('molecule', selected_sequencing_data.read_sequence_aligned.data),
+                    'sequence_quality': ('molecule', selected_sequencing_data.read_quality_aligned.data),
+                    'sequence_subset': ('molecule', selected_sequencing_data.sequence_subset.data),
+                    'sequence_quality_subset': ('molecule', selected_sequencing_data.quality_subset.data),
                     # 'distance_to_sequence':     ('molecule', distances_to_sequence),
                     'sequence_tile': ('molecule', selected_sequencing_data.tile.data),
                     'sequence_coordinates': (('molecule', 'dimension'), sequencing_coordinates.data)
@@ -495,22 +523,29 @@ class File:
                 coords=
                 {
                     # 'sequence_name':    ('molecule', selected_sequencing_data.name),
-                    'molecule': ('molecule', single_molecule_indices.data),
-                    'sequence_in_file': ('molecule', sequence_indices.data)
+                    'molecule': ('molecule', single_molecule_indices),
+                    'sequence_in_file': ('molecule', sequence_indices)
                 }
             )
+        sequencing_dataset['dimension'] = [b'x', b'y']
 
         # sequencing_dataset['sequence'] = sequencing_dataset['sequence'].astype('str')
         # sequencing_dataset['sequence_quality'] = sequencing_dataset['sequence_quality'].astype('str')
 
-        empty_sequence = ''# '-'* 120#int(sequencing_dataset.sequence[0].str.len())
+        # sequence_length = len(self.experiment.sequencing_data.dataset.read_sequence[0].item())
+        # subset_length = len(self.experiment.sequencing_data.dataset.sequence_subset[0].item())
+        sequence_length = 130
+        subset_length = 8
         sequencing_dataset = sequencing_dataset.reindex_like(
             self.molecule.set_index(molecule='molecule_in_file'),
-            fill_value={'sequence': empty_sequence, 'sequence_quality': empty_sequence,
-                        'sequence_tile': np.array(np.nan).astype(pd.UInt16Dtype),
-                        'sequence_coordinates': np.array(np.nan).astype(pd.UInt16Dtype),
-                        # 'sequence_name': '',
-                        'sequence_in_file': np.array(np.nan).astype(pd.UInt16Dtype)})
+            fill_value={'sequence_name': np.array('').astype('|S10'),
+                        'sequence': b'-' * sequence_length,
+                        'sequence_quality': b' ' * sequence_length,
+                        'sequence_subset': b'-' * subset_length,
+                        'sequence_quality_subset': b' ' * subset_length,
+                        'sequence_tile': np.array(0).astype('int64'),
+                        'sequence_coordinates': np.array([[0, 0]]).astype('int64'),
+                        'sequence_in_file': np.array(-1).astype('int64')}) # -1 is not ideal as it will not give an error when used as index, but currently I don't have another solution
         sequencing_dataset = sequencing_dataset.reset_index('molecule').rename(molecule_='molecule_in_file')
 
         # Engine netcdf4 has some locking problems.
