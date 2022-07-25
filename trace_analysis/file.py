@@ -318,8 +318,9 @@ class File:
     def _init_dataset(self, number_of_molecules):
         selected = xr.DataArray(False, dims=('molecule',), coords={'molecule': range(number_of_molecules)}, name='selected')
         dataset = selected.reset_index('molecule').rename(molecule_='molecule_in_file').to_dataset()
-        dataset = dataset.assign_coords({'file': ('molecule', [str(self.relativeFilePath)] * number_of_molecules)})
-        dataset.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='w')
+        dataset = dataset.assign_coords({'file': ('molecule', [str(self.relativeFilePath).encode()] * number_of_molecules)})
+        encoding = {'file': {'dtype': '|S'}, 'selected': {'dtype': bool}}
+        dataset.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='w', encoding=encoding)
         self.extensions.add('.nc')
 
         # # pd.MultiIndex.from_tuples([], names=['molecule_in_file', 'file'])),
@@ -700,7 +701,7 @@ class File:
         # self.coordinates = coordinates
 
         peaks = xr.DataArray(coordinates, dims=("peak", 'dimension'),
-                     coords={'peak': range(len(coordinates)), 'dimension': ['x', 'y']}, name='coordinates')
+                     coords={'peak': range(len(coordinates)), 'dimension': [b'x', b'y']}, name='coordinates')
 
         coordinates = split_dimension(peaks, 'peak', ('molecule', 'channel'), (-1, self.movie.number_of_channels)).reset_index('molecule', drop=True)
         # file = str(self.relativeFilePath)
@@ -711,7 +712,7 @@ class File:
         # Because split_dimension doesn't keep the channels in case of an empty array.
         if len(coordinates) == 0:
             coordinates = xr.DataArray(np.empty((0, 2, 2)), dims=('molecule', 'channel', 'dimension'),
-                                       coords={'channel': [0, 1], 'dimension': ['x', 'y']}, name='coordinates')
+                                       coords={'channel': [0, 1], 'dimension': [b'x', b'y']}, name='coordinates')
 
         # if len(coordinates) !=0:
 
