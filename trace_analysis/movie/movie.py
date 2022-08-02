@@ -287,9 +287,17 @@ class Movie:
             frames = frames[frame_indices]
         images = np.rot90(frames, self.rot90, axes=(1, 2))
 
+        # TODO: Make x_pixel_indices and y_pixel_indices a channel property
+        x_pixel_coords = xr.DataArray(np.vstack([np.arange(*channel.boundaries[:,0]) for channel in self.channels]),
+                                           dims=('channel','x'))
+        y_pixel_coords = xr.DataArray(np.vstack([np.arange(*channel.boundaries[:,1]) for channel in self.channels]),
+                                           dims=('channel', 'y'))
+
         frames = xr.DataArray(np.stack([channel.crop_images(images) for channel in self.channels]),
                              dims=('channel', 'frame', 'y', 'x'),
-                             coords={'channel': [channel.index for channel in self.channels]})\
+                             coords={'channel': [channel.index for channel in self.channels],
+                                     'y_pixel': y_pixel_coords,
+                                     'x_pixel': x_pixel_coords})\
             .transpose('frame', 'channel',...)#.chunk({'frame': 100})
 
         return frames
