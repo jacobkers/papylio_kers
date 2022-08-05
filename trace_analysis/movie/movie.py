@@ -6,12 +6,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
 import xarray as xr
-from scipy.ndimage import minimum_filter
+import scipy.ndimage
 from skimage.transform import AffineTransform
 
 from trace_analysis.image_adapt.rolling_ball import rollingball
 from trace_analysis.image_adapt.find_threshold import remove_background, get_threshold
 from trace_analysis.timer import Timer
+from trace_analysis.correction.shading_correction import get_photobleach
 
 
 
@@ -80,7 +81,14 @@ class Movie:
         self.illuminations = [Illumination(self, 'green', 'g')]
         self.illumination_arrangement = np.array([0]) # TODO: np.array([0]) >> list of list It would be good to have a default illumination_arrangement of np.array([0]), i.e. illumination 0 all the time?
         # self._illumination_per_frame = None
+
+        self.darkfield_correction = None
+        self.flatfield_correction = None
+        self.temporal_background_correction = None
+        self.temporal_illumination_correction = None
+
         self.header_is_read = False
+
 
     def __enter__(self):
         if self._with_counter == 0:
@@ -258,6 +266,7 @@ class Movie:
 
     def read_frame(self, frame_number, channel=None):
         frame = self.read_frame_raw(frame_number)
+        frame = self.apply_corrections(frame)
         frame = xr.DataArray(np.dstack([channel.crop_image(frame) for channel in self.channels]),
                              dims=('x', 'y', 'channel'),
                              coords={'channel': [channel.index for channel in self.channels]})
@@ -285,7 +294,7 @@ class Movie:
         frames = self._read_frames(frame_indices)
         if frame_indices is not None:
             frames = frames[frame_indices]
-        images = np.rot90(frames, self.rot90, axes=(1, 2))
+        frames = np.rot90(frames, self.rot90, axes=(1, 2))
 
         # TODO: Make x_pixel_indices and y_pixel_indices a channel property
         x_pixel_coords = xr.DataArray(np.vstack([np.arange(*channel.boundaries[:,0]) for channel in self.channels]),
@@ -293,14 +302,33 @@ class Movie:
         y_pixel_coords = xr.DataArray(np.vstack([np.arange(*channel.boundaries[:,1]) for channel in self.channels]),
                                            dims=('channel', 'y'))
 
-        frames = xr.DataArray(np.stack([channel.crop_images(images) for channel in self.channels]),
-                             dims=('channel', 'frame', 'y', 'x'),
-                             coords={'channel': [channel.index for channel in self.channels],
+        frames = self.split_channels(frames)
+        # frames = np.stack([channel.crop_images(images) for channel in self.channels]
+
+        frames = xr.DataArray(frames,
+                             dims=('frame', 'y', 'x', 'channel'),
+                             coords={'channel': self.channel_arrangement.flatten(),
                                      'y_pixel': y_pixel_coords,
                                      'x_pixel': x_pixel_coords})\
             .transpose('frame', 'channel',...)#.chunk({'frame': 100})
 
         return frames
+
+    def split_channels(self, frames):
+        return split_along_axes(frames, (len(self.channel_arrangement[0]), len(self.channel_arrangement[0, 0])),
+                                from_axes=(1, 2), to_axes=(None, None))
+        #
+        # return apply_ufunc(
+        #     split_along_axes, frames, input_core_dims=[['x','y']], kwargs={"axis": -1}
+        # )
+
+
+    def combine_channels(self, frames):
+        return split_along_axes(frames, (len(self.channel_arrangement[0]), len(self.channel_arrangement[0, 0])),
+                                from_axes=(1, 2), inverse=True)
+
+
+
 
     # def read_frames(self, frame_indices=None):
     #     images = self.read_frames_raw(frame_indices=frame_indices)
@@ -563,6 +591,45 @@ class Movie:
         # note: optionally a fixed threshold can be set, like with IDL
         # note 2: do we need a different threshold for donor and acceptor?
 
+    def determine_temporal_background_correction(self, method='BaSiC'):
+        frames = self.read_frames_raw()
+
+        temporal_background_correction = {}
+        for channel in self.channels:
+            channel_frames = channel.crop_images(frames)
+            flatfield = channel.crop_image(self.flatfield_correction)
+            darkfield = channel.crop_image(self.darkfield_correction)
+            size = (channel.dimensions/channel.dimensions.max()*64).astype(int)
+            if method == 'BaSiC':
+                temporal_background_correction[channel.index] = \
+                    get_photobleach(channel_frames, flatfield, darkfield, size=size)
+            elif method == 'gaussian_filter':
+                temporal_background_correction[channel.index] = \
+                    np.array([scipy.ndimage.gaussian_filter(((frame - darkfield) / flatfield), sigma=50, mode='wrap').mean() for frame in channel_frames])
+            elif  method == 'minimum_filter':
+                temporal_background_correction[channel.index] = \
+                    np.array([scipy.ndimage.minimum_filter(((frame - darkfield) / flatfield), size=15, mode='wrap').mean() for frame in channel_frames])
+
+        self.temporal_background_correction = temporal_background_correction
+
+    def apply_corrections(self, frames):
+        if frames.ndim == 2:
+            frames = frames[None, :, :]
+
+        if self.darkfield_correction is not None:
+            frames = frames - self.darkfield_correction[None, :, :]
+
+        if self.flatfield_correction is not None:
+            frames = frames / self.flatfield_correction[None, :, :]
+
+        if self.temporal_illumination_correction is not None:
+            frames = frames / self.temporal_illumination_correction[:, None, None]
+
+        if self.temporal_background_correction is not None:
+            frames = frames - self.temporal_background_correction[:, None, None]
+
+        return frames
+
     # def determine_illumination_correction(self, filter_neighbourhood_size=10):
     #
     #     frames = self.read_frames_raw()
@@ -659,6 +726,10 @@ class Channel:
         #             return frame_index, y_index, x_index
         #         except ValueError:
         #             pass
+
+    @property
+    def dimensions(self):
+        return np.array([self.width, self.height])
 
     @property
     def origin(self):
@@ -758,3 +829,128 @@ def make_colour_map(colour, N=256):
         values[:, 0] = values[:, 1] = values[:, 2] = np.linspace(0, 1, N)
 
     return ListedColormap(values)
+
+
+def split_along_axes(frames, split_into, from_axes=-1, to_axes=None, combine_new_axes=True, inverse=False):
+    if isinstance(split_into, int):
+        split_into = (split_into, )
+    if isinstance(from_axes, int):
+        from_axes = (from_axes, )
+    if isinstance(to_axes, int) or to_axes is None:
+        to_axes = (to_axes, )*len(from_axes)
+
+    if inverse:
+        split_into = split_into[::-1]
+        from_axes,  to_axes = to_axes[::-1], from_axes[::-1]
+
+    ndim = frames.ndim
+
+    new_axis_created = False
+    for i, (n, from_axis, to_axis) in enumerate(zip(split_into, from_axes, to_axes)):
+        if from_axis is None:
+            from_axis = ndim-1
+        elif from_axis < 0:
+            from_axis = range(ndim)[from_axis]
+
+        if to_axis is None:
+            if combine_new_axes and new_axis_created:
+                to_axis = ndim
+        elif to_axis < 0:
+            to_axis = range(ndim)[to_axis]
+
+        # if frames.shape[-1] % n > 0:
+        #     raise ValueError('Cannot split into equal parts')
+        if to_axis is None:
+            frames = np.moveaxis(frames, from_axis, -1)
+            frames = frames.reshape(*frames.shape[:-1], n, frames.shape[-1] // n)
+            frames = np.moveaxis(frames, -1, from_axis)
+            new_axis_created = True
+        elif inverse:
+            frames = np.moveaxis(frames, [from_axis, to_axis], [-2, -1])
+            frames = frames.reshape(*frames.shape[:-2], frames.shape[-2] // n, frames.shape[-1] * n)
+            frames = np.moveaxis(frames, [-2, -1], [from_axis, to_axis])
+        else:
+            frames = np.moveaxis(frames, [from_axis, to_axis], [-1, -2])
+            frames = frames.reshape(*frames.shape[:-2], frames.shape[-2] * n, frames.shape[-1] // n)
+            frames = np.moveaxis(frames, [-1, -2], [from_axis, to_axis])
+
+    frames = frames.squeeze()
+        # frames = np.moveaxis(frames, from_axis, -1)
+
+        # Test code
+        # start = time.time()
+        # a = np.stack(np.split(frames, 2, axis=2), axis=-1)
+        # b = np.concatenate(np.split(a, 2, axis=1), axis=-1)
+        # print(time.time() - start)
+        #
+        # start = time.time()
+        # bb = split_image_channels(frames, (2, 2), axes=(1, 2), combine_new_axes=False)
+        # print(time.time() - start)
+
+    return frames
+
+#
+#
+# def split_along_axes(frames, split_into, axes=-1, combine_new_axes=True):
+#     if isinstance(split_into, int):
+#         split_into = (split_into, )
+#     if isinstance(axes, int):
+#         axes = (axes, )
+#
+#     for i, (n, axis) in enumerate(zip(split_into, axes)):
+#         if axis < 0:
+#             axis = range(frames.ndim)[axis]
+#
+#         frames = np.moveaxis(frames, axis, -1)
+#         if frames.shape[-1] % n > 0:
+#             raise ValueError('Cannot split into equal parts')
+#         if combine_new_axes and i > 0:
+#             frames = frames.reshape(*frames.shape[:-2], frames.shape[-2] * n, frames.shape[-1]//n)
+#         else:
+#             frames = frames.reshape(*frames.shape[:-1], n, frames.shape[-1]//n)
+#         frames = np.moveaxis(frames, -1, axis)
+#
+#         # Test code
+#         # start = time.time()
+#         # a = np.stack(np.split(frames, 2, axis=2), axis=-1)
+#         # b = np.concatenate(np.split(a, 2, axis=1), axis=-1)
+#         # print(time.time() - start)
+#         #
+#         # start = time.time()
+#         # bb = split_image_channels(frames, (2, 2), axes=(1, 2), combine_new_axes=False)
+#         # print(time.time() - start)
+#
+#     return frames
+
+
+def combine_axes(frames, combinination=2, axes=-1):
+    if isinstance(split_into, int):
+        split_into = (split_into, )
+    if isinstance(axes, int):
+        axes = (axes, )
+
+    for i, (n, axis) in enumerate(zip(split_into, axes)):
+        if axis < 0:
+            axis = range(frames.ndim)[axis]
+
+        frames = np.moveaxis(frames, axis, -1)
+        if frames.shape[-1] % n > 0:
+            raise ValueError('Cannot split into equal parts')
+        if combine_new_axes and i > 0:
+            frames = frames.reshape(*frames.shape[:-2], frames.shape[-2] * n, frames.shape[-1]//n)
+        else:
+            frames = frames.reshape(*frames.shape[:-1], n, frames.shape[-1]//n)
+        frames = np.moveaxis(frames, -1, axis)
+
+        # Test code
+        # start = time.time()
+        # a = np.stack(np.split(frames, 2, axis=2), axis=-1)
+        # b = np.concatenate(np.split(a, 2, axis=1), axis=-1)
+        # print(time.time() - start)
+        #
+        # start = time.time()
+        # bb = split_image_channels(frames, (2, 2), axes=(1, 2), combine_new_axes=False)
+        # print(time.time() - start)
+
+    return frames
+
