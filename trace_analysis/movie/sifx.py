@@ -200,6 +200,9 @@ class SifxMovie(Movie):
         
         return im
 
+    def _read_frames(self, indices):
+        # Can probably be implemented more efficiently
+        return np.stack([self._read_frame(i) for i in indices])
 
 if __name__ == "__main__":
     movie = SifxMovie(r'.\Example_data\sifx\movie\Spooled files.sifx')

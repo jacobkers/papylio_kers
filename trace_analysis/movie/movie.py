@@ -89,7 +89,6 @@ class Movie:
 
         self.header_is_read = False
 
-
     def __enter__(self):
         if self._with_counter == 0:
             self.open()
@@ -258,27 +257,63 @@ class Movie:
 
         self.header_is_read = True
 
-    def read_frame_raw(self, frame_number):
-        if not self.header_is_read:
-            self.read_header()
-        frame = self._read_frame(frame_number)
-        return np.rot90(frame, self.rot90)
+    def read_frame_raw(self, frame_index):
+        return self.read_frames_raw([frame_index]).squeeze('frame', drop=True)
+        # if not self.header_is_read:
+        #     self.read_header()
+        # frame = self._read_frame(frame_number)
+        # return np.rot90(frame, self.rot90)
 
-    def read_frame(self, frame_number, channel=None):
-        frame = self.read_frame_raw(frame_number)
-        frame = self.apply_corrections(frame)
-        frame = xr.DataArray(np.dstack([channel.crop_image(frame) for channel in self.channels]),
-                             dims=('x', 'y', 'channel'),
-                             coords={'channel': [channel.index for channel in self.channels]})
+    def read_frames_raw(self, indices=None):
+        if indices is None:
+            indices = np.arange(self.number_of_frames)
 
-        channels = self.get_channels_from_names(channel)
-        channel_indices = self.get_channel_indices_from_names(channel)
-        frame = frame.sel(channel=channel_indices)
+        frames = self._read_frames(indices)
+        # frames = xr.DataArray(frames, dims=('frame', 'y', 'x'))
+        frames = np.rot90(frames, self.rot90, axes=(1, 2))
 
-        # if self.illumination_correction is not None:
-        #     for channel in channels:
-        #         frame = frame.astype(float)
-        #         frame.loc[{'channel': channel.index}] *= self.illumination_correction[frame_number, channel.index]
+        frames = self.separate_channels(frames)
+        # frames = np.stack([channel.crop_images(images) for channel in self.channels]
+
+        frames = xr.DataArray(frames,
+                              dims=('frame', 'channel', 'y', 'x'),
+                              coords={'frame': indices,
+                                      'channel': self.channel_arrangement.flatten()})#.chunk({'frame': 100})
+
+        return frames
+
+    def separate_channels(self, frames):
+        channel_rows = len(self.channel_arrangement[0])
+        channel_columns = len(self.channel_arrangement[0, 0])
+        #return expand_axes(frames, (channel_rows, channel_columns), from_axes=(1, 2))
+
+        return xr.apply_ufunc(
+            expand_axes, frames, input_core_dims=[['frame', 'y', 'x']], output_core_dims=[['frame','channel','y','x']],
+            exclude_dims=set(['x','y']),
+            kwargs={"expand_into": (channel_rows, channel_columns), "from_axes": (1, 2), "new_axes_positions": [1]}
+        )
+
+        # frames = frames.transpose('frame', 'y', 'x', ...)
+        # new = split_along_axes(frames.values, (channel_rows, channel_columns), from_axes=(1, 2))
+        # return xr.DataArray(new, dims=['frame','y','x','channel'])
+
+    def flatten_channels(self, frames):
+        channel_rows = len(self.channel_arrangement[0])
+        channel_columns = len(self.channel_arrangement[0, 0])
+        # return split_along_axes(frames, (channel_rows, channel_columns), from_axes=(1, 2), inverse=True)
+
+        return xr.apply_ufunc(
+            expand_axes, frames, input_core_dims=[['frame', 'channel', 'y', 'x']], output_core_dims=[['frame','y','x']],
+            exclude_dims=set(['x','y']),
+            kwargs={"expand_into": (channel_rows, channel_columns), "from_axes": (2, 3), "to_axes": (1, 1),  "inverse": True}
+        )
+
+    def read_frame(self, index, channel=None):
+        frame = self.read_frames([index])
+        if channel is not None:
+            channels = self.get_channels_from_names(channel)
+            channel_indices = self.get_channel_indices_from_names(channel)
+            frame = frame.sel(channel=channel_indices)
 
         if len(channels) == 1:
             frame_out = frame.values.squeeze() # Todo: in principle, we should be able to run the code without squeezing, as it may be beneficial to know which channel it was later on, e.g. for combining channel images again. At the moment, however, callers in file.py and movie.py cannot handle the 3D DataArray.
@@ -290,53 +325,10 @@ class Movie:
 
         return frame_out
 
-    def read_frames_raw(self, frame_indices=None):
-        frames = self._read_frames(frame_indices)
-        if frame_indices is not None:
-            frames = frames[frame_indices]
-        frames = np.rot90(frames, self.rot90, axes=(1, 2))
-
-        # TODO: Make x_pixel_indices and y_pixel_indices a channel property
-        x_pixel_coords = xr.DataArray(np.vstack([np.arange(*channel.boundaries[:,0]) for channel in self.channels]),
-                                           dims=('channel','x'))
-        y_pixel_coords = xr.DataArray(np.vstack([np.arange(*channel.boundaries[:,1]) for channel in self.channels]),
-                                           dims=('channel', 'y'))
-
-        frames = self.split_channels(frames)
-        # frames = np.stack([channel.crop_images(images) for channel in self.channels]
-
-        frames = xr.DataArray(frames,
-                             dims=('frame', 'y', 'x', 'channel'),
-                             coords={'channel': self.channel_arrangement.flatten(),
-                                     'y_pixel': y_pixel_coords,
-                                     'x_pixel': x_pixel_coords})\
-            .transpose('frame', 'channel',...)#.chunk({'frame': 100})
-
+    def read_frames(self, indices=None):
+        frames = self.read_frames_raw(indices=indices)
+        frames = self.apply_corrections(frames)
         return frames
-
-    def split_channels(self, frames):
-        return split_along_axes(frames, (len(self.channel_arrangement[0]), len(self.channel_arrangement[0, 0])),
-                                from_axes=(1, 2), to_axes=(None, None))
-        #
-        # return apply_ufunc(
-        #     split_along_axes, frames, input_core_dims=[['x','y']], kwargs={"axis": -1}
-        # )
-
-
-    def combine_channels(self, frames):
-        return split_along_axes(frames, (len(self.channel_arrangement[0]), len(self.channel_arrangement[0, 0])),
-                                from_axes=(1, 2), inverse=True)
-
-
-
-
-    # def read_frames(self, frame_indices=None):
-    #     images = self.read_frames_raw(frame_indices=frame_indices)
-    #
-    #     if self.illumination_correction is not None:
-    #         images *= self.illumination_correction
-    #
-    #     return images
 
     def get_channel(self, image, channel='d'):
         if channel in [None, 'all']:
@@ -831,40 +823,48 @@ def make_colour_map(colour, N=256):
     return ListedColormap(values)
 
 
-def split_along_axes(frames, split_into, from_axes=-1, to_axes=None, combine_new_axes=True, inverse=False):
-    if isinstance(split_into, int):
-        split_into = (split_into, )
+def expand_axes(frames, expand_into, from_axes=-1, to_axes=None, combine_new_axes=True,
+                new_axes_positions=None, inverse=False):
+    if isinstance(expand_into, int):
+        expand_into = (expand_into, )
     if isinstance(from_axes, int):
         from_axes = (from_axes, )
     if isinstance(to_axes, int) or to_axes is None:
         to_axes = (to_axes, )*len(from_axes)
+    if isinstance(new_axes_positions, int):
+        new_axes_positions = (new_axes_positions, )
+
+    from_axes = list(from_axes)
+    to_axes = list(to_axes)
 
     if inverse:
-        split_into = split_into[::-1]
+        expand_into = expand_into[::-1]
         from_axes,  to_axes = to_axes[::-1], from_axes[::-1]
 
     ndim = frames.ndim
 
-    new_axis_created = False
-    for i, (n, from_axis, to_axis) in enumerate(zip(split_into, from_axes, to_axes)):
+    new_axes_created = 0
+    for i, (from_axis, to_axis) in enumerate(zip(from_axes, to_axes)):
         if from_axis is None:
-            from_axis = ndim-1
+            from_axes[i] = ndim-1
         elif from_axis < 0:
-            from_axis = range(ndim)[from_axis]
+            from_axes[i] = range(ndim)[from_axis]
 
         if to_axis is None:
-            if combine_new_axes and new_axis_created:
-                to_axis = ndim
+            if combine_new_axes and new_axes_created > 0:
+                to_axes[i] = ndim
+            else:
+                new_axes_created += 1
         elif to_axis < 0:
-            to_axis = range(ndim)[to_axis]
+            to_axes[i] = range(ndim)[to_axis]
 
+    for i, (n, from_axis, to_axis) in enumerate(zip(expand_into, from_axes, to_axes)):
         # if frames.shape[-1] % n > 0:
         #     raise ValueError('Cannot split into equal parts')
         if to_axis is None:
             frames = np.moveaxis(frames, from_axis, -1)
             frames = frames.reshape(*frames.shape[:-1], n, frames.shape[-1] // n)
             frames = np.moveaxis(frames, -1, from_axis)
-            new_axis_created = True
         elif inverse:
             frames = np.moveaxis(frames, [from_axis, to_axis], [-2, -1])
             frames = frames.reshape(*frames.shape[:-2], frames.shape[-2] // n, frames.shape[-1] * n)
@@ -874,8 +874,14 @@ def split_along_axes(frames, split_into, from_axes=-1, to_axes=None, combine_new
             frames = frames.reshape(*frames.shape[:-2], frames.shape[-2] * n, frames.shape[-1] // n)
             frames = np.moveaxis(frames, [-1, -2], [from_axis, to_axis])
 
-    frames = frames.squeeze()
+    if inverse:
+        for from_axis in np.sort(np.unique(from_axes))[::-1]:
+            frames = frames.squeeze(axis=from_axis)
         # frames = np.moveaxis(frames, from_axis, -1)
+
+    if new_axes_positions is not None:
+        frames = np.moveaxis(frames, -np.arange(new_axes_created)[::-1]-1, new_axes_positions)
+
 
         # Test code
         # start = time.time()
@@ -921,36 +927,4 @@ def split_along_axes(frames, split_into, from_axes=-1, to_axes=None, combine_new
 #         # print(time.time() - start)
 #
 #     return frames
-
-
-def combine_axes(frames, combinination=2, axes=-1):
-    if isinstance(split_into, int):
-        split_into = (split_into, )
-    if isinstance(axes, int):
-        axes = (axes, )
-
-    for i, (n, axis) in enumerate(zip(split_into, axes)):
-        if axis < 0:
-            axis = range(frames.ndim)[axis]
-
-        frames = np.moveaxis(frames, axis, -1)
-        if frames.shape[-1] % n > 0:
-            raise ValueError('Cannot split into equal parts')
-        if combine_new_axes and i > 0:
-            frames = frames.reshape(*frames.shape[:-2], frames.shape[-2] * n, frames.shape[-1]//n)
-        else:
-            frames = frames.reshape(*frames.shape[:-1], n, frames.shape[-1]//n)
-        frames = np.moveaxis(frames, -1, axis)
-
-        # Test code
-        # start = time.time()
-        # a = np.stack(np.split(frames, 2, axis=2), axis=-1)
-        # b = np.concatenate(np.split(a, 2, axis=1), axis=-1)
-        # print(time.time() - start)
-        #
-        # start = time.time()
-        # bb = split_image_channels(frames, (2, 2), axes=(1, 2), combine_new_axes=False)
-        # print(time.time() - start)
-
-    return frames
 

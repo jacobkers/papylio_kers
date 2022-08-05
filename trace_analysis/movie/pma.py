@@ -61,6 +61,9 @@ class PmaMovie(Movie):
 
         return image
 
+    def _read_frames(self, indices):
+        # Can probably be implemented more efficiently
+        return np.stack([self._read_frame(i) for i in indices])
 
 if __name__ == "__main__":
     movie = PmaMovie(r'.\Example_data\pma\movie.pma')

@@ -148,6 +148,10 @@ class ND2Movie(Movie):
             # note: im is a Frame, which is pims.frame.Frame, a np. array with additional frame number and metadata
             return im
 
+    def _read_frames(self, indices):
+        # Can probably be implemented more efficiently
+        return np.stack([self._read_frame(i) for i in indices])
+
 #
 # def get_fov_from_nd2(nd2_fullpath):
 #     images = ND2Reader(str(nd2_fullpath))

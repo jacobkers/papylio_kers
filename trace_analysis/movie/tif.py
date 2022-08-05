@@ -64,6 +64,7 @@ class TifMovie(Movie):
                 self.stage_coordinates_in_pixels = self.stage_coordinates / self.pixel_size
             else:
                 self.number_of_frames = len(self.file.pages)
+                # Or self.file.series[0].shape[0]
 
             if 'DateTime' in self.file.pages[0].tags:
                 # For which files is this?
@@ -93,8 +94,6 @@ class TifMovie(Movie):
         return im
 
     def _read_frames(self, indices=None):
-        if indices is None:
-            indices = np.arange(self.number_of_frames)
         if not self.use_dask:
             with self:
                 frames = np.stack([self.file.pages[i].asarray() for i in indices])

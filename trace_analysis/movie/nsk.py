@@ -37,3 +37,7 @@ class NskMovie(Movie):
             image = np.reshape(image, (self.width, self.height))
 
         return image
+
+    def _read_frames(self, indices):
+        # Can probably be implemented more efficiently
+        return np.stack([self._read_frame(i) for i in indices])
