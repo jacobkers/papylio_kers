@@ -60,6 +60,7 @@ class Movie:
         self.is_mapping_movie = False
 
         self.rot90 = rot90
+        self.correct_images = False
 
         self.use_dask = False
 
@@ -84,8 +85,8 @@ class Movie:
 
         self.darkfield_correction = None
         self.flatfield_correction = None
-        self.temporal_background_correction = None
-        self.temporal_illumination_correction = None
+        self.background_correction = None
+        self.illumination_correction = None
 
         self.header_is_read = False
 
@@ -288,9 +289,9 @@ class Movie:
         #return expand_axes(frames, (channel_rows, channel_columns), from_axes=(1, 2))
 
         return xr.apply_ufunc(
-            expand_axes, frames, input_core_dims=[['frame', 'y', 'x']], output_core_dims=[['frame','channel','y','x']],
+            expand_axes, frames, input_core_dims=[['y', 'x']], output_core_dims=[['channel','y','x']],
             exclude_dims=set(['x','y']),
-            kwargs={"expand_into": (channel_rows, channel_columns), "from_axes": (1, 2), "new_axes_positions": [1]}
+            kwargs={"expand_into": (channel_rows, channel_columns), "from_axes": (-2, -1), "new_axes_positions": [-3]}
         )
 
         # frames = frames.transpose('frame', 'y', 'x', ...)
@@ -303,9 +304,9 @@ class Movie:
         # return split_along_axes(frames, (channel_rows, channel_columns), from_axes=(1, 2), inverse=True)
 
         return xr.apply_ufunc(
-            expand_axes, frames, input_core_dims=[['frame', 'channel', 'y', 'x']], output_core_dims=[['frame','y','x']],
+            expand_axes, frames, input_core_dims=[['channel', 'y', 'x']], output_core_dims=[['y','x']],
             exclude_dims=set(['x','y']),
-            kwargs={"expand_into": (channel_rows, channel_columns), "from_axes": (2, 3), "to_axes": (1, 1),  "inverse": True}
+            kwargs={"expand_into": (channel_rows, channel_columns), "from_axes": (-2, -1), "to_axes": (-3, -3),  "inverse": True}
         )
 
     def read_frame(self, index, channel=None):
@@ -327,7 +328,8 @@ class Movie:
 
     def read_frames(self, indices=None):
         frames = self.read_frames_raw(indices=indices)
-        frames = self.apply_corrections(frames)
+        if self.correct_images:
+            frames = self.apply_corrections(frames)
         return frames
 
     def get_channel(self, image, channel='d'):
@@ -586,39 +588,36 @@ class Movie:
     def determine_temporal_background_correction(self, method='BaSiC'):
         frames = self.read_frames_raw()
 
-        temporal_background_correction = {}
-        for channel in self.channels:
-            channel_frames = channel.crop_images(frames)
-            flatfield = channel.crop_image(self.flatfield_correction)
-            darkfield = channel.crop_image(self.darkfield_correction)
-            size = (channel.dimensions/channel.dimensions.max()*64).astype(int)
+        temporal_background_correction = xr.DataArray(1, dims=('frame','channel'), coords={'frame': frames.frame, 'channel': frames.channel})
+        for channel, frames_channel in frames.groupby('channel'):
+            flatfield = self.flatfield_correction.sel(channel=channel)
+            darkfield = self.darkfield_correction.sel(channel=channel)
+            channel_dimensions = np.array([frames_channel.x.size, frames_channel.y.size])
+            size = (channel_dimensions/channel_dimensions.max()*64).astype(int)
             if method == 'BaSiC':
-                temporal_background_correction[channel.index] = \
-                    get_photobleach(channel_frames, flatfield, darkfield, size=size)
+                temporal_background_correction[dict(channel=channel)] = \
+                    get_photobleach(frames_channel.values, flatfield.values, darkfield.values, size=size).flatten()
             elif method == 'gaussian_filter':
-                temporal_background_correction[channel.index] = \
-                    np.array([scipy.ndimage.gaussian_filter(((frame - darkfield) / flatfield), sigma=50, mode='wrap').mean() for frame in channel_frames])
+                temporal_background_correction[dict(channel=channel)] = \
+                    np.array([scipy.ndimage.gaussian_filter(((frame - darkfield) / flatfield), sigma=50, mode='wrap').mean() for frame in frames_channel])
             elif  method == 'minimum_filter':
-                temporal_background_correction[channel.index] = \
-                    np.array([scipy.ndimage.minimum_filter(((frame - darkfield) / flatfield), size=15, mode='wrap').mean() for frame in channel_frames])
+                temporal_background_correction[dict(channel=channel)] = \
+                    np.array([scipy.ndimage.minimum_filter(((frame - darkfield) / flatfield), size=15, mode='wrap').mean() for frame in frames_channel])
 
-        self.temporal_background_correction = temporal_background_correction
+        self.background_correction = temporal_background_correction
 
     def apply_corrections(self, frames):
-        if frames.ndim == 2:
-            frames = frames[None, :, :]
-
         if self.darkfield_correction is not None:
-            frames = frames - self.darkfield_correction[None, :, :]
+            frames = frames - self.darkfield_correction
 
         if self.flatfield_correction is not None:
-            frames = frames / self.flatfield_correction[None, :, :]
+            frames = frames / self.flatfield_correction
 
-        if self.temporal_illumination_correction is not None:
-            frames = frames / self.temporal_illumination_correction[:, None, None]
+        if self.illumination_correction is not None:
+            frames = frames / self.illumination_correction
 
-        if self.temporal_background_correction is not None:
-            frames = frames - self.temporal_background_correction[:, None, None]
+        if self.background_correction is not None:
+            frames = frames - self.background_correction
 
         return frames
 
