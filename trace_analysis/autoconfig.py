@@ -26,7 +26,7 @@ FTPADDR = "some ftp address"
 from trace_analysis.experiment import Experiment
 from trace_analysis.analysis.interactiveAnalysis import InteractivePlot
 from trace_analysis.movie.movie import Movie
-from trace_analysis.image_adapt.find_threshold import get_threshold
+from trace_analysis.movie.background_correction import get_threshold
 from skimage import measure
 
 def autoconfig_AND_perform_mapping(mapping_file_index, main_path):

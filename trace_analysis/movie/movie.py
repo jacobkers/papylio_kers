@@ -15,10 +15,10 @@ import scipy.ndimage
 import scipy.optimize
 from skimage.transform import AffineTransform
 
-from trace_analysis.image_adapt.rolling_ball import rollingball
-from trace_analysis.image_adapt.find_threshold import remove_background, get_threshold
+from trace_analysis.movie.background_correction import import rollingball
+from trace_analysis.movie.background_correction import remove_background, get_threshold
 from trace_analysis.timer import Timer
-from trace_analysis.correction.shading_correction import get_photobleach
+from trace_analysis.movie.shading_correction import get_photobleach
 
 
 class Movie:

@@ -5,8 +5,6 @@ import scipy.ndimage as ndimage
 import scipy.ndimage.filters as filters
 import math
 
-from trace_analysis.image_adapt.analyze_label import analyze # note analyze label is differently from the approach in pick spots
-
 def find_peaks(image=None, method='AKAZE', **kwargs):
     if method == 'AKAZE':
         coordinates = analyze(image, **kwargs)[2]
@@ -136,6 +134,123 @@ def coordinates_from_contours(image_thresholded, minimum_area=5, maximum_area=15
     return np.array(coordinates)
 
 
+# # -*- coding: utf-8 -*-
+# """
+# Created on Wed Apr 17 13:50:42 2019
+#
+# @author: https://stackoverflow.com/questions/35854197/how-to-use-opencvs-connected-components-with-stats-in-python
+#
+# returns the number of spots, and per spot its centroid and the number of pixels (can be used to discard too large spots)
+# """
+# import cv2
+# import bisect #This module provides support for maintaining a list in sorted order without having to sort the list after each insertion.
+# import numpy as np
+# import matplotlib.pyplot as plt
+#
+# from movie.background_correction import get_threshold
+#
+# def analyze(src, threshold=None):
+#     if not threshold:
+#         fL = get_threshold(src)
+#     else:
+#         fL = threshold
+#     # gray1 = enhance_blobies_single(src, fL, 1)  # remove_background(src, fL)
+#     gray1 = src
+#     detector = cv2.AKAZE_create()
+#     (kps1, descs1) = detector.detectAndCompute(gray1, None)
+#     ctrd = np.array(cv2.KeyPoint_convert(kps1))
+#
+#     # remove all pixels at the edge (within 10 pix)
+#     num_labels = len(ctrd)
+#     dim1, dim0 = np.shape(src)
+#     for ii in range(num_labels - 1, -1, -1):
+#         discard = ctrd[ii, 0] < 10 or ctrd[ii, 1] < 10 or ctrd[ii, 0] > dim0 - 10 or ctrd[ii, 1] > dim1 - 10 or src[
+#             int(ctrd[ii, 1]), int(ctrd[ii, 0])] == 0  # or size_label[ii]>100
+#         # for some reason also spots are found on immean20 with no intensity --> discard
+#         if discard:
+#             ctrd = np.delete(ctrd, ii, axis=0)
+#     #         size_label=np.delete(size_label,ii, axis=0)
+#     num_labels = len(ctrd)
+#
+#     return num_labels, 0, ctrd
+#
+#
+# def imadjust(src, tol=1, vout=(0, 255)):
+#     # src : input one-layer image (numpy array)
+#     # tol : tolerance, from 0 to 100.
+#     # vin  : src image bounds
+#     # vout : dst image bounds
+#     # return : output img
+#
+#     assert len(src.shape) == 2, 'Input image should be 2-dims'
+#
+#     tol = max(0, min(100, tol))
+#
+#     vin = [np.min(src), np.max(src)]
+#     vout = [0, 65535]  # 65535=16 bits
+#     if tol > 0:
+#         # Compute in and out limits
+#         # Histogram
+#         hist = np.histogram(src, bins=list(range(vin[1] - vin[0])), range=tuple(vin))[0]
+#
+#         # Cumulative histogram
+#         cum = hist.copy()
+#         for i in range(0, vin[1] - vin[0] - 1): cum[i] = cum[i - 1] + hist[i]  # why not hist.cumsum() here?
+#
+#         # Compute bounds
+#         total = src.shape[0] * src.shape[1]
+#         low_bound = total * tol / 100
+#         upp_bound = total * (100 - tol) / 100
+#         vin[0] = bisect.bisect_left(cum, low_bound)
+#         vin[1] = bisect.bisect_left(cum, upp_bound)
+#
+#     # Stretching
+#     scale = (vout[1] - vout[0]) / (vin[1] - vin[0])
+#     vs = src - vin[0]
+#     vs[src < vin[0]] = 0  # everything below zero becomes 0
+#     vd = vs * scale + 0.5 + vout[0]  # why +0.5?
+#     vd[vd > vout[1]] = vout[1]
+#     dst = vd
+#
+#     return dst.astype(np.uint16)
+#
+#
+# def im_binarize(img, f):
+#     temp = img.copy()
+#     temp[temp < f] = 0
+#     return temp.astype(np.uint8)
+#
+#
+# def enhance_blobies(image, f):
+#     l, r = image[:, :image.shape[1] // 2], image[:, image.shape[1] // 2:]
+#     l_adj, r_adj = imadjust(l.copy()), imadjust(r.copy())
+#     l_bin, r_bin = im_binarize(l_adj, f).astype(np.uint8), im_binarize(r_adj, f).astype(np.uint8)
+#     return l, r, l_bin, r_bin
+#
+# detector = cv2.AKAZE_create()
+#
+# (kps1, descs1) = detector.detectAndCompute(gray1, None);
+# (kps2, descs2) = detector.detectAndCompute(gray2, None);
+#
+# print("keypoints: {}, descriptors: {}".format(len(kps1), descs1.shape))
+# print("keypoints: {}, descriptors: {}".format(len(kps2), descs2.shape))
+#
+# # Match the features
+# bf = cv2.BFMatcher(cv2.NORM_HAMMING)
+# matches = bf.knnMatch(descs1, descs2, k=2)  # typo fixed
+#
+# # Apply ratio test
+# pts1, pts2 = [], []
+# for m in matches:
+#     pts1.append(kps1[m[0].queryIdx].pt)
+#     pts2.append(kps2[m[0].trainIdx].pt)
+#
+# pts1 = np.array(pts1).astype(np.float32)  # xy position
+# pts2 = np.array(pts2).astype(np.float32)
+# # AA=cv2.KeyPoint_convert(kps1);
+#
+# transformation_matrix, mask = cv2.findHomography(pts2, pts1, cv2.RANSAC, 20)
+#
 
 
 if __name__ == '__main__':
