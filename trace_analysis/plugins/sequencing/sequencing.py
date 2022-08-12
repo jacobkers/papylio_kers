@@ -32,6 +32,7 @@ class Experiment:
         if 'sequencing' in self.configuration.keys():
             sequencing_data_relative_file_path = self.configuration['sequencing']['data_file_path']
             sequencing_data_file_path = self.main_path.joinpath(sequencing_data_relative_file_path)
+            # This should work fine for the case where it is a relative or absolute path
             if sequencing_data_file_path is not None:
                 self.sequencing_data = SequencingData(sequencing_data_file_path)
                 print(f"\nImport sequencing data:\n{sequencing_data_relative_file_path}")
@@ -56,7 +57,8 @@ class Experiment:
         return d
 
     def import_sequencing_data(self, file_path, index1_file_path=None, remove_duplicates=True,
-                               add_aligned_sequence=True, extract_sequence_subset=False, chunksize=10000):
+                               add_aligned_sequence=True, extract_sequence_subset=False, chunksize=10000,
+                               store_relative_filepath=True):
         file_path = Path(file_path)
         if file_path.suffix == '.csv':
             raise ValueError('Wrong file type for sequencing data, if you would like to import the old .csv files, use "import_sequencing_data_old" ')
@@ -65,9 +67,11 @@ class Experiment:
                                                remove_duplicates=remove_duplicates,
                                                add_aligned_sequence=add_aligned_sequence,
                                                extract_sequence_subset=extract_sequence_subset, chunksize=chunksize)
-
-        relative_nc_file_path = os.path.relpath(nc_file_path, start=self.main_path)
-        self.configuration['sequencing'] = {'data_file_path': relative_nc_file_path}
+        self.sequencing_data = SequencingData(nc_file_path)
+        if store_relative_filepath:
+            nc_file_path = os.path.relpath(nc_file_path, start=self.main_path)
+        self.configuration['sequencing'] = {'data_file_path': nc_file_path}
+        self.configuration.save()
 
     def import_sequencing_data_old(self):
         raise DeprecationWarning('import_sequencing_data_old will be removed')
