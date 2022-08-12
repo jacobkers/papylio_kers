@@ -34,3 +34,5 @@ dependencies:
 - tqdm=4.63
 - hmmlearn=0.2.7
 - pyside2=5.13
+- pytest
+- pytest-datadir

@@ -10,12 +10,13 @@ Example_data/
 traces/
 trace_analysis/analysis/SAfitting/data/
 Start_analysis.py
-*test*
+data/
 *.xml
 *.iml
 *.*.pyc
 .DS_Store
 *_backup*
+*fixtures/
 
 *.pyc
 Example_MD*
