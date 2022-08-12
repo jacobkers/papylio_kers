@@ -72,13 +72,13 @@ class TifMovie(Movie):
                 self.datetime = pd.to_datetime([page.tags['DateTime'].value for page in self.file.pages])
                 self.time = xr.DataArray((self.datetime-self.datetime[0]).total_seconds(), dims='frame',
                                          coords={}, attrs={'units': 's'})
-            else:
+            elif 'DateTime' in self.file.pages[0].tags:
                 # This is for tiff images from TIR-T and TIR-V measured by Solis software
                 exposure_time = self.file.pages[0].tags['AndorExposureTime'].value # NOTE: "kinetic time (or cycle time)" is more accurate measure. But the difference is very small and often ignored.
                 time_vector = exposure_time * np.arange(0, self.number_of_frames)
                 self.time = xr.DataArray(time_vector, dims='frame', coords={}, attrs={'units': 's'})
 
-            self.create_frame_info()  # Possibly move to Movie later on
+            # self.create_frame_info()  # Possibly move to Movie later on
 
     def _read_frame(self, frame_number):
         with self:
@@ -93,13 +93,17 @@ class TifMovie(Movie):
             #     print('pageNb out of range, printed image {0} instead'.format(self.number_of_frames))
         return im
 
-    def _read_frames(self, indices=None):
+    def _read_frames(self, frame_indices=None):
         if not self.use_dask:
-            with self:
-                frames = np.stack([self.file.pages[i].asarray() for i in indices])
+            if len(frame_indices) == 1:
+                with self:
+                    frames = np.stack([self.file.pages[i].asarray() for i in frame_indices])
+            else:
+                frames = tifffile.imread(self.filepath, key=frame_indices)
+
         else:
             import dask_image.imread
-            frames = dask_image.imread.imread(self.filepath, nframes=100)[indices]
+            frames = dask_image.imread.imread(self.filepath, nframes=100)[frame_indices]
         return frames
 
 if __name__ == "__main__":
