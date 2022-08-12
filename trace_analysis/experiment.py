@@ -22,11 +22,14 @@ matplotlib.use('Qt5Agg')
 import matplotlib.pyplot as plt  # Provides a MATLAB-like plotting framework
 import xarray as xr
 from collections import UserDict
+import re
+import tifffile
 
 from trace_analysis.file import File
 # from trace_analysis.molecule import Molecules
 from trace_analysis.collection import Collection
 from trace_analysis.plotting import histogram
+from trace_analysis.movie.movie import image_info_from_filename
 # from trace_analysis.plugin_manager import PluginManager
 # from trace_analysis.plugin_manager import PluginMetaClass
 from trace_analysis.plugin_manager import plugins
@@ -187,6 +190,9 @@ class Experiment:
 
         with self.configuration:
             self.add_files(self.main_path, test_duplicates=False)
+
+        self.load_darkfield_correction()
+        self.load_flatfield_correction()
 
         # Find mapping file
         for file in self.files:
@@ -426,6 +432,83 @@ class Experiment:
     #         i = self.file_paths.find(file_path.absolute().relative_to(self.main_path))
     #         self.files[i].findAndAddExtensions()
 
+    # def load_flatfield_correction(self):
+    #     file_paths = list(self.main_path.glob('flatfield*'))
+    #     if file_paths:
+    #         movie = self.files[0].movie
+    #         flatfield_correction = xr.DataArray(np.ones((movie.number_of_illuminations,
+    #                                             movie.height, movie.width)), # perhaps make the movie width and height equal to the channel width and height
+    #                               dims=('illumination', 'y', 'x'),
+    #                               coords={'illumination': movie.illumination_indices})
+    #         for file_path in file_paths:
+    #             flatfield = tifffile.imread(file_path)
+    #             _, _, illumination_indices, _ = movie.image_type_from_filename(file_path.name)
+    #             flatfield_correction[dict(illumination=illumination_indices)] = flatfield
+    #
+    #         self.files.movie.flatfield_correction = flatfield_correction
+    #     else:
+    #         self.files.movie.flatfield_correction = None
+
+    def load_flatfield_correction(self):
+        file_paths = list(self.main_path.glob('flatfield*'))
+        if file_paths:
+            movie = self.files[0].movie
+            flatfield_correction = xr.DataArray(np.ones((movie.number_of_illuminations, movie.number_of_channels,
+                                                         movie.channels[0].height, movie.channels[0].width)),
+                                                # perhaps make the movie width and height equal to the channel width and height
+                                                dims=('illumination', 'channel', 'y', 'x'),
+                                                coords={'illumination': movie.illumination_indices,
+                                                        'channel': movie.channel_indices})
+            for file_path in file_paths:
+                flatfield = tifffile.imread(file_path)
+                image_info = image_info_from_filename(file_path.name)
+                illumination_index = image_info['illumination_index']
+                channel_indices = movie.channel_indices
+                flatfield_correction[dict(illumination=illumination_index, channel=channel_indices)] = \
+                    movie.separate_channels(flatfield)
+
+            self.files.movie.flatfield_correction = flatfield_correction
+        else:
+            self.files.movie.flatfield_correction = None
+
+    def load_darkfield_correction(self):
+        file_paths = list(self.main_path.glob('darkfield*'))
+        if file_paths:
+            movie = self.files[0].movie
+            darkfield_correction = xr.DataArray(np.ones((movie.number_of_illuminations, movie.number_of_channels,
+                                                         movie.channels[0].height, movie.channels[0].width)),
+                                                # perhaps make the movie width and height equal to the channel width and height
+                                                dims=('illumination', 'channel', 'y', 'x'),
+                                                coords={'illumination': movie.illumination_indices,
+                                                        'channel': movie.channel_indices})
+            for file_path in file_paths:
+                darkfield = tifffile.imread(file_path)
+                image_info = image_info_from_filename(file_path.name)
+                illumination_index = image_info['illumination_index']
+                channel_indices = movie.channel_indices
+                darkfield_correction[dict(illumination=illumination_index, channel=channel_indices)] = \
+                    movie.separate_channels(darkfield)
+
+            self.files.movie.darkfield_correction = darkfield_correction
+        else:
+            self.files.movie.darkfield_correction = None
+
+    # def load_darkfield_correction(self):
+    #     file_paths = list(self.main_path.glob('darkfield*'))
+    #     if file_paths:
+    #         movie = self.files[0].movie
+    #         darkfield_correction = xr.DataArray(np.zeros((movie.number_of_illuminations,
+    #                                             movie.height, movie.width)), # perhaps make the movie width and height equal to the channel width and height
+    #                                    dims=('illumination', 'y', 'x'),
+    #                                    coords={'illumination': movie.illumination_indices})
+    #         for file_path in file_paths:
+    #             darkfield = tifffile.imread(file_path)
+    #             _, _, illumination_indices, _ = movie.image_type_from_filename(file_path.name)
+    #             darkfield_correction[dict(illumination=illumination_indices)] = darkfield
+    #
+    #         self.files.movie.darkfield_correction = darkfield_correction
+    #     else:
+    #         self.files.movie.darkfield_correction = None
 
     def histogram(self, axis=None, bins=100, parameter='E', molecule_averaging=False,
                   fileSelection=False, moleculeSelection=False, makeFit=False, export=False, **kwargs):
