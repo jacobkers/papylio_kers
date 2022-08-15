@@ -8,12 +8,12 @@ import wx
 import wx.lib.mixins.inspection as wit
 import PySide2
 import matplotlib as mpl
-# mpl.use('WXAgg')
+mpl.use('qt5agg')
 import matplotlib.pyplot as plt
 # from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg as FigureCanvas
 # from matplotlib.backends.backend_wxagg import NavigationToolbar2WxAgg as NavigationToolbar
-from matplotlib.backends.backend_qtagg import FigureCanvas
-from matplotlib.backends.backend_qtagg import NavigationToolbar2QT as NavigationToolbar
+# from matplotlib.backends.backend_qtagg import FigureCanvas
+# from matplotlib.backends.backend_qtagg import NavigationToolbar2QT as NavigationToolbar
 
 import numpy as np
 from pathlib2 import Path
@@ -29,26 +29,23 @@ import numpy as np
 
 # from matplotlib.backends.qt_compat import QtWidgets
 from PySide2 import QtWidgets
-from matplotlib.backends.backend_qtagg import (
+from matplotlib.backends.backend_qt5agg import (
     FigureCanvas, NavigationToolbar2QT as NavigationToolbar)
 from matplotlib.figure import Figure
 
 
-
-
-class TracePlotWindow(QMainWindow):
+class TracePlotWindow(QWidget):
     def __init__(self, dataset=None, plot_variables=['intensity', 'FRET'],
-                 ylims=[(0, 35000), (0, 1)], colours=[('g', 'r'), ('b')], save_path=None):
+                 ylims=[(0, 35000), (0, 1)], colours=[('g', 'r'), ('b')], width=14, height=7, save_path=None, parent=None):
+        from trace_analysis.experiment import get_QApplication
+        app = get_QApplication()
+
         super().__init__()
 
+        self.parent = parent
+
         self.setWindowTitle("Traces")
-        button = QPushButton("Press Me!")
 
-        # Set the central widget of the Window.
-        self.setCentralWidget(button)
-
-
-        self.dataset = dataset
         self.plot_variables = plot_variables
         self.ylims = ylims
         self.colours = colours
@@ -58,7 +55,7 @@ class TracePlotWindow(QMainWindow):
         else:
             self.save_path = Path(save_path)
 
-        self.canvas = TracePlotCanvas(self, width=14, height=7, dpi=100)
+        self.canvas = TracePlotCanvas(self, width=width, height=height, dpi=100)
 
         # Create toolbar, passing canvas as first parament, parent (self, the MainWindow) as second.
         toolbar = NavigationToolbar(self.canvas, self)
@@ -67,15 +64,26 @@ class TracePlotWindow(QMainWindow):
         layout.addWidget(toolbar)
         layout.addWidget(self.canvas)
 
+        self.setLayout(layout)
         # Create a placeholder widget to hold our toolbar and canvas.
-        widget = QWidget()
-        widget.setLayout(layout)
-        self.setCentralWidget(widget)
+        # widget = QWidget()
+        # widget.setLayout(layout)
+        # self.setCentralWidget(widget)
 
-        self.molecule_index = 0
+        self.dataset = dataset
 
         self.show()
 
+
+    @property
+    def dataset(self):
+        return self._dataset
+
+    @dataset.setter
+    def dataset(self, value):
+        self._dataset = value
+        if value is not None:
+            self.molecule_index = 0
 
     @property
     def molecule_index(self):
