@@ -32,9 +32,9 @@ def extract_traces(movie, coordinates, background=None, mask_size=1.291, neighbo
                                  dims=['molecule', 'channel', 'frame'],
                                  coords=coordinates.drop('dimension').coords, name='intensity')
 
-        background_correction = xr.DataArray(np.empty((len(coordinates.molecule), len(coordinates.channel), movie.number_of_frames)),
-                                 dims=['molecule', 'channel', 'frame'],
-                                 coords=coordinates.drop('dimension').coords, name='background_correction')
+        # background_correction = xr.DataArray(np.empty((len(coordinates.molecule), len(coordinates.channel), movie.number_of_frames)),
+        #                          dims=['molecule', 'channel', 'frame'],
+        #                          coords=coordinates.drop('dimension').coords, name='background_correction')
 
         # channel_offsets = xr.DataArray(np.vstack([channel.origin for channel in movie.channels]),
         #                                dims=('channel', 'dimension'),
@@ -42,8 +42,8 @@ def extract_traces(movie, coordinates, background=None, mask_size=1.291, neighbo
         #                                        'dimension': ['x', 'y']}) # TODO: Move to Movie
         # coordinates = coordinates - channel_offsets
 
-        if background is None:
-            background = xr.DataArray(dims=['molecule','channel'], coords={'molecule': coordinates.molecule, 'channel': coordinates.channel})
+        # if background is None:
+        #     background = xr.DataArray(dims=['molecule','channel'], coords={'molecule': coordinates.molecule, 'channel': coordinates.channel})
 
         offsets = coordinates % 1
         twoD_gaussians = make_gaussian_mask(size=neighbourhood_size, offsets=offsets, sigma=mask_size)
@@ -56,14 +56,15 @@ def extract_traces(movie, coordinates, background=None, mask_size=1.291, neighbo
 
         roi_indices = coordinates_floored + roi_indices_general
 
-        if correct_illumination:
-            illumination_correction = IlluminationCorrection(movie.number_of_frames,
-                                                             filter_function=scipy.ndimage.minimum_filter,
-                                                             size=15, mode='wrap')
+        # if correct_illumination:
+        #     illumination_correction = IlluminationCorrection(movie.number_of_frames,
+        #                                                      filter_function=scipy.ndimage.minimum_filter,
+        #                                                      size=15, mode='wrap')
 
-        background_per_frame = background.sel(illumination=movie.illumination)
-        background_correction[:] = weighed_background(background_per_frame, twoD_gaussians).transpose((1,2,0))
+        # background_per_frame = background.sel(illumination=movie.illumination)
+        # background_correction[:] = weighed_background(background_per_frame, twoD_gaussians).transpose((1,2,0))
 
+        frames = movie.read_frames(xarray=False, flatten_channels=True)#.astype('uint16')
 
         oneD_indices = (roi_indices.sel(dimension='y')*movie.width+roi_indices.sel(dimension='x')).stack(peak=('molecule','channel')).stack(i=('y','x'))
         for frame_index in tqdm(range(movie.number_of_frames), desc=movie.name, leave=True):  # self.number_of_frames also works for pm, len(self.movie_file_object.filelist) not
@@ -71,14 +72,15 @@ def extract_traces(movie, coordinates, background=None, mask_size=1.291, neighbo
             # if frame_number % 13 == 0:
             #     sys.stdout.write(f'\r   Frame {frame_number} of {movie.number_of_frames}')
 
-            image = movie.read_frame(frame_index).astype('uint16')
+            # image = movie.read_frame(frame_index, xarray=False, flatten_channels=True).astype('uint16')
+            image = frames[frame_index]
             frame = xr.DataArray(image, dims=('y','x'))
 
             # TODO: Proper background subtraction
 
-            if correct_illumination:
-                illumination_correction.add_frame(frame_index, frame)
-                # TODO: Determine how illumination correction is dependent on background
+            # if correct_illumination:
+            #     illumination_correction.add_frame(frame_index, frame)
+            #     # TODO: Determine how illumination correction is dependent on background
 
             # if 'illumination' in background.dims:
             #     # TODO: Make this work properly and rename illumination in Movie
@@ -97,12 +99,12 @@ def extract_traces(movie, coordinates, background=None, mask_size=1.291, neighbo
         dataset = intensity.to_dataset()
         # dataset['intensity_raw'] = dataset.intensity.copy()
 
-        if correct_illumination:
-            dataset['illumination_correction'] = illumination_correction.illumination_correction
-            dataset['intensity'] *= dataset['illumination_correction']
+        # if correct_illumination:
+        #     dataset['illumination_correction'] = illumination_correction.illumination_correction
+        #     dataset['intensity'] *= dataset['illumination_correction']
 
-        dataset['background_correction'] = background_correction
-        dataset['intensity'] -= dataset['background_correction'].sel(frame=0, drop=True)
+        # dataset['background_correction'] = background_correction
+        # dataset['intensity'] -= dataset['background_correction'].sel(frame=0, drop=True)
 
     return dataset
 
@@ -133,6 +135,7 @@ def weighed_background(background, twoD_gaussians):
     return weighed_background_intensity.sum(axis=(3, 4))
 
 class IlluminationCorrection:
+    # In time
     def __init__(self, number_of_frames, filter_function=scipy.ndimage.minimum_filter, **kwargs):
         self.filter_function = filter_function
         self.filter_kwargs = kwargs
