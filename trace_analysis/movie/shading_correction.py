@@ -10,7 +10,7 @@ from scipy.fftpack import dctn, idctn
 import tqdm
 from numba import njit
 
-https://github.com/linum-uqam/PyBaSiC
+# https://github.com/linum-uqam/PyBaSiC
 
 class BaSiC(object):
     def __init__(self, input, estimate_darkfield=False, extension=".tif", verbose=False):

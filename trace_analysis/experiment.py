@@ -29,7 +29,7 @@ from trace_analysis.file import File
 # from trace_analysis.molecule import Molecules
 from trace_analysis.collection import Collection
 from trace_analysis.plotting import histogram
-from trace_analysis.movie.movie import image_info_from_filename
+from trace_analysis.movie.movie import Movie
 # from trace_analysis.plugin_manager import PluginManager
 # from trace_analysis.plugin_manager import PluginMetaClass
 from trace_analysis.plugin_manager import plugins
@@ -47,6 +47,8 @@ from nd2reader import ND2Reader
 # import pickle
 
 class Configuration(UserDict):
+    # Ruamel yaml parser may be better for preserving comments
+    # https://sourceforge.net/projects/ruamel-yaml/
     def __init__(self, filepath):
         self.reload_block = 0
         self.filepath = Path(filepath)
@@ -461,7 +463,7 @@ class Experiment:
                                                         'channel': movie.channel_indices})
             for file_path in file_paths:
                 flatfield = tifffile.imread(file_path)
-                image_info = image_info_from_filename(file_path.name)
+                image_info = Movie.image_info_from_filename(file_path.name)
                 illumination_index = image_info['illumination_index']
                 channel_indices = movie.channel_indices
                 flatfield_correction[dict(illumination=illumination_index, channel=channel_indices)] = \
@@ -483,7 +485,7 @@ class Experiment:
                                                         'channel': movie.channel_indices})
             for file_path in file_paths:
                 darkfield = tifffile.imread(file_path)
-                image_info = image_info_from_filename(file_path.name)
+                image_info = Movie.image_info_from_filename(file_path.name)
                 illumination_index = image_info['illumination_index']
                 channel_indices = movie.channel_indices
                 darkfield_correction[dict(illumination=illumination_index, channel=channel_indices)] = \

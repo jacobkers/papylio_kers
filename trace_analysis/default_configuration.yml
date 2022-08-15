@@ -8,24 +8,24 @@ movie:
 # compute_image:  # no longer used. See show_movie>>frames_for_show_movie
 #  number_of_frames: all
 show_movie:
-  image: average_image
   annotate: False
-  frames_for_show_movie:
-    first_frame: 0
-    last_frame: 9
-  illumination: None
+projection_image:
+  projection_type: average # Choose average or maximum
+  frame_range: [0, 10] # This is similar syntax as used in the python range function, so [0, 10] represents the first 10 frames.
+  illumination: 0 # Null in yaml represents python None
 find_coordinates:
   channels:
       - donor
-  illumination: None # Set to None if single illumination configuration is used. Integer number to specify which illumination config will be used. The same order that the illuminations were used during the measurement.
-  projection_image_type: average # Choose average or maximum
+  illumination: 0
+  projection_type: average
   method: by_channel # Choose by_channel, average_channels or sum_channels
-  frames_for_peak_finding:
-    first_frame: 0
-    last_frame: 9
+  projection_image:
+    projection_type: average # Choose average or maximum
+    frame_range: [ 0, 20 ]
+    illumination: 0 # Integer number to specify which illumination config will be used. The same order that the illuminations were used during the measurement.
   sliding_window:
-    use_sliding_window: False
-    window_size: 20
+    use_sliding_window: false
+    frame_increment: 20
     minimal_point_separation: 2
   peak_finding:
       method: local-maximum
