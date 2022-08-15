@@ -45,6 +45,12 @@ class PmaMovie(Movie):
             self.height = np.fromfile(pma_file, np.int16, count=1)[0].astype(int)
             self.number_of_frames = int((statinfo.st_size-4)/(self.width*self.height))
 
+        # TODO: Import log file
+        # self.exposure_time = np.genfromtxt(f'{self.absoluteFilePath}.log', max_rows=1)[2]
+        # print(f'Exposure time set to {self.exposure_time} sec for {self.name}')
+        # self.log_details = open(f'{self.absoluteFilePath}.log').readlines()
+        # self.log_details = ''.join(self.log_details)
+
     def _read_frame(self, frame_number):
         with self.filepath.open('rb') as pma_file:
             np.fromfile(pma_file, np.uint16, count=1)

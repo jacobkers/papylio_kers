@@ -15,10 +15,32 @@ import scipy.ndimage
 import scipy.optimize
 from skimage.transform import AffineTransform
 
-from trace_analysis.movie.background_correction import import rollingball
-from trace_analysis.movie.background_correction import remove_background, get_threshold
+# from trace_analysis.movie.background_correction import rollingball
+# from trace_analysis.movie.background_correction import remove_background, get_threshold
 from trace_analysis.timer import Timer
 from trace_analysis.movie.shading_correction import get_photobleach
+
+
+class Illumination:
+    def __init__(self, name, short_name='', other_names=[]):
+        # self.movie = movie
+        self.name = name
+        self.short_name = short_name
+        self.other_names = other_names
+
+    def __repr__(self):
+        return (f'{self.__class__.__name__}({self.name})')
+
+    @property
+    def names(self):
+        return [self.index, self.name, self.short_name] + self.other_names
+
+    @property
+    def index(self):
+        try:
+            return Movie.illuminations.index(self)
+        except:
+            pass
 
 
 class Movie:
@@ -33,6 +55,123 @@ class Movie:
         from trace_analysis.movie.nsk import NskMovie
         from trace_analysis.movie.binary import BinaryMovie
         return {extension: subclass for subclass in cls.__subclasses__() for extension in subclass.extensions}
+
+    illuminations = [Illumination('green', 'g'), Illumination('red', 'r')]
+
+    @classmethod
+    def get_illumination_from_name(cls, illumination_name):
+        """Get the channel index belonging to a specific channel (name)
+        If
+
+        Parameters
+        ----------
+        channel : str or int
+            The name or number of a channel
+
+        Returns
+        -------
+        i: int
+            The index of the channel to which the channel name belongs
+
+        """
+        for illumination in cls.illuminations:
+            if illumination_name in illumination.names or illumination_name == illumination:
+                return illumination
+        else:
+            raise ValueError('Illumination name not found')
+
+    @classmethod
+    def get_illuminations_from_names(cls, illumination_names):
+        """Get the channel index belonging to a specific channel (name)
+        If
+
+        Parameters
+        ----------
+        channel : str or int
+            The name or number of a channel
+
+        Returns
+        -------
+        i: int
+            The index of the channel to which the channel name belongs
+
+        """
+        if illumination_names in [None, 'all']:
+            return cls.illuminations
+
+        if not isinstance(illumination_names, list):
+            illumination_names = [illumination_names]
+
+        return [cls.get_illumination_from_name(illumination_name) for illumination_name in illumination_names]
+
+    @classmethod
+    def get_illumination_indices_from_names(cls, illumination_names):
+        illuminations = cls.get_illuminations_from_names(illumination_names)
+        return [illumination.index for illumination in illuminations]
+
+    @classmethod
+    def image_info_from_filename(cls, filename):
+        image_info = {}
+
+        fov_index_result = re.search('(?<=_fov)\d*(?=[_.])', filename)
+        if fov_index_result is not None:
+            image_info['fov_index'] = int(fov_index_result.group())
+
+        if '_ave' in filename:
+            image_info['projection_type'] = 'average'
+        elif '_max' in filename:
+            image_info['projection_type'] = 'maximum'
+
+        frame_start = re.search('(?<=_f)\d*(?=[-])', filename)
+        if frame_start is not None:
+            frame_end = re.search(f'(?<=_f{frame_start.group()}-)\d*(?=[-_.])', filename)
+            frame_interval = re.search(f'(?<=_f{frame_start.group()}-{frame_end.group()}-)\d*(?=[_.])', filename)
+            if frame_end is not None:
+                frame_range = (int(frame_start.group()), int(frame_end.group()))
+            else:
+                raise ValueError('Invalid filename')
+            if frame_interval is not None:
+                frame_range += (int(frame_interval.group()),)
+            image_info['frame_range'] = frame_range
+
+        illumination_result = re.search('(?<=_i)\d*(?=[_.])', filename)
+        if illumination_result is None:
+            image_info['illumination_index'] = None  # list(self.illumination_indices.values)
+        else:
+            image_info['illumination_index'] = int(illumination_result.group())
+
+        # channel_result = re.search('(?<=_c)\d*(?=[_.])', filename)
+        # if channel_result is None:
+        #     image_info['channel_indices'] = list(self.channel_indices.values)
+        # else:
+        #     image_info['channel_indices'] = int(channel_result.group())
+
+        # fov_index = re.search('(?<=_fov)\d*(?=[_.])', filename)
+        # if fov_index is not None:
+        #     fov_index = int(fov_index)
+        #     image_info['fov_index'] = fov_index
+
+        return image_info
+
+    @classmethod
+    def image_info_to_filename(cls, filename, fov_index=None, projection_type=None, frame_range=None,
+                               illumination=None):
+        # if 'fov_info' in self.__dict__.keys() and self.fov_info: # Or hasattr(self, 'fov_info')
+        if fov_index is not None:
+            # filename += f'_fov{self.fov_info["fov_chosen"]:03d}'
+            filename += f'_fov{fov_index:03d}'
+
+        if projection_type is not None:
+            filename += '_' + projection_type[:3]
+
+        if frame_range is not None:
+            filename += str(range(*frame_range)).replace('range(', '_f').replace(', ', '-').replace(')', '')
+
+        if illumination is not None:  # and self.number_of_illuminations_in_movie > 1:
+            illumination_index = cls.get_illumination_from_name(illumination).index
+            filename += f'_i{illumination_index}'
+
+        return filename
 
     def __new__(cls, filepath, rot90=0):
         if cls is Movie:
@@ -83,7 +222,6 @@ class Movie:
         # [[[0,1]]] # First level: frames, second level: y within frame, third level: x within frame
         # self.channel_arrangement = xr.DataArray([[[0,1]]], dims=('frame','y','x'))
 
-        self.illuminations = [Illumination(self, 'green', 'g'), Illumination(self, 'red', 'r')]
         self.illumination_arrangement = [0]  # First level: frames, second level: illumination
         # self.illumination_arrangement = xr.DataArray([[True, False]], dims=('frame', 'illumination'), coords={'illumination': [0,1]}) # TODO: np.array([0]) >> list of list It would be good to have a default illumination_arrangement of np.array([0]), i.e. illumination 0 all the time?
         self._illumination_index_per_frame = None
@@ -498,54 +636,6 @@ class Movie:
         channels = self.get_channels_from_names(channel_names)
         return [channel.index for channel in channels]
 
-    def get_illumination_from_name(self, illumination_name):
-        """Get the channel index belonging to a specific channel (name)
-        If
-
-        Parameters
-        ----------
-        channel : str or int
-            The name or number of a channel
-
-        Returns
-        -------
-        i: int
-            The index of the channel to which the channel name belongs
-
-        """
-        for illumination in self.illuminations:
-            if illumination_name in illumination.names or illumination_name == illumination:
-                return illumination
-        else:
-            raise ValueError('Illumination name not found')
-
-    def get_illuminations_from_names(self, illumination_names):
-        """Get the channel index belonging to a specific channel (name)
-        If
-
-        Parameters
-        ----------
-        channel : str or int
-            The name or number of a channel
-
-        Returns
-        -------
-        i: int
-            The index of the channel to which the channel name belongs
-
-        """
-        if illumination_names in [None, 'all']:
-            return self.channels
-
-        if not isinstance(illumination_names, list):
-            illumination_names = [illumination_names]
-
-        return [self.get_illumination_from_name(illumination_name) for illumination_name in illumination_names]
-
-    def get_illumination_indices_from_names(self, illumination_names):
-        illuminations = self.get_illuminations_from_names(illumination_names)
-        return [illumination.index for illumination in illuminations]
-
     def saveas_tif(self):
         tif_filepath = self.writepath.joinpath(self.name + '.tif')
         tif_filepath.unlink(missing_ok=True)
@@ -580,14 +670,11 @@ class Movie:
             2d image array with the projected image
         """
 
-        filename_addition = ''
-
         frame_range = list(frame_range)
         if frame_range[1] > self.number_of_frames:
-            frame_range[1] = self.number_of_frames
             raise RuntimeWarning(f'Frame range exceeds available frames, used frame range {frame_range} instead')
 
-        frame_indices = np.arange(*frame_range)
+        frame_indices = self.frame_indices.values[slice(*frame_range)]
 
         illumination_indices = self.get_illumination_indices_from_names(illumination)
         illumination_index = np.intersect1d(illumination_indices, self.illumination_indices_in_movie)[0]
@@ -624,8 +711,8 @@ class Movie:
             sys.stdout.write(f'\r   Processed frames {frame_indices[0]}-{frame_indices[-1]}\n')
 
         if write:
-            filename = image_info_to_filename(self.name, image_type=projection_type, frame_range=frame_range,
-                                              illumination_index=illumination_index)
+            filename = Movie.image_info_to_filename(self.name, projection_type=projection_type, frame_range=frame_range,
+                                                    illumination=illumination_index)
             filepath = self.writepath.joinpath(filename)
             tifffile.imwrite(filepath.with_suffix('.tif'), self.flatten_channels(image),
                              resolution=1/self.pixel_size,
@@ -803,7 +890,7 @@ class Movie:
 
             if self.illumination_correction is not None:
                 frames[frame_indices_with_illumination] /= \
-                    self.illumination_correction.values[frame_indices][frame_indices_with_illumination, :, None, None]
+                    self.illumination_correction.values[frame_indices][frame_indices_with_illumination, None, None, None]
 
             if self.background_correction is not None:
                 frames[frame_indices_with_illumination] -= \
@@ -890,28 +977,6 @@ class Channel:
     def crop_images(self, images):
         return images[:, self.boundaries[0, 1]:self.boundaries[1, 1],
                self.boundaries[0, 0]:self.boundaries[1, 0]]
-
-
-class Illumination:
-    def __init__(self, movie, name, short_name='', other_names=[]):
-        self.movie = movie
-        self.name = name
-        self.short_name = short_name
-        self.other_names = other_names
-
-    def __repr__(self):
-        return (f'{self.__class__.__name__}({self.name})')
-
-    @property
-    def names(self):
-        return [self.index, self.name, self.short_name] + self.other_names
-
-    @property
-    def index(self):
-        try:
-            return self.movie.illuminations.index(self)
-        except:
-            pass
 
 
 class MoviePlotter:
@@ -1041,66 +1106,6 @@ def expand_axes(frames, expand_into, from_axes=-1, to_axes=None, new_axes_positi
     return frames
 
 
-
-def image_info_from_filename(filename):
-    image_info = {}
-
-    fov_index_result = re.search('(?<=_fov)\d*(?=[_.])', filename)
-    if fov_index_result is not None:
-        image_info['fov_index'] = int(fov_index_result.group())
-
-    if '_ave' in filename:
-        image_info['image_type'] = 'average'
-    elif '_max' in filename:
-        image_info['image_type'] = 'maximum'
-
-    frame_start = re.search('(?<=_f)\d*(?=[-])', filename)
-    if frame_start is not None:
-        frame_end = re.search(f'(?<=_f{frame_start.group()}-)\d*(?=[-_.])', filename)
-        frame_interval = re.search(f'(?<=_f{frame_start.group()}-{frame_end.group()}-)\d*(?=[_.])', filename)
-        if frame_end is not None:
-            frame_range = (int(frame_start.group()), int(frame_end.group()))
-        else:
-            raise ValueError('Invalid filename')
-        if frame_interval is not None:
-            frame_range += (int(frame_interval.group()),)
-        image_info['frame_range'] = frame_range
-
-    illumination_result = re.search('(?<=_i)\d*(?=[_.])', filename)
-    if illumination_result is None:
-        image_info['illumination_index'] = None #list(self.illumination_indices.values)
-    else:
-        image_info['illumination_index'] = int(illumination_result.group())
-
-    # channel_result = re.search('(?<=_c)\d*(?=[_.])', filename)
-    # if channel_result is None:
-    #     image_info['channel_indices'] = list(self.channel_indices.values)
-    # else:
-    #     image_info['channel_indices'] = int(channel_result.group())
-
-    # fov_index = re.search('(?<=_fov)\d*(?=[_.])', filename)
-    # if fov_index is not None:
-    #     fov_index = int(fov_index)
-    #     image_info['fov_index'] = fov_index
-
-    return image_info
-
-def image_info_to_filename(filename, fov_index=None, image_type=None, frame_range=None, illumination_index=None):
-    #if 'fov_info' in self.__dict__.keys() and self.fov_info: # Or hasattr(self, 'fov_info')
-    if fov_index is not None:
-        # filename += f'_fov{self.fov_info["fov_chosen"]:03d}'
-        filename += f'_fov{fov_index:03d}'
-
-    if image_type is not None:
-        filename += '_' + image_type[:3]
-
-    if frame_range is not None:
-        filename += str(range(*frame_range)).replace('range(', '_f').replace(', ', '-').replace(')', '')
-
-    if illumination_index is not None: # and self.number_of_illuminations_in_movie > 1:
-        filename += f'_i{illumination_index}'
-
-    return filename
 
 
 def gaussian_maximum_fit(frame, width_around_peak_fitted=200):
