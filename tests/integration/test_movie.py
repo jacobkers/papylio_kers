@@ -27,7 +27,7 @@ def test_make_projection_image(movie, shared_datadir):
     assert (shared_datadir / 'BN_TIRF' / 'TIRF 561 0001_ave_f0-20_i0.tif').is_file()
     image_from_file = tifffile.imread(shared_datadir / 'BN_TIRF' / 'TIRF 561 0001_ave_f0-20_i0.tif')
     assert (image_from_file == image_from_method).all()
-    image_from_original_file = tifffile.imread(shared_datadir / 'BN_TIRF_result' / 'TIRF 561 0001_ave_f0-20_i0.tif')
+    image_from_original_file = tifffile.imread(shared_datadir / 'BN_TIRF_output_test_movie' / 'TIRF 561 0001_ave_f0-20_i0.tif')
     assert (image_from_original_file == image_from_method).all()
     raw_images = tifffile.imread(shared_datadir / 'BN_TIRF' / 'TIRF 561 0001.tif', key=range(0, 20))
     raw_images = np.rot90(raw_images, axes=(1,2))
@@ -35,7 +35,12 @@ def test_make_projection_image(movie, shared_datadir):
 
 
 def test_determine_temporal_background_correction(experiment, shared_datadir):
-    movie = experiment.files[0].movie
+    movie = experiment.files[1].movie
     method = 'fit_background_peak'
     background_correction = movie.determine_temporal_background_correction(method)
     assert (shared_datadir / 'BN_TIRF' / 'TIRF 561 0001_corrections.nc').is_file()
+
+
+def test_corrections(experiment):
+    movie = experiment.files[1].movie
+    movie.make_projection_image()
