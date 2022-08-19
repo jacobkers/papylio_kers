@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import tqdm
 
-from trace_analysis.correction.shading_correction import BaSiC
+from trace_analysis.movie.shading_correction import BaSiC
 
 
 def BaSiCfun(directory, output_directory, extension='.tif', estimate_darkfield=False, apply_correction=False,
@@ -125,7 +125,7 @@ if __name__ == '__main__':
     flatfield = tifffile.imread(pth.joinpath('flatfield.tif'))
     darkfield = tifffile.imread(pth.joinpath('darkfield.tif'))
 
-    from trace_analysis.correction.shading_correction import get_photobleach
+    from trace_analysis.movie.shading_correction import get_photobleach
 
     import time
     start = time.time()
@@ -147,7 +147,7 @@ if __name__ == '__main__':
 
 
 
-from trace_analysis.correction.shading_correction import get_photobleach
+from trace_analysis.movie.shading_correction import get_photobleach
 import time
 start = time.time()
 test = get_photobleach(frames.values, flatfield, darkfield=darkfield)
