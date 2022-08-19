@@ -6,6 +6,7 @@ from pathlib import Path
 import cv2
 import matplotlib.pyplot as plt
 import numpy as np
+import xarray as xr
 import tqdm
 
 from trace_analysis.movie.shading_correction import BaSiC
@@ -77,7 +78,8 @@ def squeeze_channel_from_frames(frames):
     # test2.unstack('channel').stack(x_pixel=('channel_index_x','x'), y_pixel=('channel_index_y','y'))
 
 def spatial_shading_correction(movies):
-    frames = xr.concat([movie.read_frames_raw([0]) for movie in tqdm.tqdm(movies)], dim='frame')
+    frames = xr.concat([movie.read_frames([0], apply_corrections=False, xarray=True, flatten_channels=False) for movie in tqdm.tqdm(movies)], dim='frame')
+    frames = frames.reset_index('frame', drop=True)
 
     flatfield = xr.ones_like(frames.sel(frame=0), dtype=float)
     darkfield = xr.zeros_like(frames.sel(frame=0), dtype=float)
@@ -89,8 +91,11 @@ def spatial_shading_correction(movies):
         flatfield[dict(channel=channel)] = optimizer.flatfield_fullsize
         darkfield[dict(channel=channel)] = optimizer.darkfield_fullsize
 
-    flatfield = squeeze_channel_from_frames(flatfield)
-    darkfield = squeeze_channel_from_frames(darkfield)
+    # flatfield = squeeze_channel_from_frames(flatfield)
+    # darkfield = squeeze_channel_from_frames(darkfield)
+
+    flatfield = movies[0].flatten_channels(flatfield)
+    darkfield = movies[0].flatten_channels(darkfield)
 
     return darkfield, flatfield
 
@@ -147,28 +152,28 @@ if __name__ == '__main__':
 
 
 
-from trace_analysis.movie.shading_correction import get_photobleach
-import time
-start = time.time()
-test = get_photobleach(frames.values, flatfield, darkfield=darkfield)
-print(time.time()-start)
+    from trace_analysis.movie.shading_correction import get_photobleach
+    import time
+    start = time.time()
+    test = get_photobleach(frames.values, flatfield, darkfield=darkfield)
+    print(time.time()-start)
 
-import scipy.ndimage
-start = time.time()
-# test2 = np.array([scipy.ndimage.minimum_filter(((frame)), size=15, mode='wrap').sum() for frame in img_stack])
-test2 = np.array([scipy.ndimage.gaussian_filter(((frame-darkfield)/flatfield)[:,0:256], sigma=50, mode='wrap').mean() for frame in img_stack])
-test2 = np.array([scipy.ndimage.minimum_filter(((frame-darkfield)/flatfield)[:,0:256], size=15, mode='wrap').mean() for frame in img_stack])
-# test2 = np.array([frame.sum() for frame in frames])
-# test2 = np.array([scipy.ndimage.minimum_filter(frame, size=15, mode='wrap').sum() for frame in img_stack])
-print(time.time()-start)
+    import scipy.ndimage
+    start = time.time()
+    # test2 = np.array([scipy.ndimage.minimum_filter(((frame)), size=15, mode='wrap').sum() for frame in img_stack])
+    test2 = np.array([scipy.ndimage.gaussian_filter(((frame-darkfield)/flatfield)[:,0:256], sigma=50, mode='wrap').mean() for frame in img_stack])
+    test2 = np.array([scipy.ndimage.minimum_filter(((frame-darkfield)/flatfield)[:,0:256], size=15, mode='wrap').mean() for frame in img_stack])
+    # test2 = np.array([frame.sum() for frame in frames])
+    # test2 = np.array([scipy.ndimage.minimum_filter(frame, size=15, mode='wrap').sum() for frame in img_stack])
+    print(time.time()-start)
 
-test = test.squeeze()
-test = test/test.sum()
-test2 = test2/test2.sum()
+    test = test.squeeze()
+    test = test/test.sum()
+    test2 = test2/test2.sum()
 
-plt.figure()
-plt.plot(test)
-plt.plot(test2)
+    plt.figure()
+    plt.plot(test)
+    plt.plot(test2)
 
 
 
