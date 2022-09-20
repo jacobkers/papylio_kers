@@ -33,6 +33,8 @@ def test_make_projection_image(movie, shared_datadir):
     raw_images = np.rot90(raw_images, axes=(1,2))
     assert ((image_from_file - raw_images.mean(axis=0)) < 1e-4).all()  # Not sure 1e-4 is accurate enough
 
+def test_make_projection_images(movie, shared_datadir):
+    movie.make_projection_images(projection_type='average', frame_range=(0,20))
 
 def test_determine_temporal_background_correction(experiment, shared_datadir):
     movie = experiment.files[1].movie

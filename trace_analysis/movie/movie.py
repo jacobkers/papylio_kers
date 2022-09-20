@@ -647,7 +647,7 @@ class Movie:
             #     tifffile.imwrite(self.writepath.joinPath(f'{self.name}_fr{frame_number}.tif'), image,  photometric='minisblack')
 
     def make_projection_image(self, projection_type='average', frame_range=(0,20), illumination=None, write=False,
-                              return_image=True, flatten_channels=True):
+                              return_image=True, flatten_channels=True, intensity_range=None, color_map='gray'):
         """ Construct a projection image
         Determine a projection image for a number_of_frames starting at start_frame.
         i.e. [start_frame, start_frame + number_of_frames)
@@ -714,14 +714,20 @@ class Movie:
             filename = Movie.image_info_to_filename(self.name, projection_type=projection_type, frame_range=frame_range,
                                                     illumination=illumination_index)
             filepath = self.writepath.joinpath(filename)
-            tifffile.imwrite(filepath.with_suffix('.tif'), self.flatten_channels(image),
-                             resolution=1/self.pixel_size,
-                             imagej=True,
-                             metadata={'unit': 'um',
-                                       'axes': 'YX'}
-                             )
+            write_image = self.flatten_channels(image)
+            if write in [True, 'tif']:
+                tifffile.imwrite(filepath.with_suffix('.tif'), write_image,
+                                 resolution=1/self.pixel_size,
+                                 imagej=True,
+                                 metadata={'unit': 'um',
+                                           'axes': 'YX'}
+                                 )
+            elif write in ['png']:
+                filepath = filepath.with_name(filepath.name + f'_v{intensity_range[0]}-{intensity_range[1]}')
+                if intensity_range is None:
+                    intensity_range = self.intensity_range
             # plt.imsave(filepath.with_suffix('.tif'), image, format='tif', cmap=colour_map, vmin=self.intensity_range[0], vmax=self.intensity_range[1])
-            # plt.imsave(filepath.with_suffix('.png'), image, cmap=colour_map, vmin=self.intensity_range[0], vmax=self.intensity_range[1])
+                plt.imsave(filepath.with_suffix('.png'), write_image, vmin=intensity_range[0], vmax=intensity_range[1], cmap=color_map)
 
         if return_image:
             if flatten_channels:
@@ -729,18 +735,23 @@ class Movie:
             else:
                 return image
 
-    def make_projection_images(self, projection_type='average', start_frame=0, number_of_frames=20):
-        # TODO: test this method
-        images = []
-        for illumination_index, channel_index in itertools.product(range(self.number_of_illuminations_in_movie), range(self.number_of_channels)):
-            image = self.make_projection_image(projection_type, start_frame, number_of_frames,
-                                               illumination_index, channel_index, write=True, return_image=True)
-            image = (image - self.intensity_range[0]) / (self.intensity_range[1] - self.intensity_range[0])
-            images.append(self.channels[channel_index].colour_map(image, bytes=True))
+    def make_projection_images(self, projection_type='average', frame_range=(0, 20)):
+        # Perhaps put this in make_projection_image as a special type of cmap
+        for illumination_index in range(self.number_of_illuminations_in_movie):
+            image = self.make_projection_image(projection_type, frame_range=(0,20), illumination=illumination_index,
+                                               write=True, return_image=True, flatten_channels=False)
+            channel_images = []
+            for channel_index in range(self.number_of_channels):
+                channel_image = image[channel_index]
+                channel_image = (channel_image - self.intensity_range[channel_index][0]) / (self.intensity_range[channel_index][1] - self.intensity_range[channel_index][0])
+                channel_images.append(self.channels[channel_index].colour_map(channel_image, bytes=True))
 
-        images_combined = np.hstack(images)
-        filepath = self.writepath.joinpath(self.name + '_' + projection_type[:3] + f'_{number_of_frames}fr')
-        plt.imsave(filepath.with_suffix('.png'), images_combined)
+            images_combined = np.hstack(channel_images)
+            filename = Movie.image_info_to_filename(self.name, projection_type=projection_type, frame_range=frame_range,
+                                                    illumination=illumination_index)
+            filepath = self.writepath.joinpath(filename)
+            plt.imsave(filepath.with_suffix('.png'), images_combined)
+
 
     def make_average_image(self, **kwargs):
         """ Construct an average image
@@ -829,6 +840,9 @@ class Movie:
                 channel_dimensions = frames.shape[-2:][::-1]  # size should be given in (x,y) for get_photobleach
                 size = (channel_dimensions / np.max(channel_dimensions) * 256).astype(int)
                 correction = get_photobleach(frames_subset, flatfield, darkfield, size=size).flatten()
+            elif method == 'BaSiC_crop':
+                # Crop the image instead of resizing, may be better for single-molecules. However, may give higher noise.
+                raise NotImplementedError('')
             elif method == 'gaussian_filter':
                 correction = np.array(
                     [scipy.ndimage.gaussian_filter(((frame - darkfield) / flatfield), sigma=0.5, mode='wrap').mean()

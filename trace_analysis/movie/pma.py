@@ -27,7 +27,7 @@ class PmaMovie(Movie):
                             }
 
         # self.read_header()
-        self.create_frame_info()  # Possibly move to Movie later on
+        # self.create_frame_info()  # Possibly move to Movie later on
 
 
 
