@@ -82,7 +82,11 @@ class TracePlotWindow(QWidget):
 
     @dataset.setter
     def dataset(self, value):
-        self._dataset = value
+        if value is not None and (hasattr(value, 'frame') or hasattr(value, 'time')):
+            self._dataset = value
+            self.canvas.init_plot_artists()
+        else:
+            self._dataset = None
         self.molecule_index = 0
 
 
@@ -193,6 +197,53 @@ class TracePlotCanvas(FigureCanvas):
         if draw:
             self.draw()
 
+    def init_plot_artists(self):
+        for i, plot_variable in enumerate(self.parent_window.plot_variables):
+            if 'time' in self.parent_window.dataset.coords.keys():
+                x = self.parent_window.dataset.time
+            else:
+                x = self.parent_window.dataset.frame
+            self.plot_artists[plot_variable] = self.plot_axes[plot_variable].plot(x, self.parent_window.dataset[plot_variable].sel(molecule=0).T)
+            if i == 0:
+                self.title_artist = self.plot_axes[plot_variable].set_title('')
+            for j, plot_artist in enumerate(self.plot_artists[plot_variable]):
+                plot_artist.set_color(self.parent_window.colours[i][j])
+            # molecule.intensity.plot.line(x='frame', ax=self.plot_axes[plot_variable], color=self.parent_window.colours[i])
+            self.histogram_artists[plot_variable] = self.histogram_axes[plot_variable].hist(self.parent_window.dataset[plot_variable].sel(molecule=0).T,
+                                                                                            bins=50,
+                                                                                            orientation='horizontal',
+                                                                                            range=self.plot_axes[
+                                                                                                plot_variable].get_ylim(),
+                                                                                            color=
+                                                                                            self.parent_window.colours[
+                                                                                                i], alpha=0.5)[2]
+            if not isinstance(self.histogram_artists[plot_variable], list):
+                self.histogram_artists[plot_variable] = [self.histogram_artists[plot_variable]]
+
+            if i == len(self.parent_window.plot_variables) - 1:
+                if 'time' in self.parent_window.dataset.coords.keys():
+                    self.plot_axes[plot_variable].set_xlabel(f'Time ({self.parent_window.dataset.time.units})')
+                else:
+                    self.plot_axes[plot_variable].set_xlabel('Frame')
+
+        # self.artists += [self.intensity_plot.plot(g, c='g')]
+        # self.artists += [self.intensity_plot.plot(r, c='r')]
+        # self.artists += [self.FRET_plot.plot(e, c='b')]
+        # self.artists += [[self.intensity_plot.set_title('test')]]
+        # self.artists += [self.intensity_histogram.hist(g, bins=100, orientation='horizontal',
+        #                                                range=self.intensity_plot.get_ylim(), color='g', alpha=0.5)[2]]
+        # self.artists += [self.intensity_histogram.hist(r, bins=100, orientation='horizontal',
+        #                                                range=self.intensity_plot.get_ylim(), color='r', alpha=0.5)[2]]
+        # self.artists += [self.FRET_histogram.hist(e, bins=100, orientation='horizontal',
+        #                                           range=self.FRET_plot.get_ylim(), color='b')[2]]
+
+        # self.axes[1].plot(molecule.E(), animate=True)
+        artists = [self.title_artist] + \
+                  [a for b in self.plot_artists.values() for a in b] + \
+                  [a for c in self.histogram_artists.values() for b in c for a in b]
+        self.bm = BlitManager(self, artists)
+        self.draw()
+
     @property
     def molecule(self):
         return self._molecule
@@ -218,46 +269,7 @@ class TracePlotCanvas(FigureCanvas):
         # e = molecule.FRET.values
 
         if not self.plot_artists:
-            for i, plot_variable in enumerate(self.parent_window.plot_variables):
-                if 'time' in self.parent_window.dataset.coords.keys():
-                    x = molecule.time
-                else:
-                    x = molecule.frame
-                self.plot_artists[plot_variable] = self.plot_axes[plot_variable].plot(x, molecule[plot_variable].T)
-                if i==0:
-                    self.title_artist = self.plot_axes[plot_variable].set_title('')
-                for j, plot_artist in enumerate(self.plot_artists[plot_variable]):
-                    plot_artist.set_color(self.parent_window.colours[i][j])
-                #molecule.intensity.plot.line(x='frame', ax=self.plot_axes[plot_variable], color=self.parent_window.colours[i])
-                self.histogram_artists[plot_variable] = self.histogram_axes[plot_variable].hist(molecule[plot_variable].T,
-                                bins=50, orientation='horizontal', range=self.plot_axes[plot_variable].get_ylim(),
-                                                                    color=self.parent_window.colours[i], alpha=0.5)[2]
-                if not isinstance(self.histogram_artists[plot_variable], list):
-                    self.histogram_artists[plot_variable] = [self.histogram_artists[plot_variable]]
-
-                if i == len(self.parent_window.plot_variables) - 1:
-                    if 'time' in self.parent_window.dataset.coords.keys():
-                        self.plot_axes[plot_variable].set_xlabel(f'Time ({self.parent_window.dataset.time.units})')
-                    else:
-                        self.plot_axes[plot_variable].set_xlabel('Frame')
-
-            # self.artists += [self.intensity_plot.plot(g, c='g')]
-            # self.artists += [self.intensity_plot.plot(r, c='r')]
-            # self.artists += [self.FRET_plot.plot(e, c='b')]
-            # self.artists += [[self.intensity_plot.set_title('test')]]
-            # self.artists += [self.intensity_histogram.hist(g, bins=100, orientation='horizontal',
-            #                                                range=self.intensity_plot.get_ylim(), color='g', alpha=0.5)[2]]
-            # self.artists += [self.intensity_histogram.hist(r, bins=100, orientation='horizontal',
-            #                                                range=self.intensity_plot.get_ylim(), color='r', alpha=0.5)[2]]
-            # self.artists += [self.FRET_histogram.hist(e, bins=100, orientation='horizontal',
-            #                                           range=self.FRET_plot.get_ylim(), color='b')[2]]
-
-            #self.axes[1].plot(molecule.E(), animate=True)
-            artists = [self.title_artist] + \
-                      [a for b in self.plot_artists.values() for a in b] + \
-                      [a for c in self.histogram_artists.values() for b in c for a in b]
-            self.bm = BlitManager(self, artists)
-            self.draw()
+            self.init_plot_artists()
 
         # for axis in self.axes:
         #     axis.cla()
