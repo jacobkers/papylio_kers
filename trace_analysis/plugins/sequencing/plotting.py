@@ -1,6 +1,7 @@
 import math
 import numpy as np
 import xarray as xr
+from pathlib2 import Path
 import matplotlib
 matplotlib.use('Qt5Agg')
 import matplotlib.pyplot as plt
@@ -86,9 +87,9 @@ def double_mutations(sequence):
     return sequences
 
 
-def plot_double_mutations(sequence, da, da_annotation=None):
+def plot_double_mutations(sequence, da, da_annotation=None, save=False, save_path=None):
     # sequences = [sequence] + double_mutations(sequence)
-
+    bases = 'ACTG'
     data = np.zeros((len(sequence)*3, len(sequence)*3))
     data_annotation = np.zeros((len(sequence)*3, len(sequence)*3))
     data[:] = np.nan
@@ -104,7 +105,7 @@ def plot_double_mutations(sequence, da, da_annotation=None):
                         new = sequence[0:i] + base + sequence[(i+1):len(sequence)]
                         # sequences.append(new)
                         data[i*3+k,i*3+k] = da.sel(sequence=new).item()
-                        if da_annotation:
+                        if da_annotation is not None:
                             data_annotation[i * 3 + k, i * 3 + k] = da_annotation.sel(sequence=new).item()
                         bases_axes.append(base)
                         # print(i, j, k, base)
@@ -119,7 +120,7 @@ def plot_double_mutations(sequence, da, da_annotation=None):
                                 new = sequence[0:i] + base1 + sequence[(i+1):j] + base2 + sequence[(j + 1):len(sequence)]
                                 # sequences.append(new)
                                 data[j*3+k2, i*3+k1] = da.sel(sequence=new).item()
-                                if da_annotation:
+                                if da_annotation is not None:
                                     data_annotation[j * 3 + k2, i * 3 + k1] = da_annotation.sel(sequence=new).item()
                                 # print(i, j, k1, k2, base1, base2)
                                 k2 += 1
@@ -135,7 +136,7 @@ def plot_double_mutations(sequence, da, da_annotation=None):
     # Create colorbar
     cax = ax.inset_axes([1.04, 0.2, 0.05, 0.6], transform=ax.transAxes)
     cbar = ax.figure.colorbar(im, ax=ax, cax=cax)
-    cbar.ax.set_ylabel(da.name, rotation=-90, va="bottom")
+    cbar.ax.set_ylabel(da.name.capitalize().replace('_',' '), rotation=-90, va="bottom")
 
     # Show all ticks and label them with the respective list entries.
     ax.set_xticks(np.arange(data.shape[1]), labels=bases_axes)
@@ -156,6 +157,7 @@ def plot_double_mutations(sequence, da, da_annotation=None):
     ax.set_yticks(np.arange(0, data.shape[0] + 1, 3) - .5, minor=True)
     ax.grid(which="minor", color="w", linestyle='-', linewidth=3)
     ax.tick_params(which="minor", bottom=False, left=False)
+    ax.set_title(sequence)
 
 
     position = np.arange(len(sequence))
@@ -186,13 +188,18 @@ def plot_double_mutations(sequence, da, da_annotation=None):
     # ax.xaxis.set_label_coords(0.5, -0.12)
     # ax.yaxis.set_label_coords(-0.13, 0.5)
 
-    if da_annotation:
+    if da_annotation is not None:
         for i in range(data.shape[0]):
             for j in range(data.shape[1]):
                 value = data_annotation[i, j]
                 if ~np.isnan(value):
                     text = ax.text(j, i, value.astype(int),
                                    ha="center", va="center", color="k")
+
+    if save and save_path is not None:
+        save_path = Path(save_path)
+        fig.savefig(save_path / (sequence + '_double_mutations_' + da.name + '.pdf'))
+        fig.savefig(save_path / (sequence + '_double_mutations_' + da.name + '.png'))
 
     return fig, ax
 
