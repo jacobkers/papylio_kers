@@ -55,6 +55,7 @@ class TracePlotWindow(QWidget):
         else:
             self.save_path = Path(save_path)
 
+        self._dataset = dataset
         self.canvas = TracePlotCanvas(self, width=width, height=height, dpi=100)
 
         # Create toolbar, passing canvas as first parament, parent (self, the MainWindow) as second.
@@ -82,8 +83,8 @@ class TracePlotWindow(QWidget):
     @dataset.setter
     def dataset(self, value):
         self._dataset = value
-        if value is not None:
-            self.molecule_index = 0
+        self.molecule_index = 0
+
 
     @property
     def molecule_index(self):
@@ -92,7 +93,10 @@ class TracePlotWindow(QWidget):
     @molecule_index.setter
     def molecule_index(self, molecule_index):
         self._molecule_index = molecule_index
-        self.molecule = self.dataset.isel(molecule=self._molecule_index)
+        if self.dataset is not None:
+            self.molecule = self.dataset.isel(molecule=self._molecule_index)
+        else:
+            self.molecule = None
 
     def next_molecule(self):
         if (self.molecule_index+1) < len(self.dataset.molecule):
@@ -153,9 +157,6 @@ class TracePlotCanvas(FigureCanvas):
             plot.set_ylim(self.parent_window.ylims[i])
             plot.set_ylabel(plot_variable)
 
-            if i == len(plot_variables)-1:
-                plot.set_xlabel('Time')
-
             histogram.get_yaxis().set_visible(False)
 
             self.plot_axes[plot_variable] = plot
@@ -180,13 +181,36 @@ class TracePlotCanvas(FigureCanvas):
         self.plot_artists = {}
         self.histogram_artists = {}
 
+
+    def show_artists(self, show, draw=True):
+        for artists in self.plot_artists.values():
+            for artist in artists:
+                artist.set_alpha(int(show))
+        for artists in self.histogram_artists.values():
+            for artist in artists:
+                for bar in artist:
+                    bar.set_alpha(int(show)*0.5)
+        if draw:
+            self.draw()
+
     @property
     def molecule(self):
         return self._molecule
 
     @molecule.setter
     def molecule(self, molecule):
+        previous_molecule = self._molecule
         self._molecule = molecule
+
+        if molecule is None and previous_molecule is not None:
+            self.show_artists(False, draw=True)
+            return
+        elif molecule is None and previous_molecule is None:
+            return
+        elif molecule is not None and previous_molecule is None:
+            self.show_artists(True, draw=False)
+
+
         self._molecule['file'] = self._molecule['file'].astype(str)
 
         # g = molecule.intensity.sel(channel=0).values
@@ -195,7 +219,11 @@ class TracePlotCanvas(FigureCanvas):
 
         if not self.plot_artists:
             for i, plot_variable in enumerate(self.parent_window.plot_variables):
-                self.plot_artists[plot_variable] = self.plot_axes[plot_variable].plot(molecule[plot_variable].T)
+                if 'time' in self.parent_window.dataset.coords.keys():
+                    x = molecule.time
+                else:
+                    x = molecule.frame
+                self.plot_artists[plot_variable] = self.plot_axes[plot_variable].plot(x, molecule[plot_variable].T)
                 if i==0:
                     self.title_artist = self.plot_axes[plot_variable].set_title('')
                 for j, plot_artist in enumerate(self.plot_artists[plot_variable]):
@@ -206,6 +234,12 @@ class TracePlotCanvas(FigureCanvas):
                                                                     color=self.parent_window.colours[i], alpha=0.5)[2]
                 if not isinstance(self.histogram_artists[plot_variable], list):
                     self.histogram_artists[plot_variable] = [self.histogram_artists[plot_variable]]
+
+                if i == len(self.parent_window.plot_variables) - 1:
+                    if 'time' in self.parent_window.dataset.coords.keys():
+                        self.plot_axes[plot_variable].set_xlabel(f'Time ({self.parent_window.dataset.time.units})')
+                    else:
+                        self.plot_axes[plot_variable].set_xlabel('Frame')
 
             # self.artists += [self.intensity_plot.plot(g, c='g')]
             # self.artists += [self.intensity_plot.plot(r, c='r')]
@@ -235,7 +269,7 @@ class TracePlotCanvas(FigureCanvas):
             else:
                 selection_string = ''
 
-            self.title_artist.set_text(f'File: {molecule.file.values} | Molecule: {molecule.molecule_in_file.values}' + selection_string)#| Sequence: {molecule.sequence_name.values}')
+            self.title_artist.set_text(f'# {self.parent_window.molecule_index} of {len(self.parent_window.dataset.molecule)} | File: {molecule.file.values} | Molecule: {molecule.molecule_in_file.values}' + selection_string)#| Sequence: {molecule.sequence_name.values}')
             for j in range(len(data)):
                 self.plot_artists[plot_variable][j].set_ydata(data[j])
                 n, _ = np.histogram(data[j], 50, range=self.plot_axes[plot_variable].get_ylim())
