@@ -15,16 +15,18 @@ import yaml
 import skimage.transform
 from skimage.transform import AffineTransform, PolynomialTransform, SimilarityTransform
 # import matplotlib.path as pth
-from shapely.geometry import Polygon, MultiPoint, LineString, Point
+
 from tqdm import tqdm
 from scipy.spatial import distance_matrix, cKDTree
 
+from point_set import overlap_vertices, area, crop_coordinates, determine_vertices
 from icp import icp, nearest_neighbor_pair, nearest_neighbour_match, direct_match
 from polywarp import PolywarpTransform
 from polynomial import PolynomialTransform
 from point_set_simulation import simulate_mapping_test_point_set
 from kernel_correlation import kernel_correlation, compute_kernel_correlation
 from cross_correlation import cross_correlate
+from geometric_hashing import GeometricHashTable
 
 class Mapping2:
     """Mapping class to find, improve, store and use the mapping between a source point set and a destination point set
@@ -57,16 +59,16 @@ class Mapping2:
     @classmethod
     def simulate(cls, number_of_points=200, transformation=None,
                  bounds=([0, 0], [256, 512]), crop_bounds=(None, None), fraction_missing=(0.1, 0.1),
-                 error_sigma=(0.5, 0.5), shuffle=True):
+                 error_sigma=(0.5, 0.5), shuffle=True, seed=10532):
 
         if transformation is None:
             transformation = SimilarityTransform(translation=[256, 10], rotation=1/360*2*np.pi, scale=[0.98, 0.98])
 
-
+        # TODO: Add seed
         source, destination = simulate_mapping_test_point_set(number_of_points, transformation,
                                                               bounds, crop_bounds, fraction_missing,
                                                               error_sigma,
-                                                              shuffle)
+                                                              shuffle, seed=seed)
 
         mapping = cls(source, destination)
         mapping.transformation_correct = transformation
@@ -629,8 +631,27 @@ class Mapping2:
         self.transformation_inverse = AffineTransform(matrix=self.transformation._inv_matrix)
         self.correlation_conversion_function = None
 
+    def geometric_hashing(self, method='test_one_by_one', tuple_size=4, maximum_distance_source=None,
+                          maximum_distance_destination=None, **kwargs):
+        hash_table = GeometricHashTable([self.destination], source_vertices=self.source_vertices,
+                                        initial_source_transformation=self.transformation,
+                                        number_of_source_bases=20, number_of_destination_bases='all',
+                                        tuple_size=tuple_size, maximum_distance_source=maximum_distance_source,
+                                        maximum_distance_destination=maximum_distance_destination)
+
+        if method == 'test_one_by_one':
+            found_transformation = hash_table.query(self.source, **kwargs)
+        elif method == 'abundant_transformations':
+            found_transformation = hash_table.query_tuple_transformations([self.source], **kwargs)
+        else:
+            raise ValueError(f'Unknown method {method}')
+
+        self.transformation = found_transformation
+        self.transformation_inverse = type(found_transformation)(matrix=self.transformation._inv_matrix)
+
+
     def get_unit(self, space):
-        return self.__getattribute__(f'{space}_unit')
+            return self.__getattribute__(f'{space}_unit')
 
     def get_unit_label(self, space):
         if self.get_unit(space) is not None:
@@ -954,51 +975,6 @@ class Mapping2:
                     json.dump(attributes, json_file, sort_keys=False)
 
         self.save_path = save_path
-
-def overlap_vertices(vertices_A, vertices_B):
-    polygon_A = Polygon(vertices_A)
-    polygon_B = Polygon(vertices_B)
-    if polygon_A.intersects(polygon_B):
-        polygon_intersection = polygon_A.intersection(polygon_B)
-    # return np.array(polygon_overlap.exterior.coords.xy).T[:-1]
-
-        return np.array(polygon_intersection.boundary.coords)[:-1]
-    else:
-        return np.empty((0,2))
-
-def area(vertices):
-    if len(vertices) < 3:
-        return 0
-    else:
-        return Polygon(vertices).area
-
-def crop_coordinates_indices(coordinates, vertices):
-    # return pth.Path(vertices).contains_points(coordinates)
-    cropped_coordinates = crop_coordinates(coordinates, vertices)
-    return np.array([c in cropped_coordinates for c in coordinates])
-
-def crop_coordinates(coordinates, vertices):
-    if len(vertices) > 0 and len(np.atleast_2d(coordinates)) > 0:
-        # return np.atleast_2d(Polygon(vertices).intersection(MultiPoint(coordinates)))
-        pointset_intersected = Polygon(vertices).intersection(MultiPoint(coordinates))
-        if isinstance(pointset_intersected, MultiPoint):
-            return np.atleast_2d(LineString(pointset_intersected.geoms).coords)
-        elif isinstance(pointset_intersected, Point) and len(pointset_intersected.coords) > 0:
-            return np.array(pointset_intersected.coords)
-        else:
-            return np.empty((0, 2))
-        # Hopefully shapely 2.0 will be more consistent
-    else:
-        return np.empty((0, 2)) # np.atleast_2d([])
-
-    # bounds.sort(axis=0)
-    # selection = (coordinates[:, 0] > bounds[0, 0]) & (coordinates[:, 0] < bounds[1, 0]) & \
-    #             (coordinates[:, 1] > bounds[0, 1]) & (coordinates[:, 1] < bounds[1, 1])
-    # return coordinates[selection]
-
-
-def determine_vertices(point_set, margin=0):
-    return np.array(MultiPoint(point_set).convex_hull.buffer(margin, join_style=1).boundary.coords)[:-1]
 
 import scipy.sparse
 
