@@ -1,7 +1,7 @@
 import numpy as np
 from skimage.transform import AffineTransform, PolynomialTransform
 
-def simulate_point_set(number_of_points, bounds=([0, 0], [1, 1])):
+def simulate_point_set(number_of_points, bounds=([0, 0], [1, 1]), random_generator=None):
     """
 
     Parameters
@@ -18,14 +18,17 @@ def simulate_point_set(number_of_points, bounds=([0, 0], [1, 1])):
         Coordinates with error applied
 
     """
+    if random_generator is None:
+        random_generator = np.random.default_rng()
+
     bounds = np.array(bounds)
     dimensions = bounds.shape[1]
-    unit_coordinates = np.random.rand(number_of_points, dimensions)
+    unit_coordinates = random_generator.random((number_of_points, dimensions))
     coordinates = unit_coordinates * (bounds[1] - bounds[0]) + bounds[0]
     return coordinates
 
 
-def random_selection_from_point_set(coordinates, fraction):
+def random_selection_from_point_set(coordinates, fraction, random_generator=None):
     """ Obtain a random part of a point set
 
     Parameters
@@ -40,13 +43,13 @@ def random_selection_from_point_set(coordinates, fraction):
     Nx2 numpy.ndarray
         Subset of coordinates
     """
-
-    random_generator = np.random.default_rng()
+    if random_generator is None:
+        random_generator = np.random.default_rng()
     size = round(fraction * len(coordinates))
     return random_generator.choice(coordinates, size, replace=False, axis=0, shuffle=False)
 
 
-def add_uncertainty_to_point_set(coordinates, sigma=1):
+def add_uncertainty_to_point_set(coordinates, sigma=1, random_generator=None):
     """ Add random errors to the coordinates of a point set.
     For each point an error is randomly chosen from within a circle with radius maximum_error.
 
@@ -68,7 +71,10 @@ def add_uncertainty_to_point_set(coordinates, sigma=1):
     # error_angles = random_generator.random(len(coordinates)) * 2 * np.pi
     # errors = error_magnitudes[:, np.newaxis] * np.column_stack([np.cos(error_angles), np.sin(error_angles)])
 
-    errors = np.random.normal(0, sigma, size=coordinates.shape)
+    if random_generator is None:
+        random_generator = np.random.default_rng()
+    errors = random_generator.normal(0, sigma, size=coordinates.shape)
+    # errors = np.random.normal(0, sigma, size=coordinates.shape)
 
     return coordinates + errors
 
@@ -98,7 +104,7 @@ def crop_point_set(coordinates, bounds):
 def simulate_mapping_test_point_set(number_of_points, transformation, bounds=([0, 0], [1, 1]),
                                     crop_bounds=(None, None),
                                     fraction_missing=(0,0),
-                                    error_sigma=(0,0), shuffle=True):
+                                    error_sigma=(0,0), shuffle=True, seed=45896):
     """Simulate test point set for mapping
 
     A source point set is randomly generated between the given source_bounds. To obtain a corresponding destination
@@ -144,9 +150,11 @@ def simulate_mapping_test_point_set(number_of_points, transformation, bounds=([0
         Coordinates of the destination point set
 
     """
+    random_generator = np.random.default_rng(seed)
+
     number_of_point_sets = 2
 
-    complete_point_set = simulate_point_set(number_of_points, bounds)
+    complete_point_set = simulate_point_set(number_of_points, bounds, random_generator)
     point_sets = []
     for i in range(number_of_point_sets):
         if crop_bounds[i] is not None:
@@ -155,15 +163,14 @@ def simulate_mapping_test_point_set(number_of_points, transformation, bounds=([0
         else:
             point_set = complete_point_set.copy()
 
-        point_set = random_selection_from_point_set(point_set, 1 - fraction_missing[i])
-        point_set = add_uncertainty_to_point_set(point_set, error_sigma[i])
+        point_set = random_selection_from_point_set(point_set, 1 - fraction_missing[i], random_generator)
+        point_set = add_uncertainty_to_point_set(point_set, error_sigma[i], random_generator)
 
         # We could also transform both source and destination
         if i > 0:
             point_set = transformation(point_set)
 
             if shuffle:
-                random_generator = np.random.default_rng()
                 random_generator.shuffle(point_set, axis=0)
 
         point_sets.append(point_set)

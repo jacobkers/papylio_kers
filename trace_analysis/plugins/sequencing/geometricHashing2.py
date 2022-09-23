@@ -5,7 +5,8 @@ import itertools
 from scipy.spatial import cKDTree
 import random
 from trace_analysis.mapping.geometricHashing import mapToPoint
-from trace_analysis.mapping.mapping import Mapping2, crop_coordinates
+from trace_analysis.mapping.mapping import Mapping2
+from trace_analysis.mapping.point_set import crop_coordinates
 # from trace_analysis.plotting import scatter_coordinates
 from skimage.transform import AffineTransform
 import time

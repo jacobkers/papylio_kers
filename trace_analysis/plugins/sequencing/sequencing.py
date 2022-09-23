@@ -11,7 +11,7 @@ import os.path
 # from trace_analysis.experiment import Experiment
 # from trace_analysis.file import File
 from trace_analysis.mapping.geometricHashing import SequencingDataMapping
-from trace_analysis.mapping.mapping import Mapping2, crop_coordinates_indices
+from trace_analysis.mapping.mapping import Mapping2
 from trace_analysis.mapping.polynomial import PolynomialTransform
 from .fastqAnalysis import FastqData
 from .geometricHashing2 import geometric_hash, find_match_after_hashing

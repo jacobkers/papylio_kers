@@ -4,10 +4,10 @@ import matplotlib.pyplot as plt
 import itertools
 from scipy.spatial import cKDTree
 import random
-from trace_analysis.mapping.geometricHashing import mapToPoint
-from trace_analysis.mapping.mapping import Mapping2, crop_coordinates
+from trace_analysis.mapping.point_set import crop_coordinates
+from coordinate_transformations import translate, rotate, magnify, reflect, transform
 # from trace_analysis.plotting import scatter_coordinates
-from skimage.transform import AffineTransform
+from skimage.transform import AffineTransform, SimilarityTransform
 import time
 
 
@@ -62,7 +62,7 @@ class GeometricHashTable:
                                         magnification_range, rotation_range)
 
     def query_tuple_transformations(self, sources, hash_table_distance_threshold=0.01, parameters=['rotation', 'scale'],
-                                    bins=200):
+                                    plot=False, method='dbscan', **method_kwargs):
         # np.vstack(sources)
 
         source_hash_data = geometric_hash(sources, self.maximum_distance_source, self.tuple_size)
@@ -70,7 +70,7 @@ class GeometricHashTable:
 
         return compare_tuple_transformations(source_hash_table_KDTree, source_transformation_matrices,
                                               self.destination_hash_table_KDTree, self.destination_transformation_matrices,
-                                              hash_table_distance_threshold, parameters)
+                                              hash_table_distance_threshold, parameters, plot=plot, method=method, **method_kwargs)
 
 
 def geometric_hash(point_sets, maximum_distance=100, tuple_size=4):
@@ -177,8 +177,8 @@ def geometric_hash_table(point_set_KDTree, point_tuples):
 def find_match_after_hashing(source, maximum_distance_source, tuple_size, source_vertices,
                              destination_KDTrees, destination_tuple_sets, destination_hash_table_KDTree,
                              hash_table_distance_threshold=0.01,
-                             alpha=0.1, test_radius=10, K_threshold=10e9,
-                             magnification_range=None, rotation_range=None):
+                             alpha=0.1, sigma=10, K_threshold=10e9,
+                             scaling_range=None, rotation_range=None):
 
     if type(destination_KDTrees) is not list:
         destination_KDTrees = [destination_KDTrees]
@@ -194,17 +194,11 @@ def find_match_after_hashing(source, maximum_distance_source, tuple_size, source
         # TODO: Get all destination tuple indices within a range
         distance, destination_tuple_index = destination_hash_table_KDTree.query(source_hash_code)
 
-        # We can also put a threshold on the distance here possibly
-        #print(distance)
         hash_table_distances_checked += 1
         # if hash_table_distances_checked > 500:
         #     return
 
         if distance < hash_table_distance_threshold:
-            # source_coordinate_tuple = source[list(source_tuples[source_tuple_index])]
-            # destination_coordinate_tuple = destination[list(destination_tuples[destination_tuple_index])]
-
-            # source_tuple = source_tuples[source_tuple_index]
             # Find the destination tuple by determining in which destination pointset the destination tuple index is located
             # and by determining what the index is within that destination pointset.
             cumulative_tuples_per_destination = np.cumsum([0]+[len(point_tuples) for point_tuples in destination_tuple_sets])
@@ -218,10 +212,18 @@ def find_match_after_hashing(source, maximum_distance_source, tuple_size, source
             tuples_checked += 1
 
             destination_KDTree = destination_KDTrees[destination_index]
-            found_transformation = tuple_match(source, destination_KDTree, source_vertices, source_tuple, destination_tuple,
-                                alpha, test_radius, K_threshold, magnification_range, rotation_range)
-            if found_transformation:
+            found_transformation = tuple_match(source, destination_KDTree, source_tuple, destination_tuple)
+
+            if not transformation_in_parameter_range(found_transformation, rotation=rotation_range, scale=scaling_range):
+                continue
+
+            source_indices_without_tuple = [i for i in range(len(source)) if i not in source_tuple]
+            source_without_tuple = source[source_indices_without_tuple]
+
+            if test_transformation(source_without_tuple, destination_KDTree, found_transformation, source_vertices,
+                                alpha=alpha, sigma=sigma, K_threshold=K_threshold):
                 return found_transformation
+
             #     match = Mapping2(source=source, destination=destination_KDTree.data, method='Geometric hashing',
             #                      transformation_type='linear', initial_transformation=None)
             #     match.transformation = found_transformation
@@ -233,95 +235,113 @@ def find_match_after_hashing(source, maximum_distance_source, tuple_size, source
             #     return match
 
 
-
 def polygon_area(vertices):
     x = vertices[:,0]
     y = vertices[:,1]
     return 0.5 * np.abs(np.dot(x, np.roll(y, 1)) - np.dot(y, np.roll(x, 1)))
 
 
-def tuple_match(source, destination_KDTree, source_vertices, source_tuple, destination_tuple,
-                alpha=0.1, test_radius=10, K_threshold=10e9, scaling_range=None, rotation_range=None):
+def tuple_match(source, destination_KDTree, source_tuple, destination_tuple):
     source_coordinate_tuple = source[list(source_tuple)]
     destination_coordinate_tuple = destination_KDTree.data[list(destination_tuple)]
 
-    source_indices_without_tuple = [i for i in range(len(source)) if i not in source_tuple]
-    source = source[source_indices_without_tuple]
+    transformation = estimate_transformation(source_coordinate_tuple[:2], destination_coordinate_tuple[:2])
 
-    source_transformed, transformation_matrix = mapToPoint(source, source_coordinate_tuple[:2], destination_coordinate_tuple[:2], returnTransformationMatrix=True)
-    # scatter_coordinates([source_transformed])
+    # transformation = AffineTransform()
+    # transformation.estimate(source_coordinate_tuple[:2], destination_coordinate_tuple[:2])
 
-    found_transformation = AffineTransform(transformation_matrix)
+    # transformation = AffineTransform(transformation_matrix)
+    return transformation
 
-    if rotation_range:
-        rotation = found_transformation.rotation/(2*np.pi)*360
-        if not (rotation_range[0] < rotation < rotation_range[1]):
-            return
-    if scaling_range:
-        scaling = np.mean(found_transformation.scale)
-        if not (scaling_range[0] < scaling < scaling_range[1]):
-            return
 
-    # if not (-1 < rot < 1) & (3.3 < sca < 3.4):
-    #     return
-    # if (-1 < rot < 1) & (3.3 < sca < 3.4):
-    #     print('found')
-    # scatter_coordinates([destination_KDTree.data, source_transformed])
+def estimate_transformation(start_points, end_points, tr=None, di=None, ro=None):
+    start_points = np.atleast_2d(start_points)
+    end_points = np.atleast_2d(end_points)
+    if len(start_points) == 1 & len(end_points) == 1:
+        tr = True
+        ro = False
+        di = False
 
+    elif len(start_points) == 2 & len(end_points) == 2:
+        if tr is None: tr = True
+        if di is None: di = True
+        if ro is None: ro = True
+
+    transformation_matrix = np.identity(3)
+
+    if tr:
+        translation_matrix = translate(end_points[0] - start_points[0])
+        transformation_matrix = translation_matrix @ transformation_matrix
+
+    if di or ro:
+        diffs = np.array([start_points[0] - start_points[1], end_points[0] - end_points[1]])
+        diff_lengths = np.linalg.norm(diffs, axis=1, keepdims=True)
+        unit_diffs = diffs / diff_lengths
+
+        if di:
+            dilation_matrix = magnify(diff_lengths[1] / diff_lengths[0], end_points[0])
+            transformation_matrix = dilation_matrix @ transformation_matrix
+
+        if ro:
+            angle = -np.arctan2(np.linalg.det(unit_diffs), np.dot(unit_diffs[0], unit_diffs[1]))
+            # angle = np.arccos(np.dot(diffs[0]/endLength,diffs[1]/startLength))
+            rotation_matrix = rotate(angle, end_points[0])
+            transformation_matrix = rotation_matrix @ transformation_matrix
+
+    return SimilarityTransform(transformation_matrix)
+
+
+def apply_transformation(point_set, transformation_matrix):
+    # ~3x Faster than Affinetransform()(point_set)
+    point_set = np.append(point_set, np.ones((point_set.shape[0], 1)), axis=1)
+    transformed_point_set = (transformation_matrix @ point_set.T)[0:2, :].T
+    return transformed_point_set
+
+
+def transformation_in_parameter_range(transformation, **kwargs):
+    for parameter, parameter_range in kwargs.items():
+        if parameter_range is not None:
+            parameter_value = getattr(transformation, parameter)
+            if not (parameter_range[0] < np.array(parameter_value) < parameter_range[1]):
+                return False
+    return True
+
+
+def test_transformation(source, destination, found_transformation, source_vertices, alpha=0.9, sigma=10, K_threshold=10e2):
+    if not type(destination) is cKDTree:
+        destination_KDTree = cKDTree(destination)
+    else:
+        destination_KDTree = destination
+
+    # TODO: Make crop both source_transformed and destination based on convex hull (and thus make this independen of source_vertices)
     source_vertices_transformed = found_transformation(source_vertices)
     destination_cropped = crop_coordinates(destination_KDTree.data, source_vertices_transformed)
 
-    #source_transformed_area = np.linalg.norm(source_vertices_transformed[0] - source_vertices_transformed[1])
-    # source_transformed_area = np.abs(np.cross(source_vertices_transformed[1] - source_vertices_transformed[0],
-    #                                           source_vertices_transformed[3] - source_vertices_transformed[0]))
-
     source_transformed_area = polygon_area(source_vertices_transformed)
 
-    # pDB = 1 / source_transformed_area
-    # pDB = 1 / len(destination_cropped)
-    # pDB = 1
-    # pDB = 1 / len(source)
     pDB = 1 / source_transformed_area
 
-    # alpha = 0.1
-    # # test_radius = 5
-    # test_radius = 10
     K=1
-    # K_threshold = 10e9
-    # bayes_factor6 = []
-    for coordinate in source_transformed:
-        # points_within_radius = destination_KDTree.query_ball_point(coordinate, test_radius)
-        # pDF = alpha/source_transformed_area + (1-alpha)*len(points_within_radius)/len(destination_cropped)
-        # pDF = alpha/len(destination_cropped) + (1-alpha)*len(points_within_radius)/len(destination_cropped)
-        # pDF = alpha + (1-alpha)*len(points_within_radius)
-        # pDF = alpha/len(source) + (1-alpha)*len(points_within_radius)/len(destination_cropped)
-        # pDF = alpha/source_transformed_area + (1-alpha)*len(points_within_radius)/(len(destination_cropped)*np.pi*test_radius**2)
 
-        sigma = test_radius
-        # sigma = 10
+    # TODO: Remove basis points?
+    for coordinate in found_transformation(source):
         distance, index = destination_KDTree.query(coordinate)
-        # pDF = alpha/source_transformed_area + (1-alpha)/(2*np.pi*sigma**2)*np.exp(-distance**2/(2*sigma**2))/len(destination_cropped)
+
         # 2d Gaussian
         pDF = alpha / source_transformed_area + \
               (1 - alpha) / (2 * np.pi * sigma ** 2) * \
               np.exp(-(distance ** 2) / (2 * sigma ** 2)) / len(destination_cropped)
 
-        # print(len(points_within_radius))
-        # bayes_factor6.append(pDF/pDB)
         K = K * pDF/pDB
         if K > K_threshold:
-            # print("Found match")
-            return found_transformation
+            return True
 
-    # print(pDF)
-    # print(K)
-
-
+    return False
 
 
 def compare_tuple_transformations(source_hash_table_KDTree, source_transformation_matrices, destination_hash_table_KDTree,
                                   destination_transformation_matrices, hash_table_distance_threshold=0.01,
-                                  parameters=['rotation', 'scale'], method='dbscan', **method_kwargs):
+                                  parameters=['rotation', 'scale'], plot=False, method='dbscan', **method_kwargs):
     tuple_matches = source_hash_table_KDTree.query_ball_tree(destination_hash_table_KDTree, hash_table_distance_threshold)
 
     # TODO: make this matrix multiplication
@@ -366,6 +386,10 @@ def compare_tuple_transformations(source_hash_table_KDTree, source_transformatio
         found_values = list(np.median(sample[clustering.labels_ == 0], axis=0))
         if clustering.labels_.max() > 0:
             raise RuntimeError('No optimal transformation found')
+        if plot:
+            plt.figure()
+            plt.scatter(*sample[:, :2].T, c=clustering.labels_)
+            plt.show()
     else:
         raise ValueError(f'Unknown method {method}')
 
@@ -373,9 +397,7 @@ def compare_tuple_transformations(source_hash_table_KDTree, source_transformatio
         parameter: found_values.pop(0) if parameter == 'rotation' else [found_values.pop(0), found_values.pop(0)]
         for parameter in parameters}
 
-        # plt.figure()
-        # plt.scatter(*sample[:, :2].T, c=clustering.labels_)
-        # plt.show()
+
 
     # found_transformation = AffineTransform(**parameter_dict)
 
