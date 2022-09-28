@@ -147,16 +147,30 @@ def read_sam(sam_filepath, add_aligned_sequence=False, extract_sequence_subset=F
     return df_joined
 
 
+def read_sam_header(sam_filepath):
+    header_dict = {'HD': [], 'SQ': [], 'RG': [], 'PG':[], 'CO':[]}
+    with Path(sam_filepath).open('r') as file:
+        number_of_header_lines = 0
+        # read_line = file.readline().split('\t')
+        while (read_line := file.readline().rstrip('\n').split('\t'))[0][0] == '@':
+        # while read_line[0][0] == '@':
+            line_data = {item.split(':')[0]: item.split(':')[1] for item in read_line[1:]}
+            header_dict[read_line[0][1:]].append(line_data)
+            # read_line = file.readline().split('\t')
+
+            number_of_header_lines += 1
+
+    return number_of_header_lines, header_dict
 
 def parse_sam(sam_filepath, remove_duplicates=True, add_aligned_sequence=False, extract_sequence_subset=False,
               chunksize=10000, write_csv=False, write_nc=True, write_filepath=None):
     sam_filepath = Path(sam_filepath)
 
     # Check number of header lines:
-    with Path(sam_filepath).open('r') as file:
-        number_of_header_lines = 0
-        while file.readline()[0] == '@':
-            number_of_header_lines += 1
+    number_of_header_lines, header_dict = read_sam_header(sam_filepath)
+
+    name_dict = {'*': 0, '=': 1}
+    name_dict.update({SQ_dict['SN']:i+2 for i, SQ_dict in enumerate(header_dict['SQ'])})
 
     with ExitStack() as stack:
 
@@ -198,23 +212,60 @@ def parse_sam(sam_filepath, remove_duplicates=True, add_aligned_sequence=False, 
 
                 if write_nc:
                     if i == 0:
-                        with netCDF4.Dataset(write_filepath.with_suffix('.nc'),'w'):
-                            pass # If we create the file with h5netcdf we cannot write to it with netCDF4.
                         nc_filepath = write_filepath.with_suffix('.nc')
-                        nc_file = stack.enter_context(h5netcdf.File(nc_filepath, 'a'))
-                        nc_file.dimensions = {'sequence': None}
+                        # with netCDF4.Dataset(nc_filepath, 'w'):
+                        #     nc_file.createDimension('sequence', None)
+
+                        nc_file = stack.enter_context(netCDF4.Dataset(nc_filepath, 'w'))
+                        nc_file.createDimension('sequence', None)
                         for name, datatype in df.dtypes.items():
                             if datatype == np.dtype('O'):
-                                datatype = h5py.string_dtype(encoding='utf-8')
-                            nc_file.create_variable(name, ('sequence',), data=None, dtype=datatype, chunks=(chunksize,))
+                                nc_file.createDimension(name + '_size', None)
+                                nc_file.createVariable(name, 'S1', ('sequence', name + '_size'))
+                                nc_file[name]._Encoding = 'utf-8'
+                            else:
+                                nc_file.createVariable(name, datatype, ('sequence', ))
+
                     old_size = nc_file.dimensions['sequence'].size
-                    new_size = old_size + len(df)
-                    nc_file.resize_dimension('sequence', new_size)
-                    added_data_slice = slice(old_size, new_size)
-                    for name in df.columns:
-                        nc_file[name][added_data_slice] = df[name].values
+                    for name, datatype in df.dtypes.items():
+                        # print(name)
+                        if datatype == np.dtype('O'):
+                            data = df[name].values.astype('S')
+                            if data.dtype.itemsize < 2:
+                                data = data.astype('S2')
+                            nc_file[name][old_size:] = data
+                        else:
+                            nc_file[name][old_size:] = df[name].values
+
+            # Use this if xarray should open the file with standard datatype "|S" instead of "object"
+            # for name, datatype in df.dtypes.items():
+            #     print(name)
+            #     if datatype == np.dtype('O'):
+            #         delattr(nc_file[name], '_Encoding')
 
 
+                    #
+                    #     nc_file['cigar_string'][:] = df[0:200].cigar_string.astype('S').values
+                    #     # delattr(nc_file['cigar_string'], '_Encoding')
+                    #     nc_file.close()
+                    #
+                    #     test = xr.load_dataset(write_filepath.with_suffix('.nc'))
+                    #
+                    #
+                    #     nc_file = stack.enter_context(h5netcdf.File(nc_filepath, 'a'))
+                    #     nc_file.dimensions = {'sequence': None}
+                    #     for name, datatype in df.dtypes.items():
+                    #         if datatype == np.dtype('O'):
+                    #             # datatype = h5py.string_dtype(encoding='utf-8')
+                    #             datatype = 'S10'
+                    #         else:
+                    #             nc_file.create_variable(name, ('sequence',), data=None, dtype=datatype, chunks=(chunksize,))
+                    # old_size = nc_file.dimensions['sequence'].size
+                    # new_size = old_size + len(df)
+                    # nc_file.resize_dimension('sequence', new_size)
+                    # added_data_slice = slice(old_size, new_size)
+                    # for name in df.columns:
+                    #     nc_file[name][added_data_slice] = df[name].values
 
     #
     # encoding = {key: {'dtype': '|S'} for key in ds.keys() if ds[key].dtype == 'object'}
