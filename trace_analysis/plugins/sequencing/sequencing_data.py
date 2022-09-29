@@ -5,7 +5,7 @@ import re
 import pandas as pd
 import netCDF4
 import h5netcdf
-from tqdm import tqdm
+import tqdm
 from contextlib import ExitStack
 import xarray as xr
 
@@ -114,7 +114,7 @@ class Tile:
 
 
 
-def read_sam(sam_filepath, add_aligned_sequence=False, extract_sequence_subset=False):
+def read_sam(sam_filepath, add_aligned_sequence=False, extract_sequence_subset=False, read_name='read1'):
     sam_filepath = Path(sam_filepath)
 
     # Check number of header lines:
@@ -125,23 +125,23 @@ def read_sam(sam_filepath, add_aligned_sequence=False, extract_sequence_subset=F
 
     df = pd.read_csv(sam_filepath,
                      delimiter='\t', skiprows=number_of_header_lines, usecols=range(11), header=None,
-                     names=['read_name', 'sam_flag', 'contig_name', 'first_base_position', 'mapping_quality', 'cigar_string',
-                            'mate_name', 'mate_position', 'template_length', 'read_sequence', 'read_quality'])
-    df = df.drop_duplicates(subset='read_name', keep='first', ignore_index=False)
+                     names=['sequence_identifier', 'sam_flag', 'reference_name', 'position', 'mapping_quality', 'cigar_string',
+                            'mate_reference_name', 'mate_position', 'template_length', name+'_sequence', name+'_quality'])
+    df = df.drop_duplicates(subset='sequence_identifier', keep='first', ignore_index=False)
     df.index.name = 'sequence'
-    df_split = df['read_name'].str.split(':', expand=True)
-    df_split.columns = ['instrument_name', 'run_id', 'flowcell_id', 'lane', 'tile_number', 'x', 'y']
-    df_split = df_split.astype({'run_id': int, 'lane': int, 'tile_number': int, 'x': int, 'y': int})
+    df_split = df['sequence_identifier'].str.split(':', expand=True)
+    df_split.columns = ['instrument', 'run', 'flowcell', 'lane', 'tile', 'x', 'y']
+    df_split = df_split.astype({'run': int, 'lane': int, 'tile': int, 'x': int, 'y': int})
     df_joined = df_split.join(df.iloc[:, 1:])
 
     if add_aligned_sequence:
-        df_joined[['read_sequence_aligned', 'read_quality_aligned']] = \
-            df_joined.apply(get_aligned_sequence_from_row, axis=1, result_type='expand')
+        df_joined[[read_name+'_sequence_aligned', read_name+'_quality_aligned']] = \
+            df_joined.apply(get_aligned_sequence_from_row, axis=1, result_type='expand', name=name)
 
     if extract_sequence_subset:
-        df_joined['sequence_subset'] = extract_positions(df_joined['read_sequence_aligned'],
+        df_joined['sequence_subset'] = extract_positions(df_joined[read_name+'_sequence_aligned'],
                                                          extract_sequence_subset)
-        df_joined['quality_subset'] = extract_positions(df_joined['read_quality_aligned'],
+        df_joined['quality_subset'] = extract_positions(df_joined[read_name+'_quality_aligned'],
                                                         extract_sequence_subset)
 
     return df_joined
@@ -162,7 +162,7 @@ def read_sam_header(sam_filepath):
 
     return number_of_header_lines, header_dict
 
-def parse_sam(sam_filepath, remove_duplicates=True, add_aligned_sequence=False, extract_sequence_subset=False,
+def parse_sam(sam_filepath, read_name='read1', remove_duplicates=True, add_aligned_sequence=False, extract_sequence_subset=False,
               chunksize=10000, write_csv=False, write_nc=True, write_filepath=None):
     sam_filepath = Path(sam_filepath)
 
@@ -176,29 +176,28 @@ def parse_sam(sam_filepath, remove_duplicates=True, add_aligned_sequence=False, 
 
         with pd.read_csv(sam_filepath,
                          delimiter='\t', skiprows=number_of_header_lines, usecols=range(11), header=None,
-                         names=['read_name', 'sam_flag', 'contig_name', 'first_base_position', 'mapping_quality', 'cigar_string',
-                                'mate_name', 'mate_position', 'template_length', 'read_sequence', 'read_quality'],
+                         names=['sequence_identifier', 'sam_flag', 'reference_name', 'position', 'mapping_quality',
+                                'cigar_string', 'mate_reference_name', 'mate_position', 'template_length',
+                                read_name + '_sequence', read_name + '_quality'],
                          chunksize=chunksize) as reader:
 
-            for i, chunk in tqdm(enumerate(reader)):
+            for i, chunk in tqdm.tqdm(enumerate(reader)):
                 df_chunk = chunk
                 df_chunk.index.name = 'sequence'
                 if remove_duplicates:
                     df_chunk = df_chunk[df_chunk.sam_flag//2048 == 0]
-                df_split = df_chunk['read_name'].str.split(':', expand=True)
+                df_split = df_chunk['sequence_identifier'].str.split(':', expand=True)
                 df_split.columns = ['instrument', 'run', 'flowcell', 'lane', 'tile', 'x', 'y']
                 df_split = df_split.astype({'run': int, 'lane': int, 'tile': int, 'x': int, 'y': int})
                 df = df_split.join(df_chunk.iloc[:, 1:])
 
                 if add_aligned_sequence:
-                    df[['read_sequence_aligned', 'read_quality_aligned']] = \
-                        df.apply(get_aligned_sequence_from_row, axis=1, result_type='expand')
+                    df[[read_name+'_sequence_aligned', read_name+'_quality_aligned']] = \
+                        df.apply(get_aligned_sequence_from_row, axis=1, result_type='expand', read_name=read_name)
 
                 if extract_sequence_subset:
-                    df['sequence_subset'] = extract_positions(df['read_sequence_aligned'],
-                                                                       extract_sequence_subset)
-                    df['quality_subset'] = extract_positions(df['read_quality_aligned'],
-                                                                       extract_sequence_subset)
+                    df['sequence_subset'] = extract_positions(df[read_name+'_sequence_aligned'], extract_sequence_subset)
+                    df['quality_subset'] = extract_positions(df[read_name+'_quality_aligned'], extract_sequence_subset)
 
                 if write_filepath is None:
                     write_filepath = sam_filepath.with_suffix('')
@@ -219,23 +218,36 @@ def parse_sam(sam_filepath, remove_duplicates=True, add_aligned_sequence=False, 
                         nc_file = stack.enter_context(netCDF4.Dataset(nc_filepath, 'w'))
                         nc_file.createDimension('sequence', None)
                         for name, datatype in df.dtypes.items():
-                            if datatype == np.dtype('O'):
-                                nc_file.createDimension(name + '_size', None)
-                                nc_file.createVariable(name, 'S1', ('sequence', name + '_size'), chunksizes=(10000, 1))
-                                nc_file[name]._Encoding = 'utf-8'
+                            if name in ['instrument','run','flowcell']:
+                                setattr(nc_file, name, df[name][0])
+                            elif name in ['reference_name', 'mate_reference_name']:
+                                # nc_file.createVariable(name, np.uint8, ('sequence',))
+                                # nc_file[name].enum_dict = name_dict
+                                size = np.array(list(name_dict.keys())).astype('S').itemsize
+                                create_string_variable_in_nc_file(nc_file, name, dimensions=('sequence',), size=size)
+                            elif (read_name+'_sequence') in name or (read_name+'_quality') in name:
+                                size = len(df[name][0])
+                                create_string_variable_in_nc_file(nc_file, name, dimensions=('sequence',), size=size)
+                            elif name in ['cigar_string']:
+                            # if datatype == np.dtype('O'):
+                                # nc_file.createDimension(name + '_size', None)
+                                # nc_file.createVariable(name, 'S1', ('sequence', name + '_size'), chunksizes=(10000, 1))
+                                # nc_file[name]._Encoding = 'utf-8'
+                                create_string_variable_in_nc_file(nc_file, name, dimensions=('sequence',), chunksizes=(10000, 10))
                             else:
                                 nc_file.createVariable(name, datatype, ('sequence', ))
 
                     old_size = nc_file.dimensions['sequence'].size
                     for name, datatype in df.dtypes.items():
                         # print(name)
-                        if datatype == np.dtype('O'):
-                            data = df[name].values.astype('S')
-                            if data.dtype.itemsize < 2:
-                                data = data.astype('S2')
-                            nc_file[name][old_size:] = data
+                        if name in ['instrument', 'run', 'flowcell']:
+                            continue
+                        elif datatype == np.dtype('O'):
+                            size = np.max([2, nc_file.dimensions[name+'_size'].size, df[name].str.len().max()])
+                            nc_file[name][old_size:] = df[name].values.astype(f'S{size}')
                         else:
                             nc_file[name][old_size:] = df[name].values
+
 
             # Use this if xarray should open the file with standard datatype "|S" instead of "object"
             # for name, datatype in df.dtypes.items():
@@ -290,7 +302,7 @@ def parse_sam(sam_filepath, remove_duplicates=True, add_aligned_sequence=False, 
 #         print(key)
 
 
-def fastq_data(fastq_filepath):
+def fastq_data(fastq_filepath, read_name):
     tile_list = []
     x_list = []
     y_list = []
@@ -298,10 +310,10 @@ def fastq_data(fastq_filepath):
     quality = []
     expr = re.compile('[:@ \n]')
     with Path(fastq_filepath).open('r') as fq_file:
-        for line_index, line in enumerate(tqdm(fq_file)):
+        for line_index, line in enumerate(tqdm.tqdm(fq_file)):
             if line_index % 4 == 0:
                 name = line.strip()
-                instrument_name, run_id, flowcell_id, lane, tile, x, y = expr.split(name)[1:8]
+                instrument, run, flowcell, lane, tile, x, y = expr.split(name)[1:8]
                 # sequence_index = numbered_index.loc[dict(sequence=(int(tile), int(x), int(y)))].item()
                 tile_list.append(int(tile))
                 x_list.append(int(x))
@@ -311,7 +323,7 @@ def fastq_data(fastq_filepath):
                 sequence.append(line.strip())
             if line_index % 4 == 3:
                 quality.append(line.strip())
-    ds = xr.Dataset({'read_sequence': ('sequence', sequence), 'read_quality': ('sequence', quality)},
+    ds = xr.Dataset({read_name+'_sequence': ('sequence', sequence), read_name+'_quality': ('sequence', quality)},
                       coords={'tile': ('sequence', tile_list), 'x': ('sequence', x_list), 'y': ('sequence', y_list)})
     return ds
 
@@ -319,10 +331,10 @@ def fastq_data(fastq_filepath):
 def fastq_generator(fastq_filepath):
     expr = re.compile('[:@ \n]')
     with Path(fastq_filepath).open('r') as fq_file:
-        for line_index, line in enumerate(tqdm(fq_file)):
+        for line_index, line in enumerate(fq_file):
             if line_index % 4 == 0:
                 name = line.strip()
-                instrument_name, run_id, flowcell_id, lane, tile, x, y = expr.split(name)[1:8]
+                instrument, run, flowcell, lane, tile, x, y = expr.split(name)[1:8]
                 # sequence_index = numbered_index.loc[dict(sequence=(int(tile), int(x), int(y)))].item()
                 tile = int(tile)
                 x = int(x)
@@ -332,21 +344,59 @@ def fastq_generator(fastq_filepath):
                 sequence = line.strip()
             if line_index % 4 == 3:
                 quality = line.strip()
-
-            yield instrument_name, run_id, flowcell_id, lane, tile, x, y, sequence, quality
-
-
-def add_sequence_data_to_dataset(nc_filepath, fastq_filepath, name):
-    with xr.open_dataset(nc_filepath, engine='h5netcdf') as ds:
-        sequence_multiindex = ds[['tile', 'x', 'y']].load().set_index({'sequence':('tile','x','y')})#.indexes['sequence']
-
-    ds = fastq_data(fastq_filepath)
-    ds = ds.rename_vars({'read_sequence':f'{name}_sequence', 'read_quality': f'{name}_quality'})
-    ds = ds.set_index({'sequence': ('tile','x','y')})
-    ds, = xr.align(ds, indexes=sequence_multiindex.indexes, copy=False)
-    ds.reset_index('sequence',drop=True)[[f'{name}_sequence', f'{name}_quality']].to_netcdf(nc_filepath, mode='a', engine='h5netcdf')
+                # yield instrument_name, run_id, flowcell_id, lane, tile, x, y, sequence, quality
+                yield {'instrument': instrument, 'run': run, 'flowcell': flowcell, 'lane': lane,
+                       'tile': tile, 'x': x, 'y': y, 'sequence': sequence, 'quality': quality}
 
 
+# def add_sequence_data_to_dataset(nc_filepath, fastq_filepath, name):
+#     with xr.open_dataset(nc_filepath, engine='h5netcdf') as ds:
+#         sequence_multiindex = ds[['tile', 'x', 'y']].load().set_index({'sequence':('tile','x','y')})#.indexes['sequence']
+#
+#     ds = fastq_data(fastq_filepath)
+#     ds = ds.rename_vars({'read_sequence':f'{name}_sequence', 'read_quality': f'{name}_quality'})
+#     ds = ds.set_index({'sequence': ('tile','x','y')})
+#     ds, = xr.align(ds, indexes=sequence_multiindex.indexes, copy=False)
+#     ds.reset_index('sequence',drop=True)[[f'{name}_sequence', f'{name}_quality']].to_netcdf(nc_filepath, mode='a', engine='h5netcdf')
+
+
+def create_string_variable_in_nc_file(nc_file, variable_name, fill_value=None, size=None, **kwargs):
+    kwargs['dimensions'] += (variable_name + '_size',)
+    # if not 'chunksizes' in kwargs.keys():
+    #     kwargs['chunksizes'] = (10000, 1)
+    nc_file.createDimension(variable_name + '_size', size)
+    nc_file.createVariable(variable_name, 'S1', **kwargs)
+    nc_file[variable_name]._Encoding = 'utf-8'
+    if fill_value is not None:
+        if size is None:
+            dtype_size = 2
+            size = 1
+        else:
+            dtype_size = np.max([size,2])
+        nc_file[variable_name][:] = np.repeat(fill_value*size, nc_file.dimensions[kwargs['dimensions'][0]].size).astype(f'S{dtype_size}')
+
+
+
+def add_sequence_data_to_dataset(nc_filepath, fastq_filepath, read_name):
+    with netCDF4.Dataset(nc_filepath, 'a') as nc_file:
+        for i, sequence_data in tqdm.tqdm(enumerate(fastq_generator(fastq_filepath))):
+            if i == 0:
+                size = len(sequence_data['sequence'])
+                sequence_variable_name = read_name + '_sequence'
+                create_string_variable_in_nc_file(nc_file, sequence_variable_name, fill_value='-',
+                                                  dimensions=('sequence',), size=size)
+
+                quality_variable_name = read_name + '_quality'
+                create_string_variable_in_nc_file(nc_file, quality_variable_name, fill_value=' ',
+                                                  dimensions=('sequence',), size=size)
+
+            if (nc_file['tile'][i] == sequence_data['tile']) & \
+                    (nc_file['x'][i] == sequence_data['x']) & \
+                    (nc_file['y'][i] == sequence_data['y']):
+                nc_file[sequence_variable_name][i] = np.array(sequence_data['sequence']).astype('S')
+                nc_file[quality_variable_name][i] = np.array(sequence_data['quality']).astype('S')
+            else:
+                raise ValueError()
 #
 #
 # import xarray as xr
@@ -388,7 +438,7 @@ def add_sequence_data_to_dataset(nc_filepath, fastq_filepath, name):
         #fq_file.readline()
         #index1_quality.loc[dict(sequence=(int(tile), int(x), int(y)))] = fq_file.readline().strip()
 
-def get_aligned_sequence(read_sequence, read_quality, cigar_string, first_base_position, reference_range=None):
+def get_aligned_sequence(read_sequence, read_quality, cigar_string, position, reference_range=None):
     if reference_range is None:
         reference_range = (0, len(read_sequence))
     output_length = reference_range[1]-reference_range[0]
@@ -406,9 +456,9 @@ def get_aligned_sequence(read_sequence, read_quality, cigar_string, first_base_p
     if cigar_string_split[0][1] == 'S':
         cigar_string_split.pop(0)
 
-    aligned_sequence += '-'* (first_base_position - 1)
-    aligned_quality += ' ' * (first_base_position - 1)
-    read_index = first_base_position - 1
+    aligned_sequence += '-'* (position - 1)
+    aligned_quality += ' ' * (position - 1)
+    read_index = position - 1
 
     for length, code in cigar_string_split:
         if code in ['M','=','X']:
@@ -435,12 +485,12 @@ def get_aligned_sequence(read_sequence, read_quality, cigar_string, first_base_p
 
     return aligned_sequence, aligned_quality
 
-def get_aligned_sequence_from_row(df_row, reference_range=None):
-    read_sequence = df_row['read_sequence']
-    read_quality = df_row['read_quality']
+def get_aligned_sequence_from_row(df_row, read_name, reference_range=None):
+    sequence = df_row[read_name+'_sequence']
+    quality = df_row[read_name+'_quality']
     cigar_string = df_row['cigar_string']
-    first_base_position = df_row['first_base_position']
-    return get_aligned_sequence(read_sequence, read_quality, cigar_string, first_base_position, reference_range)
+    position = df_row['position']
+    return get_aligned_sequence(sequence, quality, cigar_string, position, reference_range)
 
 ########### Code to dynamically get aligned bases froj
 # def get_aligned_position(index, cigar_string, first_base_position):
