@@ -16,7 +16,8 @@ def sam_filepath(shared_datadir):
 
 
 def test_parse_sam(sam_filepath):
-    parse_sam(sam_filepath, remove_duplicates=True, add_aligned_sequence=True, extract_sequence_subset=False,
+    extract_sequence_subset = [30, 31, 56, 57, 82, 83, 108, 109]
+    parse_sam(sam_filepath, remove_duplicates=True, add_aligned_sequence=True, extract_sequence_subset=extract_sequence_subset,
               chunksize=10, write_csv=False, write_nc=True, write_filepath=None)
 
 def test_fastq_generator(read1_fastq_filepath):

@@ -225,7 +225,7 @@ def parse_sam(sam_filepath, read_name='read1', remove_duplicates=True, add_align
                                 # nc_file[name].enum_dict = name_dict
                                 size = np.array(list(name_dict.keys())).astype('S').itemsize
                                 create_string_variable_in_nc_file(nc_file, name, dimensions=('sequence',), size=size)
-                            elif (read_name+'_sequence') in name or (read_name+'_quality') in name:
+                            elif (read_name+'_sequence') in name or (read_name+'_quality') in name or 'subset' in name:
                                 size = len(df[name][0])
                                 create_string_variable_in_nc_file(nc_file, name, dimensions=('sequence',), size=size)
                             elif name in ['cigar_string']:
