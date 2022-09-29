@@ -221,7 +221,7 @@ def parse_sam(sam_filepath, remove_duplicates=True, add_aligned_sequence=False, 
                         for name, datatype in df.dtypes.items():
                             if datatype == np.dtype('O'):
                                 nc_file.createDimension(name + '_size', None)
-                                nc_file.createVariable(name, 'S1', ('sequence', name + '_size'))
+                                nc_file.createVariable(name, 'S1', ('sequence', name + '_size'), chunksizes=(10000, 1))
                                 nc_file[name]._Encoding = 'utf-8'
                             else:
                                 nc_file.createVariable(name, datatype, ('sequence', ))
@@ -316,6 +316,24 @@ def fastq_data(fastq_filepath):
     return ds
 
 
+def fastq_generator(fastq_filepath):
+    expr = re.compile('[:@ \n]')
+    with Path(fastq_filepath).open('r') as fq_file:
+        for line_index, line in enumerate(tqdm(fq_file)):
+            if line_index % 4 == 0:
+                name = line.strip()
+                instrument_name, run_id, flowcell_id, lane, tile, x, y = expr.split(name)[1:8]
+                # sequence_index = numbered_index.loc[dict(sequence=(int(tile), int(x), int(y)))].item()
+                tile = int(tile)
+                x = int(x)
+                y = int(y)
+
+            if line_index % 4 == 1:
+                sequence = line.strip()
+            if line_index % 4 == 3:
+                quality = line.strip()
+
+            yield instrument_name, run_id, flowcell_id, lane, tile, x, y, sequence, quality
 
 
 def add_sequence_data_to_dataset(nc_filepath, fastq_filepath, name):
