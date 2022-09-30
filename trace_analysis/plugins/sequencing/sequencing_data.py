@@ -366,14 +366,10 @@ def create_string_variable_in_nc_file(nc_file, variable_name, fill_value=None, s
     #     kwargs['chunksizes'] = (10000, 1)
     nc_file.createDimension(variable_name + '_size', size)
     nc_file.createVariable(variable_name, 'S1', **kwargs)
-    nc_file[variable_name]._Encoding = 'utf-8'
+    # nc_file[variable_name][:] = np.repeat(fill_value*size, nc_file.dimensions[kwargs['dimensions'][0]].size).astype(f'S{dtype_size}')
     if fill_value is not None:
-        if size is None:
-            dtype_size = 2
-            size = 1
-        else:
-            dtype_size = np.max([size,2])
-        nc_file[variable_name][:] = np.repeat(fill_value*size, nc_file.dimensions[kwargs['dimensions'][0]].size).astype(f'S{dtype_size}')
+        nc_file[variable_name][:, :] = fill_value.encode()
+    nc_file[variable_name]._Encoding = 'utf-8'
 
 
 
