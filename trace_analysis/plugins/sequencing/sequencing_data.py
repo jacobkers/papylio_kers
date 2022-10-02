@@ -4,7 +4,7 @@ import h5py
 import re
 import pandas as pd
 import netCDF4
-import h5netcdf
+# import h5netcdf.legacyapi as netCDF4
 import tqdm
 from contextlib import ExitStack
 import xarray as xr
@@ -244,7 +244,8 @@ def parse_sam(sam_filepath, read_name='read1', remove_duplicates=True, add_align
                             continue
                         elif datatype == np.dtype('O'):
                             size = np.max([2, nc_file.dimensions[name+'_size'].size, df[name].str.len().max()])
-                            nc_file[name][old_size:] = df[name].values.astype(f'S{size}')
+                            nc_file[name][old_size:,:] = df[name].values.astype(f'S{size}')
+                            # nc_file[name][old_size:, :] = df[name].values.astype(f'S{size}').view('S1').reshape(-1, size)
                         else:
                             nc_file[name][old_size:] = df[name].values
 
@@ -360,37 +361,42 @@ def fastq_generator(fastq_filepath):
 #     ds.reset_index('sequence',drop=True)[[f'{name}_sequence', f'{name}_quality']].to_netcdf(nc_filepath, mode='a', engine='h5netcdf')
 
 
-def create_string_variable_in_nc_file(nc_file, variable_name, fill_value=None, size=None, **kwargs):
+def create_string_variable_in_nc_file(nc_file, variable_name, size=None, **kwargs):
     kwargs['dimensions'] += (variable_name + '_size',)
     # if not 'chunksizes' in kwargs.keys():
     #     kwargs['chunksizes'] = (10000, 1)
     nc_file.createDimension(variable_name + '_size', size)
     nc_file.createVariable(variable_name, 'S1', **kwargs)
     # nc_file[variable_name][:] = np.repeat(fill_value*size, nc_file.dimensions[kwargs['dimensions'][0]].size).astype(f'S{dtype_size}')
-    if fill_value is not None:
-        nc_file[variable_name][:, :] = fill_value.encode()
+    # if fill_value is not None:
+    #     nc_file[variable_name][:, :] = fill_value.encode()
     nc_file[variable_name]._Encoding = 'utf-8'
 
 
 
 def add_sequence_data_to_dataset(nc_filepath, fastq_filepath, read_name):
     with netCDF4.Dataset(nc_filepath, 'a') as nc_file:
+        nc_file['lane'][-1] = nc_file['lane'][-1]
+        # To prevent that unlimited sequence dim is resized after reopening
+        # Can probably be removed once libnetcdf 4.9 can be used.
+
+
+    # import h5netcdf.legacyapi as h5netcdf
+    # with h5netcdf.Dataset(nc_filepath, 'a') as nc_file:
         for i, sequence_data in tqdm.tqdm(enumerate(fastq_generator(fastq_filepath))):
             if i == 0:
                 size = len(sequence_data['sequence'])
                 sequence_variable_name = read_name + '_sequence'
-                create_string_variable_in_nc_file(nc_file, sequence_variable_name, fill_value='-',
-                                                  dimensions=('sequence',), size=size)
+                create_string_variable_in_nc_file(nc_file, sequence_variable_name, dimensions=('sequence',), size=size)
 
                 quality_variable_name = read_name + '_quality'
-                create_string_variable_in_nc_file(nc_file, quality_variable_name, fill_value=' ',
-                                                  dimensions=('sequence',), size=size)
+                create_string_variable_in_nc_file(nc_file, quality_variable_name, dimensions=('sequence',), size=size)
 
             if (nc_file['tile'][i] == sequence_data['tile']) & \
                     (nc_file['x'][i] == sequence_data['x']) & \
                     (nc_file['y'][i] == sequence_data['y']):
-                nc_file[sequence_variable_name][i] = np.array(sequence_data['sequence']).astype('S')
-                nc_file[quality_variable_name][i] = np.array(sequence_data['quality']).astype('S')
+                nc_file[sequence_variable_name][i,:] = np.array(sequence_data['sequence']).astype('S')
+                nc_file[quality_variable_name][i,:] = np.array(sequence_data['quality']).astype('S')
             else:
                 raise ValueError()
 #
