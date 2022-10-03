@@ -5,9 +5,12 @@ import re
 import pandas as pd
 import netCDF4
 # import h5netcdf.legacyapi as netCDF4
+# import h5netcdf
 import tqdm
 from contextlib import ExitStack
 import xarray as xr
+import re
+
 
 from trace_analysis.plugins.sequencing.plotting import plot_cluster_locations_per_tile
 
@@ -161,6 +164,41 @@ def read_sam_header(sam_filepath):
             number_of_header_lines += 1
 
     return number_of_header_lines, header_dict
+#
+# def number_of_lines(filepath):
+#     def _make_gen(reader):
+#         while True:
+#             b = reader(2 ** 16)
+#             if not b: break
+#             yield b
+#
+#     with open(filepath, "rb") as f:
+#         count = sum(buf.count(b"\n") for buf in tqdm.tqdm(_make_gen(f.raw.read)))
+#     return count
+
+def number_of_lines(filepath):
+    return sum(1 for line in tqdm.tqdm(filepath.open('r')))
+
+def number_of_sequence_alignments(sam_filepath):
+    return sum(1 if line[0] != '@' else 0 for line in tqdm.tqdm(sam_filepath.open('r')))
+
+def bitwise_flag(flag, bit):
+    flag = np.array(flag)
+    return (flag & (2**bit)).astype(bool)
+
+def number_of_primary_sequence_alignments(sam_filepath):
+    sam_filepath = Path(sam_filepath)
+    compiled_regex = re.compile('(?<=\t)\d*(?=\t)')
+    is_primary_alignment_list = []
+    for line in tqdm.tqdm(sam_filepath.open('r'), 'Determine number of primary alignments'):
+        if line[0] != '@': # Remove header lines
+            is_primary_alignment = not bitwise_flag(int(compiled_regex.search(line).group()), 11)
+            is_primary_alignment_list.append(is_primary_alignment)
+    return np.sum(is_primary_alignment_list)
+
+    # return sum(bitwise_flag(int(compiled_regex.search(line).group()), 11)
+    #            if line[0]!='@' else 0 for line in tqdm.tqdm(sam_filepath.open('r')))
+
 
 def parse_sam(sam_filepath, read_name='read1', remove_duplicates=True, add_aligned_sequence=False, extract_sequence_subset=False,
               chunksize=10000, write_csv=False, write_nc=True, write_filepath=None):
@@ -172,6 +210,10 @@ def parse_sam(sam_filepath, read_name='read1', remove_duplicates=True, add_align
     name_dict = {'*': 0, '=': 1}
     name_dict.update({SQ_dict['SN']:i+2 for i, SQ_dict in enumerate(header_dict['SQ'])})
 
+    number_of_sequences = number_of_primary_sequence_alignments(sam_filepath)
+
+    end_index = 0
+
     with ExitStack() as stack:
 
         with pd.read_csv(sam_filepath,
@@ -181,11 +223,12 @@ def parse_sam(sam_filepath, read_name='read1', remove_duplicates=True, add_align
                                 read_name + '_sequence', read_name + '_quality'],
                          chunksize=chunksize) as reader:
 
-            for i, chunk in tqdm.tqdm(enumerate(reader)):
+            for i, chunk in tqdm.tqdm(enumerate(reader), 'Parse sam file', total=number_of_sequences):
                 df_chunk = chunk
                 df_chunk.index.name = 'sequence'
                 if remove_duplicates:
-                    df_chunk = df_chunk[df_chunk.sam_flag//2048 == 0]
+                    df_chunk = df_chunk[~bitwise_flag(df_chunk.sam_flag, 11)]
+                    # df_chunk = df_chunk[df_chunk.sam_flag//2048 == 0]
                 df_split = df_chunk['sequence_identifier'].str.split(':', expand=True)
                 df_split.columns = ['instrument', 'run', 'flowcell', 'lane', 'tile', 'x', 'y']
                 df_split = df_split.astype({'run': int, 'lane': int, 'tile': int, 'x': int, 'y': int})
@@ -216,7 +259,7 @@ def parse_sam(sam_filepath, read_name='read1', remove_duplicates=True, add_align
                         #     nc_file.createDimension('sequence', None)
 
                         nc_file = stack.enter_context(netCDF4.Dataset(nc_filepath, 'w'))
-                        nc_file.createDimension('sequence', None)
+                        nc_file.createDimension('sequence', number_of_sequences)
                         for name, datatype in df.dtypes.items():
                             if name in ['instrument','run','flowcell']:
                                 setattr(nc_file, name, df[name][0])
@@ -233,21 +276,22 @@ def parse_sam(sam_filepath, read_name='read1', remove_duplicates=True, add_align
                                 # nc_file.createDimension(name + '_size', None)
                                 # nc_file.createVariable(name, 'S1', ('sequence', name + '_size'), chunksizes=(10000, 1))
                                 # nc_file[name]._Encoding = 'utf-8'
-                                create_string_variable_in_nc_file(nc_file, name, dimensions=('sequence',), chunksizes=(10000, 10))
+                                create_string_variable_in_nc_file(nc_file, name, dimensions=('sequence',), chunksizes=(10000, 25))
                             else:
                                 nc_file.createVariable(name, datatype, ('sequence', ))
 
-                    old_size = nc_file.dimensions['sequence'].size
+                    start_index = end_index
+                    end_index = start_index + len(df)
                     for name, datatype in df.dtypes.items():
                         # print(name)
                         if name in ['instrument', 'run', 'flowcell']:
                             continue
                         elif datatype == np.dtype('O'):
                             size = np.max([2, nc_file.dimensions[name+'_size'].size, df[name].str.len().max()])
-                            nc_file[name][old_size:,:] = df[name].values.astype(f'S{size}')
+                            nc_file[name][start_index:end_index] = df[name].values.astype(f'S{size}')
                             # nc_file[name][old_size:, :] = df[name].values.astype(f'S{size}').view('S1').reshape(-1, size)
                         else:
-                            nc_file[name][old_size:] = df[name].values
+                            nc_file[name][start_index:end_index] = df[name].values
 
 
             # Use this if xarray should open the file with standard datatype "|S" instead of "object"
@@ -380,7 +424,6 @@ def add_sequence_data_to_dataset(nc_filepath, fastq_filepath, read_name):
         # To prevent that unlimited sequence dim is resized after reopening
         # Can probably be removed once libnetcdf 4.9 can be used.
 
-
     # import h5netcdf.legacyapi as h5netcdf
     # with h5netcdf.Dataset(nc_filepath, 'a') as nc_file:
         for i, sequence_data in tqdm.tqdm(enumerate(fastq_generator(fastq_filepath))):
@@ -395,8 +438,8 @@ def add_sequence_data_to_dataset(nc_filepath, fastq_filepath, read_name):
             if (nc_file['tile'][i] == sequence_data['tile']) & \
                     (nc_file['x'][i] == sequence_data['x']) & \
                     (nc_file['y'][i] == sequence_data['y']):
-                nc_file[sequence_variable_name][i,:] = np.array(sequence_data['sequence']).astype('S')
-                nc_file[quality_variable_name][i,:] = np.array(sequence_data['quality']).astype('S')
+                nc_file[sequence_variable_name][i, :] = np.array(sequence_data['sequence']).astype('S')
+                nc_file[quality_variable_name][i, :] = np.array(sequence_data['quality']).astype('S')
             else:
                 raise ValueError()
 #
