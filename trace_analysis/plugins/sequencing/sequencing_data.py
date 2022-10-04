@@ -223,7 +223,7 @@ def parse_sam(sam_filepath, read_name='read1', remove_duplicates=True, add_align
                                 read_name + '_sequence', read_name + '_quality'],
                          chunksize=chunksize) as reader:
 
-            for i, chunk in tqdm.tqdm(enumerate(reader), 'Parse sam file', total=number_of_sequences):
+            for i, chunk in tqdm.tqdm(enumerate(reader), 'Parse sam file', total=number_of_sequences/chunksize):
                 df_chunk = chunk
                 df_chunk.index.name = 'sequence'
                 if remove_duplicates:
@@ -276,7 +276,7 @@ def parse_sam(sam_filepath, read_name='read1', remove_duplicates=True, add_align
                                 # nc_file.createDimension(name + '_size', None)
                                 # nc_file.createVariable(name, 'S1', ('sequence', name + '_size'), chunksizes=(10000, 1))
                                 # nc_file[name]._Encoding = 'utf-8'
-                                create_string_variable_in_nc_file(nc_file, name, dimensions=('sequence',), chunksizes=(10000, 25))
+                                create_string_variable_in_nc_file(nc_file, name, dimensions=('sequence',), chunksizes=(1, 25))
                             else:
                                 nc_file.createVariable(name, datatype, ('sequence', ))
 
