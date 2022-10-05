@@ -591,7 +591,7 @@ class File:
                 self._init_dataset(0) # SHK: Creating a dummy dataset tp avoid errors in the downstream analysis
                 # This actually creates an empty dataset.
                 coordinates = xr.DataArray(np.empty((0, 2, 2)), dims=('molecule', 'channel', 'dimension'),
-                                    coords={'channel': [0, 1], 'dimension': ['x', 'y']}, name='coordinates')
+                                    coords={'channel': [0, 1], 'dimension': [b'x', b'y']}, name='coordinates')
                 coordinates.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
                 print('no peaks found')
                 return
