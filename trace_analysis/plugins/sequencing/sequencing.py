@@ -5,6 +5,7 @@ import matplotlib.path as pth
 import math
 from pathlib import Path
 from skimage.transform import AffineTransform, SimilarityTransform
+import tqdm
 import pandas as pd
 import xarray as xr
 import os.path
@@ -103,7 +104,7 @@ class Experiment:
         if self.sequencing_data_for_mapping is not None and mapping_sequence_name is None:
             coordinates_seq = self.sequencing_data_for_mapping.coordinates ## To be removed
         else:
-            selection = (self.sequencing_data.dataset.contig_name == mapping_sequence_name.encode())
+            selection = (self.sequencing_data.dataset.reference_name == mapping_sequence_name)
             if surface == 0:
                 selection &= self.sequencing_data.dataset.tile < 2000
             elif surface == 1:
@@ -116,7 +117,7 @@ class Experiment:
         tile_mapping_path.mkdir(parents=True, exist_ok=True)
 
         tile_mappings = []
-        for tile, coordinates_tile in coordinates_seq.groupby('tile'):
+        for tile, coordinates_tile in tqdm.tqdm(coordinates_seq.groupby('tile'), 'Make tile mappings'):
             mapping = Mapping2(source=coordinates_sm, destination=coordinates_seq.sel(tile=tile))
             mapping.transformation_type = 'linear'
             mapping.name = f'Tile {tile}'

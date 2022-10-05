@@ -373,26 +373,41 @@ def fastq_data(fastq_filepath, read_name):
     return ds
 
 
-def fastq_generator(fastq_filepath):
+def fastq_generator(fastq_filepath, chunksize):
     expr = re.compile('[:@ \n]')
+    data = {'instrument': [], 'run': [], 'flowcell': [], 'lane': [],
+            'tile': [], 'x': [], 'y': [], 'sequence': [], 'quality': []} # Perhaps better to use a numpy struct array
+    current_chunk_size = 0
     with Path(fastq_filepath).open('r') as fq_file:
         for line_index, line in enumerate(fq_file):
             if line_index % 4 == 0:
                 name = line.strip()
                 instrument, run, flowcell, lane, tile, x, y = expr.split(name)[1:8]
+                data['instrument'].append(instrument)
+                data['run'].append(run)
+                data['flowcell'].append(flowcell)
+                data['lane'].append(lane)
+
                 # sequence_index = numbered_index.loc[dict(sequence=(int(tile), int(x), int(y)))].item()
-                tile = int(tile)
-                x = int(x)
-                y = int(y)
+                data['tile'].append(int(tile))
+                data['x'].append(int(x))
+                data['y'].append(int(y))
 
             if line_index % 4 == 1:
-                sequence = line.strip()
+                data['sequence'].append(line.strip())
             if line_index % 4 == 3:
-                quality = line.strip()
+                data['quality'].append(line.strip())
                 # yield instrument_name, run_id, flowcell_id, lane, tile, x, y, sequence, quality
-                yield {'instrument': instrument, 'run': run, 'flowcell': flowcell, 'lane': lane,
-                       'tile': tile, 'x': x, 'y': y, 'sequence': sequence, 'quality': quality}
 
+                current_chunk_size += 1
+
+            if current_chunk_size == chunksize:
+                yield data
+                data = {'instrument': [], 'run': [], 'flowcell': [], 'lane': [],
+                        'tile': [], 'x': [], 'y': [], 'sequence': [], 'quality': []}
+                current_chunk_size = 0
+
+        yield data # Final round
 
 # def add_sequence_data_to_dataset(nc_filepath, fastq_filepath, name):
 #     with xr.open_dataset(nc_filepath, engine='h5netcdf') as ds:
@@ -418,7 +433,7 @@ def create_string_variable_in_nc_file(nc_file, variable_name, size=None, **kwarg
 
 
 
-def add_sequence_data_to_dataset(nc_filepath, fastq_filepath, read_name):
+def add_sequence_data_to_dataset(nc_filepath, fastq_filepath, read_name, chunksize=10000):
     with netCDF4.Dataset(nc_filepath, 'a') as nc_file:
         nc_file['lane'][-1] = nc_file['lane'][-1]
         # To prevent that unlimited sequence dim is resized after reopening
@@ -426,20 +441,27 @@ def add_sequence_data_to_dataset(nc_filepath, fastq_filepath, read_name):
 
     # import h5netcdf.legacyapi as h5netcdf
     # with h5netcdf.Dataset(nc_filepath, 'a') as nc_file:
-        for i, sequence_data in tqdm.tqdm(enumerate(fastq_generator(fastq_filepath))):
+        end_index = 0
+        for i, sequence_data in tqdm.tqdm(enumerate(fastq_generator(fastq_filepath, chunksize=chunksize)), f'Add {read_name} to sequencing dataset', total=len(nc_file.dimensions['sequence'])//chunksize+1):
             if i == 0:
-                size = len(sequence_data['sequence'])
+                size = len(sequence_data['sequence'][0])
                 sequence_variable_name = read_name + '_sequence'
                 create_string_variable_in_nc_file(nc_file, sequence_variable_name, dimensions=('sequence',), size=size)
 
                 quality_variable_name = read_name + '_quality'
                 create_string_variable_in_nc_file(nc_file, quality_variable_name, dimensions=('sequence',), size=size)
 
-            if (nc_file['tile'][i] == sequence_data['tile']) & \
-                    (nc_file['x'][i] == sequence_data['x']) & \
-                    (nc_file['y'][i] == sequence_data['y']):
-                nc_file[sequence_variable_name][i, :] = np.array(sequence_data['sequence']).astype('S')
-                nc_file[quality_variable_name][i, :] = np.array(sequence_data['quality']).astype('S')
+            start_index = end_index
+            end_index = start_index + len(sequence_data['instrument'])
+            # sequence_slice = slice(i * chunksize, (i + 1) * len(sequence_data))
+            sequence_slice = slice(start_index, end_index)
+
+            if (nc_file['tile'][sequence_slice] == sequence_data['tile']).all() & \
+                    (nc_file['x'][sequence_slice] == sequence_data['x']).all() & \
+                    (nc_file['y'][sequence_slice] == sequence_data['y']).all():
+                nc_file[sequence_variable_name][sequence_slice, :] = np.array(sequence_data['sequence']).astype('S')
+                nc_file[quality_variable_name][sequence_slice, :] = np.array(sequence_data['quality']).astype('S')
+                pass
             else:
                 raise ValueError()
 #
