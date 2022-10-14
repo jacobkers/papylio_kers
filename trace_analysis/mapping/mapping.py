@@ -593,9 +593,9 @@ class Mapping2:
               f'Mean-squared error: {error}\n'
               f'Number of iterations: {number_of_iterations}')
 
-    def kernel_correlation(self, bounds=((0.97, 1.02), (-0.05, 0.05), (-10, 10), (-10, 10)), sigma=1, crop=False, **kwargs):
+    def kernel_correlation(self, bounds=((0.97, 1.02), (-0.05, 0.05), (-10, 10), (-10, 10)), sigma=1, crop=False, plot=False, **kwargs):
         transformation, result = kernel_correlation(self.get_source(crop, space='destination'), self.get_destination(crop),
-                                                 bounds, sigma, plot=False, **kwargs)
+                                                    bounds, sigma, plot=plot, **kwargs)
         self.transformation = AffineTransform(matrix=(self.transformation + transformation).params)
         self.transformation_inverse = type(self.transformation)(self.transformation._inv_matrix)
         self.mapping_statistics = {'kernel_correlation_value': result.fun}
@@ -659,7 +659,8 @@ class Mapping2:
         else:
             return ''
 
-    def show_mapping_transformation(self, figure=None, show_source=False, show_destination=False, show_pairs=True,
+    def show_mapping_transformation(self, figure=None, show_source=False, show_destination=False,
+                                    show_transformed_coordinates=True, show_pairs=True,
                                     crop=False, inverse=False, source_colour='forestgreen', destination_colour='r',
                                     pair_colour='b', use_distance_threshold=True, save=False, save_path=None, legend_off=False):
         """Show a point scatter of the source transformed to the destination points and the destination.
@@ -700,19 +701,23 @@ class Mapping2:
             distance_threshold = self.source_distance_threshold
             show_source = True
 
-        if distance_threshold > 0 and use_distance_threshold:
-            plot_circles(axis, transformed_coordinates, radius=distance_threshold, linewidth=1,
-                         facecolor='none', edgecolor=transformed_coordinates_colour)
-            if show_pairs:
-                plot_circles(axis, all_transformed_coordinates[self.matched_pairs[:,0]],
-                             radius=distance_threshold, linewidth=1,
-                             facecolor='none', edgecolor=pair_colour)
+        if show_transformed_coordinates:
+            if distance_threshold > 0 and use_distance_threshold:
+                plot_circles(axis, transformed_coordinates, radius=distance_threshold, linewidth=1,
+                             facecolor='none', edgecolor=transformed_coordinates_colour)
+                if show_pairs:
+                    plot_circles(axis, all_transformed_coordinates[self.matched_pairs[:,0]],
+                                 radius=distance_threshold, linewidth=1,
+                                 facecolor='none', edgecolor=pair_colour)
+            else:
+                axis.scatter(*transformed_coordinates.T, facecolors='none', edgecolors=transformed_coordinates_colour,
+                             linewidth=1, marker='o', label=f'{transformed_coordinates_name} transformed ({transformed_coordinates.shape[0]})')
+                if show_pairs:
+                    axis.scatter(*all_transformed_coordinates[self.matched_pairs[:, 0]].T, facecolors='none',
+                                 edgecolors=pair_colour, linewidth=1, marker='o')
         else:
-            axis.scatter(*transformed_coordinates.T, facecolors='none', edgecolors=transformed_coordinates_colour,
-                         linewidth=1, marker='o', label=f'{transformed_coordinates_name} transformed ({transformed_coordinates.shape[0]})')
-            if show_pairs:
-                axis.scatter(*all_transformed_coordinates[self.matched_pairs[:, 0]].T, facecolors='none',
-                             edgecolors=pair_colour, linewidth=1, marker='o')
+            show_source = True
+            show_destination = True
 
         if show_source:
             axis.scatter(*source.T, facecolors=source_colour, edgecolors='none', marker='.',
@@ -739,10 +744,12 @@ class Mapping2:
         axis.set_xlabel('x'+unit_label)
         axis.set_ylabel('y'+unit_label)
 
+
         legend_dict = {label: handle for handle, label in zip(*axis.get_legend_handles_labels())}
-        transformed_coordinates_marker = mlines.Line2D([], [], linewidth=0, markerfacecolor='none',
-                                         markeredgecolor=transformed_coordinates_colour, marker='o')
-        legend_dict[f'{transformed_coordinates_name} transformed ({transformed_coordinates.shape[0]})'] = transformed_coordinates_marker
+        if show_transformed_coordinates:
+            transformed_coordinates_marker = mlines.Line2D([], [], linewidth=0, markerfacecolor='none',
+                                             markeredgecolor=transformed_coordinates_colour, marker='o')
+            legend_dict[f'{transformed_coordinates_name} transformed ({transformed_coordinates.shape[0]})'] = transformed_coordinates_marker
 
         if show_pairs:
             pair_marker1 = mlines.Line2D([], [], linewidth=0, markerfacecolor='none',
@@ -975,6 +982,15 @@ class Mapping2:
                     json.dump(attributes, json_file, sort_keys=False)
 
         self.save_path = save_path
+
+    def transformation_is_similar_to_correct_transformation(self, **kwargs):
+        return is_similar_transformation(self.transformation, self.transformation_correct, **kwargs)
+
+def is_similar_transformation(transformation1, transformation2, translation_error, rotation_error, scale_error):
+    translation_check = (np.abs(transformation1.translation - transformation2.translation) < translation_error).all()
+    rotation_check = np.abs(transformation1.rotation - transformation2.rotation) < rotation_error
+    scale_check = (np.abs(np.array(transformation1.scale) - np.array(transformation2.scale)) < scale_error).all()
+    return translation_check & rotation_check & scale_check
 
 import scipy.sparse
 
