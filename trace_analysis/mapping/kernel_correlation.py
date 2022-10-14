@@ -160,6 +160,10 @@ def kernel_correlation(source, destination, bounds, sigma=1, plot=False, **kwarg
     # parameters = initial_transformation.params.flatten()[0:6]
     # parameters = np.hstack([initial_transformation.scale, initial_transformation.rotation, initial_transformation.translation])
 
+    translation_to_origin = AffineTransform(translation=-destination.mean(axis=0))
+    source = translation_to_origin(source)
+    destination = translation_to_origin(destination)
+
     destination_cKDTree = cKDTree(destination)
 
     # res = minimize(compute_kernel_correlation, parameters, args=(source, destination_cKDTree, sigma, plot), tol=1e-6,
@@ -194,7 +198,16 @@ def kernel_correlation(source, destination, bounds, sigma=1, plot=False, **kwarg
 
     #print(result)
     # return AffineTransform(matrix=np.hstack([res.x, [0,0,1]]).reshape(3,3))
-    return parameter_to_transformation(result.x), result
+
+    transformation = parameter_to_transformation(result.x)
+
+    final_transformation = AffineTransform(
+        matrix=(translation_to_origin._inv_matrix @ transformation.params @ translation_to_origin.params))
+
+    return final_transformation, result
+
+
+    # return parameter_to_transformation(result.x), result
 
 
 
