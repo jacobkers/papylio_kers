@@ -64,6 +64,8 @@ class TifMovie(Movie):
                 self.stage_coordinates_in_pixels = self.stage_coordinates / self.pixel_size
             else:
                 self.number_of_frames = len(self.file.pages)
+                self.pixel_size = np.array([1, 1])  # For TIR-T because it is not in metadata
+                self.pixel_size_unit = ''  # For TIR-T because it is not in metadata
                 # Or self.file.series[0].shape[0]
 
             if 'DateTime' in self.file.pages[0].tags:
