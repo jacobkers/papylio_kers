@@ -678,8 +678,12 @@ class File:
 
     @property
     def coordinates(self):
-        if self.dataset is not None and hasattr(self.dataset, 'coordinates'):
-            return self.dataset.coordinates
+        if self.absoluteFilePath.with_suffix('.nc').exists():
+            with xr.open_dataset(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf') as dataset:
+                if hasattr(self.dataset, 'coordinates'):
+                    return dataset['coordinates'].load()
+                else:
+                    return None
         else:
             return None
 
@@ -820,7 +824,7 @@ class File:
         intensity = extract_traces(self.movie, self.coordinates, background, mask_size=mask_size,
                                    neighbourhood_size=neighbourhood_size, correct_illumination=correct_illumination)
 
-        if hasattr(self.movie, 'time'):
+        if self.movie.time is not None: # hasattr(self.movie, 'time')
             intensity = intensity.assign_coords(time=self.movie.time)
 
         # if self.movie.illumination is not None:
@@ -1102,7 +1106,7 @@ class File:
             figure = plt.figure()
 
         if annotate is None:
-            annotate = self.experiment.configuration['show_projection_image']['annotate']
+            annotate = self.experiment.configuration['show_movie']['annotate']
 
         if self.coordinates is not None:
             axis = figure.gca()
