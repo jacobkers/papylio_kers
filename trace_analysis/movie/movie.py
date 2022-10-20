@@ -12,14 +12,12 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
 import xarray as xr
 import scipy.ndimage
-import scipy.optimize
 from skimage.transform import AffineTransform
 
 # from trace_analysis.movie.background_correction import rollingball
-# from trace_analysis.movie.background_correction import remove_background, get_threshold
+from trace_analysis.movie.background_correction import determine_temporal_background_correction, \
+    determine_spatial_background_correction, determine_single_value_background_correction # remove_background, get_threshold
 from trace_analysis.timer import Timer
-from trace_analysis.movie.shading_correction import get_photobleach
-
 
 class Illumination:
     def __init__(self, name, short_name='', other_names=[]):
@@ -228,8 +226,10 @@ class Movie:
 
         self.darkfield_correction = None
         self.flatfield_correction = None
-        self.background_correction = None
-        self.illumination_correction = None
+        self.general_background_correction = None
+        self.spatial_background_correction = None
+        self.temporal_background_correction = None
+        self.temporal_illumination_correction = None
 
         self.load_corrections()
 
@@ -646,7 +646,7 @@ class Movie:
 
             #     tifffile.imwrite(self.writepath.joinPath(f'{self.name}_fr{frame_number}.tif'), image,  photometric='minisblack')
 
-    def make_projection_image(self, projection_type='average', frame_range=(0,20), illumination=None, write=False,
+    def make_projection_image(self, projection_type='average', frame_range=(0,20), apply_corrections=True, illumination=None, write=False,
                               return_image=True, flatten_channels=True, intensity_range=None, color_map='gray'):
         """ Construct a projection image
         Determine a projection image for a number_of_frames starting at start_frame.
@@ -696,7 +696,8 @@ class Movie:
                     # if len(frame_indices) > 100 and i % 13 == 0:
                     #     sys.stdout.write(
                     #         f'\r   Processing frame {frame_index} in {frame_indices[0]}-{frame_indices[-1]}')
-                    frames = self.read_frames(frame_indices_subset, xarray=False, flatten_channels=False)
+                    frames = self.read_frames(frame_indices_subset, apply_corrections=apply_corrections,
+                                              xarray=False, flatten_channels=False)
                     image = image + frames.sum(axis=0)
             image = (image / number_of_frames)
         elif projection_type == 'maximum':
@@ -716,8 +717,12 @@ class Movie:
             filepath = self.writepath.joinpath(filename)
             write_image = self.flatten_channels(image)
             if write in [True, 'tif']:
+                if hasattr(self, 'pixel_size'):
+                    resolution = 1/self.pixel_size
+                else:
+                    resolution = None
                 tifffile.imwrite(filepath.with_suffix('.tif'), write_image,
-                                 resolution=1/self.pixel_size,
+                                 resolution=resolution,
                                  imagej=True,
                                  metadata={'unit': 'um',
                                            'axes': 'YX'}
@@ -743,7 +748,7 @@ class Movie:
             channel_images = []
             for channel_index in range(self.number_of_channels):
                 channel_image = image[channel_index]
-                channel_image = (channel_image - self.intensity_range[channel_index][0]) / (self.intensity_range[channel_index][1] - self.intensity_range[channel_index][0])
+                channel_image = (channel_image - self.intensity_range[0]) / (self.intensity_range[1] - self.intensity_range[0]) # TODO: make separate intensity range for each channel
                 channel_images.append(self.channels[channel_index].colour_map(channel_image, bytes=True))
 
             images_combined = np.hstack(channel_images)
@@ -800,33 +805,43 @@ class Movie:
     def show(self):
         return MoviePlotter(self)
 
-    # TODO: This should be updated
-    # def determine_static_background_correction(self, image, method='per_channel'):
-    #     if method == 'rollingball':
-    #         background = rollingball(image, self.width_pixels / 10)[1]  # this one is not used in pick_spots_akaze
-    #         image_correct = image - background
-    #         image_correct[image_correct < 0] = 0
-    #         threshold = get_threshold(image_correct)
-    #         return remove_background(image_correct, threshold)
-    #     elif method == 'per_channel':  # maybe there is a better name
-    #         sh = np.shape(image)
-    #         threshold_donor = get_threshold(self.get_channel(image, 'donor'))
-    #         threshold_acceptor = get_threshold(self.get_channel(image, 'acceptor'))
-    #         background = np.zeros(np.shape(image))
-    #         background[:, 0:sh[0] // 2] = threshold_donor
-    #         background[:, sh[0] // 2:] = threshold_acceptor
-    #         return remove_background(image, background)
-    #
-    #     # note: optionally a fixed threshold can be set, like with IDL
-    #     # note 2: do we need a different threshold for donor and acceptor?
+    # Do we really need this?
+    def determine_general_background_correction(self, method='median', frame_range=(0, 20)):
+        self.temporal_background_correction = self.spatial_background_correction = None
+
+        frame_indices = np.arange(*frame_range)
+        frames = self.read_frames(frame_indices=frame_indices, apply_corrections=False, xarray=False)
+
+        general_background_correction = xr.DataArray(0, dims=('illumination', 'channel'),
+                                                      coords={'channel': self.channel_indices,
+                                                              'illumination': self.illumination_indices},
+                                                      name='general_background_correction')
+
+        for illumination, channel in itertools.product(self.illumination_indices_in_movie,
+                                                       np.array(self.channel_indices)):
+            frame_indices_subset = (self.illumination_index_per_frame[frame_indices] == illumination).frame
+            average_image = frames[frame_indices_subset, channel].mean(axis=0)
+
+            flatfield = self.flatfield_correction.sel(illumination=illumination, channel=channel).values
+            darkfield = self.darkfield_correction.sel(illumination=illumination, channel=channel).values
+
+            correction = determine_single_value_background_correction(average_image, method, flatfield, darkfield)
+
+            general_background_correction[dict(illumination=illumination, channel=channel)] = correction
+
+        self.general_background_correction = general_background_correction
+        self.save_corrections('general_background_correction',
+                              'temporal_background_correction', 'spatial_background_correction')
 
     def determine_temporal_background_correction(self, method='median'):
+        self.spatial_background_correction = None
+
         frames = self.read_frames(frame_indices=None, apply_corrections=False, xarray=False)
 
         temporal_background_correction = xr.DataArray(0, dims=('frame', 'channel'),
                                                       coords={'frame': self.frame_indices,
                                                               'channel': self.channel_indices},
-                                                      name='background_correction')
+                                                      name='temporal_background_correction')
 
         for illumination, channel in itertools.product(self.illumination_indices_in_movie, np.array(self.channel_indices)):
 
@@ -836,41 +851,49 @@ class Movie:
             flatfield = self.flatfield_correction.sel(illumination=illumination, channel=channel).values
             darkfield = self.darkfield_correction.sel(illumination=illumination, channel=channel).values
 
-            if method == 'BaSiC':
-                channel_dimensions = frames.shape[-2:][::-1]  # size should be given in (x,y) for get_photobleach
-                size = (channel_dimensions / np.max(channel_dimensions) * 256).astype(int)
-                correction = get_photobleach(frames_subset, flatfield, darkfield, size=size).flatten()
-            elif method == 'BaSiC_crop':
-                # Crop the image instead of resizing, may be better for single-molecules. However, may give higher noise.
-                raise NotImplementedError('')
-            elif method == 'gaussian_filter':
-                correction = np.array(
-                    [scipy.ndimage.gaussian_filter(((frame - darkfield) / flatfield), sigma=0.5, mode='wrap').mean()
-                     for frame in frames_subset])
-                # This comes down to taking the mean of the corrected image
-            elif method == 'mean':
-                correction = np.array([((frame - darkfield) / flatfield).mean() for frame in frames_subset])
-            elif method == 'median':
-                correction = np.array([np.median((frame - darkfield) / flatfield) for frame in frames_subset])
-            elif method == 'minimum_filter':
-                correction = np.array(
-                        [scipy.ndimage.minimum_filter(((frame - darkfield) / flatfield), size=15, mode='wrap').mean()
-                         for frame in frames_subset])
-            elif method == 'median_filter':
-                #     temporal_background_correction[dict(channel=channel)] = \
-                #         np.array([scipy.ndimage.minimum_filter(((frame - darkfield) / flatfield), size=15, mode='wrap').mean() for frame in frames_channel])
-                correction = np.array(
-                        [scipy.ndimage.median_filter(((frame - darkfield) / flatfield), size=15, mode='wrap').mean() for
-                         frame in frames_subset])
-            elif method == 'fit_background_peak':
-                correction = [gaussian_maximum_fit((frame - darkfield) / flatfield) for frame in frames_subset]
-            else:
-                raise ValueError(f'Method {method} not found')
+            correction = determine_temporal_background_correction(frames_subset, method, flatfield, darkfield)
+
+            if self.general_background_correction is not None:
+                correction -= self.general_background_correction[illumination, channel].item()
 
             temporal_background_correction[dict(frame=frame_indices_subset, channel=channel)] = correction
 
-        self.background_correction = temporal_background_correction
-        self.save_corrections(self.background_correction)
+        self.temporal_background_correction = temporal_background_correction
+        self.save_corrections('general_background_correction',
+                              'temporal_background_correction', 'spatial_background_correction')
+
+    def determine_spatial_background_correction(self, method='median_filter', projection_type='average',
+                                                frame_range=(0, 20)):
+        frame_indices = np.arange(*frame_range)
+        frames = self.read_frames(frame_indices=frame_indices, apply_corrections=False, xarray=False)
+
+        spatial_background_correction = xr.DataArray(np.zeros((self.number_of_illuminations,) + frames.shape[1:]),
+                                                     dims=('illumination', 'channel', 'y', 'x'),
+                                                     coords={'illumination': self.illumination_indices,
+                                                             'channel': self.channel_indices, },
+                                                     name='spatial_background_correction')
+
+        for illumination, channel in itertools.product(self.illumination_indices_in_movie,
+                                                       np.array(self.channel_indices)):
+            frame_indices_subset = (self.illumination_index_per_frame[frame_indices] == illumination).frame
+            average_image = frames[frame_indices_subset, channel].mean(axis=0)
+
+            flatfield = self.flatfield_correction.sel(illumination=illumination, channel=channel).values
+            darkfield = self.darkfield_correction.sel(illumination=illumination, channel=channel).values
+
+            correction = determine_spatial_background_correction(average_image, method, flatfield, darkfield)
+
+            if self.general_background_correction is not None:
+                correction -= self.general_background_correction[illumination, channel].item()
+
+            if self.temporal_background_correction is not None:
+                correction -= self.temporal_background_correction[frame_indices_subset, channel].mean().item()
+
+            spatial_background_correction[dict(illumination=illumination, channel=channel)] = correction
+
+        self.spatial_background_correction = spatial_background_correction
+        self.save_corrections('general_background_correction',
+                              'temporal_background_correction', 'spatial_background_correction')
 
     def load_corrections(self):
         corrections_filepath = self.filepath.with_name(self.name + '_corrections.nc')
@@ -879,8 +902,19 @@ class Movie:
             for key, correction in corrections.data_vars.items():
                 self.__setattr__(key, correction)
 
-    def save_corrections(self, corrections):
-        corrections.to_netcdf(self.filepath.with_name(self.name + '_corrections.nc'), mode='a', engine='h5netcdf')
+    def save_corrections(self, *args):
+        corrections_filepath = self.filepath.with_name(self.name + '_corrections.nc')
+        if corrections_filepath.exists():
+            corrections = xr.load_dataset(corrections_filepath, engine='h5netcdf')
+        else:
+            corrections = xr.Dataset()
+        for name in args:
+            correction = getattr(self, name)
+            if correction is None:
+                corrections = corrections.drop_vars(name, errors='ignore')
+            else:
+                corrections[name] = correction
+        corrections.to_netcdf(corrections_filepath, mode='w', engine='h5netcdf')
 
 #     def apply_corrections(self, frames, frame_indices):
 #
@@ -902,13 +936,19 @@ class Movie:
             if self.flatfield_correction is not None:
                 frames[frame_indices_with_illumination] /= self.flatfield_correction.values[None, illumination_index]
 
-            if self.illumination_correction is not None:
+            if self.temporal_illumination_correction is not None:
                 frames[frame_indices_with_illumination] /= \
-                    self.illumination_correction.values[frame_indices][frame_indices_with_illumination, None, None, None]
+                    self.temporal_illumination_correction.values[frame_indices][frame_indices_with_illumination, None, None, None]
 
-            if self.background_correction is not None:
+            if self.general_background_correction is not None:
+                frames[frame_indices_with_illumination] -= self.general_background_correction[illumination_index, :, :, :]
+
+            if self.temporal_background_correction is not None:
                 frames[frame_indices_with_illumination] -= \
-                    self.background_correction.values[frame_indices][frame_indices_with_illumination, :, None, None]
+                    self.temporal_background_correction.values[frame_indices][frame_indices_with_illumination, :, None, None]
+
+            if self.spatial_background_correction is not None:
+                frames[frame_indices_with_illumination] -= self.spatial_background_correction[illumination_index, :, :, :]
 
         return frames
 
@@ -1118,26 +1158,3 @@ def expand_axes(frames, expand_into, from_axes=-1, to_axes=None, new_axes_positi
     # print(time.time() - start)
 
     return frames
-
-
-
-
-def gaussian_maximum_fit(frame, width_around_peak_fitted=200):
-    def gauss_function(x, a, x0, sigma):
-        return a * np.exp(-(x - x0) ** 2 / (2 * sigma ** 2))
-
-    count, edges = np.histogram(frame.flatten(), bins=width_around_peak_fitted)
-    # max_bin_center = edges[count.argmax():count.argmax()+2].mean()
-
-    bincenters = (edges[:-1] + edges[1:]) / 2
-    max_bin_center = bincenters[count.argmax()]
-
-    width = 200
-    selection = np.vstack(
-        [max_bin_center - width / 2 < bincenters, bincenters < max_bin_center + width / 2]).all(
-        axis=0)
-    x = bincenters[selection]
-    y = count[selection]
-
-    popt, pcov = scipy.optimize.curve_fit(gauss_function, x, y, p0=[count.max(), max_bin_center, 100])#, maxfev=2000)
-    return popt[1]

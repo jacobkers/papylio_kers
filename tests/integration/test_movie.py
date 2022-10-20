@@ -33,15 +33,24 @@ def test_make_projection_image(movie, shared_datadir):
     raw_images = np.rot90(raw_images, axes=(1,2))
     assert ((image_from_file - raw_images.mean(axis=0)) < 1e-4).all()  # Not sure 1e-4 is accurate enough
 
+ 
 def test_make_projection_images(movie, shared_datadir):
     movie.make_projection_images(projection_type='average', frame_range=(0,20))
 
-def test_determine_temporal_background_correction(experiment, shared_datadir):
+
+def test_determine_background_correction(experiment, shared_datadir):
     movie = experiment.files[1].movie
-    method = 'fit_background_peak'
-    background_correction = movie.determine_temporal_background_correction(method)
+
+    movie.determine_general_background_correction()
+    movie.determine_temporal_background_correction()
+    movie.determine_spatial_background_correction()
     assert (shared_datadir / 'BN_TIRF' / 'TIRF 561 0001_corrections.nc').is_file()
 
+    import xarray as xr
+    new_dataset = xr.load_dataset(shared_datadir / 'BN_TIRF' / 'TIRF 561 0001_corrections.nc')
+    new_dataset = new_dataset[['general_background_correction', 'temporal_background_correction', 'spatial_background_correction']]
+    test_dataset = xr.load_dataset(shared_datadir / 'BN_TIRF_output_test_movie' / 'TIRF 561 0001_corrections.nc')
+    assert new_dataset.identical(test_dataset)
 
 def test_corrections(experiment):
     movie = experiment.files[1].movie

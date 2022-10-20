@@ -1,3 +1,146 @@
+import numpy as np
+import scipy.optimize
+import scipy.ndimage
+
+from trace_analysis.movie.shading_correction import get_photobleach
+
+def determine_temporal_background_correction(frames, method, flatfield, darkfield):
+    if method == 'BaSiC':
+        channel_dimensions = frames.shape[-2:][::-1]  # size should be given in (x,y) for get_photobleach
+        size = (channel_dimensions / np.max(channel_dimensions) * 256).astype(int)
+        correction = get_photobleach(frames, flatfield, darkfield, size=size).flatten()
+    elif method == 'BaSiC_crop':
+        # Crop the image instead of resizing, may be better for single-molecules. However, may give higher noise.
+        raise NotImplementedError('')
+    else:
+        correction = np.array([determine_single_value_background_correction(frame, method, flatfield, darkfield)
+                               for frame in frames])
+
+    return correction
+
+
+def determine_single_value_background_correction(frame, method, flatfield, darkfield):
+    if method == 'BaSiC':
+        channel_dimensions = frame.shape[-2:][::-1]  # size should be given in (x,y) for get_photobleach
+        size = (channel_dimensions / np.max(channel_dimensions) * 256).astype(int)
+        correction = get_photobleach(frame, flatfield, darkfield, size=size).flatten()
+    elif method == 'BaSiC_crop':
+        # Crop the image instead of resizing, may be better for single-molecules. However, may give higher noise.
+        raise NotImplementedError('')
+    elif method == 'mean':
+        correction = ((frame - darkfield) / flatfield).mean()
+    elif method == 'median':
+        correction = np.median((frame - darkfield) / flatfield)
+    elif method == 'fit_background_peak':
+        correction = gaussian_maximum_fit((frame - darkfield) / flatfield)
+    elif 'filter' in method:
+        correction = determine_spatial_background_correction(frame, method, flatfield,
+                                                             darkfield).mean()  # TODO: take mean only over x, y not over channel
+    else:
+        raise ValueError(f'Method {method} not found')
+
+    return correction
+
+
+def determine_spatial_background_correction(frame, method, flatfield, darkfield):
+    # TODO: improve edge between donor&acceptor channel
+    if method == 'gaussian_filter':
+        scipy_filter = scipy.ndimage.gaussian_filter
+        scipy_filter_kwargs = {'sigma': 0.5, 'mode': 'wrap'}
+        # This comes down to taking the mean of the corrected image
+    elif method == 'minimum_filter':
+        scipy_filter = scipy.ndimage.minimum_filter
+        scipy_filter_kwargs = {'size': 15, 'mode': 'wrap'}
+    elif method == 'median_filter':
+        scipy_filter = scipy.ndimage.median_filter
+        scipy_filter_kwargs = {'size': 15, 'mode': 'wrap'}
+    else:
+        raise ValueError(f'Method {method} not found')
+
+    correction = scipy_filter(((frame - darkfield) / flatfield), **scipy_filter_kwargs)
+
+    return correction
+
+def gaussian_maximum_fit(frame, width_around_peak_fitted=200):
+    def gauss_function(x, a, x0, sigma):
+        return a * np.exp(-(x - x0) ** 2 / (2 * sigma ** 2))
+
+    count, edges = np.histogram(frame.flatten(), bins=width_around_peak_fitted)
+    # max_bin_center = edges[count.argmax():count.argmax()+2].mean()
+
+    bincenters = (edges[:-1] + edges[1:]) / 2
+    max_bin_center = bincenters[count.argmax()]
+
+    width = 200
+    selection = np.vstack(
+        [max_bin_center - width / 2 < bincenters, bincenters < max_bin_center + width / 2]).all(
+        axis=0)
+    x = bincenters[selection]
+    y = count[selection]
+
+    popt, pcov = scipy.optimize.curve_fit(gauss_function, x, y, p0=[count.max(), max_bin_center, 100])#, maxfev=2000)
+    return popt[1]
+
+
+
+
+
+
+ #     if method == 'rollingball':
+    #         background = rollingball(image, self.width_pixels / 10)[1]  # this one is not used in pick_spots_akaze
+    #         image_correct = image - background
+    #         image_correct[image_correct < 0] = 0
+    #         threshold = get_threshold(image_correct)
+    #         return remove_background(image_correct, threshold)
+    #     elif method == 'per_channel':  # maybe there is a better name
+    #         sh = np.shape(image)
+    #         threshold_donor = get_threshold(self.get_channel(image, 'donor'))
+    #         threshold_acceptor = get_threshold(self.get_channel(image, 'acceptor'))
+    #         background = np.zeros(np.shape(image))
+    #         background[:, 0:sh[0] // 2] = threshold_donor
+    #         background[:, sh[0] // 2:] = threshold_acceptor
+    #         return remove_background(image, background)
+    #
+    #     # note: optionally a fixed threshold can be set, like with IDL
+    #     # note 2: do we need a different threshold for donor and acceptor?
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # -*- coding: utf-8 -*-
 """
 Created on Mon Apr 15 15:16:25 2019
