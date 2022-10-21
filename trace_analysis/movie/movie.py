@@ -822,8 +822,15 @@ class Movie:
             frame_indices_subset = (self.illumination_index_per_frame[frame_indices] == illumination).frame
             average_image = frames[frame_indices_subset, channel].mean(axis=0)
 
-            flatfield = self.flatfield_correction.sel(illumination=illumination, channel=channel).values
-            darkfield = self.darkfield_correction.sel(illumination=illumination, channel=channel).values
+            if self.flatfield_correction is not None:
+                flatfield = self.flatfield_correction.sel(illumination=illumination, channel=channel).values
+            else:
+                flatfield = None
+
+            if self.darkfield_correction is not None:
+                darkfield = self.darkfield_correction.sel(illumination=illumination, channel=channel).values
+            else:
+                darkfield = None
 
             correction = determine_single_value_background_correction(average_image, method, flatfield, darkfield)
 
@@ -848,8 +855,15 @@ class Movie:
             frame_indices_subset = (self.illumination_index_per_frame==illumination).frame
             frames_subset = frames[frame_indices_subset, channel]
 
-            flatfield = self.flatfield_correction.sel(illumination=illumination, channel=channel).values
-            darkfield = self.darkfield_correction.sel(illumination=illumination, channel=channel).values
+            if self.flatfield_correction is not None:
+                flatfield = self.flatfield_correction.sel(illumination=illumination, channel=channel).values
+            else:
+                flatfield = None
+
+            if self.darkfield_correction is not None:
+                darkfield = self.darkfield_correction.sel(illumination=illumination, channel=channel).values
+            else:
+                darkfield = None
 
             correction = determine_temporal_background_correction(frames_subset, method, flatfield, darkfield)
 
@@ -862,8 +876,7 @@ class Movie:
         self.save_corrections('general_background_correction',
                               'temporal_background_correction', 'spatial_background_correction')
 
-    def determine_spatial_background_correction(self, method='median_filter', projection_type='average',
-                                                frame_range=(0, 20)):
+    def determine_spatial_background_correction(self, method='median_filter', frame_range=(0, 20), **kwargs):
         frame_indices = np.arange(*frame_range)
         frames = self.read_frames(frame_indices=frame_indices, apply_corrections=False, xarray=False)
 
@@ -878,10 +891,17 @@ class Movie:
             frame_indices_subset = (self.illumination_index_per_frame[frame_indices] == illumination).frame
             average_image = frames[frame_indices_subset, channel].mean(axis=0)
 
-            flatfield = self.flatfield_correction.sel(illumination=illumination, channel=channel).values
-            darkfield = self.darkfield_correction.sel(illumination=illumination, channel=channel).values
+            if self.flatfield_correction is not None:
+                flatfield = self.flatfield_correction.sel(illumination=illumination, channel=channel).values
+            else:
+                flatfield = None
 
-            correction = determine_spatial_background_correction(average_image, method, flatfield, darkfield)
+            if self.darkfield_correction is not None:
+                darkfield = self.darkfield_correction.sel(illumination=illumination, channel=channel).values
+            else:
+                darkfield = None
+
+            correction = determine_spatial_background_correction(average_image, method, flatfield, darkfield, **kwargs)
 
             if self.general_background_correction is not None:
                 correction -= self.general_background_correction[illumination, channel].item()
@@ -941,14 +961,14 @@ class Movie:
                     self.temporal_illumination_correction.values[frame_indices][frame_indices_with_illumination, None, None, None]
 
             if self.general_background_correction is not None:
-                frames[frame_indices_with_illumination] -= self.general_background_correction[illumination_index, :, :, :]
+                frames[frame_indices_with_illumination] -= self.general_background_correction.values[None, illumination_index, :, None, None]
 
             if self.temporal_background_correction is not None:
                 frames[frame_indices_with_illumination] -= \
                     self.temporal_background_correction.values[frame_indices][frame_indices_with_illumination, :, None, None]
 
             if self.spatial_background_correction is not None:
-                frames[frame_indices_with_illumination] -= self.spatial_background_correction[illumination_index, :, :, :]
+                frames[frame_indices_with_illumination] -= self.spatial_background_correction.values[None, illumination_index, :, :, :]
 
         return frames
 

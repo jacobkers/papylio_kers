@@ -4,7 +4,7 @@ import scipy.ndimage
 
 from trace_analysis.movie.shading_correction import get_photobleach
 
-def determine_temporal_background_correction(frames, method, flatfield, darkfield):
+def determine_temporal_background_correction(frames, method, flatfield=None, darkfield=None):
     if method == 'BaSiC':
         channel_dimensions = frames.shape[-2:][::-1]  # size should be given in (x,y) for get_photobleach
         size = (channel_dimensions / np.max(channel_dimensions) * 256).astype(int)
@@ -19,7 +19,13 @@ def determine_temporal_background_correction(frames, method, flatfield, darkfiel
     return correction
 
 
-def determine_single_value_background_correction(frame, method, flatfield, darkfield):
+def determine_single_value_background_correction(frame, method, flatfield=None, darkfield=None):
+    frame_corrected = frame
+    if darkfield is not None:
+        frame_corrected = frame - darkfield
+    if flatfield is not None:
+        frame_corrected = frame_corrected / flatfield
+
     if method == 'BaSiC':
         channel_dimensions = frame.shape[-2:][::-1]  # size should be given in (x,y) for get_photobleach
         size = (channel_dimensions / np.max(channel_dimensions) * 256).astype(int)
@@ -28,21 +34,20 @@ def determine_single_value_background_correction(frame, method, flatfield, darkf
         # Crop the image instead of resizing, may be better for single-molecules. However, may give higher noise.
         raise NotImplementedError('')
     elif method == 'mean':
-        correction = ((frame - darkfield) / flatfield).mean()
+        correction = frame_corrected.mean()
     elif method == 'median':
-        correction = np.median((frame - darkfield) / flatfield)
+        correction = np.median(frame_corrected)
     elif method == 'fit_background_peak':
-        correction = gaussian_maximum_fit((frame - darkfield) / flatfield)
+        correction = gaussian_maximum_fit(frame_corrected)
     elif 'filter' in method:
-        correction = determine_spatial_background_correction(frame, method, flatfield,
-                                                             darkfield).mean()  # TODO: take mean only over x, y not over channel
+        correction = determine_spatial_background_correction(frame_corrected, method).mean()  # TODO: take mean only over x, y not over channel
     else:
         raise ValueError(f'Method {method} not found')
 
     return correction
 
 
-def determine_spatial_background_correction(frame, method, flatfield, darkfield):
+def determine_spatial_background_correction(frame, method, flatfield=None, darkfield=None, **kwargs):
     # TODO: improve edge between donor&acceptor channel
     if method == 'gaussian_filter':
         scipy_filter = scipy.ndimage.gaussian_filter
@@ -53,11 +58,18 @@ def determine_spatial_background_correction(frame, method, flatfield, darkfield)
         scipy_filter_kwargs = {'size': 15, 'mode': 'wrap'}
     elif method == 'median_filter':
         scipy_filter = scipy.ndimage.median_filter
-        scipy_filter_kwargs = {'size': 15, 'mode': 'wrap'}
+        scipy_filter_kwargs = {'size': 30, 'mode': 'wrap'}
     else:
         raise ValueError(f'Method {method} not found')
 
-    correction = scipy_filter(((frame - darkfield) / flatfield), **scipy_filter_kwargs)
+    if darkfield is not None:
+        frame = frame - darkfield
+    if flatfield is not None:
+        frame = frame / flatfield
+
+    scipy_filter_kwargs.update(kwargs)
+
+    correction = scipy_filter(frame, **scipy_filter_kwargs)
 
     return correction
 
