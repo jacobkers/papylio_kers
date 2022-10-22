@@ -2,10 +2,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 import itertools
+
+import tqdm
 from scipy.spatial import cKDTree
 import random
 from trace_analysis.mapping.point_set import crop_coordinates
-from coordinate_transformations import translate, rotate, magnify, reflect, transform
+from coordinate_transformations import translate, rotate, magnify, reflect, transform, parameters_from_transformation_matrices
 # from trace_analysis.plotting import scatter_coordinates
 from skimage.transform import AffineTransform, SimilarityTransform
 import time
@@ -48,7 +50,7 @@ class GeometricHashTable:
         self.create_hashtable()
 
     def create_hashtable(self):
-        destination_hash_data = geometric_hash(self.destinations, self.maximum_distance_destination, self.tuple_size)
+        destination_hash_data = next(geometric_hash(self.destinations, self.maximum_distance_destination, self.tuple_size))
         self.destination_KDTrees, self.destination_tuple_sets, self.destination_hash_table_KDTree, \
         self.destination_transformation_matrices = destination_hash_data
 
@@ -62,47 +64,103 @@ class GeometricHashTable:
                                         magnification_range, rotation_range)
 
     def query_tuple_transformations(self, sources, hash_table_distance_threshold=0.01, parameters=['rotation', 'scale'],
-                                    plot=False, method='dbscan', **method_kwargs):
-        # np.vstack(sources)
+                                    plot=False, chunksize=None, method='maximum_close_neighbours', **method_kwargs):
 
-        source_hash_data = geometric_hash(sources, self.maximum_distance_source, self.tuple_size)
-        _, _, source_hash_table_KDTree, source_transformation_matrices = source_hash_data
-
-        return compare_tuple_transformations(source_hash_table_KDTree, source_transformation_matrices,
-                                              self.destination_hash_table_KDTree, self.destination_transformation_matrices,
-                                              hash_table_distance_threshold, parameters, plot=plot, method=method, **method_kwargs)
+        return find_common_tuple_transformation(sources, self.maximum_distance_source, self.destination_hash_table_KDTree,
+                                                self.tuple_size, self.destination_transformation_matrices,
+                                                hash_table_distance_threshold=hash_table_distance_threshold,
+                                                parameters=parameters, plot=plot, chunksize=chunksize, method=method, **method_kwargs)
 
 
-def geometric_hash(point_sets, maximum_distance=100, tuple_size=4):
+def transformation_matrices_of_tuple_matches(source_transformation_matrices, destination_transformation_matrices, tuple_matches):
+    source_transformation_matrices = source_transformation_matrices[tuple_matches[:,0]]
+    destination_transformation_matrices = destination_transformation_matrices[tuple_matches[:, 1]]
+    return np.linalg.inv(destination_transformation_matrices) @ source_transformation_matrices
+
+    # transformation_matrices = []
+    # for source_index, destination_indices in enumerate(tuple_matches):
+    #     source_transformation_matrix = source_transformation_matrices[source_index]
+    #     # source_transformation_matrix = np.linalg.inv(source_transformation_matrix)
+    #     for destination_index in destination_indices:
+    #         destination_transformation_matrix = destination_transformation_matrices[destination_index]
+    #         destination_transformation_matrix_inverse = np.linalg.inv(destination_transformation_matrix)
+    #         transformation_matrices.append(destination_transformation_matrix_inverse @ source_transformation_matrix)
+    # transformation_matrices = np.stack(transformation_matrices)
+
+def find_tuple_matches(source_hash_table_KDTree, destination_hash_table_KDTree, hash_table_distance_threshold):
+
+    destination_matches_per_source_index = source_hash_table_KDTree.query_ball_tree(destination_hash_table_KDTree,
+                                                              hash_table_distance_threshold)
+    tuple_matches = []
+    for source_index, destination_indices in enumerate(destination_matches_per_source_index):
+        for destination_index in destination_indices:
+            tuple_matches.append([source_index, destination_index])
+    return np.array(tuple_matches)
+
+def geometric_hash(point_sets, maximum_distance=100, tuple_size=4, chunksize=None):
     # TODO: Add minimum_distance and implement
     # TODO: Make invariant to mirroring
     # TODO: Make usable with multiple point-sets in a single hash table
     # TODO: Implement names of point_sets, possibly through a dictionary and adding a attribute to each KDtree
-    start_time = time.time()
+    # start_time = time.time()
 
     if type(point_sets) is not list:
         point_sets = [point_sets]
 
     # TODO: do this only if point_sets are not cKDTrees already, pass cKDtree instead of point_set ?
-    point_set_KDTrees = [cKDTree(point_set) for point_set in point_sets]
+    point_set_KDTrees = [cKDTree(point_set) if not isinstance(point_set, cKDTree) else point_set for point_set in point_sets]
 
+    point_tuple_sets = [[] for i in range(len(point_set_KDTrees))]
     hash_tables = []
-    point_tuple_sets = []
-    for point_set_KDTree in point_set_KDTrees:
-        point_tuples = generate_point_tuples(point_set_KDTree, maximum_distance, tuple_size)
-        hash_table, transformation_matrices = geometric_hash_table(point_set_KDTree, point_tuples)
+    transformation_matrix_sets = []
+    for point_set_index, point_set_KDTree in enumerate(point_set_KDTrees):
+        for point_tuples in generate_point_tuples(point_set_KDTree, maximum_distance, tuple_size, chunksize):
+            hash_table, transformation_matrices = geometric_hash_table(point_set_KDTree, point_tuples)
 
-        hash_tables.append(hash_table)
-        point_tuple_sets.append(point_tuples)
+            if chunksize is not None:
+                # hash_table_KDTree = cKDTree(hash_table)
+                yield point_set_index, point_tuples, hash_table, transformation_matrices
+            else:
+                point_tuple_sets[point_set_index].append(point_tuples)
+                hash_tables.append(hash_table)
+                transformation_matrix_sets.append(transformation_matrices)
 
-    hash_table_KDTree = cKDTree(np.vstack(hash_tables))
+    if chunksize is None:
+        hash_table_KDTree = cKDTree(np.vstack(hash_tables))
+        transformation_matrices = np.concatenate(transformation_matrix_sets, axis=0)
+        yield point_set_KDTrees, point_tuple_sets, hash_table_KDTree, transformation_matrices
 
-    # print("--- %s seconds ---" % (time.time() - start_time))
+#
+# def geometric_hash(point_sets, maximum_distance=100, tuple_size=4):
+#     # TODO: Add minimum_distance and implement
+#     # TODO: Make invariant to mirroring
+#     # TODO: Make usable with multiple point-sets in a single hash table
+#     # TODO: Implement names of point_sets, possibly through a dictionary and adding a attribute to each KDtree
+#     start_time = time.time()
+#
+#     if type(point_sets) is not list:
+#         point_sets = [point_sets]
+#
+#     # TODO: do this only if point_sets are not cKDTrees already, pass cKDtree instead of point_set ?
+#     point_set_KDTrees = [cKDTree(point_set) for point_set in point_sets]
+#
+#     hash_tables = []
+#     point_tuple_sets = []
+#     for point_set_KDTree in point_set_KDTrees:
+#         point_tuples = generate_point_tuples(point_set_KDTree, maximum_distance, tuple_size)
+#         hash_table, transformation_matrices = geometric_hash_table(point_set_KDTree, point_tuples)
+#
+#         hash_tables.append(hash_table)
+#         point_tuple_sets.append(point_tuples)
+#
+#     hash_table_KDTree = cKDTree(np.vstack(hash_tables))
+#
+#     # print("--- %s seconds ---" % (time.time() - start_time))
+#
+#     return point_set_KDTrees, point_tuple_sets, hash_table_KDTree, transformation_matrices
 
-    return point_set_KDTrees, point_tuple_sets, hash_table_KDTree, transformation_matrices
 
-
-def generate_point_tuples(point_set_KDTree, maximum_distance, tuple_size):
+def generate_point_tuples(point_set_KDTree, maximum_distance, tuple_size, chunksize=None):
     # TODO: If maximum distance is None, calculate maximum distance (i.e. containing all points, or giving a good density
     if maximum_distance is None:
         # Smallest enclosing circle would be better: https://rosettacode.org/wiki/Smallest_enclosing_circle_problem
@@ -119,9 +177,13 @@ def generate_point_tuples(point_set_KDTree, maximum_distance, tuple_size):
         internal_points = point_set_KDTree.query_ball_point(center, distance / 2 * 0.99)
         for internal_point_combination in itertools.combinations(internal_points, tuple_size-2):
             point_tuples.append(pair + tuple(internal_point_combination))
+
+            if chunksize is not None and len(point_tuples) >= chunksize:
+                yield point_tuples
+                point_tuples = []
             # yield pair + tuple(internal_point_combination)
 
-    return point_tuples
+    yield point_tuples
 
 
 def geometric_hash_table(point_set_KDTree, point_tuples):
@@ -339,35 +401,62 @@ def test_transformation(source, destination, found_transformation, source_vertic
     return False
 
 
-def compare_tuple_transformations(source_hash_table_KDTree, source_transformation_matrices, destination_hash_table_KDTree,
-                                  destination_transformation_matrices, hash_table_distance_threshold=0.01,
-                                  parameters=['rotation', 'scale'], plot=False, method='dbscan', **method_kwargs):
-    tuple_matches = source_hash_table_KDTree.query_ball_tree(destination_hash_table_KDTree, hash_table_distance_threshold)
+def find_common_tuple_transformation(sources, maximum_distance_source, destination_hash_table_KDTree, tuple_size,
+                                     destination_transformation_matrices, hash_table_distance_threshold=0.01,
+                                     parameters=['rotation', 'scale'], chunksize=None, plot=False, method='maximum_close_neighbours', **method_kwargs):
+    # np.vstack(sources)
+    parameter_dict = {parameter: [] for parameter in parameters}
+    for source_hash_data in tqdm.tqdm(geometric_hash(sources, maximum_distance_source, tuple_size, chunksize=chunksize), 'Source chunks'):
+        _, _, source_hash_table, source_transformation_matrices = source_hash_data
 
-    # TODO: make this matrix multiplication
-    transformation_matrices = []
-    for source_index, destination_indices in enumerate(tuple_matches):
-        source_transformation_matrix = source_transformation_matrices[source_index]
-        # source_transformation_matrix = np.linalg.inv(source_transformation_matrix)
-        for destination_index in destination_indices:
-            destination_transformation_matrix = destination_transformation_matrices[destination_index]
-            destination_transformation_matrix_inverse = np.linalg.inv(destination_transformation_matrix)
-            transformation_matrices.append(destination_transformation_matrix_inverse @ source_transformation_matrix)
-    transformation_matrices = np.stack(transformation_matrices)
+        source_hash_table_KDTree = cKDTree(source_hash_table)
+        tuple_matches = find_tuple_matches(source_hash_table_KDTree, destination_hash_table_KDTree,
+                                           hash_table_distance_threshold)
+        tuple_match_transformation_matrices = \
+            transformation_matrices_of_tuple_matches(source_transformation_matrices,
+                                                     destination_transformation_matrices, tuple_matches)
+        parameter_values = parameters_from_transformation_matrices(tuple_match_transformation_matrices,
+                                                                   parameters=parameters)
 
-    # plt.figure()
-    # plt.hist(transformation_matrices[:, 0, 2], 100)
+        for parameter, values in zip(parameters, parameter_values):
+            parameter_dict[parameter] += values.tolist()
 
-    transformations = [AffineTransform(transformation_matrix) for transformation_matrix in transformation_matrices]
+    return find_high_density_parameters(parameter_dict, method=method, plot=plot, **method_kwargs)
+
+    # tuple_matches = source_hash_table_KDTree.query_ball_tree(destination_hash_table_KDTree, hash_table_distance_threshold)
+
+    # # TODO: make this matrix multiplication
+    # transformation_matrices = []
+    # for source_index, destination_indices in enumerate(tuple_matches):
+    #     source_transformation_matrix = source_transformation_matrices[source_index]
+    #     # source_transformation_matrix = np.linalg.inv(source_transformation_matrix)
+    #     for destination_index in destination_indices:
+    #         destination_transformation_matrix = destination_transformation_matrices[destination_index]
+    #         destination_transformation_matrix_inverse = np.linalg.inv(destination_transformation_matrix)
+    #         transformation_matrices.append(destination_transformation_matrix_inverse @ source_transformation_matrix)
+    # transformation_matrices = np.stack(transformation_matrices)
+    #
+    # # plt.figure()
+    # # plt.hist(transformation_matrices[:, 0, 2], 100)
+    #
+    # transformations = [AffineTransform(transformation_matrix) for transformation_matrix in transformation_matrices]
+    #
+    #
+    # parameter_values = [np.array([getattr(t, parameter) for t in transformations]).T for parameter in parameters]
+    #
+    # sample = np.vstack(list(parameter_values)).T
+    # # sample = transformation_matrices[:, :2, :].reshape(-1, 6)
 
 
-    parameter_values = [np.array([getattr(t, parameter) for t in transformations]).T for parameter in parameters]
 
-    sample = np.vstack(list(parameter_values)).T
-    # sample = transformation_matrices[:, :2, :].reshape(-1, 6)
 
+
+def find_high_density_parameters(parameter_dict, method='maximum_close_neighbours', plot=False, **method_kwargs):
+    parameter_values = np.hstack(list(parameter_dict.values()))
     if method == 'histogram_max':
-        h, edges = np.histogramdd(sample, **method_kwargs)
+        sample_normalized = (parameter_values - parameter_values.min(axis=0)) / \
+                            (parameter_values.max(axis=0) - parameter_values.min(axis=0))
+        h, edges = np.histogramdd(parameter_values, bins=100, **method_kwargs)
 
         bin_centers = [(e[:-1]+e[1:])/2 for e in edges]
         # found_transformation = np.array([bc[h_index] for bc, h_index in zip(bin_centers, np.where(h==h.max()))]).reshape(2,3)
@@ -377,25 +466,37 @@ def compare_tuple_transformations(source_hash_table_KDTree, source_transformatio
             raise RuntimeError('No optimal transformation found')
         found_values = [bc[h_index][0] for bc, h_index in zip(bin_centers, hist_max_index)]
 
-
+        hist_max_index * (parameter_values.max(axis=0) - parameter_values.min(axis=0)) + parameter_values.min(axis=0)
     elif method == 'dbscan':
         import sklearn.cluster
 
-        sample_normalized = (sample - sample.min(axis=0)) / (sample.max(axis=0) - sample.min(axis=0))
-        clustering = sklearn.cluster.DBSCAN(eps=0.01, min_samples=10, **method_kwargs).fit(sample_normalized)
-        found_values = list(np.median(sample[clustering.labels_ == 0], axis=0))
+        sample_normalized = (parameter_values - parameter_values.min(axis=0)) / \
+                            (parameter_values.max(axis=0) - parameter_values.min(axis=0))
+        # clustering = sklearn.cluster.DBSCAN(eps=0.01, min_samples=10, **method_kwargs).fit(sample_normalized)
+        clustering = sklearn.cluster.OPTICS(max_eps=0.001, min_samples=10, cluster_method='dbscan', **method_kwargs).fit(
+            sample_normalized)
+
+        found_values = list(np.median(parameter_values[clustering.labels_ == 0], axis=0))
         if clustering.labels_.max() > 0:
             raise RuntimeError('No optimal transformation found')
         if plot:
             plt.figure()
-            plt.scatter(*sample[:, :2].T, c=clustering.labels_)
+            plt.scatter(*parameter_values[:, :2].T, c=clustering.labels_)
             plt.show()
+    elif method == 'maximum_close_neighbours':
+        sample_normalized = (parameter_values - parameter_values.min(axis=0)) / \
+                            (parameter_values.max(axis=0) - parameter_values.min(axis=0))
+
+        tree = cKDTree(sample_normalized[:, 0:4])
+        neighbours = tree.query_ball_tree(tree, 0.001)
+        lengths = np.array([len(n) for n in neighbours])
+        found_values = list(parameter_values[lengths==lengths.max()].mean(axis=0))
     else:
         raise ValueError(f'Unknown method {method}')
 
-    parameter_dict = {
+    found_parameter_dict = {
         parameter: found_values.pop(0) if parameter == 'rotation' else [found_values.pop(0), found_values.pop(0)]
-        for parameter in parameters}
+        for parameter in parameter_dict.keys()}
 
 
 
@@ -429,6 +530,4 @@ def compare_tuple_transformations(source_hash_table_KDTree, source_transformatio
     # plt.hist(rs, 100)
 
     # return parameter_dict
-    return AffineTransform(**parameter_dict)
-
-
+    return AffineTransform(**found_parameter_dict)

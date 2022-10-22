@@ -53,3 +53,29 @@ def transform(pointSet, transformationMatrix=None, returnTransformationMatrix = 
         return (transformationMatrix @ pointSet.T)[0:2, :].T, transformationMatrix
     else:
         return (transformationMatrix @ pointSet.T)[0:2, :].T
+
+
+def scale(transformation_matrices):
+    return np.sqrt(np.sum(transformation_matrices ** 2, axis=1))[:,:2]
+
+def rotation(transformation_matrices):
+    return np.atleast_2d(np.arctan2(transformation_matrices[:, 1, 0], transformation_matrices[:, 0, 0])).T
+
+def shear(transformation_matrices):
+    raise Warning('Not tested yet')
+    beta = np.atleast_2d(np.arctan2(- transformation_matrices[:, 0, 1], transformation_matrices[:, 1, 1])).T
+    return beta - rotation(transformation_matrices)
+
+def translation(transformation_matrices):
+    # raise Warning('Not tested yet')
+    return transformation_matrices[:, 0:2, 2]
+
+
+parameter_function_dict = {'translation': translation, 'rotation': rotation, 'scale': scale, 'shear': shear}
+
+def parameters_from_transformation_matrices(transformation_matrices, parameters=['translation','rotation','scale','shear']):
+    parameter_values = []
+    for parameter in parameters:
+        parameter_values.append(parameter_function_dict[parameter](transformation_matrices))
+    return parameter_values
+
