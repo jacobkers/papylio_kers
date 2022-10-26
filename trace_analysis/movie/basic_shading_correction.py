@@ -77,19 +77,25 @@ def squeeze_channel_from_frames(frames):
     # test2.unstack('channel').stack(channel=('channel_index_x','channel_index_y'))
     # test2.unstack('channel').stack(x_pixel=('channel_index_x','x'), y_pixel=('channel_index_y','y'))
 
-def spatial_shading_correction(movies):
-    frames = xr.concat([movie.read_frames([0], apply_corrections=False, xarray=True, flatten_channels=False) for movie in tqdm.tqdm(movies)], dim='frame')
-    frames = frames.reset_index('frame', drop=True)
+def spatial_shading_correction(movies, illumination_index=0):
+    selected_movies = [movie for movie in movies if illumination_index in movie.illumination_indices_in_movie]
+    first_frame_with_illumination = [np.where(movie.illumination_index_per_frame == illumination_index)[0][0] for movie in selected_movies]
+    # frames = xr.concat([movie.read_frames([frame], apply_corrections=False, xarray=True, flatten_channels=False)
+    #                     for movie, frame in tqdm.tqdm(zip(selected_movies, first_frame_with_illumination))], dim='frame')
+    # frames = frames.reset_index('frame', drop=True)
+    frames = np.vstack([movie.read_frames([frame], apply_corrections=False, xarray=False, flatten_channels=False)
+                        for movie, frame in tqdm.tqdm(zip(selected_movies, first_frame_with_illumination),
+                                            'Read frames', len(selected_movies))])
 
-    flatfield = xr.ones_like(frames.sel(frame=0), dtype=float)
-    darkfield = xr.zeros_like(frames.sel(frame=0), dtype=float)
+    flatfield = np.ones_like(frames[0], dtype=float)
+    darkfield = np.zeros_like(frames[0], dtype=float)
 
-    for channel in frames.channel:
-        optimizer = BaSiC(frames.sel(channel=channel).values, estimate_darkfield=True, extension=None, verbose=True)
+    for channel_index in movies[0].channel_indices:
+        optimizer = BaSiC(frames[:, channel_index, :, :], estimate_darkfield=True, extension=None, verbose=True)
         optimizer.prepare()
         optimizer.run()
-        flatfield[dict(channel=channel)] = optimizer.flatfield_fullsize
-        darkfield[dict(channel=channel)] = optimizer.darkfield_fullsize
+        flatfield[channel_index,:,:] = optimizer.flatfield_fullsize
+        darkfield[channel_index,:,:] = optimizer.darkfield_fullsize
 
     # flatfield = squeeze_channel_from_frames(flatfield)
     # darkfield = squeeze_channel_from_frames(darkfield)
