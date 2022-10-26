@@ -103,7 +103,7 @@ class File:
                                 '.nc': self.noneFunction
                                 }
 
-        print(self)
+        # print(self)
 
         if extensions is None:
             extensions = self.find_extensions()

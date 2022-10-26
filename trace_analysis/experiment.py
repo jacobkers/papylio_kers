@@ -12,6 +12,8 @@ Created on Fri Sep 14 15:24:46 2018
 import PySide2
 import os  # Miscellaneous operating system interfaces - to be able to switch from Mac to Windows
 from pathlib import Path  # For efficient path manipulation
+
+import tqdm
 import yaml
 import numpy as np
 import pandas as pd
@@ -367,8 +369,10 @@ class Experiment:
         Since sifx files made using spooling are all called 'Spooled files' the parent folder is used as file instead of the sifx file
 
         """
+        file_paths_and_extensions = self.find_file_paths_and_extensions(paths)
 
-        for file_path, extensions in zip(*self.find_file_paths_and_extensions(paths)):
+        for file_path, extensions in tqdm.tqdm(zip(*file_paths_and_extensions), 'Import files',
+                                               total=(len(file_paths_and_extensions[0]))):
             if not test_duplicates or (file_path.absolute().relative_to(self.main_path) not in self.file_paths):
                 self.files.append(File(file_path, extensions, self))
             else:
@@ -450,6 +454,15 @@ class Experiment:
     #         self.files.movie.flatfield_correction = flatfield_correction
     #     else:
     #         self.files.movie.flatfield_correction = None
+
+    def determine_flatfield_and_darkfield_corrections(self, files, illumination_index=0):
+        from trace_analysis.movie.basic_shading_correction import spatial_shading_correction
+
+        darkfield, flatfield = spatial_shading_correction(files.movie, illumination_index)
+        tifffile.imwrite(self.main_path / f'darkfield_i{illumination_index}.tif', darkfield)
+        tifffile.imwrite(self.main_path / f'flatfield_i{illumination_index}.tif', flatfield)
+        self.load_darkfield_correction()
+        self.load_flatfield_correction()
 
     def load_flatfield_correction(self):
         file_paths = list(self.main_path.glob('flatfield*'))

@@ -22,6 +22,7 @@ class TifMovie(Movie):
                             }
 
         self.file = None # Note this is for the tif file, not the File class.
+        self._time = None
 
         # self.read_header()
         # self.create_frame_info()  # Possibly move to Movie later on
@@ -68,19 +69,36 @@ class TifMovie(Movie):
                 self.pixel_size_unit = ''  # For TIR-T because it is not in metadata
                 # Or self.file.series[0].shape[0]
 
-            if 'DateTime' in self.file.pages[0].tags:
-                # For which files is this?
-                # Note that looping over tif pages will be slow.
-                self.datetime = pd.to_datetime([page.tags['DateTime'].value for page in self.file.pages])
-                self.time = xr.DataArray((self.datetime-self.datetime[0]).total_seconds(), dims='frame',
-                                         coords={}, attrs={'units': 's'})
-            elif 'DateTime' in self.file.pages[0].tags:
-                # This is for tiff images from TIR-T and TIR-V measured by Solis software
-                exposure_time = self.file.pages[0].tags['AndorExposureTime'].value # NOTE: "kinetic time (or cycle time)" is more accurate measure. But the difference is very small and often ignored.
-                time_vector = exposure_time * np.arange(0, self.number_of_frames)
-                self.time = xr.DataArray(time_vector, dims='frame', coords={}, attrs={'units': 's'})
+            # if 'DateTime' in self.file.pages[0].tags:
+            #     # For which files is this?
+            #     # Note that looping over tif pages will be slow.
+            #     self.datetime = pd.to_datetime([page.tags['DateTime'].value for page in self.file.pages])
+            #     self.time = xr.DataArray((self.datetime-self.datetime[0]).total_seconds(), dims='frame',
+            #                              coords={}, attrs={'units': 's'})
+            # elif 'DateTime' in self.file.pages[0].tags:
+            #     # This is for tiff images from TIR-T and TIR-V measured by Solis software
+            #     exposure_time = self.file.pages[0].tags['AndorExposureTime'].value # NOTE: "kinetic time (or cycle time)" is more accurate measure. But the difference is very small and often ignored.
+            #     time_vector = exposure_time * np.arange(0, self.number_of_frames)
+            #     self.time = xr.DataArray(time_vector, dims='frame', coords={}, attrs={'units': 's'})
+    #
+    @property
+    def time(self):
+        if self._time is None:
+            with self:
+                if 'DateTime' in self.file.pages[0].tags:
+                    # For which files is this?
+                    # Note that looping over tif pages will be slow.
+                    self.datetime = pd.to_datetime([page.tags['DateTime'].value for page in self.file.pages])
+                    self._time = xr.DataArray((self.datetime-self.datetime[0]).total_seconds(), dims='frame',
+                                             coords={}, attrs={'units': 's'})
+                elif 'AndorExposureTime' in self.file.pages[0].tags:
+                    # This is for tiff images from TIR-T and TIR-V measured by Solis software
+                    exposure_time = self.file.pages[0].tags['AndorExposureTime'].value # NOTE: "kinetic time (or cycle time)" is more accurate measure. But the difference is very small and often ignored.
+                    time_vector = exposure_time * np.arange(0, self.number_of_frames)
+                    self._time = xr.DataArray(time_vector, dims='frame', coords={}, attrs={'units': 's'})
 
-            # self.create_frame_info()  # Possibly move to Movie later on
+                # self.create_frame_info()  # Possibly move to Movie later on
+        return self._time
 
     def _read_frame(self, frame_number):
         with self:

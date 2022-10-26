@@ -212,7 +212,7 @@ class Movie:
             self.writepath = self.filepath.parent
             self.name = self.filepath.with_suffix('').name
 
-        self.time = None
+        self._time = None
 
         self.channels = [Channel(self, 'green', 'g', other_names=['donor', 'd']),
                          Channel(self, 'red', 'r', other_names=['acceptor', 'a'])]
@@ -276,6 +276,14 @@ class Movie:
     @property
     def bytes_per_frame(self):
         return self.data_type.itemsize * self.pixels_per_frame
+
+    @property
+    def time(self):
+        return self._time
+
+    @time.setter
+    def time(self, value):
+        self._time = value
 
     # @property
     # def channel_grid(self):
