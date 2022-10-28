@@ -80,18 +80,48 @@ class Mapping2:
         mapping = SimulatedMapping2(source, destination)
         mapping.transformation_correct = transformation
 
-
-
-        # mapping.show_correct_mapping_transformation = show_correct_mapping_transformation.__get__(mapping)
-        # setattr(mapping, 'show_correct_mapping_transformation', show_correct_mapping_transformation.__get__(mapping,cls))
         mapping.show_correct_mapping_transformation()
 
         return mapping
 
     @classmethod
     def load(cls, filepath):
-        # TODO: Move the load part in __init__ to here
-        return cls(load=filepath)
+        mapping = cls()
+        filepath = Path(filepath)
+        if filepath.suffix in ['.yml', '.yaml', '.json', '.mapping']:
+            if filepath.suffix in ['.json', '.mapping'] and filepath.open('r').read(1) == '{':
+                with filepath.open('r') as json_file:
+                    attributes = json.load(json_file)
+            elif filepath.suffix in ['.yml', '.yaml', '.mapping']:
+                with filepath.open('r') as yml_file:
+                    attributes = yaml.load(yml_file, Loader=yaml.CSafeLoader)
+
+            for key, value in attributes.items():
+                if type(value) == list:
+                    value = np.array(value)
+                try:
+                    setattr(mapping, key, value)
+                except AttributeError:
+                    pass
+
+        elif filepath.suffix == '.nc':
+            import xarray as xr
+            ds = xr.load_dataset(filepath)
+            for key, value in ds.attrs.items():
+                setattr(mapping, key, value)
+            for key, value in ds.items():
+                setattr(mapping, key, value.values)
+
+        mapping.transform = cls.transformation_types[mapping.transformation_type]
+        mapping.transformation = mapping.transform(mapping.transformation)
+        mapping.transformation_inverse = mapping.transform(mapping.transformation_inverse)
+        if hasattr(mapping, 'transformation_correct'):
+            mapping.transformation_correct = mapping.transform(mapping.transformation_correct)
+
+        mapping.name = filepath.with_suffix('').name
+        mapping.save_path = filepath.parent
+
+        return mapping
 
 
     transformation_types = {'linear': AffineTransform,
@@ -104,7 +134,7 @@ class Mapping2:
                  transformation_type='affine', initial_transformation=None, transformation=None, transformation_inverse=None,
                  source_name='source', destination_name='destination',
                  source_unit=None, destination_unit=None, destination_distance_threshold=0,
-                 name=None, load=None):
+                 name=None):
         """Set passed object attributes
 
         Parameters
@@ -166,41 +196,6 @@ class Mapping2:
         # if (source is not None) and (destination is not None):
         #     if self.method is None: self.method = 'icp'
         #     self.perform_mapping()
-
-        if load:
-            filepath = Path(load)
-            if filepath.suffix in ['.yml','.yaml','.json','.mapping']:
-                if filepath.suffix in ['.json', '.mapping'] and filepath.open('r').read(1) == '{':
-                    with filepath.open('r') as json_file:
-                        attributes = json.load(json_file)
-                elif filepath.suffix in ['.yml', '.yaml', '.mapping']:
-                    with filepath.open('r') as yml_file:
-                        attributes = yaml.load(yml_file, Loader=yaml.CSafeLoader)
-
-                for key, value in attributes.items():
-                    if type(value) == list:
-                        value = np.array(value)
-                    try:
-                        setattr(self, key, value)
-                    except AttributeError:
-                        pass
-
-            elif filepath.suffix == '.nc':
-                import xarray as xr
-                ds = xr.load_dataset(filepath)
-                for key, value in ds.attrs.items():
-                    setattr(self, key, value)
-                for key, value in ds.items():
-                    setattr(self, key, value.values)
-
-            self.transform = self.transformation_types[self.transformation_type]
-            self.transformation = self.transform(self.transformation)
-            self.transformation_inverse = self.transform(self.transformation_inverse)
-            if hasattr(self, 'transformation_correct'):
-                self.transformation_correct = self.transform(self.transformation_correct)
-
-            self.name = filepath.with_suffix('').name
-            self.save_path = filepath.parent
 
     # Function to make attributes from transformation available from the Mapping2 class
     def __getattr__(self, item):
