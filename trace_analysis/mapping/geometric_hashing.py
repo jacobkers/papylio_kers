@@ -54,7 +54,7 @@ class GeometricHashTable:
         self.destination_KDTrees, self.destination_tuple_sets, self.destination_hash_table_KDTree, \
         self.destination_transformation_matrices = destination_hash_data
 
-    def query(self, source, distance=15, alpha=0.9, sigma=10, K_threshold=10e9, hash_table_distance_threshold=0.01,
+    def query(self, source, alpha=0.9, sigma=10, K_threshold=10e9, hash_table_distance_threshold=0.01,
               magnification_range=None, rotation_range=None):
 
         return find_match_after_hashing(source, self.maximum_distance_source, self.tuple_size, self.source_vertices,
@@ -121,7 +121,7 @@ def geometric_hash(point_sets, maximum_distance=100, tuple_size=4, chunksize=Non
                 # hash_table_KDTree = cKDTree(hash_table)
                 yield point_set_index, point_tuples, hash_table, transformation_matrices
             else:
-                point_tuple_sets[point_set_index].append(point_tuples)
+                point_tuple_sets[point_set_index] += point_tuples
                 hash_tables.append(hash_table)
                 transformation_matrix_sets.append(transformation_matrices)
 
@@ -246,7 +246,7 @@ def find_match_after_hashing(source, maximum_distance_source, tuple_size, source
         destination_KDTrees = [destination_KDTrees]
 
     source_KDTree = cKDTree(source)
-    source_tuples = generate_point_tuples(source_KDTree, maximum_distance_source, tuple_size)
+    source_tuples = next(generate_point_tuples(source_KDTree, maximum_distance_source, tuple_size))
 
     hash_table_distances_checked = 0
     tuples_checked = 0
@@ -407,9 +407,9 @@ def find_common_tuple_transformation(sources, maximum_distance_source, destinati
     # np.vstack(sources)
     parameter_dict = {parameter: [] for parameter in parameters}
     for source_hash_data in tqdm.tqdm(geometric_hash(sources, maximum_distance_source, tuple_size, chunksize=chunksize), 'Source chunks'):
-        _, _, source_hash_table, source_transformation_matrices = source_hash_data
+        _, _, source_hash_table_KDTree, source_transformation_matrices = source_hash_data
 
-        source_hash_table_KDTree = cKDTree(source_hash_table)
+        # source_hash_table_KDTree = cKDTree(source_hash_table)
         tuple_matches = find_tuple_matches(source_hash_table_KDTree, destination_hash_table_KDTree,
                                            hash_table_distance_threshold)
         tuple_match_transformation_matrices = \
@@ -451,8 +451,9 @@ def find_common_tuple_transformation(sources, maximum_distance_source, destinati
 
 
 
-def find_high_density_parameters(parameter_dict, method='maximum_close_neighbours', plot=False, **method_kwargs):
+def find_high_density_parameters(parameter_dict, method='maximum_close_neighbours', plot=False, axes=None, **method_kwargs):
     parameter_values = np.hstack(list(parameter_dict.values()))
+    cluster_classification = np.zeros(parameter_values.shape[0])
     if method == 'histogram_max':
         sample_normalized = (parameter_values - parameter_values.min(axis=0)) / \
                             (parameter_values.max(axis=0) - parameter_values.min(axis=0))
@@ -480,19 +481,44 @@ def find_high_density_parameters(parameter_dict, method='maximum_close_neighbour
         if clustering.labels_.max() > 0:
             raise RuntimeError('No optimal transformation found')
         if plot:
-            plt.figure()
             plt.scatter(*parameter_values[:, :2].T, c=clustering.labels_)
-            plt.show()
+        cluster_classification = clustering.labels_
     elif method == 'maximum_close_neighbours':
         sample_normalized = (parameter_values - parameter_values.min(axis=0)) / \
                             (parameter_values.max(axis=0) - parameter_values.min(axis=0))
 
+        if 'threshold' not in method_kwargs.keys():
+            method_kwargs['threshold'] = 0.001
         tree = cKDTree(sample_normalized[:, 0:4])
-        neighbours = tree.query_ball_tree(tree, 0.001)
+        neighbours = tree.query_ball_tree(tree, method_kwargs['threshold'])
         lengths = np.array([len(n) for n in neighbours])
-        found_values = list(parameter_values[lengths==lengths.max()].mean(axis=0))
+        max_lengths = lengths == lengths.max()
+        indices_in_cluster = np.unique(np.hstack([n for n, ml in zip(neighbours, max_lengths) if ml]))
+        cluster_classification[indices_in_cluster] = 1
+        found_values = list(parameter_values[max_lengths].mean(axis=0))
     else:
         raise ValueError(f'Unknown method {method}')
+
+    if plot:
+        if axes is None:
+            figure, axes = plt.subplots(1,2, figsize=(8,4))
+        i = 0
+        if 'translation' in parameter_dict.keys():
+            axes[i].scatter(*np.array(parameter_dict['translation']).T, c=cluster_classification)
+            axes[i].set_xlabel('Translation - x')
+            axes[i].set_ylabel('Translation - y')
+            x0, x1 = axes[i].get_xlim()
+            y0, y1 = axes[i].get_ylim()
+            axes[i].set_aspect(abs(x1 - x0) / abs(y1 - y0))
+            i += 1
+
+        if 'rotation' in parameter_dict.keys() and 'scale' in parameter_dict.keys():
+            axes[i].scatter(np.array(parameter_dict['rotation']), np.atleast_2d(np.array(parameter_dict['scale']).T).T[:,0], c=cluster_classification)
+            axes[i].set_xlabel('Rotation (radians)')
+            axes[i].set_ylabel('Scale')
+            x0, x1 = axes[i].get_xlim()
+            y0, y1 = axes[i].get_ylim()
+            axes[i].set_aspect(abs(x1 - x0) / abs(y1 - y0))
 
     found_parameter_dict = {
         parameter: found_values.pop(0) if parameter == 'rotation' else [found_values.pop(0), found_values.pop(0)]

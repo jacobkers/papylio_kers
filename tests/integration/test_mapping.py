@@ -1,5 +1,6 @@
 import pytest
 import tifffile
+import pytest
 import numpy as np
 from skimage.transform import SimilarityTransform, AffineTransform
 from trace_analysis.mapping.mapping import Mapping2
@@ -14,19 +15,20 @@ def test_geometric_hash_table():
                                 bounds=([0, 0], [256, 512]), crop_bounds=((50, 200), None), fraction_missing=(0.1, 0.1),
                                 error_sigma=(0.5, 0.5), shuffle=True, seed=10252)
     mapping.geometric_hashing(method='test_one_by_one', tuple_size=4, maximum_distance_source=100, maximum_distance_destination=1000,
-                              distance=15, alpha=0.9, sigma=10, K_threshold=10e9, hash_table_distance_threshold=0.01,
+                              alpha=0.9, sigma=10, K_threshold=10e9, hash_table_distance_threshold=0.01,
                               magnification_range=None, rotation_range=None)
 
     assert mapping.transformation_is_similar_to_correct_transformation(translation_error=50, rotation_error=0.01,
                                                                        scale_error=0.2)
 
-    mapping.transformation = mapping.transformation_correct
+    mapping.transformation = transformation # mapping.transformation_correct
     mapping.geometric_hashing(method='abundant_transformations', tuple_size=4, maximum_distance_source=100, maximum_distance_destination=1000,
                               hash_table_distance_threshold=0.01,
                               parameters=['translation', 'rotation', 'scale']
                               )
 
     assert mapping.transformation_is_similar_to_correct_transformation(translation_error=10, rotation_error=0.01, scale_error=0.01)
+
 
 def test_kernel_correlations():
     translation = np.array([10, -10])
@@ -44,3 +46,17 @@ def test_kernel_correlations():
                                updating='immediate', workers=1, constraints=())
 
     assert mapping.transformation_is_similar_to_correct_transformation(translation_error=1, rotation_error=0.001, scale_error=0.001)
+
+
+def test_save(shared_datadir):
+    mapping = Mapping2.simulate()
+    mapping.save(shared_datadir / 'mapping' / 'test_mapping.nc')
+    # mapping = Mapping2.load(r'C:\Users\ivoseverins\Scan 123 - HJ general - Tile 1101.mapping')
+    # mapping.save(r'C:\Users\ivoseverins\test.nc.mapping', filetype='nc')
+    return mapping
+
+
+def test_load(shared_datadir):
+    mapping_saved = test_save(shared_datadir)
+    mapping_loaded = Mapping2.load(shared_datadir / 'mapping' / 'test_mapping.nc')
+    assert mapping_loaded == mapping_saved
