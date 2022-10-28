@@ -27,79 +27,53 @@ from trace_analysis.mapping.mapping import Mapping2
 
 
 #####################################
-# SEQUENCING DATA PROCESSING
-#####################################
-
-# TODO: Make a python function to convert a complete bam/sam file to nc dataset with written out sequences
-
-# -----------------------------------
-# Open existing dataset
-# -----------------------------------
-# sequencing_dataset_path = r'G:\Ivo\20211005 - Objective-type TIRF (BN)\Analysis\HJ_general_mapped.nc'
-# sequencing_dataset = xr.open_dataset(sequencing_dataset_path)
-# sequencing_dataset = sequencing_dataset.set_index(sequence=['tile', 'x', 'y'])
-#
-# sequencing_dataset['read_aligned'] = sequencing_dataset.read_aligned.astype(str)
-# sequencing_dataset['quality_aligned'] = sequencing_dataset.quality_aligned.astype(str)
-
-#####################################
 # SINGLE-MOLECULE DATA PROCESSING
 #####################################
 
-experiment_path = r'N:\tnw\BN\CMJ\Shared\Ivo\PhD_data\20220602 - Objective-type TIRF (BN)'
-
+experiment_path = r'N:\tnw\BN\CMJ\Shared\Ivo\PhD_data\20221023 - Objective-type TIRF (BN)'
+# experiment_path = r'N:\tnw\BN\CMJ\Shared\Ivo\PhD_data\20221023 - Objective-type TIRF (BN)\Test'
 exp = ta.Experiment(experiment_path)
 
 files_channel_mapping = exp.files[exp.files.relativeFilePath.str.regex('Bead slide')]
-files_green_laser = exp.files[exp.files.relativeFilePath.str.regex('Scan.*TIRF 561')]
-files_red_laser_after = exp.files[exp.files.relativeFilePath.str.regex('TIRF 642 after')]
-files_red_laser_before = exp.files[exp.files.relativeFilePath.str.regex('TIRF 642 before')]
+files_green_laser = exp.files[exp.files.relativeFilePath.str.regex('3.*HJ_scan TIRF 561')]
+files_red_laser_after = exp.files[exp.files.relativeFilePath.str.regex('3.*HJ_scan TIRF 642 after')]
+files_red_laser_before = exp.files[exp.files.relativeFilePath.str.regex('3.*HJ_scan TIRF 642 before')]
+
+files_red_laser_before.movie.illumination_arrangement = [1]
+files_red_laser_after.movie.illumination_arrangement = [1]
 
 # -----------------------------------
 # Channel mapping
 # -----------------------------------
-channel_mapping_file = files_channel_mapping[-1]
-channel_mapping_file.perform_mapping()
-
-channel_mapping_file.show_average_image()
-channel_mapping_file.mapping.show_mapping_transformation(figure=plt.gcf(), show_source=True)
+# channel_mapping_file = files_channel_mapping[0]
+# channel_mapping_file.perform_mapping()
+#
+# channel_mapping_file.show_average_image()
+# channel_mapping_file.mapping.show_mapping_transformation(figure=plt.gcf(), show_source=True)
 
 # -----------------------------------
-# Find coordinates for sequence mapping
+# Image corrections
 # -----------------------------------
-configuration = exp.configuration['find_coordinates'].copy()
-# configuration['peak_finding']['minimum_intensity_difference'] = 4000
-configuration['peak_finding']['minimum_times_background'] = 4 # First try was 7
-configuration['channels'] = ['acceptor']
-configuration['method'] = 'by_channel'
+exp.determine_flatfield_and_darkfield_corrections(files_green_laser, illumination_index=0)
+exp.determine_flatfield_and_darkfield_corrections(files_red_laser_before, illumination_index=1)
 
-files_red_laser_before.find_coordinates(configuration=configuration)
-# files_red_laser_before[7000].show_coordinates_in_image()
+files_green_laser.movie.determine_temporal_background_correction('fit_background_peak')
+files_red_laser_before.movie.determine_temporal_background_correction('fit_background_peak')
+files_red_laser_after.movie.determine_temporal_background_correction('fit_background_peak')
 
-configuration = exp.configuration['find_coordinates'].copy()
-# configuration['peak_finding']['minimum_intensity_difference'] = 4000
-configuration['peak_finding']['minimum_times_background'] = 3 # First try was 7
-configuration['channels'] = ['acceptor']
-configuration['method'] = 'by_channel'
-
-files_red_laser_before_scan_4 = files_red_laser_before[files_red_laser_before.relativePath.str.regex('Scan 4')]
-files_red_laser_before_scan_4.find_coordinates(configuration=configuration)
-
-
-
+for file in files_green_laser:
+    temporal_illumination_correction = file.movie.temporal_background_correction.sel(channel=1) / 1500
+    temporal_background_correction = file.movie.temporal_background_correction / temporal_illumination_correction
+    file.movie.temporal_background_correction = temporal_background_correction
+    file.movie.temporal_illumination_correction = temporal_illumination_correction
+    file.movie.save_corrections('temporal_background_correction', 'temporal_illumination_correction')
 
 # -----------------------------------
 # Find coordinates, extract traces and determine kinetics
 # -----------------------------------
 
-configuration = exp.configuration['find_coordinates'].copy()
-# configuration['peak_finding']['minimum_intensity_difference'] = 4000
-configuration['peak_finding']['minimum_times_background'] = 1.2 #1.4 for red only
-configuration['channels'] = ['donor', 'acceptor']
-configuration['method'] = 'sum_channels'
-
-files_green_laser.find_coordinates(configuration=configuration)
-files_green_laser[7000].show_coordinates_in_image()
+files_green_laser.find_coordinates()
+files_green_laser[652].show_coordinates_in_image()
 
 files_green_laser.extract_traces()
 
@@ -151,8 +125,8 @@ with tqdm_joblib(tqdm.tqdm(total=len(files_green_laser))):
 # IMPORT SEQUENCING DATA
 #####################################
 
-sequencing_analysis_path = Path(r'N:\tnw\BN\CMJ\Shared\Ivo\PhD_data\20220607 - Sequencer (MiSeq)\Analysis')
-aligned_sam_filepath = sequencing_analysis_path.joinpath('Alignment.sam')
+sequencing_analysis_path = Path(r'N:\tnw\BN\CMJ\Shared\Ivo\PhD_data\20221024 - Sequencer (MiSeq)\Analysis')
+aligned_sam_filepath = sequencing_analysis_path.joinpath('Alignment_read1.sam')
 index1_fastq_filepath = sequencing_analysis_path.joinpath('Index1.fastq') # Can be None
 extract_sequence_subset = [30, 31, 56, 57, 82, 83, 108, 109]
 
