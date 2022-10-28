@@ -70,16 +70,20 @@ class Mapping2:
                                                               error_sigma,
                                                               shuffle, seed=seed)
 
-        mapping = cls(source, destination)
+        class SimulatedMapping2(cls):
+            def show_correct_mapping_transformation(self, *args, **kwargs):
+                transformation_temp = self.transformation
+                self.transformation = self.transformation_correct
+                self.show_mapping_transformation(*args, **kwargs)
+                self.transformation = transformation_temp
+
+        mapping = SimulatedMapping2(source, destination)
         mapping.transformation_correct = transformation
 
-        def show_correct_mapping_transformation(self, *args, **kwargs):
-            transformation_temp = self.transformation
-            self.transformation = self.transformation_correct
-            self.show_mapping_transformation(*args, **kwargs)
-            self.transformation = transformation_temp
 
-        mapping.show_correct_mapping_transformation = show_correct_mapping_transformation.__get__(mapping)
+
+        # mapping.show_correct_mapping_transformation = show_correct_mapping_transformation.__get__(mapping)
+        # setattr(mapping, 'show_correct_mapping_transformation', show_correct_mapping_transformation.__get__(mapping,cls))
         mapping.show_correct_mapping_transformation()
 
         return mapping
@@ -180,9 +184,20 @@ class Mapping2:
                         setattr(self, key, value)
                     except AttributeError:
                         pass
-                self.transform = self.transformation_types[self.transformation_type]
-                self.transformation = self.transform(self.transformation)
-                self.transformation_inverse = self.transform(self.transformation_inverse)
+
+            elif filepath.suffix == '.nc':
+                import xarray as xr
+                ds = xr.load_dataset(filepath)
+                for key, value in ds.attrs.items():
+                    setattr(self, key, value)
+                for key, value in ds.items():
+                    setattr(self, key, value.values)
+
+            self.transform = self.transformation_types[self.transformation_type]
+            self.transformation = self.transform(self.transformation)
+            self.transformation_inverse = self.transform(self.transformation_inverse)
+            if hasattr(self, 'transformation_correct'):
+                self.transformation_correct = self.transform(self.transformation_correct)
 
             self.name = filepath.with_suffix('').name
             self.save_path = filepath.parent
@@ -193,6 +208,9 @@ class Mapping2:
             return getattr(self.transformation, item)
         else:
             super().__getattribute__(item)
+
+    def __eq__(self, other):
+        return compare_objects(self, other) and compare_objects(other, self)
 
     # @property
     # def translation(self):
@@ -659,10 +677,19 @@ class Mapping2:
         else:
             return ''
 
-    def show_mapping_transformation(self, figure=None, show_source=False, show_destination=False,
+    def show_source(self, **kwargs):
+        return self.show_mapping_transformation(show_source=True, show_destination=False, show_transformed_coordinates=False,
+                                                **kwargs)
+
+    def show_destination(self, **kwargs):
+        return self.show_mapping_transformation(show_source=False, show_destination=True, show_transformed_coordinates=False,
+                                                **kwargs)
+
+    def show_mapping_transformation(self, axis=None, show_source=False, show_destination=False,
                                     show_transformed_coordinates=True, show_pairs=True,
                                     crop=False, inverse=False, source_colour='forestgreen', destination_colour='r',
-                                    pair_colour='b', use_distance_threshold=True, save=False, save_path=None, legend_off=False):
+                                    pair_colour='b', use_distance_threshold=True, save=False, save_path=None,
+                                    legend_off=False, return_plot=False):
         """Show a point scatter of the source transformed to the destination points and the destination.
 
         Parameters
@@ -674,9 +701,11 @@ class Mapping2:
             If True then the source points are also displayed
 
         """
-        # Perhaps in case there is no transformation defined, we can show the source and destination, without transformed coordinates.
-        if not figure:
-            figure = plt.figure()
+
+        if axis is None:
+            figure, axis = plt.subplots()
+        else:
+            figure = axis.figure
 
         source = self.get_source(crop)
         destination = self.get_destination(crop)
@@ -684,24 +713,22 @@ class Mapping2:
         if len(self.matched_pairs) == 0:
             show_pairs = False
 
-        axis = figure.gca()
-
-        if not inverse:
-            all_transformed_coordinates = self.transform_coordinates(self.source)
-            transformed_coordinates = self.transform_coordinates(source)
-            transformed_coordinates_name = self.source_name
-            transformed_coordinates_colour = source_colour
-            distance_threshold = self.destination_distance_threshold
-            show_destination = True
-        else:
-            all_transformed_coordinates = self.transform_coordinates(self.destination)
-            transformed_coordinates = self.transform_coordinates(destination)
-            transformed_coordinates_name = self.destination_name
-            transformed_coordinates_colour = destination_colour
-            distance_threshold = self.source_distance_threshold
-            show_source = True
-
         if show_transformed_coordinates:
+            if not inverse:
+                all_transformed_coordinates = self.transform_coordinates(self.source)
+                transformed_coordinates = self.transform_coordinates(source)
+                transformed_coordinates_name = self.source_name
+                transformed_coordinates_colour = source_colour
+                distance_threshold = self.destination_distance_threshold
+                show_destination = True
+            else:
+                all_transformed_coordinates = self.transform_coordinates(self.destination)
+                transformed_coordinates = self.transform_coordinates(destination)
+                transformed_coordinates_name = self.destination_name
+                transformed_coordinates_colour = destination_colour
+                distance_threshold = self.source_distance_threshold
+                show_source = True
+
             if distance_threshold > 0 and use_distance_threshold:
                 plot_circles(axis, transformed_coordinates, radius=distance_threshold, linewidth=1,
                              facecolor='none', edgecolor=transformed_coordinates_colour)
@@ -715,9 +742,9 @@ class Mapping2:
                 if show_pairs:
                     axis.scatter(*all_transformed_coordinates[self.matched_pairs[:, 0]].T, facecolors='none',
                                  edgecolors=pair_colour, linewidth=1, marker='o')
-        else:
-            show_source = True
-            show_destination = True
+        # else:
+        #     show_source = True
+        #     show_destination = True
 
         if show_source:
             axis.scatter(*source.T, facecolors=source_colour, edgecolors='none', marker='.',
@@ -766,6 +793,9 @@ class Mapping2:
                 save_path = self.save_path
             save_path = Path(save_path)
             figure.savefig(save_path.joinpath(self.name+'.png'), bbox_inches='tight', dpi=250)
+
+        if return_plot:
+            return figure, axis
 
     def get_transformation_direction(self, direction):
         """ Get inverse parameter based on direction
@@ -916,7 +946,7 @@ class Mapping2:
         d_at_max = d[np.where(max_L_minus_d == L_minus_d)][0]
         return d_at_max, max_L_minus_d
 
-    def save(self, save_path=None, filetype='json'):
+    def save(self, save_path=None, filetype='nc'):
         """Save the current mapping in a file, so that it can be opened later.
 
         Parameters
@@ -928,7 +958,7 @@ class Mapping2:
             Choose yml to export all object attributes in a yml text file
 
         """
-
+        save_path = Path(save_path)
         if save_path is None and self.save_path is not None:
             save_path = self.save_path
         if not save_path.is_dir(): # save_path.suffix != '':
@@ -981,10 +1011,48 @@ class Mapping2:
                 with filepath.with_suffix('.mapping').open('w') as json_file:
                     json.dump(attributes, json_file, sort_keys=False)
 
+        elif filetype == 'nc':
+            import xarray as xr
+            ds = xr.Dataset()
+            attributes = self.__dict__.copy()
+
+            for key in list(attributes.keys()):
+                value = attributes[key]
+                if type(value) in [str, int, float]:
+                    ds.attrs[key] = value
+                elif isinstance(value, skimage.transform._geometric.GeometricTransform):
+                    ds[key] = (('transformation_dim_0', 'transformation_dim_1'), value.params)
+                elif type(value).__module__ == np.__name__:
+                    if key in ['source', 'destination', 'matched_pairs']:
+                        ds[key] = ((key + '_index', 'dimension'), value.reshape(-1,2))
+                    else:
+                        print(key)
+                    # ds[key] = value
+
+            ds.to_netcdf(filepath.with_suffix('.nc'), 'w')
+
         self.save_path = save_path
 
     def transformation_is_similar_to_correct_transformation(self, **kwargs):
         return is_similar_transformation(self.transformation, self.transformation_correct, **kwargs)
+
+
+def compare_objects(object1, object2):
+    for key1, value1 in object1.__dict__.items():
+        if hasattr(object2, key1):
+            if isinstance(value1, np.ndarray):
+                is_equal = np.all(value1 == getattr(object2, key1))
+            elif isinstance(value1, skimage.transform._geometric.GeometricTransform):
+                is_equal = np.all(value1.params == getattr(object2, key1).params)
+            else:
+                is_equal = value1 == getattr(object2, key1)
+        else:
+            is_equal = False
+
+        if not is_equal:
+            return False
+    return True
+
 
 def is_similar_transformation(transformation1, transformation2, translation_error, rotation_error, scale_error):
     translation_check = (np.abs(transformation1.translation - transformation2.translation) < translation_error).all()
@@ -994,6 +1062,7 @@ def is_similar_transformation(transformation1, transformation2, translation_erro
 
 import scipy.sparse
 
+
 def singly_matched_pairs_within_radius(distance_matrix_, distance_threshold):
     matches = distance_matrix_ < distance_threshold
     sum_1 = matches.sum(axis=1) != 1
@@ -1001,6 +1070,7 @@ def singly_matched_pairs_within_radius(distance_matrix_, distance_threshold):
     matches[sum_1, :] = False
     matches[:, sum_0] = False
     return np.asarray(np.where(matches)).T
+
 
 def distance_threshold_from_number_of_matches(radii, number_of_pairs, plot=True):
     # distance_threshold = np.sum(radii * number_of_pairs_summed) / np.sum(number_of_pairs_summed)
@@ -1014,6 +1084,7 @@ def distance_threshold_from_number_of_matches(radii, number_of_pairs, plot=True)
         axis.set_ylabel('Count')
 
     return distance_threshold
+
 
 def plot_circles(axis, coordinates, radius=6, **kwargs):
     circles = [plt.Circle((x, y), radius=radius) for x, y in coordinates]
