@@ -54,14 +54,14 @@ files_red_laser_after.movie.illumination_arrangement = [1]
 # -----------------------------------
 # Image corrections
 # -----------------------------------
-exp.determine_flatfield_and_darkfield_corrections(files_green_laser, illumination_index=0)
-exp.determine_flatfield_and_darkfield_corrections(files_red_laser_before, illumination_index=1)
+exp.determine_flatfield_and_darkfield_corrections(files_green_laser, illumination_index=0, l_s=5, l_d=5)
+exp.determine_flatfield_and_darkfield_corrections(files_red_laser_before, illumination_index=1, l_s=5, l_d=5)
 
 files_green_laser.movie.determine_temporal_background_correction('fit_background_peak')
 files_red_laser_before.movie.determine_temporal_background_correction('fit_background_peak')
 files_red_laser_after.movie.determine_temporal_background_correction('fit_background_peak')
 
-for file in files_green_laser:
+for file in tqdm.tqdm(files_green_laser):
     temporal_illumination_correction = file.movie.temporal_background_correction.sel(channel=1) / 1500
     temporal_background_correction = file.movie.temporal_background_correction / temporal_illumination_correction
     file.movie.temporal_background_correction = temporal_background_correction
@@ -139,11 +139,11 @@ exp.import_sequencing_data(aligned_sam_filepath, index1_file_path=index1_fastq_f
 
 mapping_sequence_name = 'HJ_general'
 
-files_scan123 = files_red_laser_before[files_red_laser_before.relativePath.str.regex('Scan 1|Scan 3')]
-exp.generate_tile_mappings(files_scan123, mapping_sequence_name=mapping_sequence_name, surface=0, name='Scan 123')
+# files_scan123 = files_red_laser_before[files_red_laser_before.relativePath.str.regex('Scan 1|Scan 3')]
+exp.generate_tile_mappings(files_green_laser, mapping_sequence_name=mapping_sequence_name, surface=0)
 
-files_scan4 = files_red_laser_before[files_red_laser_before.relativePath.str.regex('Scan 4')]
-exp.generate_tile_mappings(files_scan4, mapping_sequence_name=mapping_sequence_name, surface=0, name='Scan 4')
+# files_scan4 = files_red_laser_before[files_red_laser_before.relativePath.str.regex('Scan 4')]
+# exp.generate_tile_mappings(files_scan4, mapping_sequence_name=mapping_sequence_name, surface=0, name='Scan 4')
 
 
 # -----------------------------------
@@ -201,10 +201,11 @@ files = files_green_laser[0:14*30]
 # TODO: Make this automatically save the sequencing data
 # TODO: Automatic import and export when setting or getting sequencing data
 files_green_laser.parallel_processing_kwargs['require'] = 'sharedmem'
-files_green_scan123 = files_green_laser[files_green_laser.relativePath.str.regex('Scan 1|Scan 3')]
-files_green_scan123.get_sequencing_data(margin=5, mapping_name='Scan 123 - HJ general')
-files_green_scan4 = files_green_laser[files_green_laser.relativePath.str.regex('Scan 4')]
-files_green_scan4.get_sequencing_data(margin=5, mapping_name='Scan 4 - HJ general')
+# files_green_scan123 = files_green_laser[files_green_laser.relativePath.str.regex('Scan 1|Scan 3')]
+files_green_laser.get_sequencing_data(margin=5)
+# files_green_scan4 = files_green_laser[files_green_laser.relativePath.str.regex('Scan 4')]
+# files_green_scan4.get_sequencing_data(margin=5, mapping_name='Scan 4 - HJ general')
+
 files_green_laser.parallel_processing_kwargs.pop('require')
 files_green_laser.generate_sequencing_match(overlapping_points_threshold=25)
 
@@ -232,6 +233,7 @@ sequencing_matches.kernel_correlation(bounds, sigma=0.125, crop=True,
                                          mutation=0.25, recombination=0.7, seed=None, callback=None, disp=False,
                                          polish=True, init='sobol', atol=0, updating='immediate', workers=1,
                                          constraints=())
+sequencing_matches.save()
 
 # -----------------------------------
 # Find pairs and insert sequencing data into file dataset
@@ -241,6 +243,9 @@ sequencing_matches.find_distance_threshold(maximum_radius=2)
 sequencing_matches.determine_matched_pairs()
 plt.figure()
 plt.hist(np.hstack(sequencing_matches.pair_distances()), bins=100)
+plt.title('Pair distances for istance_threshold 0.42 um')
+plt.xlabel('Distance (um)')
+plt.ylabel('Count')
 
 sequencing_matches.destination_distance_threshold = 0.2  # 0.506
 sequencing_matches.determine_matched_pairs()
@@ -248,9 +253,20 @@ sequencing_matches.save()
 
 sequencing_matches.show_mapping_transformation()
 
-
 files_green_laser.insert_sequencing_data_into_file_dataset()
 
+
+
+source_cropped_lengths = sequencing_matches.source_cropped.map(len)()
+destination_cropped_lengths = sequencing_matches.destination_cropped.map(len)()
+matched_pairs_lenghts = sequencing_matches.number_of_matched_points
+
+
+source_transformed_combined = np.vstack([sequencing_match.transformation(sequencing_match.source) for sequencing_match in sequencing_matches])
+destination_combined = np.unique(np.vstack([sequencing_match.destination for sequencing_match in sequencing_matches]), axis=0)
+test = Mapping2(source=source_transformed_combined, destination=destination_combined)
+test.destination_distance_threshold = 0.2
+test.determine_pairs()
 
 # ds = xr.open_mfdataset([file.relativeFilePath.with_suffix('.nc') for file in files_green_laser[0:300]], combine='nested', concat_dim='molecule',
 #                        data_vars='minimal', coords='minimal', compat='override', engine='h5netcdf')#, parallel=True)#, chunks={'molecule': 100})
