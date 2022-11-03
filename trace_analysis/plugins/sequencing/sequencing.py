@@ -611,7 +611,7 @@ class File:
     def import_sequencing_match(self):
         filename = self.absoluteFilePath.with_name(self.name + '_sequencing_match.mapping')
         if filename.is_file():
-            self._sequencing_match = Mapping2(load=filename)
+            self._sequencing_match = Mapping2.load(filename)
         else:
             self._sequencing_match = None
 
