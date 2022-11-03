@@ -431,7 +431,7 @@ class File:
         self.export_mapping(filetype='classic')
 
     def import_mapping_file(self, extension):
-        self.mapping = Mapping2(load=self.absoluteFilePath.with_suffix(extension))
+        self.mapping = Mapping2.load(self.absoluteFilePath.with_suffix(extension))
 
     def find_coordinates(self, configuration=None):
         '''
