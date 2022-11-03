@@ -1,6 +1,7 @@
 import numpy as np
 import scipy.optimize
 import scipy.ndimage
+import tqdm
 
 from trace_analysis.movie.shading_correction import get_photobleach
 
@@ -73,20 +74,24 @@ def determine_spatial_background_correction(frame, method, flatfield=None, darkf
 
     return correction
 
-def gaussian_maximum_fit(frame, width_around_peak_fitted=200):
-    def gauss_function(x, a, x0, sigma):
-        return a * np.exp(-(x - x0) ** 2 / (2 * sigma ** 2))
+def gauss_function(x, a, x0, sigma):
+    return a * np.exp(-(x - x0) ** 2 / (2 * sigma ** 2))
 
-    count, edges = np.histogram(frame.flatten(), bins=width_around_peak_fitted)
+def gaussian_maximum_fit(frame, width_around_peak_fitted=200):
+    # count, edges = np.histogram(frame.flatten(), bins=width_around_peak_fitted)
     # max_bin_center = edges[count.argmax():count.argmax()+2].mean()
+
+    frame_min = np.floor(frame.min()).astype(int)
+    frame_max = np.ceil(frame.max()).astype(int)
+
+    count, edges = np.histogram(frame.flatten(), bins=frame_max - frame_min + 1, range=(frame_min - 0.5, frame_max + 0.5))
 
     bincenters = (edges[:-1] + edges[1:]) / 2
     max_bin_center = bincenters[count.argmax()]
 
-    width = 200
+    width = width_around_peak_fitted
     selection = np.vstack(
-        [max_bin_center - width / 2 < bincenters, bincenters < max_bin_center + width / 2]).all(
-        axis=0)
+        [max_bin_center - width / 2 < bincenters, bincenters < max_bin_center + width / 2]).all(axis=0)
     x = bincenters[selection]
     y = count[selection]
 
