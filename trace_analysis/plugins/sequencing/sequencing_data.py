@@ -223,7 +223,7 @@ def parse_sam(sam_filepath, read_name='read1', remove_duplicates=True, add_align
                                 read_name + '_sequence', read_name + '_quality'],
                          chunksize=chunksize) as reader:
 
-            for i, chunk in tqdm.tqdm(enumerate(reader), 'Parse sam file', total=number_of_sequences/chunksize):
+            for i, chunk in tqdm.tqdm(enumerate(reader), 'Parse sam file', total=number_of_sequences//chunksize+1):
                 df_chunk = chunk
                 df_chunk.index.name = 'sequence'
                 if remove_duplicates:
