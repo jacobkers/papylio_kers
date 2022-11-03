@@ -13,7 +13,9 @@ from numba import njit
 # https://github.com/linum-uqam/PyBaSiC
 
 class BaSiC(object):
-    def __init__(self, input, estimate_darkfield=False, extension=".tif", verbose=False):
+    def __init__(self, input, estimate_darkfield=False, extension=".tif", verbose=False,
+                 working_size=128, epsilon=0.1, l_s=None, l_d=None, reweighting_tolerance=1e-3,
+                 max_reweightingIterations=10):
         """Input can either be:
          - Path to a directory containing the images to process
          - List of images path to process
@@ -39,12 +41,12 @@ class BaSiC(object):
             raise "input should either be a directory, a list of ndarrays, or a ndarray stack."
 
         # Optimizer parameters
-        self.working_size = 128  # px : image resampling size to accelerate learning.
-        self.epsilon = 0.1  # Iterative reweighted L1-norm stability parameter
-        self.l_s = None  # flat-field regularization parameter (set automatically if None)
-        self.l_d = None  # dark-field regularization parameter (set automatically if None)
-        self.reweighting_tolerance = 1e-3
-        self.max_reweightingIterations = 10
+        self.working_size = working_size  # px : image resampling size to accelerate learning.
+        self.epsilon = epsilon  # Iterative reweighted L1-norm stability parameter
+        self.l_s = l_s  # flat-field regularization parameter (set automatically if None)
+        self.l_d = l_d  # dark-field regularization parameter (set automatically if None)
+        self.reweighting_tolerance = reweighting_tolerance
+        self.max_reweightingIterations = max_reweightingIterations
         self.reweighting_iteration = 0
         self.estimate_darkfield = estimate_darkfield
         self.verbose = verbose

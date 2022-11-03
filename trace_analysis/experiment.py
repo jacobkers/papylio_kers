@@ -455,10 +455,10 @@ class Experiment:
     #     else:
     #         self.files.movie.flatfield_correction = None
 
-    def determine_flatfield_and_darkfield_corrections(self, files, illumination_index=0):
+    def determine_flatfield_and_darkfield_corrections(self, files, illumination_index=0, **kwargs):
         from trace_analysis.movie.basic_shading_correction import spatial_shading_correction
 
-        darkfield, flatfield = spatial_shading_correction(files.movie, illumination_index)
+        darkfield, flatfield = spatial_shading_correction(files.movie, illumination_index, **kwargs)
         tifffile.imwrite(self.main_path / f'darkfield_i{illumination_index}.tif', darkfield)
         tifffile.imwrite(self.main_path / f'flatfield_i{illumination_index}.tif', flatfield)
         self.load_darkfield_correction()
