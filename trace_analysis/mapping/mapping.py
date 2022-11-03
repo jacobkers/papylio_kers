@@ -717,8 +717,8 @@ class Mapping2:
                 distance_threshold = self.destination_distance_threshold
                 show_destination = True
             else:
-                all_transformed_coordinates = self.transform_coordinates(self.destination)
-                transformed_coordinates = self.transform_coordinates(destination)
+                all_transformed_coordinates = self.transform_coordinates(self.destination, inverse=True)
+                transformed_coordinates = self.transform_coordinates(destination, inverse=True)
                 transformed_coordinates_name = self.destination_name
                 transformed_coordinates_colour = destination_colour
                 distance_threshold = self.source_distance_threshold
@@ -728,14 +728,14 @@ class Mapping2:
                 plot_circles(axis, transformed_coordinates, radius=distance_threshold, linewidth=1,
                              facecolor='none', edgecolor=transformed_coordinates_colour)
                 if show_pairs:
-                    plot_circles(axis, all_transformed_coordinates[self.matched_pairs[:,0]],
+                    plot_circles(axis, all_transformed_coordinates[self.matched_pairs[:,int(inverse)]],
                                  radius=distance_threshold, linewidth=1,
                                  facecolor='none', edgecolor=pair_colour)
             else:
                 axis.scatter(*transformed_coordinates.T, facecolors='none', edgecolors=transformed_coordinates_colour,
                              linewidth=1, marker='o', label=f'{transformed_coordinates_name} transformed ({transformed_coordinates.shape[0]})')
                 if show_pairs:
-                    axis.scatter(*all_transformed_coordinates[self.matched_pairs[:, 0]].T, facecolors='none',
+                    axis.scatter(*all_transformed_coordinates[self.matched_pairs[:, int(inverse)]].T, facecolors='none',
                                  edgecolors=pair_colour, linewidth=1, marker='o')
         # else:
         #     show_source = True
@@ -953,9 +953,9 @@ class Mapping2:
             Choose yml to export all object attributes in a yml text file
 
         """
-        save_path = Path(save_path)
         if save_path is None and self.save_path is not None:
             save_path = self.save_path
+        save_path = Path(save_path)
         if not save_path.is_dir(): # save_path.suffix != '':
             self.name = save_path.with_suffix('').name
             save_path = save_path.parent
