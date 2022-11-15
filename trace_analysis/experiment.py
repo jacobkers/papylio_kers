@@ -482,9 +482,9 @@ class Experiment:
                 flatfield_correction[dict(illumination=illumination_index, channel=channel_indices)] = \
                     movie.separate_channels(flatfield)
 
-            self.files.movie.flatfield_correction = flatfield_correction
+            self.files.movie.serial._corrections.update({'flatfield_correction': flatfield_correction})
         else:
-            self.files.movie.flatfield_correction = None
+            self.files.movie._corrections.drop_vars('flatfield_correction', errors='ignore')
 
     def load_darkfield_correction(self):
         file_paths = list(self.main_path.glob('darkfield*'))
@@ -504,9 +504,9 @@ class Experiment:
                 darkfield_correction[dict(illumination=illumination_index, channel=channel_indices)] = \
                     movie.separate_channels(darkfield)
 
-            self.files.movie.darkfield_correction = darkfield_correction
+            self.files.movie.serial._corrections.update({'darkfield_correction': darkfield_correction})
         else:
-            self.files.movie.darkfield_correction = None
+            self.files.movie._corrections.drop_vars('darkfield_correction', errors='ignore')
 
     # def load_darkfield_correction(self):
     #     file_paths = list(self.main_path.glob('darkfield*'))
