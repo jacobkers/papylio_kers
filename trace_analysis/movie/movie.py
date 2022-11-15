@@ -231,7 +231,7 @@ class Movie:
         # self._temporal_background_correction = None
         # self._temporal_illumination_correction = None
 
-        self._corrections = xr.Dataset()
+        self._common_corrections = xr.Dataset()
 
         # self.load_corrections()
 
@@ -935,7 +935,7 @@ class Movie:
         corrections_filepath = self.filepath.with_name(self.name + '_corrections.nc')
         if corrections_filepath.exists():
             corrections = xr.load_dataset(corrections_filepath, engine='h5netcdf')
-        corrections.update(self._corrections)
+        corrections = corrections.merge(self._common_corrections, compat='override')
         return corrections
 
     # def load_corrections(self):
@@ -953,7 +953,7 @@ class Movie:
         else:
             corrections = xr.Dataset()
         for name, correction in kwargs.items():
-            correction = getattr(self, name)
+            # correction = getattr(self, name)
             if correction is None:
                 corrections = corrections.drop_vars(name, errors='ignore')
             else:

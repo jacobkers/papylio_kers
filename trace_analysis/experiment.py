@@ -195,6 +195,7 @@ class Experiment:
         with self.configuration:
             self.add_files(self.main_path, test_duplicates=False)
 
+        self.common_image_corrections = xr.Dataset()
         self.load_darkfield_correction()
         self.load_flatfield_correction()
 
@@ -482,9 +483,11 @@ class Experiment:
                 flatfield_correction[dict(illumination=illumination_index, channel=channel_indices)] = \
                     movie.separate_channels(flatfield)
 
-            self.files.movie.serial._corrections.update({'flatfield_correction': flatfield_correction})
+            self.common_image_corrections['flatfield_correction'] = flatfield_correction
         else:
-            self.files.movie._corrections.drop_vars('flatfield_correction', errors='ignore')
+            self.common_image_corrections = self.common_image_corrections.drop_vars('flatfield_correction', errors='ignore')
+
+        self.add_common_image_corrections_to_movies()
 
     def load_darkfield_correction(self):
         file_paths = list(self.main_path.glob('darkfield*'))
@@ -504,9 +507,14 @@ class Experiment:
                 darkfield_correction[dict(illumination=illumination_index, channel=channel_indices)] = \
                     movie.separate_channels(darkfield)
 
-            self.files.movie.serial._corrections.update({'darkfield_correction': darkfield_correction})
+            self.common_image_corrections['darkfield_correction'] = darkfield_correction
         else:
-            self.files.movie._corrections.drop_vars('darkfield_correction', errors='ignore')
+            self.common_image_corrections = self.common_image_corrections.drop_vars('darkfield_correction', errors='ignore')
+
+        self.add_common_image_corrections_to_movies()
+
+    def add_common_image_corrections_to_movies(self):
+        self.files.movie._common_corrections = self.common_image_corrections
 
     # def load_darkfield_correction(self):
     #     file_paths = list(self.main_path.glob('darkfield*'))
