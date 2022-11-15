@@ -935,6 +935,8 @@ class Movie:
         corrections_filepath = self.filepath.with_name(self.name + '_corrections.nc')
         if corrections_filepath.exists():
             corrections = xr.load_dataset(corrections_filepath, engine='h5netcdf')
+        else:
+            corrections = xr.Dataset()
         corrections = corrections.merge(self._common_corrections, compat='override')
         return corrections
 
