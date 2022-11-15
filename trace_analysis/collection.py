@@ -76,6 +76,16 @@ class Collection(UserList):
         # d.pop('data_type')
         return d
 
+    @property
+    def parallel(self):
+        self.use_parallel_processing = True
+        return self
+
+    @property
+    def serial(self):
+        self.use_parallel_processing = False
+        return self
+
     def map(self, fun):
         if not self.use_parallel_processing or len(self.data) == 1:
             print('Serial processing')
