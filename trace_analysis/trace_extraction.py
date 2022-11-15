@@ -24,6 +24,10 @@ def make_gaussian_mask(size, offsets, sigma=1.291):
 
 def extract_traces(movie, coordinates, background=None, mask_size=1.291, neighbourhood_size=11, correct_illumination=False):
     # go through all images, extract donor and acceptor signal
+    # TODO: Process the movie in chunks
+    # TODO: Make sure the corretions are not reloaded for each chunk,
+    #  for example by loading them once at the with statement or by keeping recent variables in the cache/memmory
+
     coordinates['dimension'] = coordinates.dimension.astype('U')
     with movie:
         movie.read_header()
@@ -63,6 +67,7 @@ def extract_traces(movie, coordinates, background=None, mask_size=1.291, neighbo
 
         # background_per_frame = background.sel(illumination=movie.illumination)
         # background_correction[:] = weighed_background(background_per_frame, twoD_gaussians).transpose((1,2,0))
+
 
         frames = movie.read_frames(xarray=False, flatten_channels=True)#.astype('uint16')
 
