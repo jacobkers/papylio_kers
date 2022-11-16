@@ -127,7 +127,7 @@ class Experiment:
             mapping.destination_name = 'Sequencing data'
             mapping.source_unit = 'µm'
             mapping.destination_unit = 'MiSeq'
-            mapping.save(tile_mapping_path.joinpath(f'{name} - Tile {tile}.mapping'))
+            mapping.save(tile_mapping_path.joinpath(f'{name} - Tile {tile}.nc'))
             tile_mappings.append(mapping)
         self._tile_mappings = None
 
@@ -430,6 +430,7 @@ class File:
         self.export_sequencing_data()
 
     def get_sequencing_data(self, margin=1, mapping_name='All files'):
+        # TODO: Make it faster, perhaps by first checking in which tile the file is located.
         sequencing_dataset = self.experiment.sequencing_data
 
         data_var_names = sequencing_dataset.dataset.data_vars.keys()

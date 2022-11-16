@@ -617,23 +617,31 @@ class Mapping2:
         return compute_kernel_correlation(self.transformation, self.get_source(crop), self.get_destination(crop), sigma=sigma)
 
     def cross_correlation(self, peak_detection='auto', gaussian_width=7, divider=5, crop=False, plot=False):
+        if type(plot) is bool:
+            axes = []
+            for i in range(4):
+                figure, axis = plt.subplots()
+                axes.append(axis)
+        else:
+            axes = plot
 
         if self.transformation is None:
             self.transformation = AffineTransform()
             self.transformation_inverse = AffineTransform()
         correlation, self.correlation_conversion_function = cross_correlate(self.get_source(crop, 'destination'), self.get_destination(crop),
-                                                                            gaussian_width=gaussian_width, divider=divider, plot=plot)
+                                                                            gaussian_width=gaussian_width, divider=divider, plot=axes[0:3])
 
         import scipy.ndimage.filters as filters
         corrected_correlation = correlation - filters.minimum_filter(correlation, 2*gaussian_width)#np.min(correlation.shape) / 200)
-        if plot:
-            plt.figure()
-            plt.imshow(corrected_correlation)
-            plt.show()
+        if plot is not False:
+            axes[3].imshow(corrected_correlation)
+            # plt.show()
 
         if peak_detection == 'auto':
             correlation_peak_coordinates = np.array(np.where(corrected_correlation==corrected_correlation.max())).flatten()[::-1]
-            plt.gca().scatter(correlation_peak_coordinates[0], correlation_peak_coordinates[1], marker='o', facecolors='none', edgecolors='r')
+            axes[2].scatter(correlation_peak_coordinates[0], correlation_peak_coordinates[1], marker='o',
+                            facecolors='none', edgecolors='r')
+            axes[3].scatter(correlation_peak_coordinates[0], correlation_peak_coordinates[1], marker='o', facecolors='none', edgecolors='r')
             self.set_correlation_peak_coordinates(correlation_peak_coordinates)
 
     def set_correlation_peak_coordinates(self, correlation_peak_coordinates):
@@ -993,7 +1001,7 @@ class Mapping2:
                     continue
                 elif isinstance(value, skimage.transform._geometric.GeometricTransform):
                     attributes[key] = value.params.tolist()
-#TODO: solve issue with nonlinear mapping.transformation_type, which spits out a tuple of two arrays (4x4) instead np.shape(value.params.tolist())== (2, 15) 
+#TODO: solve issue with nonlinear mapping.transformation_type, which spits out a tuple of two arrays (4x4) instead np.shape(value.params.tolist())== (2, 15)
                 elif type(value).__module__ == np.__name__:
                     attributes[key] = value.tolist()
                 else:
@@ -1013,7 +1021,7 @@ class Mapping2:
 
             for key in list(attributes.keys()):
                 value = attributes[key]
-                if type(value) in [str, int, float]:
+                if type(value) is str or np.issubdtype(type(value), np.number):
                     ds.attrs[key] = value
                 elif isinstance(value, skimage.transform._geometric.GeometricTransform):
                     ds[key] = (('transformation_dim_0', 'transformation_dim_1'), value.params)
