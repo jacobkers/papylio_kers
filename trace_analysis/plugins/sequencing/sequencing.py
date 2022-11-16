@@ -43,7 +43,7 @@ class Experiment:
         if self._tile_mappings is None:
             tile_mappings_path = self.main_path.joinpath('Analysis').joinpath('Tile mappings')
             self._tile_mappings = MappingCollection([Mapping2.load(filepath) for filepath in
-                                                     tile_mappings_path.glob('*.mapping')])
+                                                     tile_mappings_path.glob('*.nc')])
 
         return self._tile_mappings
 
@@ -516,9 +516,9 @@ class File:
 
             sequencing_dataset = xr.Dataset(
                 {
-                    'sequence_name': ('molecule', selected_sequencing_data.contig_name.data),
-                    'sequence': ('molecule', selected_sequencing_data.read_sequence_aligned.data),
-                    'sequence_quality': ('molecule', selected_sequencing_data.read_quality_aligned.data),
+                    'sequence_name': ('molecule', selected_sequencing_data.reference_name.data),
+                    'sequence': ('molecule', selected_sequencing_data.read1_sequence_aligned.data),
+                    'sequence_quality': ('molecule', selected_sequencing_data.read1_quality_aligned.data),
                     'sequence_subset': ('molecule', selected_sequencing_data.sequence_subset.data),
                     'sequence_quality_subset': ('molecule', selected_sequencing_data.quality_subset.data),
                     # 'distance_to_sequence':     ('molecule', distances_to_sequence),
