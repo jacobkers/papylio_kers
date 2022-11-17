@@ -616,32 +616,34 @@ class Mapping2:
     def kernel_correlation_score(self, sigma=1, crop=False):
         return compute_kernel_correlation(self.transformation, self.get_source(crop), self.get_destination(crop), sigma=sigma)
 
-    def cross_correlation(self, peak_detection='auto', gaussian_width=7, divider=5, crop=False, plot=False):
-        if type(plot) is bool:
-            axes = []
-            for i in range(4):
-                figure, axis = plt.subplots()
-                axes.append(axis)
-        else:
-            axes = plot
+    def cross_correlation(self, peak_detection='auto', gaussian_width=7, divider=5, crop=False, plot=False, axes=None):
+        if plot:
+            if axes is None:
+                axes = []
+                for i in range(4):
+                    figure, axis = plt.subplots()
+                    axes.append(axis)
+            axis3 = axes[3]
+            axes = axes[0:3]
 
         if self.transformation is None:
             self.transformation = AffineTransform()
             self.transformation_inverse = AffineTransform()
         correlation, self.correlation_conversion_function = cross_correlate(self.get_source(crop, 'destination'), self.get_destination(crop),
-                                                                            gaussian_width=gaussian_width, divider=divider, plot=axes[0:3])
+                                                                            gaussian_width=gaussian_width, divider=divider, plot=plot, axes=axes)
 
         import scipy.ndimage.filters as filters
         corrected_correlation = correlation - filters.minimum_filter(correlation, 2*gaussian_width)#np.min(correlation.shape) / 200)
-        if plot is not False:
-            axes[3].imshow(corrected_correlation)
+        if plot:
+            axis3.imshow(corrected_correlation)
             # plt.show()
 
         if peak_detection == 'auto':
             correlation_peak_coordinates = np.array(np.where(corrected_correlation==corrected_correlation.max())).flatten()[::-1]
-            axes[2].scatter(correlation_peak_coordinates[0], correlation_peak_coordinates[1], marker='o',
-                            facecolors='none', edgecolors='r')
-            axes[3].scatter(correlation_peak_coordinates[0], correlation_peak_coordinates[1], marker='o', facecolors='none', edgecolors='r')
+            if plot:
+                axes[2].scatter(correlation_peak_coordinates[0], correlation_peak_coordinates[1], marker='o',
+                                facecolors='none', edgecolors='r')
+                axis3.scatter(correlation_peak_coordinates[0], correlation_peak_coordinates[1], marker='o', facecolors='none', edgecolors='r')
             self.set_correlation_peak_coordinates(correlation_peak_coordinates)
 
     def set_correlation_peak_coordinates(self, correlation_peak_coordinates):

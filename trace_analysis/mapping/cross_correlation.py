@@ -46,7 +46,7 @@ def coordinates_to_image(coordinates, gaussian_width=7, divider=5):
 
     return image_with_gaussians, transformation
 
-def cross_correlate(source, destination, gaussian_width=7, divider=5, plot=False):
+def cross_correlate(source, destination, gaussian_width=7, divider=5, plot=False, axes=None):
     pseudo_image_source, transfomation_source = coordinates_to_image(source, gaussian_width=gaussian_width, divider=divider) #/ 5)
     pseudo_image_destination, transfomation_destination = coordinates_to_image(destination, gaussian_width=gaussian_width, divider=divider) #/ 5)
 
@@ -54,14 +54,12 @@ def cross_correlate(source, destination, gaussian_width=7, divider=5, plot=False
 
     correlation = correlate(pseudo_image_destination, pseudo_image_source, mode='full')
 
-    if plot is not False:
-        if type(plot) is bool:
+    if plot:
+        if axes is None:
             axes = []
             for i in range(3):
                 figure, axis = plt.subplots()
                 axes.append(axis)
-        else:
-            axes = plot
 
         bounds_source = transfomation_source.inverse(np.array([[0, 0], pseudo_image_source.shape[::-1]])).T
         axes[0].imshow(pseudo_image_source, origin='lower', extent=bounds_source.flatten())
