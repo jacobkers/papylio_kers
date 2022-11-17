@@ -610,16 +610,23 @@ class File:
     #     # self.sequences = self.sequencing_data.sequence
 
     def import_sequencing_match(self):
-        filename = self.absoluteFilePath.with_name(self.name + '_sequencing_match.mapping')
-        if filename.is_file():
-            self._sequencing_match = Mapping2.load(filename)
+        filepath = self.absoluteFilePath.with_name(self.name + '_sequencing_match')
+        # TODO: Link this to the possible file formats of Mapping2
+        for suffix in ['.nc', '.mapping']:
+            filepath = filepath.with_suffix(suffix)
+            if filepath.is_file():
+                self._sequencing_match = Mapping2.load(filepath)
+                break
         else:
             self._sequencing_match = None
 
     def export_sequencing_match(self):
-        filepath = self.absoluteFilePath.with_name(self.name+'_sequencing_match.mapping')
+        filepath = self.absoluteFilePath.with_name(self.name+'_sequencing_match.nc')
         if self._sequencing_match is None:
-            filepath.unlink(missing_ok=True)
+            # TODO: Link this to the possible file formats of Mapping2
+            for suffix in ['.nc', '.mapping']:
+                filepath = filepath.with_suffix(suffix)
+                filepath.unlink(missing_ok=True)
         else:
             self._sequencing_match.save(filepath)
 
