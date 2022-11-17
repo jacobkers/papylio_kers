@@ -54,15 +54,22 @@ def cross_correlate(source, destination, gaussian_width=7, divider=5, plot=False
 
     correlation = correlate(pseudo_image_destination, pseudo_image_source, mode='full')
 
-    if plot:
-        plt.figure()
-        plt.imshow(pseudo_image_source, origin='lower')
-        plt.figure()
-        plt.imshow(pseudo_image_destination, origin='lower')
+    if plot is not False:
+        if type(plot) is bool:
+            axes = []
+            for i in range(3):
+                figure, axis = plt.subplots()
+                axes.append(axis)
+        else:
+            axes = plot
 
-        plt.figure()
-        plt.imshow(correlation)
-        plt.show()
+        bounds_source = transfomation_source.inverse(np.array([[0, 0], pseudo_image_source.shape[::-1]])).T
+        axes[0].imshow(pseudo_image_source, origin='lower', extent=bounds_source.flatten())
+        bounds_destination = transfomation_destination.inverse(np.array([[0, 0], pseudo_image_destination.shape[::-1]])).T
+        axes[1].imshow(pseudo_image_destination, origin='lower', extent=bounds_destination.flatten())
+
+        axes[2].imshow(correlation, origin='lower')
+        # plt.show()
 
     def correlation_coordinates_to_translation_coordinates(correlation_peak_coordinates):
         # return back_conversion_destination(correlation_peak_coordinates - np.array(pseudo_image_source.shape)[::-1])
