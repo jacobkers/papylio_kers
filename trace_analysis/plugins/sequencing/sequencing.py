@@ -473,7 +473,7 @@ class File:
         mapping.destination_name = 'Sequencing coordinates'
         mapping.source_unit = mapping.destination_unit = 'µm'
 
-        if mapping.source_cropped.shape[0] > overlapping_points_threshold or \
+        if mapping.source_cropped.shape[0] > overlapping_points_threshold and \
                 mapping.destination_cropped.shape[0] > overlapping_points_threshold:
             self.sequencing_match = mapping
             if plot:
