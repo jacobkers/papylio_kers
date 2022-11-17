@@ -681,8 +681,11 @@ class Movie:
         """
 
         frame_range = list(frame_range)
-        if frame_range[1] > self.number_of_frames:
-            raise RuntimeWarning(f'Frame range exceeds available frames, used frame range {frame_range} instead')
+        if (frame_range[0] < self.number_of_frames) and frame_range[1] > (self.number_of_frames):
+            frame_range[1] = self.number_of_frames
+            warnings.warn(f'Frame range exceeds available frames, used frame range {frame_range} instead')
+        else:
+            raise ValueError(f'Invalid frame range {frame_range}')
 
         frame_indices = self.frame_indices.values[slice(*frame_range)]
 
