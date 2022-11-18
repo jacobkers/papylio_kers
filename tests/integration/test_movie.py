@@ -34,6 +34,10 @@ def test_make_projection_image(movie, shared_datadir):
     assert ((image_from_file - raw_images.mean(axis=0)) < 1e-4).all()  # Not sure 1e-4 is accurate enough
 
 
+def test_make_projection_image_frame_range_out_of_bounds(movie, shared_datadir):
+    movie.make_projection_image(projection_type='average', frame_range=(390, 410), illumination=None, write=True,
+                                return_image=True, flatten_channels=True)
+
 def test_make_projection_images(movie, shared_datadir):
     movie.make_projection_images(projection_type='average', frame_range=(0,20))
 
