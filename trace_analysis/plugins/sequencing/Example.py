@@ -202,12 +202,13 @@ files = files_green_laser[0:14*30]
 # TODO: Automatic import and export when setting or getting sequencing data
 files_green_laser.parallel_processing_kwargs['require'] = 'sharedmem'
 # files_green_scan123 = files_green_laser[files_green_laser.relativePath.str.regex('Scan 1|Scan 3')]
-files_green_laser.get_sequencing_data(margin=5)
+files_green_laser.get_sequencing_data(margin=5, mapping_name='All files')
 # files_green_scan4 = files_green_laser[files_green_laser.relativePath.str.regex('Scan 4')]
 # files_green_scan4.get_sequencing_data(margin=5, mapping_name='Scan 4 - HJ general')
 
 files_green_laser.parallel_processing_kwargs.pop('require')
-files_green_laser.generate_sequencing_match(overlapping_points_threshold=25)
+files_green_laser.generate_sequencing_match(overlapping_points_threshold=25,
+                                            excluded_sequence_names=['MapSeq', 'CalSeq', '*'], plot=False)
 
 # -----------------------------------
 # Finetune the sequencing matches
@@ -253,8 +254,8 @@ sequencing_matches.save()
 
 sequencing_matches.show_mapping_transformation()
 
-files_green_laser.insert_sequencing_data_into_file_dataset()
-
+files_green_laser.insert_sequencing_data_into_file_dataset(include_raw_sequences=False, include_aligned_sequences=True,
+                                                           include_sequence_subset=True, determine_matched_pairs=True)
 
 
 source_cropped_lengths = sequencing_matches.source_cropped.map(len)()
