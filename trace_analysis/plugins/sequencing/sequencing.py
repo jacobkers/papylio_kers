@@ -454,7 +454,8 @@ class File:
             sequencing_data = sequencing_dataset[selection.values]
             sequencing_data.dataset = sequencing_data.dataset.sel(mapping_name=mapping_name)
             sequencing_data.dataset = sequencing_data.dataset.assign_coords(sequence_in_file=('sequence', np.arange(len(sequencing_data))))
-            self.sequencing_data = sequencing_data.load()
+            sequencing_data.dataset.load()
+            self.sequencing_data = sequencing_data
         else:
             self.sequencing_data = None
 

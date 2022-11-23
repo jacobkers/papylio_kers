@@ -20,6 +20,10 @@ def test_sequencing_dataset_property_in_file(file):
     assert file.sequencing_data.attrs['test'] == 'test'
 
 
+def test_get_sequencing_data(file):
+    file.get_sequencing_data(margin=5, mapping_name='All files')
+
+
 def test_generate_sequencing_match(file):
     file.generate_sequencing_match(overlapping_points_threshold=25, excluded_sequence_names=['MapSeq', 'CalSeq', '*'])
 
