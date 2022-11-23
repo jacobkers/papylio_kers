@@ -35,7 +35,7 @@ class Experiment:
             sequencing_data_file_path = self.main_path.joinpath(sequencing_data_relative_file_path)
             # This should work fine for the case where it is a relative or absolute path
             if sequencing_data_file_path is not None:
-                self.sequencing_data = SequencingData(sequencing_data_file_path)
+                self.sequencing_data = SequencingData(sequencing_data_file_path, load=False)
                 print(f"\nImport sequencing data:\n{sequencing_data_relative_file_path}")
 
     @property
@@ -68,7 +68,7 @@ class Experiment:
                                                remove_duplicates=remove_duplicates,
                                                add_aligned_sequence=add_aligned_sequence,
                                                extract_sequence_subset=extract_sequence_subset, chunksize=chunksize)
-        self.sequencing_data = SequencingData(nc_file_path)
+        self.sequencing_data = SequencingData(nc_file_path, load=False)
         if store_relative_filepath:
             nc_file_path = os.path.relpath(nc_file_path, start=self.main_path)
         self.configuration['sequencing'] = {'data_file_path': nc_file_path}
@@ -419,15 +419,19 @@ class File:
 
     @property
     def sequencing_data(self):
-        if self._sequencing_data is None:
-            self.import_sequencing_data()
-
-        return self._sequencing_data
+        filepath = self.absoluteFilePath.with_name(self.name + '_sequencing_data.nc')
+        if filepath.is_file():
+            return SequencingData(filepath)
+        else:
+            return None
 
     @sequencing_data.setter
     def sequencing_data(self, value):
-        self._sequencing_data = value
-        self.export_sequencing_data()
+        filepath = self.absoluteFilePath.with_name(self.name + '_sequencing_data.nc')
+        if value is None:
+            filepath.unlink(missing_ok=True)
+        else:
+            value.save(filepath)
 
     def get_sequencing_data(self, margin=1, mapping_name='All files'):
         # TODO: Make it faster, perhaps by first checking in which tile the file is located.
@@ -453,15 +457,26 @@ class File:
         else:
             self.sequencing_data = None
 
-    def generate_sequencing_match(self, overlapping_points_threshold=25, plot=False):
-        # TODO: Add selection for sequencing data???
-        if self.sequencing_data is None:
+    def generate_sequencing_match(self, overlapping_points_threshold=25, excluded_sequence_names=None, plot=False):
+        sequencing_data = self.sequencing_data
+
+        if sequencing_data is None:
             # raise AttributeError('Sequencing data not defined, run get_sequencing_data() first')
             self.sequencing_match = None
             return
 
+        if excluded_sequence_names is not None:
+            selection = ~np.any(np.vstack([sequencing_data.reference_name == name for name in excluded_sequence_names]), axis=0)
+            sequencing_data = sequencing_data[selection]
+        else:
+            selection = np.ones(len(sequencing_data)).astype(bool)
+
+        sequencing_data.dataset['selected'] = xr.DataArray(selection, dims='sequence')
+        self.sequencing_data = sequencing_data
+
+
         source = self.coordinates_stage
-        destination = self.sequencing_data.dataset[['x_sm','y_sm']].to_array('dimension').T
+        destination = sequencing_data.dataset[['x_sm','y_sm']].to_array('dimension').T
 
         if source.shape[0] < overlapping_points_threshold or destination.shape[0] < overlapping_points_threshold:
             self.sequencing_match = None
@@ -630,20 +645,20 @@ class File:
         else:
             self._sequencing_match.save(filepath)
 
-    def import_sequencing_data(self):
-        filepath = self.absoluteFilePath.with_name(self.name + '_sequencing_data.nc')
-        if filepath.is_file():
-            self._sequencing_data = SequencingData(filepath)
-        else:
-            self._sequencing_data = None
-
-
-    def export_sequencing_data(self):
-        filepath = self.absoluteFilePath.with_name(self.name + '_sequencing_data.nc')
-        if self._sequencing_data is None:
-            filepath.unlink(missing_ok=True)
-        else:
-            self._sequencing_data.save(filepath)
+    # def import_sequencing_data(self):
+    #     filepath = self.absoluteFilePath.with_name(self.name + '_sequencing_data.nc')
+    #     if filepath.is_file():
+    #         self._sequencing_data = SequencingData(filepath)
+    #     else:
+    #         self._sequencing_data = None
+    #
+    #
+    # def export_sequencing_data(self):
+    #     filepath = self.absoluteFilePath.with_name(self.name + '_sequencing_data.nc')
+    #     if self._sequencing_data is None:
+    #         filepath.unlink(missing_ok=True)
+    #     else:
+    #         self._sequencing_data.save(filepath)
 
         # if self.sequencing_match_old is not None:
         #     self.sequencing_match_old.save(self.absoluteFilePath.with_name(self.name + '_sequencing_match_old.mapping'))
@@ -734,43 +749,43 @@ class File:
             self.export_sequencing_match()
 
 
-    def get_sequencing_data_for_file(self): #, margin=10):
+    # def get_sequencing_data_for_file(self): #, margin=10):
+    #
+    #     # sequencing_coordinates_in_image = \
+    #     #     self.sequencing_match.transform_coordinates(self.experiment.sequencing_data.coordinates, inverse=True)
+    #     # coordinate_selection = \
+    #     #     pth.Path(self.sequencing_match.source_vertices).contains_points(sequencing_coordinates_in_image)
+    #     #
+    #     # self.sequencing_data = \
+    #     #     self.experiment.sequencing_data.get_selection(tile=self.sequencing_match.tile,
+    #     #                                                   boolean_selection=coordinate_selection)
+    #
+    #     def interpolate(coordinates):
+    #         coordinates = np.vstack([coordinates, coordinates[0]])
+    #         return np.linspace(coordinates, np.roll(coordinates, -1, axis=0)).reshape(-1, 2, order='F')
+    #
+    #     source_vertices_interpolated = interpolate(self.sequencing_match.source_vertices)
+    #     destination_vertices_interpolated = self.sequencing_match.transform_coordinates(source_vertices_interpolated)
+    #     self.sequencing_data = \
+    #         self.experiment.sequencing_data.get_selection(tile=self.sequencing_match.tile,
+    #                                                       coordinates_within_vertices=destination_vertices_interpolated)
+    #
+    #     self.sequencing_data.export_fastq(self.relativeFilePath)
 
-        # sequencing_coordinates_in_image = \
-        #     self.sequencing_match.transform_coordinates(self.experiment.sequencing_data.coordinates, inverse=True)
-        # coordinate_selection = \
-        #     pth.Path(self.sequencing_match.source_vertices).contains_points(sequencing_coordinates_in_image)
-        #
-        # self.sequencing_data = \
-        #     self.experiment.sequencing_data.get_selection(tile=self.sequencing_match.tile,
-        #                                                   boolean_selection=coordinate_selection)
-
-        def interpolate(coordinates):
-            coordinates = np.vstack([coordinates, coordinates[0]])
-            return np.linspace(coordinates, np.roll(coordinates, -1, axis=0)).reshape(-1, 2, order='F')
-
-        source_vertices_interpolated = interpolate(self.sequencing_match.source_vertices)
-        destination_vertices_interpolated = self.sequencing_match.transform_coordinates(source_vertices_interpolated)
-        self.sequencing_data = \
-            self.experiment.sequencing_data.get_selection(tile=self.sequencing_match.tile,
-                                                          coordinates_within_vertices=destination_vertices_interpolated)
-
-        self.sequencing_data.export_fastq(self.relativeFilePath)
-
-    def optimize_sequencing_match_using_visible_sequences(self, visible_sequence_names='', distance_threshold=25,
-                                                          show=False, save=True, **kwargs):
-        self.sequencing_match_old = copy.deepcopy(self.sequencing_match)
-
-        sequencing_data = self.sequencing_data.get_selection(in_name=visible_sequence_names)
-
-        self.sequencing_match.source = self.coordinates_from_channel(self.sequencing_match.channel)
-        self.sequencing_match.destination = sequencing_data.coordinates
-        self.sequencing_match.nearest_neighbour_match(distance_threshold, **kwargs)
-
-        if show:
-            self.plot_sequencing_match()
-        if save:
-            self.export_sequencing_match()
+    # def optimize_sequencing_match_using_visible_sequences(self, visible_sequence_names='', distance_threshold=25,
+    #                                                       show=False, save=True, **kwargs):
+    #     self.sequencing_match_old = copy.deepcopy(self.sequencing_match)
+    #
+    #     sequencing_data = self.sequencing_data.get_selection(in_name=visible_sequence_names)
+    #
+    #     self.sequencing_match.source = self.coordinates_from_channel(self.sequencing_match.channel)
+    #     self.sequencing_match.destination = sequencing_data.coordinates
+    #     self.sequencing_match.nearest_neighbour_match(distance_threshold, **kwargs)
+    #
+    #     if show:
+    #         self.plot_sequencing_match()
+    #     if save:
+    #         self.export_sequencing_match()
 
     def determine_sequences_at_current_coordinates(self, visible_sequence_names='', distance_threshold=None):
         selection = self.sequencing_data.selection(in_name=visible_sequence_names)

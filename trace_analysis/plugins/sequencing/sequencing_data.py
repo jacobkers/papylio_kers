@@ -14,6 +14,33 @@ import re
 
 from trace_analysis.plugins.sequencing.plotting import plot_cluster_locations_per_tile
 
+# class DatasetPointer:
+#     def __init__(self, file_path):
+#         self.__dict__['file_path'] = file_path
+#         self.__dict__['_dataset'] = None
+#
+#     def __enter__(self):
+#         self._dataset = xr.open_dataset(self.file_path, engine='h5netcdf')
+#         return self._dataset
+#
+#     def __exit__(self, exc_type, exc_val, exc_tb):
+#         self._dataset.close()
+#         self._dataset = None
+#
+#     def __getattr__(self, item):
+#         print(item)
+#         with self as ds:
+#             return ds[item].load()
+#
+#     def __setattr__(self, key, value):
+#         value = xr.DataArray(value)
+#         value.name = key
+#         value.to_netcdf(self.file_path, mode='a', engine='h5netcdf')
+
+
+
+
+
 # Update class with new sam analysis function below
 class SequencingData:
 
@@ -26,13 +53,16 @@ class SequencingData:
     # def load(cls):
     #     cls()
 
-    def __init__(self, file_path=None, dataset=None, name='', reagent_kit='v3', file_kwargs={}):
+    def __init__(self, file_path=None, dataset=None, name='', reagent_kit='v3', load=True, file_kwargs={}):
         if file_path is not None:
             file_path = Path(file_path)
             if file_path.suffix == '.nc':
                 # with xr.open_dataset(file_path.with_suffix('.nc'), engine='h5netcdf') as dataset:
                 #     self.dataset = dataset.load().set_index({'sequence': ('tile','x','y')})
-                self.dataset = xr.open_dataset(file_path.with_suffix('.nc'), engine='netcdf4')#, chunks=10000)
+                if load:
+                    self.dataset = xr.load_dataset(file_path.with_suffix('.nc'), engine='netcdf4')
+                else:
+                    self.dataset = xr.open_dataset(file_path.with_suffix('.nc'), engine='netcdf4')#, chunks=10000)
                 self.dataset = self.dataset.set_index({'sequence': ('tile', 'x', 'y')})
             else:
                 data = pd.read_csv(file_path, delimiter='\t')
@@ -79,6 +109,9 @@ class SequencingData:
 
     def __repr__(self):
         return (f'{self.__class__.__name__}({self.name})')
+
+    def __len__(self):
+        return len(self.dataset.sequence)
 
     @property
     def coordinates(self):
