@@ -453,12 +453,13 @@ class File:
         if selection.any():
             sequencing_data = sequencing_dataset[selection.values]
             sequencing_data.dataset = sequencing_data.dataset.sel(mapping_name=mapping_name)
-            self.sequencing_data = sequencing_data
+            sequencing_data.dataset = sequencing_data.dataset.assign_coords(sequence_in_file=('sequence', np.arange(len(sequencing_data))))
+            self.sequencing_data = sequencing_data.load()
         else:
             self.sequencing_data = None
 
     def generate_sequencing_match(self, overlapping_points_threshold=25, excluded_sequence_names=None, plot=False):
-        sequencing_data = self.sequencing_data
+        sequencing_data = self.sequencing_data # Load sequencing data
 
         if sequencing_data is None:
             # raise AttributeError('Sequencing data not defined, run get_sequencing_data() first')
@@ -467,13 +468,13 @@ class File:
 
         if excluded_sequence_names is not None:
             selection = ~np.any(np.vstack([sequencing_data.reference_name == name for name in excluded_sequence_names]), axis=0)
-            sequencing_data = sequencing_data[selection]
         else:
             selection = np.ones(len(sequencing_data)).astype(bool)
 
-        sequencing_data.dataset['selected'] = xr.DataArray(selection, dims='sequence')
+        sequencing_data.dataset['selected'] = xr.DataArray(selection, coords={'sequence': sequencing_data.dataset.sequence})
         self.sequencing_data = sequencing_data
 
+        sequencing_data = sequencing_data[selection]
 
         source = self.coordinates_stage
         destination = sequencing_data.dataset[['x_sm','y_sm']].to_array('dimension').T
@@ -496,84 +497,59 @@ class File:
         else:
             self.sequencing_match = None
 
-    def insert_sequencing_data_into_file_dataset(self):
+    def insert_sequencing_data_into_file_dataset(self, include_raw_sequences=False, include_aligned_sequences=True,
+                                                 include_sequence_subset=True, determine_matched_pairs=True):
+        sequencing_data = self.sequencing_data # Load sequencing data
         if self.sequencing_match is None:
             selected_sequencing_data = None
         else:
             if self.sequencing_match.destination_distance_threshold == 0:
                 raise RuntimeError('No distance threshold set in sequencing match for pair determination')
 
-            self.sequencing_match.determine_matched_pairs()
+            if determine_matched_pairs:
+                self.sequencing_match.determine_matched_pairs()
             single_molecule_indices, sequence_indices = self.sequencing_match.matched_pairs.T
 
-            selected_sequencing_data = self.sequencing_data.dataset[dict(sequence=sequence_indices)]
+            selected_sequencing_data = sequencing_data[sequencing_data.selected][sequence_indices]
 
-        if selected_sequencing_data is None or (len(selected_sequencing_data.sequence) == 0):
-            sequencing_dataset = xr.Dataset(
-                {
-                    'sequence_name': ('molecule', np.empty((0,)).astype('S')),
-                    'sequence': ('molecule', np.empty((0,)).astype('S')),
-                    'sequence_quality': ('molecule', np.empty((0,)).astype('S')),
-                    'sequence_subset': ('molecule', np.empty((0,)).astype('S')),
-                    'sequence_quality_subset': ('molecule', np.empty((0,)).astype('int64')),
-                    # 'distance_to_sequence':     ('molecule', []),
-                    'sequence_tile': ('molecule', np.empty((0,)).astype('int64')),
-                    'sequence_coordinates': (('molecule', 'dimension'), np.empty((0, 2)).astype('int64'))
-                },
-                coords=
-                {
-                    # 'sequence_name':    ('molecule', selected_sequencing_data.name),
-                    'molecule': ('molecule', np.empty((0,)).astype('int64')),
-                    'sequence_in_file': ('molecule', np.empty((0,)).astype('int64'))
-                }
-            )
-        else:
-            sequencing_coordinates = selected_sequencing_data[['x', 'y']].to_array('dimension').T.values
+        sequencing_dataset = xr.Dataset(coords={'molecule_in_file': ('molecule', self.molecule_in_file.values)})
 
-            sequencing_dataset = xr.Dataset(
-                {
-                    'sequence_name': ('molecule', selected_sequencing_data.reference_name.data),
-                    'sequence': ('molecule', selected_sequencing_data.read1_sequence_aligned.data),
-                    'sequence_quality': ('molecule', selected_sequencing_data.read1_quality_aligned.data),
-                    'sequence_subset': ('molecule', selected_sequencing_data.sequence_subset.data),
-                    'sequence_quality_subset': ('molecule', selected_sequencing_data.quality_subset.data),
-                    # 'distance_to_sequence':     ('molecule', distances_to_sequence),
-                    'sequence_tile': ('molecule', selected_sequencing_data.tile.data),
-                    'sequence_coordinates': (('molecule', 'dimension'), sequencing_coordinates.data)
-                },
-                coords=
-                {
-                    # 'sequence_name':    ('molecule', selected_sequencing_data.name),
-                    'molecule': ('molecule', single_molecule_indices),
-                    'sequence_in_file': ('molecule', sequence_indices)
-                }
-            )
-        sequencing_dataset['dimension'] = [b'x', b'y']
+        variable_dict = {
+            'sequence_name': ('reference_name', np.array('').astype('|S10')), #TODO: Add type from experiment sequencing data
+            'sequence_tile': ('tile', np.int64(0)),
+            'sequence_in_file': ('sequence_in_file', -1) # -1 is not ideal as it will not give an error when used as index, but currently I don't have another solution
+        }
 
-        # sequencing_dataset['sequence'] = sequencing_dataset['sequence'].astype('str')
-        # sequencing_dataset['sequence_quality'] = sequencing_dataset['sequence_quality'].astype('str')
+        sequence_length = len(self.experiment.sequencing_data.read1_sequence[0].item())
 
-        # sequence_length = len(self.experiment.sequencing_data.dataset.read_sequence[0].item())
-        # subset_length = len(self.experiment.sequencing_data.dataset.sequence_subset[0].item())
-        sequence_length = 130
-        subset_length = 8
-        sequencing_dataset = sequencing_dataset.reindex_like(
-            self.molecule.set_index(molecule='molecule_in_file'),
-            fill_value={'sequence_name': np.array('').astype('|S10'),
-                        'sequence': b'-' * sequence_length,
-                        'sequence_quality': b' ' * sequence_length,
-                        'sequence_subset': b'-' * subset_length,
-                        'sequence_quality_subset': b' ' * subset_length,
-                        'sequence_tile': np.array(0).astype('int64'),
-                        'sequence_coordinates': np.array([[0, 0]]).astype('int64'),
-                        'sequence_in_file': np.array(-1).astype('int64')}) # -1 is not ideal as it will not give an error when used as index, but currently I don't have another solution
-        sequencing_dataset = sequencing_dataset.reset_index('molecule').rename(molecule_='molecule_in_file')
+        if include_raw_sequences:
+            variable_dict['sequence'] = ('read1_sequence', b'-' * sequence_length)
+            variable_dict['sequence_quality'] = ('read1_quality', b' ' * sequence_length)
 
-        # Engine netcdf4 has some locking problems.
+        if include_aligned_sequences and hasattr(self.experiment.sequencing_data, 'read1_sequence_aligned'):
+            variable_dict['sequence_aligned'] = ('read1_sequence_aligned', b'-' * sequence_length)
+            variable_dict['sequence_quality_aligned'] = ('read1_quality_aligned', b' ' * sequence_length)
+
+        if include_sequence_subset and hasattr(self.experiment.sequencing_data, 'sequence_subset'):
+            subset_length = len(self.experiment.sequencing_data.sequence_subset[0].item())
+            variable_dict['sequence_subset'] = ('sequence_subset', b'-' * subset_length)
+            variable_dict['sequence_quality_subset'] = ('quality_subset', b' ' * subset_length)
+
+        is_empty = selected_sequencing_data is None or (len(selected_sequencing_data) == 0)
+
+        for key_file, (key_sequencing_data, default_value) in variable_dict.items():
+            sequencing_dataset[key_file] = ('molecule', np.full(self.number_of_molecules, default_value))
+            if not is_empty:
+                sequencing_dataset[key_file][single_molecule_indices] = selected_sequencing_data.dataset[key_sequencing_data]
+
+        sequencing_dataset = sequencing_dataset.set_coords('sequence_in_file')
+
+        sequencing_dataset['sequence_coordinates'] = (('molecule', 'dimension'), np.zeros((self.number_of_molecules, 2), 'int64'))
+        if not is_empty:
+            sequencing_dataset['sequence_coordinates'][single_molecule_indices] = selected_sequencing_data.coordinates
+        # sequencing_dataset['dimension'] = [b'x', b'y']
+
         sequencing_dataset.to_netcdf(self.relativeFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
-
-
-
 
     # @property
     # def sequences(self):

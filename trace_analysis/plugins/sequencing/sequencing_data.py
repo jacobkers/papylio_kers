@@ -90,7 +90,7 @@ class SequencingData:
 
     def __getattr__(self, item):
         #try:
-        print('seqdata=' + item)
+        # print('seqdata=' + item)
         if 'dataset' in self.__dict__.keys() and hasattr(self.dataset, item):
             return getattr(self.dataset, item)
         #except AttributeError:
@@ -105,7 +105,7 @@ class SequencingData:
         #     super().__getattribute__(item)
 
     def __getitem__(self, item):
-        return SequencingData(dataset=self.dataset.sel(sequence=item))
+        return SequencingData(dataset=self.dataset[dict(sequence=item)])
 
     def __repr__(self):
         return (f'{self.__class__.__name__}({self.name})')
