@@ -502,7 +502,8 @@ class File:
                                                  include_sequence_subset=True, determine_matched_pairs=True):
         sequencing_data = self.sequencing_data # Load sequencing data
         if self.sequencing_match is None:
-            selected_sequencing_data = None
+            #selected_sequencing_data = None
+            return None
         else:
             if self.sequencing_match.destination_distance_threshold == 0:
                 raise RuntimeError('No distance threshold set in sequencing match for pair determination')
