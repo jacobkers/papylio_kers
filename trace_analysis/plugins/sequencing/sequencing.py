@@ -515,24 +515,25 @@ class File:
 
         sequencing_dataset = xr.Dataset(coords={'molecule_in_file': ('molecule', self.molecule_in_file.values)})
 
+        sequence_name_dtype = sequencing_data.dataset.reference_name.astype('S').dtype
         variable_dict = {
-            'sequence_name': ('reference_name', np.array('').astype('|S10')), #TODO: Add type from experiment sequencing data
+            'sequence_name': ('reference_name', np.array('').astype(sequence_name_dtype)),
             'sequence_tile': ('tile', np.int64(0)),
             'sequence_in_file': ('sequence_in_file', -1) # -1 is not ideal as it will not give an error when used as index, but currently I don't have another solution
         }
 
-        sequence_length = len(self.experiment.sequencing_data.read1_sequence[0].item())
+        sequence_length = len(self.sequencing_data.read1_sequence[0].item())
 
         if include_raw_sequences:
             variable_dict['sequence'] = ('read1_sequence', b'-' * sequence_length)
             variable_dict['sequence_quality'] = ('read1_quality', b' ' * sequence_length)
 
-        if include_aligned_sequences and hasattr(self.experiment.sequencing_data, 'read1_sequence_aligned'):
+        if include_aligned_sequences and hasattr(self.sequencing_data, 'read1_sequence_aligned'):
             variable_dict['sequence_aligned'] = ('read1_sequence_aligned', b'-' * sequence_length)
             variable_dict['sequence_quality_aligned'] = ('read1_quality_aligned', b' ' * sequence_length)
 
-        if include_sequence_subset and hasattr(self.experiment.sequencing_data, 'sequence_subset'):
-            subset_length = len(self.experiment.sequencing_data.sequence_subset[0].item())
+        if include_sequence_subset and hasattr(self.sequencing_data, 'sequence_subset'):
+            subset_length = len(self.sequencing_data.sequence_subset[0].item())
             variable_dict['sequence_subset'] = ('sequence_subset', b'-' * subset_length)
             variable_dict['sequence_quality_subset'] = ('quality_subset', b' ' * subset_length)
 
