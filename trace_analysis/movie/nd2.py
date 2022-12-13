@@ -31,8 +31,9 @@ class ND2Movie(Movie):
 
         if 'fov' in self.name:
             token_position = self.name.find('_fov')
+            self.fov_index = int(self.name[token_position+4:])
             self.name = self.name[:token_position]
-            self.fov_index = int(self.name[token_position:])
+            self.filepath = self.filepath.with_name(self.name).with_suffix('.nd2')
         else:
             self.fov_index = None
 
@@ -54,7 +55,7 @@ class ND2Movie(Movie):
 
         # self.time = self.time[self.fov_info['first_frame_of_each_fov'][self.fov_info['fov_chosen']]:(self.fov_info['last_frame_of_each_fov'][self.fov_info['fov_chosen']]+1)]
         # self.illumination = self.illumination[self.fov_info['first_frame_of_each_fov'][self.fov_info['fov_chosen']]:(self.fov_info['last_frame_of_each_fov'][self.fov_info['fov_chosen']]+1)]
-        self.create_frame_info()  # Possibly move to Movie later on
+        # self.create_frame_info()  # Possibly move to Movie later on
 
         # self._initialized = True
 
