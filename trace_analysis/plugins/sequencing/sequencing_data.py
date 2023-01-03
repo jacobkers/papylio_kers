@@ -243,6 +243,8 @@ def parse_sam(sam_filepath, read_name='read1', remove_duplicates=True, add_align
     name_dict = {'*': 0, '=': 1}
     name_dict.update({SQ_dict['SN']:i+2 for i, SQ_dict in enumerate(header_dict['SQ'])})
 
+    max_reference_length = np.array([int(d['LN']) for d in header_dict['SQ']]).max()
+
     number_of_sequences = number_of_primary_sequence_alignments(sam_filepath)
 
     end_index = 0
@@ -269,7 +271,8 @@ def parse_sam(sam_filepath, read_name='read1', remove_duplicates=True, add_align
 
                 if add_aligned_sequence:
                     df[[read_name+'_sequence_aligned', read_name+'_quality_aligned']] = \
-                        df.apply(get_aligned_sequence_from_row, axis=1, result_type='expand', read_name=read_name)
+                        df.apply(get_aligned_sequence_from_row, axis=1, result_type='expand', read_name=read_name,
+                                 reference_range=(0, max_reference_length))
 
                 if extract_sequence_subset:
                     df['sequence_subset'] = extract_positions(df[read_name+'_sequence_aligned'], extract_sequence_subset)
@@ -554,11 +557,12 @@ def get_aligned_sequence(read_sequence, read_quality, cigar_string, position, re
     aligned_quality = ''
 
     if cigar_string_split[0][1] == 'S':
+        read_index += cigar_string_split[0][0]
         cigar_string_split.pop(0)
 
-    aligned_sequence += '-'* (position - 1)
+    aligned_sequence += '-' * (position - 1)
     aligned_quality += ' ' * (position - 1)
-    read_index = position - 1
+    # read_index = position - 1
 
     for length, code in cigar_string_split:
         if code in ['M','=','X']:
@@ -573,7 +577,7 @@ def get_aligned_sequence(read_sequence, read_quality, cigar_string, position, re
             read_index += length
         elif code in ['D','N']:
             aligned_sequence += '-' * length
-            aligned_quality += '-' * length
+            aligned_quality += ' ' * length
 
     length_difference = len(aligned_sequence) - output_length
     if length_difference > 0:
