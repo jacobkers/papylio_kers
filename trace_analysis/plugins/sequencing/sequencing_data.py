@@ -243,6 +243,8 @@ def parse_sam(sam_filepath, read_name='read1', remove_duplicates=True, add_align
     name_dict = {'*': 0, '=': 1}
     name_dict.update({SQ_dict['SN']:i+2 for i, SQ_dict in enumerate(header_dict['SQ'])})
 
+    aligner = header_dict['PG'][0]['ID']
+
     number_of_sequences = number_of_primary_sequence_alignments(sam_filepath)
 
     end_index = 0
@@ -269,7 +271,7 @@ def parse_sam(sam_filepath, read_name='read1', remove_duplicates=True, add_align
 
                 if add_aligned_sequence:
                     df[[read_name+'_sequence_aligned', read_name+'_quality_aligned']] = \
-                        df.apply(get_aligned_sequence_from_row, axis=1, result_type='expand', read_name=read_name)
+                        df.apply(get_aligned_sequence_from_row, axis=1, result_type='expand', read_name=read_name, aligner=aligner)
 
                 if extract_sequence_subset:
                     df['sequence_subset'] = extract_positions(df[read_name+'_sequence_aligned'], extract_sequence_subset)
@@ -538,7 +540,7 @@ def add_sequence_data_to_dataset(nc_filepath, fastq_filepath, read_name, chunksi
         #fq_file.readline()
         #index1_quality.loc[dict(sequence=(int(tile), int(x), int(y)))] = fq_file.readline().strip()
 
-def get_aligned_sequence(read_sequence, read_quality, cigar_string, position, reference_range=None):
+def get_aligned_sequence(read_sequence, read_quality, cigar_string, position, aligner=None, reference_range=None):
     if reference_range is None:
         reference_range = (0, len(read_sequence))
     output_length = reference_range[1]-reference_range[0]
@@ -553,7 +555,7 @@ def get_aligned_sequence(read_sequence, read_quality, cigar_string, position, re
     aligned_sequence = ''
     aligned_quality = ''
 
-    if cigar_string_split[0][1] == 'S':
+    if cigar_string_split[0][1] == 'S' and aligner != 'bowtie2':
         cigar_string_split.pop(0)
 
     aligned_sequence += '-'* (position - 1)
@@ -585,12 +587,12 @@ def get_aligned_sequence(read_sequence, read_quality, cigar_string, position, re
 
     return aligned_sequence, aligned_quality
 
-def get_aligned_sequence_from_row(df_row, read_name, reference_range=None):
+def get_aligned_sequence_from_row(df_row, read_name, aligner=None, reference_range=None):
     sequence = df_row[read_name+'_sequence']
     quality = df_row[read_name+'_quality']
     cigar_string = df_row['cigar_string']
     position = df_row['position']
-    return get_aligned_sequence(sequence, quality, cigar_string, position, reference_range)
+    return get_aligned_sequence(sequence, quality, cigar_string, position, aligner, reference_range)
 
 ########### Code to dynamically get aligned bases froj
 # def get_aligned_position(index, cigar_string, first_base_position):
