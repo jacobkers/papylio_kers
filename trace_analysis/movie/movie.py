@@ -1106,7 +1106,7 @@ class MoviePlotter:
         self.slices, rows, cols = (movie.number_of_frames, movie.height, movie.width)
         self.ind = self.slices // 2
 
-        self.im = ax.imshow(self.movie.read_frame(self.ind))
+        self.im = ax.imshow(self.movie.read_frame(self.ind, flatten_channels=True, xarray=False))
         self.update()
 
     def on_scroll(self, event):
@@ -1118,7 +1118,7 @@ class MoviePlotter:
         self.update()
 
     def update(self):
-        self.im.set_data(self.movie.read_frame(self.ind))
+        self.im.set_data(self.movie.read_frame(self.ind, flatten_channels=True, xarray=False))
         self.ax.set_ylabel('slice %s' % self.ind)
         self.im.axes.figure.canvas.draw()
 
