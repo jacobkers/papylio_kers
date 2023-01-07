@@ -36,3 +36,4 @@ dependencies:
 - pyside2=5.13
 - pytest
 - pytest-datadir
+- numba=0.56
