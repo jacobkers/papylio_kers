@@ -362,81 +362,81 @@ class TracePlotCanvas(FigureCanvas):
 
 
 
-
-
-
-class TraceAnalysisFrame(QMainWindow):
-    def __init__(self, parent=None, dataset=None, title='Traces', plot_variables=['intensity', 'FRET'],
-                 ylims=[(0, 35000), (0, 1)], colours=[('g', 'r'), ('b')], save_path=None):
-        wx.Frame.__init__(self, parent, title=title, size=(1400, 700))
-        self.parent = parent
-        self.dataset = dataset
-        self.plot_variables = plot_variables
-        self.ylims = ylims
-        self.colours = colours
-
-        if save_path is None:
-            self.save_path = save_path
-        else:
-            self.save_path = Path(save_path)
-        #self.Bind(wx.EVT_CLOSE, self.OnClose)
-        self.trace_panel = TraceAnalysisPanel(parent=self)
-        # self.control_panel = ControlPanel(parent=self)
-        self.Bind(wx.EVT_CHAR_HOOK, self.OnNavigationKey)
-
-        self.molecule_index = 0
-
-        self.Show()
-
-    # @property
-    # def molecules(self):
-    #     return self._molecules
-    #
-    # @molecules.setter
-    # def molecules(self, molecules):
-    #     self._molecules = molecules
-
-
-    @property
-    def molecule_index(self):
-        return self._molecule_index
-
-    @molecule_index.setter
-    def molecule_index(self, molecule_index):
-        self._molecule_index = molecule_index
-        self.molecule = self.dataset.isel(molecule=self.molecule_index)
-
-    def next_molecule(self):
-        if (self.molecule_index+1) < len(self.dataset.molecule):
-            self.molecule_index += 1
-
-    def previous_molecule(self):
-        if self.molecule_index > 0:
-            self.molecule_index -= 1
-
-    def update_current_molecule(self):
-        self.molecule_index = self.molecule_index
-
-    @property
-    def molecule(self):
-        return self.panel.molecule
-
-    @molecule.setter
-    def molecule(self, molecule):
-        self.trace_panel.molecule = molecule
-
-    def OnNavigationKey(self, event):
-        key_code = event.GetKeyCode()
-        print(key_code)
-        if key_code == 316: # Right arrow
-            self.next_molecule()
-        elif key_code == 314: # Left arrow
-            self.previous_molecule()
-        elif key_code == 32: # Spacebar
-            self.dataset.selected[dict(molecule=self.molecule_index)] = ~self.dataset.selected[dict(molecule=1)]
-            self.update_current_molecule()
-        elif key_code == 83: # S
-            self.trace_panel.save()
+#
+#
+#
+# class TraceAnalysisFrame(QMainWindow):
+#     def __init__(self, parent=None, dataset=None, title='Traces', plot_variables=['intensity', 'FRET'],
+#                  ylims=[(0, 35000), (0, 1)], colours=[('g', 'r'), ('b')], save_path=None):
+#         wx.Frame.__init__(self, parent, title=title, size=(1400, 700))
+#         self.parent = parent
+#         self.dataset = dataset
+#         self.plot_variables = plot_variables
+#         self.ylims = ylims
+#         self.colours = colours
+#
+#         if save_path is None:
+#             self.save_path = save_path
+#         else:
+#             self.save_path = Path(save_path)
+#         #self.Bind(wx.EVT_CLOSE, self.OnClose)
+#         self.trace_panel = TraceAnalysisPanel(parent=self)
+#         # self.control_panel = ControlPanel(parent=self)
+#         self.Bind(wx.EVT_CHAR_HOOK, self.OnNavigationKey)
+#
+#         self.molecule_index = 0
+#
+#         self.Show()
+#
+#     # @property
+#     # def molecules(self):
+#     #     return self._molecules
+#     #
+#     # @molecules.setter
+#     # def molecules(self, molecules):
+#     #     self._molecules = molecules
+#
+#
+#     @property
+#     def molecule_index(self):
+#         return self._molecule_index
+#
+#     @molecule_index.setter
+#     def molecule_index(self, molecule_index):
+#         self._molecule_index = molecule_index
+#         self.molecule = self.dataset.isel(molecule=self.molecule_index)
+#
+#     def next_molecule(self):
+#         if (self.molecule_index+1) < len(self.dataset.molecule):
+#             self.molecule_index += 1
+#
+#     def previous_molecule(self):
+#         if self.molecule_index > 0:
+#             self.molecule_index -= 1
+#
+#     def update_current_molecule(self):
+#         self.molecule_index = self.molecule_index
+#
+#     @property
+#     def molecule(self):
+#         return self.panel.molecule
+#
+#     @molecule.setter
+#     def molecule(self, molecule):
+#         self.trace_panel.molecule = molecule
+#
+#     def OnNavigationKey(self, event):
+#         key_code = event.GetKeyCode()
+#         print(key_code)
+#         if key_code == 316: # Right arrow
+#             self.next_molecule()
+#         elif key_code == 314: # Left arrow
+#             self.previous_molecule()
+#         elif key_code == 32: # Spacebar
+#             self.dataset.selected[dict(molecule=self.molecule_index)] = ~self.dataset.selected[dict(molecule=1)]
+#             self.update_current_molecule()
+#         elif key_code == 83: # S
+#             self.trace_panel.save()
 
 # class ControlPanel(wx.Panel):
 # To file/molecule

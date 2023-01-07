@@ -17,7 +17,7 @@ import tqdm
 import yaml
 import numpy as np
 import pandas as pd
-import wx
+# import wx
 import matplotlib
 matplotlib.use('Qt5Agg')
 
@@ -601,8 +601,8 @@ class Experiment:
         for i, file in enumerate(self.files):
             print(f"{i:3d}.  {file.relativeFilePath}")
 
-    def plot_trace(self, files=None, query={}):
-        from trace_analysis.trace_plot import TraceAnalysisFrame
+    def plot_trace(self, files=None, query={}, **kwargs):
+        # from trace_analysis.trace_plot import TraceAnalysisFrame
 
         if files is None:
             files = self.files
@@ -611,16 +611,18 @@ class Experiment:
 
         with xr.open_mfdataset(file_paths, concat_dim='molecule', combine='nested') as ds:
             ds_sel = ds.query(query)  # HJ1_WT, HJ7_G116T
-            if not 'app' in globals().keys():
-                global app
-                app = wx.App(None)
+            # if not 'app' in globals().keys():
+            #     global app
+            #     app = wx.App(None)
             # app = wit.InspectableApp()
-            frame = TraceAnalysisFrame(None, ds_sel, "Sample editor")
+            # frame = TraceAnalysisFrame(None, ds_sel, "Sample editor")
             # frame.molecules = exp.files[1].molecules
             # print('test')
             # import wx.lib.inspection
             # wx.lib.inspection.InspectionTool().Show()
-            app.MainLoop()
+            # app.MainLoop()
+            from trace_analysis.trace_plot import TracePlotWindow
+            TracePlotWindow(dataset=ds_sel, save_path=None, **kwargs)
 
     def export_number_of_molecules_per_file(self):
         df = pd.DataFrame(columns=['Number of molecules'])

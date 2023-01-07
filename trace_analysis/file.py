@@ -13,7 +13,6 @@ import xarray as xr
 import skimage as ski
 import warnings
 import sys
-import wx
 import re
 import tifffile
 # from trace_analysis.molecule import Molecule
@@ -36,7 +35,7 @@ from trace_analysis.analysis.hidden_markov_modelling import hmm_traces
 # from trace_analysis.plugin_manager import PluginManager
 # from trace_analysis.plugin_manager import PluginMetaClass
 from trace_analysis.plugin_manager import plugins
-from trace_analysis.trace_plot import TraceAnalysisFrame
+# from trace_analysis.trace_plot import TraceAnalysisFrame
 
 @plugins
 class File:
