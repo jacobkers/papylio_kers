@@ -4,8 +4,8 @@ Created on Fri Sep 14 15:44:52 2018
 
 @author: ivoseverins
 """
-import wx
-import wx.lib.mixins.inspection as wit
+# import wx
+# import wx.lib.mixins.inspection as wit
 import PySide2
 import matplotlib as mpl
 mpl.use('qt5agg')
