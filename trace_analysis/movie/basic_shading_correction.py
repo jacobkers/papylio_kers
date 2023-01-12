@@ -77,14 +77,14 @@ def squeeze_channel_from_frames(frames):
     # test2.unstack('channel').stack(channel=('channel_index_x','channel_index_y'))
     # test2.unstack('channel').stack(x_pixel=('channel_index_x','x'), y_pixel=('channel_index_y','y'))
 
-def spatial_shading_correction(movies, illumination_index=0, **kwargs):
+def spatial_shading_correction(movies, illumination_index=0, frame_index=0, **kwargs):
     selected_movies = [movie for movie in movies if illumination_index in movie.illumination_indices_in_movie]
-    first_frame_with_illumination = [np.where(movie.illumination_index_per_frame == illumination_index)[0][0] for movie in selected_movies]
+    frame_with_illumination = [np.where(movie.illumination_index_per_frame == illumination_index)[0][frame_index] for movie in selected_movies]
     # frames = xr.concat([movie.read_frames([frame], apply_corrections=False, xarray=True, flatten_channels=False)
     #                     for movie, frame in tqdm.tqdm(zip(selected_movies, first_frame_with_illumination))], dim='frame')
     # frames = frames.reset_index('frame', drop=True)
     frames = np.vstack([movie.read_frames([frame], apply_corrections=False, xarray=False, flatten_channels=False)
-                        for movie, frame in tqdm.tqdm(zip(selected_movies, first_frame_with_illumination),
+                        for movie, frame in tqdm.tqdm(zip(selected_movies, frame_with_illumination),
                                             'Read frames', len(selected_movies))])
 
     flatfield = np.ones_like(frames[0], dtype=float)
