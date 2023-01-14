@@ -28,7 +28,7 @@ Getting started
    Installation
    Getting started
    GUI
-   Main classes
+   API reference
    Contributing
 
 
