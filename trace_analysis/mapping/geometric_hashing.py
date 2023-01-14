@@ -118,8 +118,8 @@ def geometric_hash(point_sets, maximum_distance=100, tuple_size=4, chunksize=Non
             hash_table, transformation_matrices = geometric_hash_table(point_set_KDTree, point_tuples)
 
             if chunksize is not None:
-                # hash_table_KDTree = cKDTree(hash_table)
-                yield point_set_index, point_tuples, hash_table, transformation_matrices
+                hash_table_KDTree = cKDTree(hash_table)
+                yield point_set_index, point_tuples, hash_table_KDTree, transformation_matrices
             else:
                 point_tuple_sets[point_set_index] += point_tuples
                 hash_tables.append(hash_table)
@@ -403,7 +403,8 @@ def test_transformation(source, destination, found_transformation, source_vertic
 
 def find_common_tuple_transformation(sources, maximum_distance_source, destination_hash_table_KDTree, tuple_size,
                                      destination_transformation_matrices, hash_table_distance_threshold=0.01,
-                                     parameters=['rotation', 'scale'], chunksize=None, plot=False, method='maximum_close_neighbours', **method_kwargs):
+                                     parameters=['rotation', 'scale'], chunksize=None, plot=False,
+                                     method='maximum_close_neighbours', save_tuple_match_parameters=False, **method_kwargs):
     # np.vstack(sources)
     parameter_dict = {parameter: [] for parameter in parameters}
     for source_hash_data in tqdm.tqdm(geometric_hash(sources, maximum_distance_source, tuple_size, chunksize=chunksize), 'Source chunks'):
@@ -421,7 +422,18 @@ def find_common_tuple_transformation(sources, maximum_distance_source, destinati
         for parameter, values in zip(parameters, parameter_values):
             parameter_dict[parameter] += values.tolist()
 
-    return find_high_density_parameters(parameter_dict, method=method, plot=plot, **method_kwargs)
+    found_transformation, cluster_classification = \
+        find_high_density_parameters(parameter_dict, method=method, plot=plot, **method_kwargs)
+
+    if save_tuple_match_parameters is not False:
+        import xarray as xr
+        ds = xr.Dataset()
+        for key, value in parameter_dict.items():
+            ds[key] = xr.DataArray(value, dims=('tuple_match', key + '_dim'))
+        ds['cluster_classification'] = xr.DataArray(cluster_classification, dims=('tuple_match',))
+        ds.to_netcdf(save_tuple_match_parameters.with_suffix('.nc'), engine='h5netcdf')
+
+    return found_transformation
 
     # tuple_matches = source_hash_table_KDTree.query_ball_tree(destination_hash_table_KDTree, hash_table_distance_threshold)
 
@@ -451,9 +463,10 @@ def find_common_tuple_transformation(sources, maximum_distance_source, destinati
 
 
 
-def find_high_density_parameters(parameter_dict, method='maximum_close_neighbours', plot=False, axes=None, **method_kwargs):
+def find_high_density_parameters(parameter_dict, method='maximum_close_neighbours', plot=False, axes=None,
+                                 **method_kwargs):
     parameter_values = np.hstack(list(parameter_dict.values()))
-    cluster_classification = np.zeros(parameter_values.shape[0])
+    cluster_classification = np.zeros(parameter_values.shape[0]).astype(int)
     if method == 'histogram_max':
         sample_normalized = (parameter_values - parameter_values.min(axis=0)) / \
                             (parameter_values.max(axis=0) - parameter_values.min(axis=0))
@@ -505,6 +518,7 @@ def find_high_density_parameters(parameter_dict, method='maximum_close_neighbour
         i = 0
         if 'translation' in parameter_dict.keys():
             axes[i].scatter(*np.array(parameter_dict['translation']).T, c=cluster_classification)
+            axes[i].scatter(*np.array(parameter_dict['translation'])[cluster_classification == 1].T, c='yellow')
             axes[i].set_xlabel('Translation - x')
             axes[i].set_ylabel('Translation - y')
             x0, x1 = axes[i].get_xlim()
@@ -513,12 +527,17 @@ def find_high_density_parameters(parameter_dict, method='maximum_close_neighbour
             i += 1
 
         if 'rotation' in parameter_dict.keys() and 'scale' in parameter_dict.keys():
-            axes[i].scatter(np.array(parameter_dict['rotation']), np.atleast_2d(np.array(parameter_dict['scale']).T).T[:,0], c=cluster_classification)
+            axes[i].scatter(np.array(parameter_dict['rotation'])[:,0], np.array(parameter_dict['scale'])[:,0], c=cluster_classification)
+            axes[i].scatter(np.array(parameter_dict['rotation'])[cluster_classification == 1, 0],
+                            np.array(parameter_dict['scale'])[cluster_classification == 1, 0], c='yellow')
+
             axes[i].set_xlabel('Rotation (radians)')
             axes[i].set_ylabel('Scale')
             x0, x1 = axes[i].get_xlim()
             y0, y1 = axes[i].get_ylim()
             axes[i].set_aspect(abs(x1 - x0) / abs(y1 - y0))
+
+
 
     found_parameter_dict = {
         parameter: found_values.pop(0) if parameter == 'rotation' else [found_values.pop(0), found_values.pop(0)]
@@ -556,4 +575,4 @@ def find_high_density_parameters(parameter_dict, method='maximum_close_neighbour
     # plt.hist(rs, 100)
 
     # return parameter_dict
-    return AffineTransform(**found_parameter_dict)
+    return AffineTransform(**found_parameter_dict), cluster_classification
