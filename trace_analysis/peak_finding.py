@@ -55,6 +55,36 @@ def find_peaks_local_maximum(image,
                              filter_neighbourhood_size_min=10,
                              filter_neighbourhood_size_max=5):
 
+    """
+    Find peaks based on local maxima.
+
+    Parameters
+    ----------
+    image : NxM numpy.ndarray
+
+    minimum_intensity_difference : int or float
+        Lower threshold on the intensity difference between local minimum and local maximu
+    maximum_intensity_difference : int or float, optional
+        Upper threshold on the intensity difference between local minimum and local maximum.
+    filter_neighbourhood_size_min : int
+        Size of the minimum filter.
+    filter_neighbourhood_size_max : int
+        Size of the maximum filter.
+
+    Returns
+    -------
+    Nx2 numpy.ndarray
+        Peak coordinates
+
+    Notes
+    -----
+    First minimum filtered and maximum filtered images are created from the input image.
+    Local maxima are determined by finding the pixels where the maximum filtered image is equal to the input image.
+    Local maxima where the intensity difference between the local maximum and local minimum is outside the interval
+    (minimum_intensity_difference, maximum_intensity_difference) are discarded.
+    """
+
+    # Perhaps make filter round?
     image_max = filters.maximum_filter(image, filter_neighbourhood_size_max)
     maxima = (image == image_max)
     image_min = filters.minimum_filter(image, filter_neighbourhood_size_min)
@@ -65,12 +95,14 @@ def find_peaks_local_maximum(image,
     difference_within_bounds = np.logical_and(difference_above_minimum, difference_below_maximum)
     maxima[difference_within_bounds == 0] = 0
 
-    labeled, num_objects = ndimage.label(maxima)
-    if num_objects > 0:
-        coordinates = np.fliplr(np.array(ndimage.center_of_mass(image, labeled, range(1, num_objects + 1))))
-    else:
-        coordinates = np.array([])
-        print('No peaks found')
+    coordinates = np.fliplr(np.vstack(np.where(maxima)).T)
+
+    # labeled, num_objects = ndimage.label(maxima)
+    # if num_objects > 0:
+    #     coordinates = np.fliplr(np.array(ndimage.center_of_mass(image, labeled, range(1, num_objects + 1))))
+    # else:
+    #     coordinates = np.array([])
+    #     print('No peaks found')
 
     return coordinates
 
