@@ -19,7 +19,7 @@ from skimage.transform import AffineTransform, PolynomialTransform, SimilarityTr
 from tqdm import tqdm
 from scipy.spatial import distance_matrix, cKDTree
 
-from point_set import overlap_vertices, area, crop_coordinates, determine_vertices
+from point_set import overlap_vertices, area, crop_coordinates, determine_vertices, vertices_with_margin
 from icp import icp, nearest_neighbor_pair, nearest_neighbour_match, direct_match
 from polywarp import PolywarpTransform
 from polynomial import PolynomialTransform
@@ -29,42 +29,93 @@ from cross_correlation import cross_correlate
 from geometric_hashing import GeometricHashTable
 
 class Mapping2:
-    """Mapping class to find, improve, store and use the mapping between a source point set and a destination point set
+    """Mapping class to find, improve, store and use a mapping between a source point set and a destination point set.
 
     Attributes
     ----------
-
-    source_name : str
-        Name of the source point set
     source : Nx2 numpy.ndarray
-        Coordinates of the source point set
-    destination_name : str
-        Name of the destination point set
+        Source coordinates.
     destination : Nx2 numpy.ndarray
-        Coordinates of the destination point set
+        Destination coordinates.
     method : str
-        Method for finding the transformation between source and destination. Options: 'direct', 'nearest_neighbour'
-        and 'iterative_closest_point'
+        Method for finding the transformation between source and destination.
     transformation_type : str
-        Type of transformation used, linear or polynomial
-    initial_transformation : AffineTransform or PolynomialTransform
-        Initial transformation to perform as a starting point for the mapping algorithms
-    transformation : skimage.transform.AffineTransform or skimage.transform.PolynomialTransform
-        Transformation from source point set to destination point set
-    transformation_inverse : skimage.transform.AffineTransform or skimage.transform.PolynomialTransform
-        Inverse transformation, i.e. from destination point set to source point set
+        Type of transformation used. Choose from: affine (default), similarity or polynomial.
+    initial_transformation : skimage.transform._geometric.GeometricTransform or dict
+        Initial transformation used as starting point by the perform_mapping method.
+        Can be given as dictionary specifying translation, scale, rotation and shear.
+    transformation  : skimage.transform._geometric.GeometricTransform or dict
+        Transformation relating the source and destionaton point sets.
+        Can be given as dictionary specifying translation, scale, rotation and shear.
+    transformation_inverse : skimage.transform._geometric.GeometricTransform or dict
+        Inverse transformation.
+        Can be given as dictionary specifying translation, scale, rotation and shear.
+    source_name : str
+        Name of the source. Default is 'source'.
+    destination_name : str
+        Name of the source. Default is 'destination_name'.
+    source_unit : str
+        Unit of the source coordinates.
+    destination_unit : str
+        Unit of the destination coordinates.
+    destination_distance_threshold : float
+        Distance threshold in destination units for determining matched pairs between source and destination.
+    name : str
+        Name of the mapping, used as the default filename when saving the mapping object.
+    label : str
+        Additional attribute to store information.
+    matched_pairs : Nx2 numpy.ndarray
+        Array with the indices of source points and destination points that are matched.
+    save_path : pathlib2.Path
+        Path to the folder where the Mapping2 objects is or should be saved.
+
 
     """
 
     @classmethod
     def simulate(cls, number_of_points=200, transformation=None,
-                 bounds=([0, 0], [256, 512]), crop_bounds=(None, None), fraction_missing=(0.1, 0.1),
+                 bounds=[[0, 0], [256, 512]], crop_bounds=(None, None), fraction_missing=(0.1, 0.1),
                  error_sigma=(0.5, 0.5), shuffle=True, seed=10532):
+        """
+        Simulate a point set with a specific transformation and return as a Mapping2 object. It generates an original
+        point set of which the source and destination point sets are subsets.
+
+        Parameters
+        ----------
+        number_of_points : int
+            Number of points in the original point set to simulate, the source and destination point sets are drawn from the original point set.
+        transformation : skimage.transform._geometric.GeometricTransform
+            Transformation to be used between the source and destination point sets. If None, a preset transformation
+            will be used: SimilarityTransform(translation=[256, 10], rotation=1/360*2*np.pi, scale=[0.98, 0.98]).
+        bounds : 2x2 numpy.ndarray or list
+            Bounds of the original point set. Structured like coordinates,
+            i.e. columns are x and y dimensions, rows are minimum and maximum values.
+            [[x_min, y_min],[x_max, y_max]]
+        crop_bounds : tuple of 2x2 numpy.ndarray or tuple of 2x2 list, optional
+            Bounds to be used for cropping the overall dataset into the source and destination point set (before the transformation is applied).
+        fraction_missing : tuple(float, float)
+            Fraction of points that is removed from the original point set to obtain the source and destination point sets.
+        error_sigma : tuple(float, float)
+            Standard deviation of the Gaussian error applied to the original point set to obtain the source and destination point sets.
+        shuffle : bool
+            If True (default) then the points in the destination point set will be shuffled.
+            If False the order of the destination points in the source and destination will be identical.
+        seed : int
+            Seed used for random number generator.
+
+        Returns
+        -------
+        mapping : Mapping2
+            Mapping2 object with the simulated source and destination point sets.
+            While the "transformation" attribute is set with a unit transformation, mapping has an additional
+            attribute "transformation_correct" containing the correct transformation. The returned mapping also has a
+            "show_correct_mapping_transformation" method, to visualize the correct transformation.
+        """
+
 
         if transformation is None:
             transformation = SimilarityTransform(translation=[256, 10], rotation=1/360*2*np.pi, scale=[0.98, 0.98])
 
-        # TODO: Add seed
         source, destination = simulate_mapping_test_point_set(number_of_points, transformation,
                                                               bounds, crop_bounds, fraction_missing,
                                                               error_sigma,
@@ -86,6 +137,20 @@ class Mapping2:
 
     @classmethod
     def load(cls, filepath):
+        """
+        Load a saved Mapping2 object
+
+        Parameters
+        ----------
+        filepath : str or pathlib2.Path
+            Filepath to the saved object.
+
+        Returns
+        -------
+        mapping : Mapping2
+            Saved Mapping2 object.
+        """
+
         mapping = cls()
         filepath = Path(filepath)
         if filepath.suffix in ['.yml', '.yaml', '.json', '.mapping']:
@@ -125,7 +190,7 @@ class Mapping2:
 
 
     transformation_types = {'linear': AffineTransform,
-                            'nonlinear': PolywarpTransform,
+                            'nonlinear': PolywarpTransform, # Change name to polywarp?
                             'polynomial': PolynomialTransform,
                             'affine': AffineTransform,
                             'similarity': SimilarityTransform}
@@ -135,24 +200,39 @@ class Mapping2:
                  source_name='source', destination_name='destination',
                  source_unit=None, destination_unit=None, destination_distance_threshold=0,
                  name=None):
-        """Set passed object attributes
+        """Initialize a Mapping2 object
 
         Parameters
         ----------
         source : Nx2 numpy.ndarray
-            Source coordinates
+            Source coordinates.
         destination : Nx2 numpy.ndarray
-            Destination coordinates
-        method : str
-            Method for finding the transformation between source and destination. Options: 'direct', 'nearest_neighbour'
-            and 'iterative_closest_point'
+            Destination coordinates.
+        method : str, optional
+            Method for finding the transformation between source and destination.
         transformation_type : str
-            Type of transformation used, linear or polynomial
-        initial_transformation : skimage.transform._geometric.GeometricTransform or dict
+            Type of transformation used. Choose from: affine (default), similarity or polynomial.
+        initial_transformation : skimage.transform._geometric.GeometricTransform or dict, optional
             Initial transformation used as starting point by the perform_mapping method.
             Can be given as dictionary specifying translation, scale, rotation and shear.
-        load : str or pathlib.Path
-            Path to file that has to be loaded
+        transformation  : skimage.transform._geometric.GeometricTransform or dict, optional
+            Transformation relating the source and destionaton point sets.
+            Can be given as dictionary specifying translation, scale, rotation and shear.
+        transformation_inverse : skimage.transform._geometric.GeometricTransform or dict, optional
+            Inverse transformation.
+            Can be given as dictionary specifying translation, scale, rotation and shear.
+        source_name : str, optional
+            Name of the source. Default is 'source'.
+        destination_name : str, optional
+            Name of the source. Default is 'destination_name'.
+        source_unit : str, optional
+            Unit of the source coordinates.
+        destination_unit : str, optional
+            Unit of the destination coordinates.
+        destination_distance_threshold : float
+            Distance threshold in destination units for determining matched pairs between source and destination.
+        name : str
+            Name of the mapping, used as the default filename when saving the mapping object.
         """
 
         self.name = name
@@ -161,13 +241,13 @@ class Mapping2:
         self.source = np.array(source) #source=donor=left side image
         self.source_unit = source_unit
         # self.source_distance_threshold = source_distance_threshold
-        self.destination_distance_threshold = destination_distance_threshold
+        self._destination_distance_threshold = destination_distance_threshold
         self._source_vertices = None
         self.destination_name = destination_name
         self.destination_unit = destination_unit
         self.destination = np.array(destination) #destination=acceptor=right side image
         self._destination_vertices = None
-        self.method = method
+        self.method = method # Remove as input parameter and just set to None?
         self.matched_pairs = np.empty((0,2), dtype=int)
         self.save_path = None
 
@@ -175,7 +255,7 @@ class Mapping2:
 
         if type(initial_transformation) is dict:
             initial_transformation = AffineTransform(**initial_transformation)
-        self.initial_transformation = initial_transformation
+        self.initial_transformation = initial_transformation # Is this still necessary?
 
         if transformation is None:
             self.transformation = self.transform()
@@ -227,24 +307,32 @@ class Mapping2:
 
     @property
     def file_path(self):
+        """
+        pathlib2.Path : Path where the mapping file is (to be) saved.
+        """
+        # TODO: Make the extension dependent on the actual file
         return self.save_path.joinpath(self.name).with_suffix('.mapping')
 
     @property
     def source_to_destination(self):
-        """Nx2 numpy.ndarray : Source coordinates transformed to the destination axis"""
+        """Nx2 numpy.ndarray : Source coordinates transformed to destination space"""
 
         return self.transform_coordinates(self.source)
 
     @property
     def destination_to_source(self):
-        """Nx2 numpy.ndarray : Source coordinates transformed to the destination axis"""
+        """Nx2 numpy.ndarray : Destination coordinates transformed to source space"""
 
         return self.transform_coordinates(self.destination, inverse=True)
 
     @property
     def source_vertices(self):
+        """Nx2 numpy.ndarray : Vertices of source
+
+        If no source vertices are set, the vertices are determined from the convex hull.
+        """
         if self._source_vertices is None:
-            return determine_vertices(self.source, self.source_distance_threshold)
+            return determine_vertices(self.source)#, self.source_distance_threshold)
         else:
             return self._source_vertices
 
@@ -254,8 +342,12 @@ class Mapping2:
 
     @property
     def destination_vertices(self):
-        if self._source_vertices is None:
-            return determine_vertices(self.destination, self.destination_distance_threshold)
+        """Nx2 numpy.ndarray : Vertices of destination
+
+        If no destination vertices are set, the vertices are determined from the convex hull.
+        """
+        if self._destination_vertices is None:
+            return determine_vertices(self.destination)#, self.destination_distance_threshold)
         else:
             return self._destination_vertices
 
@@ -265,67 +357,95 @@ class Mapping2:
 
     @property
     def source_cropped_vertices(self): # or crop_vertices_in_source
+        """Nx2 numpy.ndaarray : Vertices of the overlapping area (intersection) of the source and destination areas
+        in source space"""
         return overlap_vertices(self.source_vertices, self.transform_coordinates(self.destination_vertices, inverse=True))
 
     @property
     def source_cropped(self):
+        """Nx2 numpy.ndaarray : Source points that overlap with the destination in source space"""
         return crop_coordinates(self.source, self.source_cropped_vertices)
 
     @property
     def destination_cropped_vertices(self): # or crop_vertices_in_destination
+        """Nx2 numpy.ndaarray : Vertices of the overlapping area (intersection) of the source and destination areas
+        in destination space"""
         return overlap_vertices(self.transform_coordinates(self.source_vertices), self.destination_vertices)
 
     @property
     def destination_cropped(self):
+        """Nx2 numpy.ndaarray : Destination points that overlap with the source in destination space"""
         return crop_coordinates(self.destination, self.destination_cropped_vertices)
 
-    def get_source(self, crop=False, space='source'):
+    def get_source(self, crop=False, space='source', margin=None):
         if crop in ['destination', False]:
             source = self.source
         elif crop in ['source', True]:
-            source = self.source_cropped
+            # source = self.source_cropped
+            source = crop_coordinates(self.source, self.get_source_vertices(crop=crop, margin=margin))
 
         if space in ['destination', self.destination_name]:
             source = self.transform_coordinates(source)
 
         return source
 
-    def get_destination(self, crop=False, space='destination'):
+    def get_destination(self, crop=False, space='destination', margin=None):
         if crop in ['source', False]:
             destination = self.destination
         elif crop in ['destination', True]:
-            destination = self.destination_cropped
+            # destination = self.destination_cropped
+            destination = crop_coordinates(self.destination, self.get_destination_vertices(crop=crop, margin=margin))
 
         if space in ['source', self.source_name]:
             destination = self.transform_coordinates(destination, inverse=True)
 
         return destination
 
-    def get_source_vertices(self, crop=False, space='source'):
+    def get_source_vertices(self, crop=False, space='source', margin=None):
         if crop in ['destination', False]:
             source_vertices = self.source_vertices
         elif crop in ['source', True]:
-            source_vertices = self.source_cropped_vertices
+            source_vertices = self.get_overlap_vertices(space='source')
 
         if space in ['destination', self.destination_name]:
-            source_vertices = self.transformation(source_vertices)
+            source_vertices = self.transform_coordinates(source_vertices)
+
+        if margin is not None:
+            source_vertices = vertices_with_margin(source_vertices, margin)
 
         return source_vertices
 
-    def get_destination_vertices(self, crop=False, space='source'):
-        if crop in ['destination', False]:
+    def get_destination_vertices(self, crop=False, space='destination', margin=None):
+        if crop in ['source', False]:
             destination_vertices = self.destination_vertices
-        elif crop in ['source', True]:
-            destination_vertices = self.destination_cropped_vertices
+        elif crop in ['destination', True]:
+            destination_vertices = self.get_overlap_vertices(space='destination')
 
         if space in ['source', self.source_name]:
-            destination_vertices = self.transformation(destination_vertices, inverse=True)
+            destination_vertices = self.transform_coordinates(destination_vertices, inverse=True)
+
+        if margin is not None:
+            destination_vertices = vertices_with_margin(destination_vertices, margin)
 
         return destination_vertices
+
+    def get_overlap_vertices(self, space='source'):
+        return overlap_vertices(self.get_source_vertices(space=space), self.get_destination_vertices(space=space))
 
     @property
     def source_distance_threshold(self):
         return self.destination_distance_threshold / np.max(self.transformation.scale)
+
+    @property
+    def destination_distance_threshold(self):
+        if self._destination_distance_threshold is None:
+            raise ValueError('No destination distance threshold set')
+        return self._destination_distance_threshold
+
+    @destination_distance_threshold.setter
+    def destination_distance_threshold(self, value):
+        self._destination_distance_threshold = value
+
 
     def find_distance_threshold(self, method='single_match_optimization', **kwargs):
         if method == 'single_match_optimization':
@@ -343,14 +463,35 @@ class Mapping2:
         number_of_pairs = self.number_of_single_matches_for_radii(radii)
         self.destination_distance_threshold = distance_threshold_from_number_of_matches(radii, number_of_pairs, plot=plot)
 
-    def determine_matched_pairs(self, distance_threshold=None):
+    def determine_matched_pairs(self, distance_threshold=None, point_set_name='all'):
         #TODO: add crop
         if distance_threshold is None:
             distance_threshold = self.destination_distance_threshold
 
         distance_matrix_ = self.distance_matrix(crop=False)
 
-        self.matched_pairs = singly_matched_pairs_within_radius(distance_matrix_, distance_threshold)
+        self.matched_pairs = singly_matched_pairs_within_radius(distance_matrix_, distance_threshold, point_set_name=point_set_name)
+
+    def number_of_matches_for_source_and_destination(self, distance_threshold, matches_per_point=[0,1], crop=True):
+        if distance_threshold is None:
+            distance_threshold = self.destination_distance_threshold
+        if not (isinstance(distance_threshold, list) or isinstance(distance_threshold, np.ndarray)):
+            distance_threshold = [distance_threshold]
+
+        import xarray as xr
+        data = xr.DataArray(0, dims=('R', 'matches_per_point', 'reference'),
+                            coords={'R': distance_threshold, 'matches_per_point': matches_per_point,
+                                    'reference': ['source', 'destination']})
+
+        margin = -np.max(distance_threshold) * 1.5
+
+        distance_matrix_sd = self.distance_matrix(crop=crop, margin=(margin, 0))
+        distance_matrix_ds = self.distance_matrix(crop=crop, margin=(0, margin))
+        for m in matches_per_point:
+            for i, R in enumerate(distance_threshold):
+                data[i, m, 0] = np.array(number_of_matches_within_radius(distance_matrix_sd, R, matches_per_point=m))[0]
+                data[i, m, 1] = np.array(number_of_matches_within_radius(distance_matrix_ds, R, matches_per_point=m))[1]
+        return data
 
     def pair_coordinates(self, point_set='destination', space='destination'):
         if point_set == 'source':
@@ -616,34 +757,24 @@ class Mapping2:
     def kernel_correlation_score(self, sigma=1, crop=False):
         return compute_kernel_correlation(self.transformation, self.get_source(crop), self.get_destination(crop), sigma=sigma)
 
-    def cross_correlation(self, peak_detection='auto', gaussian_width=7, divider=5, crop=False, plot=False, axes=None):
-        if plot:
-            if axes is None:
-                axes = []
-                for i in range(4):
-                    figure, axis = plt.subplots()
-                    axes.append(axis)
-            axis3 = axes[3]
-            axes = axes[0:3]
-
+    def cross_correlation(self, peak_detection='auto', gaussian_width=7, divider=5, crop=False, space='destination', plot=False, axes=None):
         if self.transformation is None:
             self.transformation = AffineTransform()
             self.transformation_inverse = AffineTransform()
-        correlation, self.correlation_conversion_function = cross_correlate(self.get_source(crop, 'destination'), self.get_destination(crop),
-                                                                            gaussian_width=gaussian_width, divider=divider, plot=plot, axes=axes)
-
-        import scipy.ndimage.filters as filters
-        corrected_correlation = correlation - filters.minimum_filter(correlation, 2*gaussian_width)#np.min(correlation.shape) / 200)
-        if plot:
-            axis3.imshow(corrected_correlation)
-            # plt.show()
+        correlation, self.correlation_conversion_function = cross_correlate(self.get_source(crop, space), self.get_destination(crop, space),
+                                                                            gaussian_width=gaussian_width, divider=divider,
+                                                                            subtract_background=True, plot=plot, axes=axes)
 
         if peak_detection == 'auto':
-            correlation_peak_coordinates = np.array(np.where(corrected_correlation==corrected_correlation.max())).flatten()[::-1]
+            #TODO: Fit peak to gaussian to determine location with sub-pixel accuracy???
+            correlation_peak_coordinates = np.array(np.where(correlation==correlation.max())).flatten()[::-1]+0.5
             if plot:
-                axes[2].scatter(correlation_peak_coordinates[0], correlation_peak_coordinates[1], marker='o',
-                                facecolors='none', edgecolors='r')
-                axis3.scatter(correlation_peak_coordinates[0], correlation_peak_coordinates[1], marker='o', facecolors='none', edgecolors='r')
+                bounds = np.array([axes[2].get_xlim(), axes[2].get_ylim()])
+                # pixel_size = np.diff(bounds).flatten()/(np.array(axes[3].get_images()[0].get_size()[::-1])+1)
+                origin = bounds[:,0]
+                peak_coordinates_in_image = origin + correlation_peak_coordinates * divider
+                axes[2].plot(*peak_coordinates_in_image.T, marker='o', markerfacecolor='none', markeredgecolor='r')
+                axes[3].plot(*peak_coordinates_in_image.T, marker='o', markerfacecolor='none', markeredgecolor='r')
             self.set_correlation_peak_coordinates(correlation_peak_coordinates)
 
     def set_correlation_peak_coordinates(self, correlation_peak_coordinates):
@@ -791,7 +922,7 @@ class Mapping2:
             legend_dict[f'matched pairs ({self.number_of_matched_points})'] = (pair_marker1, pair_marker2)
 
         if not legend_off:
-            axis.legend(legend_dict.values(), legend_dict.keys())
+            axis.legend(legend_dict.values(), legend_dict.keys(), loc='upper right')
 
         if save:
             if save_path is None:
@@ -890,9 +1021,13 @@ class Mapping2:
 
         return skimage.transform.warp(image, current_transformation, preserve_range=True)
 
-    def distance_matrix(self, crop=True, space='destination', max_distance=None, **kwargs):
-        source = self.get_source(crop=crop, space=space)
-        destination = self.get_destination(crop=crop, space=space)
+    def distance_matrix(self, crop=True, space='destination', margin=None, max_distance=None, **kwargs):
+        if margin is not None and len(margin) == 2:
+            margin_source, margin_destination = margin
+        else:
+            margin_source = margin_destination = margin
+        source = self.get_source(crop=crop, space=space, margin=margin_source)
+        destination = self.get_destination(crop=crop, space=space, margin=margin_destination)
 
         if max_distance is None:
             return distance_matrix(source, destination, **kwargs)
@@ -900,7 +1035,6 @@ class Mapping2:
             source_tree = cKDTree(source)
             destination_tree = cKDTree(destination)
             return source_tree.sparse_distance_matrix(destination_tree, max_distance=max_distance, **kwargs).todense()
-
 
     def density_source(self, crop=False, space='source'):
         return self.get_source(crop).shape[0] / self.get_source_area(crop=crop, space=space)
@@ -1067,13 +1201,33 @@ def is_similar_transformation(transformation1, transformation2, translation_erro
 
 import scipy.sparse
 
+#
+# def singly_matched_pairs_within_radius(distance_matrix_, distance_threshold):
+#     matches = distance_matrix_ < distance_threshold
+#     sum_1 = matches.sum(axis=1) != 1
+#     sum_0 = matches.sum(axis=0) != 1
+#     matches[sum_1, :] = False
+#     matches[:, sum_0] = False
+#     return np.asarray(np.where(matches)).T
 
-def singly_matched_pairs_within_radius(distance_matrix_, distance_threshold):
+
+def matches_within_radius(distance_matrix_, distance_threshold, matches_per_point=1):
     matches = distance_matrix_ < distance_threshold
-    sum_1 = matches.sum(axis=1) != 1
-    sum_0 = matches.sum(axis=0) != 1
-    matches[sum_1, :] = False
-    matches[:, sum_0] = False
+    matched_source_reference = matches.sum(axis=1) == matches_per_point
+    matched_destination_reference = matches.sum(axis=0) == matches_per_point
+    return matches, matched_source_reference, matched_destination_reference
+
+def number_of_matches_within_radius(distance_matrix_, distance_threshold, matches_per_point=1):
+    matches, matched_source_reference, matched_destination_reference = \
+        matches_within_radius(distance_matrix_, distance_threshold, matches_per_point=matches_per_point)
+    return matched_source_reference.sum(), matched_destination_reference.sum()
+
+def singly_matched_pairs_within_radius(distance_matrix_, distance_threshold, point_set_name='all'):
+    matches, matched_source, matched_destination = matches_within_radius(distance_matrix_, distance_threshold)
+    if point_set_name in ['source', 'all']:
+        matches[~matched_source, :] = False
+    if point_set_name in ['destination', 'all']:
+        matches[:, ~matched_destination] = False
     return np.asarray(np.where(matches)).T
 
 

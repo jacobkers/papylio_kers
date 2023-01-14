@@ -5,6 +5,25 @@ import numpy as np
 from skimage.transform import SimilarityTransform, AffineTransform
 from trace_analysis.mapping.mapping import Mapping2
 
+@pytest.fixture
+def mapping():
+    translation = np.array([10, -10])
+    rotation = 1 / 360 * 2 * np.pi
+    scale = [0.98, 0.98]
+    transformation = SimilarityTransform(translation=translation, rotation=rotation, scale=scale)
+    mapping = Mapping2.simulate(number_of_points=200, transformation=transformation,
+                                bounds=([0, 0], [256, 512]), crop_bounds=((50, 200), None), fraction_missing=(0.1, 0.1),
+                                error_sigma=(0.5, 0.5), shuffle=True, seed=10252)
+    return mapping
+
+
+def test_vertices(mapping):
+    assert (mapping.get_source_vertices() == mapping.source_vertices).all()
+    assert (mapping.get_destination_vertices() == mapping.destination_vertices).all()
+
+    assert (mapping.get_source_vertices(crop=True) == mapping.source_cropped_vertices).all()
+    assert (mapping.get_destination_vertices(crop=True) == mapping.destination_cropped_vertices).all()
+
 
 def test_geometric_hash_table():
     translation = np.array([256, 10])

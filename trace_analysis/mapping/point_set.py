@@ -45,3 +45,6 @@ def crop_coordinates(coordinates, vertices):
 
 def determine_vertices(point_set, margin=0):
     return np.array(MultiPoint(point_set).convex_hull.buffer(margin, join_style=1).boundary.coords)[:-1]
+
+def vertices_with_margin(vertices, margin):
+    return np.array(Polygon(vertices).buffer(margin).exterior.coords)
