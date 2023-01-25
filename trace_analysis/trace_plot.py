@@ -6,10 +6,21 @@ Created on Fri Sep 14 15:44:52 2018
 """
 # import wx
 # import wx.lib.mixins.inspection as wit
+# import sys
+# print('PyQt5', sys.modules.get("PyQt5.QtCore"))
+# print('PySide2', sys.modules.get("PySide2.QtCore"))
+
+###################################################
+## To enable interactive plotting with PySide2 in PyCharm 2022.3
 import PySide2
-import matplotlib as mpl
-mpl.use('qt5agg')
+import sys
+sys.modules['PyQt5'] = sys.modules['PySide2']
+import matplotlib
+matplotlib.use('Qt5Agg')
+###################################################
+
 import matplotlib.pyplot as plt
+
 # from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg as FigureCanvas
 # from matplotlib.backends.backend_wxagg import NavigationToolbar2WxAgg as NavigationToolbar
 # from matplotlib.backends.backend_qtagg import FigureCanvas
@@ -30,7 +41,7 @@ import numpy as np
 # from matplotlib.backends.qt_compat import QtWidgets
 from PySide2 import QtWidgets
 from matplotlib.backends.backend_qt5agg import (
-    FigureCanvas, NavigationToolbar2QT as NavigationToolbar)
+    FigureCanvasQTAgg, NavigationToolbar2QT as NavigationToolbar)
 from matplotlib.figure import Figure
 
 
@@ -134,11 +145,11 @@ class TracePlotWindow(QWidget):
             self.canvas.save()
 
 
-class TracePlotCanvas(FigureCanvas):
+class TracePlotCanvas(FigureCanvasQTAgg):
     # Kader om plot als geselecteerd
     # Autosave function
     def __init__(self, parent=None, width=14, height=7, dpi=100):
-        self.figure = mpl.figure.Figure(figsize=(width, height), dpi=dpi, constrained_layout=True)  # , figsize=(2, 2))
+        self.figure = matplotlib.figure.Figure(figsize=(width, height), dpi=dpi, constrained_layout=True)  # , figsize=(2, 2))
         super().__init__(self.figure)
         self.parent_window = parent
         plot_variables = self.parent_window.plot_variables
@@ -552,7 +563,6 @@ if __name__ == "__main__":
     from trace_analysis.experiment import Experiment
     exp = Experiment(r'D:\SURFdrive\Promotie\Code\Python\traceAnalysis\twoColourExampleData\20141017 - Holliday junction - Copy')
     ds = exp.files[0].dataset
-
 
     from PySide2.QtWidgets import QApplication
 
