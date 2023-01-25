@@ -14,10 +14,10 @@ import copy
 from tabulate import tabulate
 from pathlib import Path
 import pandas as pd
-# try:
-#     import logomaker
-# except ModuleNotFoundError:
-#     pass
+try:
+    import logomaker
+except ModuleNotFoundError:
+    pass
 
 import matplotlib.path as pth
 
