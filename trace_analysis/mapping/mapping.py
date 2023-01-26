@@ -955,18 +955,18 @@ class Mapping2:
             return ''
 
     def show_source(self, **kwargs):
-        return self.show_mapping_transformation(show_source=True, show_destination=False, show_transformed_coordinates=False,
-                                                **kwargs)
+        return self.show(show_source=True, show_destination=False, show_transformed_coordinates=False, **kwargs)
 
     def show_destination(self, **kwargs):
-        return self.show_mapping_transformation(show_source=False, show_destination=True, show_transformed_coordinates=False,
-                                                **kwargs)
+        return self.show(show_source=False, show_destination=True, show_transformed_coordinates=False, **kwargs)
 
-    def show_mapping_transformation(self, axis=None, show_source=False, show_destination=False,
-                                    show_transformed_coordinates=True, show_pairs=True,
-                                    crop=False, inverse=False, source_colour='forestgreen', destination_colour='r',
-                                    pair_colour='b', use_distance_threshold=True, save=False, save_path=None,
-                                    legend_off=False, return_plot=False):
+    def show_mapping_transformation(self, *args, **kwargs):
+        return self.show(*args, **kwargs)
+
+    def show(self, axis=None, show_source=False, show_destination=False, show_transformed_coordinates=True,
+             show_pairs=True, crop=False, inverse=False, source_colour='forestgreen', destination_colour='r',
+             pair_colour='b', use_distance_threshold=False, save=False, save_path=None, legend_off=False,
+             return_plot=False):
         """Show a point scatter of the source transformed to the destination points and the destination.
 
         Parameters
@@ -1013,27 +1013,37 @@ class Mapping2:
                     plot_circles(axis, all_transformed_coordinates[self.matched_pairs[:,int(inverse)]],
                                  radius=distance_threshold, linewidth=1,
                                  facecolor='none', edgecolor=pair_colour)
+                # axis.plot(*transformed_coordinates.T, markerfacecolor='none', markeredgecolor=transformed_coordinates_colour,
+                #           markeredgewidth=1, marker='o', linestyle='None', markersize=distance_threshold,
+                #           label=f'{transformed_coordinates_name} transformed ({transformed_coordinates.shape[0]})')
+                # if show_pairs:
+                #     axis.plot(*all_transformed_coordinates[self.matched_pairs[:, int(inverse)]].T, markerfacecolor='none',
+                #               markeredgecolor=pair_colour, markeredgewidth=1, marker='o', linestyle='None', markertransform=t,
+                #               markersize=distance_threshold,)
             else:
-                axis.scatter(*transformed_coordinates.T, facecolors='none', edgecolors=transformed_coordinates_colour,
-                             linewidth=1, marker='o', label=f'{transformed_coordinates_name} transformed ({transformed_coordinates.shape[0]})')
+                axis.plot(*transformed_coordinates.T, markerfacecolor='none', markeredgecolor=transformed_coordinates_colour,
+                          markeredgewidth=1, marker='o', linestyle='None',
+                          label=f'{transformed_coordinates_name} transformed ({transformed_coordinates.shape[0]})')
                 if show_pairs:
-                    axis.scatter(*all_transformed_coordinates[self.matched_pairs[:, int(inverse)]].T, facecolors='none',
-                                 edgecolors=pair_colour, linewidth=1, marker='o')
+                    axis.plot(*all_transformed_coordinates[self.matched_pairs[:, int(inverse)]].T, markerfacecolor='none',
+                                 markeredgecolor=pair_colour, markeredgewidth=1, marker='o', linestyle='None')
         # else:
         #     show_source = True
         #     show_destination = True
 
         if show_source:
-            axis.scatter(*source.T, facecolors=source_colour, edgecolors='none', marker='.',
+            axis.plot(*source.T, markerfacecolor=source_colour, markeredgecolor='none', marker='.', linestyle='None',
                          label=f'{self.source_name} ({source.shape[0]})')
             if show_pairs:
-                axis.scatter(*self.source[self.matched_pairs[:,0]].T, facecolors=pair_colour, edgecolors='none', marker='.')
+                axis.plot(*self.source[self.matched_pairs[:,0]].T, markerfacecolor=pair_colour, markeredgecolor='none',
+                          marker='.', linestyle='None')
 
         if show_destination:
-            axis.scatter(*destination.T, facecolors=destination_colour, edgecolors='none', marker='.',
-                         label=f'{self.destination_name} ({destination.shape[0]})')
+            axis.plot(*destination.T, markerfacecolor=destination_colour, markeredgecolor='none', marker='.',
+                         linestyle='None', label=f'{self.destination_name} ({destination.shape[0]})')
             if show_pairs:
-                axis.scatter(*self.destination[self.matched_pairs[:,1]].T, facecolors=pair_colour, edgecolors='none', marker='.')
+                axis.plot(*self.destination[self.matched_pairs[:,1]].T, markerfacecolor=pair_colour,
+                          markeredgecolor='none', marker='.', linestyle='None')
 
         axis.set_aspect('equal')
 
@@ -1073,6 +1083,28 @@ class Mapping2:
 
         if return_plot:
             return figure, axis
+
+    def show_outline(self, inverse=False, source_colour='forestgreen', destination_colour='r', axis=None):
+        if axis is None:
+            figure, axis = plt.subplots()
+        else:
+            figure = axis.figure
+
+        if inverse:
+            space = 'source'
+        else:
+            space = 'destination'
+
+        source_vertices = self.get_source_vertices(space=space)
+        destination_vertices = self.get_destination_vertices(space=space)
+
+        source_vertices = np.vstack([source_vertices, source_vertices[0]])
+        destination_vertices = np.vstack([destination_vertices, destination_vertices[0]])
+
+        axis.plot(*source_vertices.T, c=source_colour)
+        axis.plot(*destination_vertices.T, c=destination_colour)
+
+        axis.set_aspect('equal')
 
     def get_transformation_direction(self, direction):
         """ Get inverse parameter based on direction
