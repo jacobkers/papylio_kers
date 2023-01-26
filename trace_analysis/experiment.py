@@ -18,8 +18,15 @@ import yaml
 import numpy as np
 import pandas as pd
 # import wx
-import matplotlib
-matplotlib.use('Qt5Agg')
+
+###################################################
+## To enable interactive plotting with PySide2 in PyCharm 2022.3
+import PySide2
+import sys
+sys.modules['PyQt5'] = sys.modules['PySide2']
+from matplotlib import use
+use('Qt5Agg')
+###################################################
 
 import matplotlib.pyplot as plt  # Provides a MATLAB-like plotting framework
 import xarray as xr
@@ -107,7 +114,7 @@ class Configuration(UserDict):
         with self.filepath.open('w') as yml_file:
             yaml.dump(self._data, yml_file, sort_keys=False)
 
-from PyQt5.QtWidgets import QFileDialog
+# from PyQt5.QtWidgets import QFileDialog
 def get_QApplication():
     from PySide2 import QtWidgets
     app = QtWidgets.QApplication.instance()

@@ -14,7 +14,11 @@ import copy
 from tabulate import tabulate
 from pathlib import Path
 import pandas as pd
-import logomaker
+try:
+    import logomaker
+except ModuleNotFoundError:
+    pass
+
 import matplotlib.path as pth
 
 class FastqData:
