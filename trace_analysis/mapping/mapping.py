@@ -546,20 +546,63 @@ class Mapping2:
         self._destination_distance_threshold = value
 
     def find_distance_threshold(self, method='single_match_optimization', **kwargs):
+        """Find distance optimal distance threshold and automatically sets the destination distance threshold.
+
+        Parameters
+        ----------
+        method : str
+            Method to use for finding the distance threshold. Choose from:
+            -   'single_match_optimization': Optimizes the number of singly-matched pairs,
+                i.e. the source point having only a single destination point within the distance threshold and the
+                destination point having only a single source point within the distance threshold.
+                See the Mapping2.single_match_optimization method.
+        kwargs
+            Keyword arguments to pass to method.
+
+        """
         if method == 'single_match_optimization':
             self.single_match_optimization(**kwargs)
         else:
             raise ValueError('Unknown method')
 
-    def number_of_single_matches_for_radii(self, radii):
+    def number_of_single_matches_for_radii(self, distance_thresholds):
+        """The number of singly-matched pairs for the provided distance thresholds.
+
+        Here singly-matched pairs are defined as the source point having only a single destination point within the
+        distance threshold and the destination point having only a single source point within the distance threshold.
+
+        Parameters
+        ----------
+        distance_thresholds : 1D numpy.ndaarray
+            Distance thresholds to test.
+
+        Returns
+        -------
+        1D numpy.ndaarray
+            Number of singly-matched points for each distance threshold.
+        """
         distance_matrix_ = self.distance_matrix(crop=True)
-        number_of_pairs = np.array([len(singly_matched_pairs_within_radius(distance_matrix_, r)) for r in radii])
+        number_of_pairs = np.array([len(singly_matched_pairs_within_radius(distance_matrix_, r)) for r in distance_thresholds])
         return number_of_pairs
 
     def single_match_optimization(self, maximum_radius=20, number_of_steps=100, plot=True):
-        radii = np.linspace(0, maximum_radius, number_of_steps)
-        number_of_pairs = self.number_of_single_matches_for_radii(radii)
-        self.destination_distance_threshold = distance_threshold_from_number_of_matches(radii, number_of_pairs, plot=plot)
+        """ Find the distance threshold with the highest number of singly matched pairs.
+
+        Test thresholds between 0 and maximum_radius.
+        Destination_distance_threshold is automatically set to the found value.
+
+        Parameters
+        ----------
+        maximum_radius : float
+            Maximum distance threshold to test.
+        number_of_steps : int
+            Number of steps on the interval
+        plot : bool
+            If True, a histogram of the number of pairs per distance threshold will be plotted
+        """
+        distance_thresholds = np.linspace(0, maximum_radius, number_of_steps)
+        number_of_pairs = self.number_of_single_matches_for_radii(distance_thresholds)
+        self.destination_distance_threshold = distance_threshold_from_number_of_matches(distance_thresholds, number_of_pairs, plot=plot)
 
     def determine_matched_pairs(self, distance_threshold=None, point_set_name='all'):
         #TODO: add crop
