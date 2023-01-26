@@ -240,7 +240,7 @@ class Mapping2:
         self.source_name = source_name
         self.source = np.array(source) #source=donor=left side image
         self.source_unit = source_unit
-        # self.source_distance_threshold = source_distance_threshold
+        self._source_distance_threshold = None
         self._destination_distance_threshold = destination_distance_threshold
         self._source_vertices = None
         self.destination_name = destination_name
@@ -509,18 +509,41 @@ class Mapping2:
 
     @property
     def source_distance_threshold(self):
-        return self.destination_distance_threshold / np.max(self.transformation.scale)
+        """float : Distance threshold in source space.
+
+        If destination_distance_threshold is set then the source_distance_threshold is derived using the scale of the
+        transformation.
+        """
+        if self._source_distance_threshold is not None:
+            return self._source_distance_threshold
+        elif self._destination_distance_threshold is not None:
+            return self._destination_distance_threshold / np.max(self.transformation.scale)
+        else:
+            raise ValueError('No distance threshold set')
+
+    @source_distance_threshold.setter
+    def source_distance_threshold(self, value):
+        self._source_distance_threshold = value
+        self._destination_distance_threshold = None
 
     @property
     def destination_distance_threshold(self):
-        if self._destination_distance_threshold is None:
-            raise ValueError('No destination distance threshold set')
-        return self._destination_distance_threshold
+        """float : Distance threshold in source space.
+
+        If source_distance_threshold is set then the destination_distance_threshold is derived using the scale of the
+        transformation.
+        """
+        if self._destination_distance_threshold is not None:
+            return self._destination_distance_threshold
+        elif self._source_distance_threshold is not None:
+            return self._source_distance_threshold * np.max(self.transformation.scale)
+        else:
+            raise ValueError('No distance threshold set')
 
     @destination_distance_threshold.setter
     def destination_distance_threshold(self, value):
+        self._source_distance_threshold = None
         self._destination_distance_threshold = value
-
 
     def find_distance_threshold(self, method='single_match_optimization', **kwargs):
         if method == 'single_match_optimization':
