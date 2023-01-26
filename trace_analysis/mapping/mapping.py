@@ -273,10 +273,6 @@ class Mapping2:
                 self.transformation_inverse = transformation_inverse
 
 
-        # if (source is not None) and (destination is not None):
-        #     if self.method is None: self.method = 'icp'
-        #     self.perform_mapping()
-
     # Function to make attributes from transformation available from the Mapping2 class
     def __getattr__(self, item):
         if ('transformation' in self.__dict__) and hasattr(self.transformation, item):
@@ -378,6 +374,23 @@ class Mapping2:
         return crop_coordinates(self.destination, self.destination_cropped_vertices)
 
     def get_source(self, crop=False, space='source', margin=None):
+        """Getter for the source point set.
+
+        Parameters
+        ----------
+        crop : bool or str, optional
+            If True or 'source', the point set is cropped to the area of the destination.
+        space : str, optional
+            In which coordinate space to return the point set. Either 'source' or 'destination'.
+        margin : float or int, optional
+            Margin used for cropping.
+
+
+        Returns
+        -------
+        Nx2 numpy.ndaarray
+            Source point set
+        """
         if crop in ['destination', False]:
             source = self.source
         elif crop in ['source', True]:
@@ -390,6 +403,23 @@ class Mapping2:
         return source
 
     def get_destination(self, crop=False, space='destination', margin=None):
+        """Getter for the destination point set.
+
+        Parameters
+        ----------
+        crop : bool or str, optional
+            If True or 'destination', the point set is cropped to the area of the source.
+        space : str, optional
+            In which coordinate space to return the point set. Either 'source' or 'destination'.
+        margin : float or int, optional
+            Margin used for cropping.
+
+
+        Returns
+        -------
+        Nx2 numpy.ndaarray
+            Destination point set
+        """
         if crop in ['source', False]:
             destination = self.destination
         elif crop in ['destination', True]:
@@ -402,6 +432,22 @@ class Mapping2:
         return destination
 
     def get_source_vertices(self, crop=False, space='source', margin=None):
+        """Getter for vertices of the source point set.
+
+        Parameters
+        ----------
+        crop : bool or str, optional
+            If True or 'source', the vertices of the overlapping area with the destination point set are given.
+        space : str, optional
+            In which coordinate space to return the vertices. Either 'source' or 'destination'.
+        margin : float or int, optional
+            Margin used for cropping.
+
+        Returns
+        -------
+        Nx2 numpy.ndaarray
+            Coordinates of the source vertices
+        """
         if crop in ['destination', False]:
             source_vertices = self.source_vertices
         elif crop in ['source', True]:
@@ -416,6 +462,23 @@ class Mapping2:
         return source_vertices
 
     def get_destination_vertices(self, crop=False, space='destination', margin=None):
+        """Getter for vertices of the destination point set.
+
+        Parameters
+        ----------
+        crop : bool or str, optional
+            If True or 'destination', the vertices of the overlapping area with the source point set are given.
+        space : str, optional
+            In which coordinate space to return the vertices. Either 'source' or 'destination'.
+        margin : float or int, optional
+            Margin used for cropping.
+
+        Returns
+        -------
+        Nx2 numpy.ndaarray
+            Coordinates of the destination vertices
+        """
+
         if crop in ['source', False]:
             destination_vertices = self.destination_vertices
         elif crop in ['destination', True]:
@@ -430,6 +493,18 @@ class Mapping2:
         return destination_vertices
 
     def get_overlap_vertices(self, space='source'):
+        """Getter for vertices of the overlap between the source and destination point sets.
+
+        Parameters
+        ----------
+        space : str, optional
+            In which coordinate space to return the vertices. Either 'source' or 'destination'.
+
+        Returns
+        -------
+        Nx2 numpy.ndaarray
+            Coordinates of the overlap vertices
+        """
         return overlap_vertices(self.get_source_vertices(space=space), self.get_destination_vertices(space=space))
 
     @property
