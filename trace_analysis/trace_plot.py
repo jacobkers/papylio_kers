@@ -86,6 +86,7 @@ class TracePlotWindow(QWidget):
 
         self.show()
 
+        app.exec_()
 
     @property
     def dataset(self):
