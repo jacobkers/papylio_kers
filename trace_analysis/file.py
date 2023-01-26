@@ -121,7 +121,13 @@ class File:
 
     @property
     def number_of_molecules(self):
-        return len(self.dataset.molecule)
+        # return len(self.dataset.molecule)
+        # if self.absoluteFilePath.with_suffix('.nc').exists():
+        try:
+            with xr.open_dataset(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf') as dataset:
+                return len(dataset.molecule)
+        except FileNotFoundError:
+            return 0
 
     @property
     def configuration(self):
@@ -1055,6 +1061,7 @@ class File:
                 file.is_mapping_file = False
 
     def show_image(self, projection_type='default', figure=None, unit='pixel', **kwargs):
+        # TODO: Show two channels separately and connect axes
         # Refresh configuration
         if projection_type == 'default':
             projection_type = self.experiment.configuration['projection_image']['projection_type']
