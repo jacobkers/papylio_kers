@@ -11,10 +11,12 @@ def get_dimension_size(filepath, dimension, with_sequence_only=False):
         else:
             return ds.dimensions[dimension].size
 
+
 def get_dimension_sizes(filepaths, dimension, with_sequence_only=False):
     return Parallel(prefer="threads")(delayed(get_dimension_size)(filepath, dimension, with_sequence_only)
                                       for filepath in filepaths)
     # return [get_dimension_size(filepath, 'molecule', with_sequence_only) for filepath in filepaths]
+
 
 def merge_datasets(files_in, file_out, concat_dim, init_file=None, with_sequence_only=False):
     if init_file is None:
@@ -35,6 +37,7 @@ def merge_datasets(files_in, file_out, concat_dim, init_file=None, with_sequence
                 else:
                     _, start_index_out = append_to_dataset(ds_in, ds_out, concat_dim, selection_in=None, start_index_out=start_index_out)
 
+
 def reorder_datasets_using_sequence_subset(files_in, folder_out, concat_dim):
     for file_in in tqdm.tqdm(files_in):
         with netCDF4.Dataset(file_in) as ds_in:
@@ -51,6 +54,7 @@ def reorder_datasets_using_sequence_subset(files_in, folder_out, concat_dim):
                     if concat_dim not in ds_out.dimensions.keys():
                         init_dataset_like(ds_in, ds_out, concat_dim)
                     append_index_to_dataset(ds_in, ds_out, concat_dim, i)
+
 
 def init_dataset_like(ds_in, ds_out, concat_dim, concat_dim_size=None):
     ds_out.createDimension(concat_dim, concat_dim_size)
@@ -74,6 +78,7 @@ def init_dataset_like(ds_in, ds_out, concat_dim, concat_dim_size=None):
         if concat_dim not in variable.dimensions:
             ds_out[name][:] = ds_in[name][:]
 
+
 def append_to_dataset(ds_in, ds_out, concat_dim, selection_in=None, start_index_out=None):
     if selection_in is None:
         selection_in = np.ones(ds_in.dimensions[concat_dim].size).astype(bool)
@@ -90,6 +95,7 @@ def append_to_dataset(ds_in, ds_out, concat_dim, selection_in=None, start_index_
             ds_out[name][start_index_out:end_index_out] = ds_in[name][selection_in]
 
     return start_index_out, end_index_out
+
 
 def append_index_to_dataset(ds_in, ds_out, concat_dim, index_in):
     index_to = ds_out.dimensions[concat_dim].size
