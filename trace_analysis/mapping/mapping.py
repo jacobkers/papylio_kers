@@ -75,7 +75,7 @@ class Mapping2:
     @classmethod
     def simulate(cls, number_of_points=200, transformation=None,
                  bounds=[[0, 0], [256, 512]], crop_bounds=(None, None), fraction_missing=(0.1, 0.1),
-                 error_sigma=(0.5, 0.5), shuffle=True, seed=10532):
+                 error_sigma=(0.5, 0.5), shuffle=True, seed=10532, show_correct=True):
         """
         Simulate a point set with a specific transformation and return as a Mapping2 object. It generates an original
         point set of which the source and destination point sets are subsets.
@@ -102,6 +102,8 @@ class Mapping2:
             If False the order of the destination points in the source and destination will be identical.
         seed : int
             Seed used for random number generator.
+        show_correct : bool
+            If True show the generated dataset with the correct transformation.
 
         Returns
         -------
@@ -131,7 +133,8 @@ class Mapping2:
         mapping = SimulatedMapping2(source, destination)
         mapping.transformation_correct = transformation
 
-        mapping.show_correct_mapping_transformation()
+        if show_correct:
+            mapping.show_correct_mapping_transformation()
 
         return mapping
 
