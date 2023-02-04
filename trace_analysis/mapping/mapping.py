@@ -608,6 +608,23 @@ class Mapping2:
         self.destination_distance_threshold = distance_threshold_from_number_of_matches(distance_thresholds, number_of_pairs, plot=plot)
 
     def determine_matched_pairs(self, distance_threshold=None, point_set_name='all'):
+        """Find pairs of source and destination points that closer than the distance threshold and are singly matched,
+        i.e. each source point only has one destination point within the threshold and vice versa.
+
+        Sets the matched_pairs attribute.
+
+        Parameters
+        ----------
+        distance_threshold : int or float
+            Distance threshold for match determination.
+        point_set_name : str
+            If 'source' then only the source point should have a single match in the destination point set.
+            the destination point can have multiple matches in the source point set.
+            If 'destination' then only the destination point should have a single match in the source point set,
+            the source point can have multiple matches in the destination point set.
+            If 'all' then both source and destination should have a single match.
+        """
+
         #TODO: add crop
         if distance_threshold is None:
             distance_threshold = self.destination_distance_threshold
@@ -616,7 +633,26 @@ class Mapping2:
 
         self.matched_pairs = singly_matched_pairs_within_radius(distance_matrix_, distance_threshold, point_set_name=point_set_name)
 
-    def number_of_matches_for_source_and_destination(self, distance_threshold, matches_per_point=[0,1], crop=True):
+    def number_of_matches_for_source_and_destination(self, distance_threshold=None, matches_per_point=[0,1], crop=True):
+        """Gives the number of source and destination points that respectively have a specified number of matches
+        with the destination and source point sets.
+
+        Parameters
+        ----------
+        distance_threshold : int, float, list or numpy.ndarray
+            Distance threshold(s) to determine the number of matches for. If None (default) then the
+            destination_distance_threshold attribute is used.
+        matches_per_point : int or list of int
+            Number of matches to report
+        crop : bool or str, optional
+            If True or 'destination', the vertices of the overlapping area with the source point set are given.
+
+        Returns
+        -------
+        xarray.DataArray
+            Number of source or destination points with specific distance threshold
+
+        """
         if distance_threshold is None:
             distance_threshold = self.destination_distance_threshold
         if not (isinstance(distance_threshold, list) or isinstance(distance_threshold, np.ndarray)):
@@ -637,15 +673,46 @@ class Mapping2:
                 data[i, m, 1] = np.array(number_of_matches_within_radius(distance_matrix_ds, R, matches_per_point=m))[1]
         return data
 
-    def pair_coordinates(self, point_set='destination', space='destination'):
-        if point_set == 'source':
+    def pair_coordinates(self, point_set_name='destination', space='destination'):
+        """ Get the coordinates of the paired source or destination points.
+
+        Parameters
+        ----------
+        point_set_name : str
+            Name from the point set to use the coordinates from. Either 'source' or 'destination' (default).
+        space : str, optional
+            In which coordinate space to return the coordinates. Either 'source' or 'destination' (default).
+
+
+        Returns
+        -------
+        Nx2 numpy.ndaarray
+            Coordinates of paired points
+        """
+        if point_set_name == 'source':
             return self.get_source(space=space)[self.matched_pairs[:,0]]
-        elif point_set == 'destination':
+        elif point_set_name == 'destination':
             return self.get_destination(space=space)[self.matched_pairs[:,1]]
 
     def pair_distances(self, space='destination', show=False, **kwargs):
-        xy_distances = self.pair_coordinates(point_set='source', space=space) - \
-                       self.pair_coordinates(point_set='destination', space=space)
+        """ Distances between the paired source and destination points.
+
+        Parameters
+        ----------
+        space : str, optional
+            In which coordinate space to return the coordinates. Either 'source' or 'destination' (default).
+        show : bool
+            If True, show a histogram of the distances.
+        kwargs
+            Keyword arguments passed to matplotlib.pyplot.histogram.
+
+        Returns
+        -------
+        1D numpy.ndaarray
+            Distances between paired points.
+        """
+        xy_distances = self.pair_coordinates(point_set_name='source', space=space) - \
+                       self.pair_coordinates(point_set_name='destination', space=space)
 
         pair_distances = np.linalg.norm(xy_distances, axis=1)
 
