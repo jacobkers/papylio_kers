@@ -71,10 +71,12 @@ def plot_single_mutation_data(sequence, da):
                         textcoords=('data', 'offset points'),
                         ha='center', va='bottom', arrowprops={'width': 0.2, 'headwidth': 3, 'headlength': 2})
 
-def double_mutations(sequence):
+def double_mutations(sequence, add_reference=False):
     ## Generated dataset
     # sequence = 'GGCGCCGC'
-    sequences = [] # [sequence]
+    sequences = []
+    if add_reference:
+        sequences.append(sequence)
     bases = 'ACTG'
 
     for i in range(len(sequence)):
@@ -96,7 +98,7 @@ def double_mutations(sequence):
     return sequences
 
 
-def plot_double_mutations(sequence, da, da_annotation=None, save=False, save_path=None):
+def plot_double_mutations(sequence, da, da_annotation=None, save=False, save_path=None, **kwargs):
     # sequences = [sequence] + double_mutations(sequence)
     bases = 'ACTG'
     data = np.zeros((len(sequence)*3, len(sequence)*3))
@@ -138,8 +140,13 @@ def plot_double_mutations(sequence, da, da_annotation=None, save=False, save_pat
     figsize = 1+len(sequence)*0.75
     fig, ax = plt.subplots(figsize=(figsize, figsize), tight_layout=True)
 
+    if sequence in da.sequence:
+        data[0,data.shape[1]//2] = da.sel(sequence=sequence).item()
+        if da_annotation is not None:
+            data_annotation[0, data.shape[1] // 2] = da_annotation.sel(sequence=sequence).item()
+
     # Plot the heatmap
-    im = ax.imshow(data, cmap="Greens")
+    im = ax.imshow(data, cmap="Greens", **kwargs)
 
 
     # Create colorbar
