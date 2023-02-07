@@ -96,7 +96,8 @@ def parameter_to_transformation(transformation_parameters):
                                          shear=transformation_parameters[3], translation=transformation_parameters[4:6])
     return transformation
 
-def compute_kernel_correlation(transformation, source, destination, sigma=1, plot=False, axis=None):
+
+def compute_kernel_correlation(transformation, source, destination, sigma=1, plot=False, axis=None, per_point_pair=False):
 
     # transformation = AffineTransform(matrix=np.hstack([transformation_parameters, [0,0,1]]).reshape(3,3))
     # t = []
@@ -130,11 +131,17 @@ def compute_kernel_correlation(transformation, source, destination, sigma=1, plo
     #distances2 = destination_tree.sparse_distance_matrix(source_tree, 3 * sigma, output_type='dok_matrix').values()
     #distances2 = np.fromiter(destination_tree.sparse_distance_matrix(source_tree, 3 * sigma, output_type='dict').values(),
                 # dtype=float)
-    distances = destination_tree.sparse_distance_matrix(source_transformed_tree, 5 * sigma, output_type='ndarray')['v']
+    if not per_point_pair:
+        distances = destination_tree.sparse_distance_matrix(source_transformed_tree, 5 * sigma, output_type='ndarray')['v']
+    else:
+        distances = destination_tree.sparse_distance_matrix(source_transformed_tree, 5 * sigma, output_type='dok_matrix').power(-1).toarray()**-1
     # t.append(time.time())
     # print(t[-1]-t[-2])
 
-    KCVal = -np.exp(-distances ** 2 / (4 * sigma ** 2)).sum()
+    KCVal = -np.exp(-distances ** 2 / (4 * sigma ** 2))
+
+    if not per_point_pair:
+        KCVal = KCVal.sum()
     # t.append(time.time())
     # print(t[-1]-t[-2])
 

@@ -645,7 +645,10 @@ class Mapping2:
         matches_per_point : int or list of int
             Number of matches to report
         crop : bool or str, optional
-            If True or 'destination', the vertices of the overlapping area with the source point set are given.
+            If True: the overlap between the source and destination point set is used.
+            If 'source': only the source is cropped to the destination point set.
+            If 'destination': only the destination is cropped to the source point set.
+            If False: no cropping is applied.
 
         Returns
         -------
@@ -727,28 +730,19 @@ class Mapping2:
 
     @property
     def number_of_source_points(self):
+        """int : Number of points in the source point set.
+        """
         return self.source.shape[0]
 
     @property
     def number_of_destination_points(self):
+        """int : Number of points in the destination point set.
+        """
         return self.destination.shape[0]
 
     @property
     def number_of_matched_points(self):
-        """Number of matched points determined by finding the two-way nearest neigbours that are closer than a distance
-        threshold.
-
-        Parameters
-        ----------
-        distance_threshold : float
-            Distance threshold for nearest neighbour match, i.e. only nearest neighbours with a distance smaller than
-            the distance threshold are used.
-
-        Returns
-        -------
-        int
-            Number of matched points
-
+        """int : Number of matched pairs between the source and destination point set
         """
         # distances, source_indices, destination_indices = \
         #     nearest_neighbor_pair(self.source_to_destination, self.destination)
@@ -758,9 +752,39 @@ class Mapping2:
         return self.matched_pairs.shape[0]
 
     def fraction_of_source_matched(self, crop=False):
+        """Fraction of the source points that is matched to a destination point
+
+        Parameters
+        ----------
+        crop : bool or str, optional
+            If True: the overlap between the source and destination point set is used.
+            If 'source': only the source is cropped to the destination point set.
+            If 'destination': only the destination is cropped to the source point set.
+            If False: no cropping is applied.
+
+        Returns
+        -------
+        float
+            Fraction of source that is matched
+        """
         return self.number_of_matched_points / self.get_source(crop).shape[0]
 
     def fraction_of_destination_matched(self, crop=False):
+        """Fraction of the destination points that is matched to a source point
+
+        Parameters
+        ----------
+        crop : bool or str, optional
+            If True: the overlap between the source and destination point set is used.
+            If 'source': only the source is cropped to the destination point set.
+            If 'destination': only the destination is cropped to the source point set.
+            If False: no cropping is applied.
+
+        Returns
+        -------
+        float
+            Fraction of destination that is matched
+        """
         return self.number_of_matched_points / self.get_destination(crop).shape[0]
 
         # Possiblility to estimate area per point without source or destination vertices
@@ -780,38 +804,90 @@ class Mapping2:
 
     @property
     def source_area(self):
+        """float : Area of the source point set."""
         return area(self.source_vertices)
 
     @property
     def source_in_destination_area(self):
+        """float : Area of the source point set when transformed to destination space."""
         return area(self.transformation(self.source_vertices))
 
     @property
     def source_cropped_area(self):
+        """float : Area of the source point set cropped to the destination point set."""
         return area(self.source_cropped_vertices)
 
     @property
     def destination_area(self):
+        """float : Area of the destination point set."""
         return area(self.destination_vertices)
 
     @property
     def destination_cropped_area(self):
+        """float : Area of the destination point set cropped to the source point set."""
         return area(self.destination_cropped_vertices)
 
     def get_source_area(self, crop=False, space='destination'):
+        """Get the area of the source point set, i.e. within the source point vertices.
+
+        Parameters
+        ----------
+        crop : bool or str, optional
+            If True: the overlap between the source and destination point set is used.
+            If 'source': only the source is cropped to the destination point set.
+            If 'destination': only the destination is cropped to the source point set.
+            If False: no cropping is applied.
+        space : str, optional
+            In which coordinate space to return the point set. Either 'source' or 'destination'.
+
+        Returns
+        -------
+        float
+            Source area
+        """
         return area(self.get_source_vertices(crop=crop, space=space))
 
     def get_destination_area(self, crop=False, space='destination'):
+        """Get the area of the destination point set, i.e. within the destination point vertices.
+
+           Parameters
+           ----------
+           crop : bool or str, optional
+               If True: the overlap between the source and destination point set is used.
+               If 'source': only the source is cropped to the destination point set.
+               If 'destination': only the destination is cropped to the source point set.
+               If False: no cropping is applied.
+           space : str, optional
+               In which coordinate space to return the point set. Either 'source' or 'destination'.
+
+           Returns
+           -------
+           float
+               Destination area
+           """
         return area(self.get_destination_vertices(crop=crop, space=space))
 
     @property
     def transformation_type(self):
+        """str : Transformation type used for mapping.
+
+        Currently supported transformation types are:
+        - 'linear' or 'affine': affine transform using skimage.transform.AffineTransform
+        - 'similarity': similarity transform using skimage.transform.SimilarityTransform
+        - 'nonlinear': polynomial transform corresponding to the IDL polywarp transform
+        - 'polynomial': polynomial transform using skimage.transform.PolynomialTransform
+
+        Available transformation types are stored in the Mapping2.transformation_types class attribute.
+
+        If set, then the transform attribute is set to the transformation class corresponding to the set value.
+        """
+        #TODO: derive the transformation type from self.transform instead of the other way around.
         return self._transformation_type
 
     @transformation_type.setter
     def transformation_type(self, value):
+        self.transform = self.transformation_types[value]
         self._transformation_type = value
-        self.transform = self.transformation_types[self._transformation_type]
 
     # @property
     # def transform(self):
@@ -965,8 +1041,9 @@ class Mapping2:
         self.transformation_inverse = type(self.transformation)(self.transformation._inv_matrix)
         self.mapping_statistics = {'kernel_correlation_value': result.fun}
 
-    def kernel_correlation_score(self, sigma=1, crop=False):
-        return compute_kernel_correlation(self.transformation, self.get_source(crop), self.get_destination(crop), sigma=sigma)
+    def kernel_correlation_score(self, sigma=1, crop=False, per_point_pair=False):
+        return compute_kernel_correlation(self.transformation, self.get_source(crop), self.get_destination(crop),
+                                          sigma=sigma, per_point_pair=per_point_pair)
 
     def cross_correlation(self, peak_detection='auto', gaussian_width=7, divider=5, crop=False, space='destination', plot=False, axes=None):
         if self.transformation is None:
@@ -1141,7 +1218,7 @@ class Mapping2:
             pair_marker2 = mlines.Line2D([], [], linewidth=0, markerfacecolor=pair_colour,
                                          markeredgecolor='none', marker='.')
             legend_dict[f'matched pairs ({self.number_of_matched_points})'] = (pair_marker1, pair_marker2)
-
+            # .get_legend().get_lines()[1].set_markerfacecolor('g')
         if not legend_off:
             axis.legend(legend_dict.values(), legend_dict.keys(), loc='upper right')
 
