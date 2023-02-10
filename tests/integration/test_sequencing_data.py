@@ -20,6 +20,7 @@ def test_parse_sam(sam_filepath):
     parse_sam(sam_filepath, remove_duplicates=True, add_aligned_sequence=True, extract_sequence_subset=extract_sequence_subset,
               chunksize=10, write_csv=False, write_nc=True, write_filepath=None)
 
+
 def test_fastq_generator(read1_fastq_filepath):
     fqg = fastq_generator(read1_fastq_filepath)
     next(fqg)
