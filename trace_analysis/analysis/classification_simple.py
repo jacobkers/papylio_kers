@@ -1,22 +1,22 @@
+import numpy as np
+import xarray as xr
 
 
+def trace_classification_threshold(traces, threshold):
+    classification_lower = classification_upper = True
+    if threshold[0] is not None:
+        classification_lower = np.vstack([(trace > threshold[0]) for trace in traces.values])
+    if threshold[1] is not None:
+        classification_upper = np.vstack([(trace < threshold[1]) for trace in traces.values])
 
-# def pre_classification(ds):
-#     classification_da = ds['classification'].copy()
-#     classification_da.name = 'pre_classification'
-#     for molecule_index in ds.molecule:
-#         molecule = ds.sel(molecule=molecule_index)
-#         test = molecule.intensity.to_pandas()
-#         corr = test.iloc[0, :].rolling(10, center=True, min_periods=1).corr(test.iloc[1, :])
-#         # corr[0:9] = corr[9]
-#         # corr2 = moving_average(corr, 15)
-#         corr2 = corr.rolling(15, center=True, min_periods=1).mean()
-#         selection = (corr2 < -0.60).rolling(15, center=True, min_periods=1).max().astype(int)
-#         # corr2 = scipy.signal.medfilt(corr, 15)
-#         selection2 = ds['intensity_total'].sel(molecule=molecule_index) < 55000
-#
-#         classification_da[dict(molecule=molecule_index)] = selection*selection2-1
-#     return classification_da
+    classification = xr.DataArray((classification_upper & classification_lower),
+                                  dims=('molecule', 'frame'), name='classification')
+    return classification
+
+
+def trace_selection_threshold(traces, threshold):
+    classification = trace_classification_threshold(traces, threshold)
+    return classification.all(dim='frame')
 
 
 
