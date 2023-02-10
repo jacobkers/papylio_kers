@@ -1,7 +1,7 @@
 import numpy as np #scientific computing with Python
 import matplotlib.pyplot as plt
-from matplotlib.collections import LineCollection
-from trace_analysis.coordinate_transformations import transform
+
+# from trace_analysis.mapping.coordinate_transformations import transform
 import matplotlib.patches as patches
 from matplotlib.collections import PatchCollection
 from mpl_toolkits.axes_grid1 import make_axes_locatable
@@ -74,23 +74,6 @@ def fit_hist(data, axis):
 
 # uniqueFileNames = list(set([re.search('hel[0-9]*',fileName).group() for fileName in fileNames]))
 
-def scatter_coordinates(pointsets, axis=None):
-    if not axis:
-        axis = plt.gca()
-    for pointset in pointsets:
-        axis.scatter(pointset[:,0], pointset[:,1])
-#
-# def show_point_connections(pointset1,pointset2):
-#     for coordinate1, coordinate2 in zip(pointset1, pointset2):
-#         plt.plot([coordinate1[0],coordinate2[0]],[coordinate1[1],coordinate2[1]], color='r')
-
-def show_point_connections(pointset1, pointset2, axis=None):
-    coordinate_pairs = np.swapaxes(np.dstack([pointset1, pointset2]), 1, 2)
-    line_segments = LineCollection(coordinate_pairs, linestyle='solid', color='r')
-    if not axis:
-        axis = plt.gca()
-    axis.add_collection(line_segments)
-    # axis.autoscale()
 
 def show_image_3d(image, figure=None):
     if not figure:

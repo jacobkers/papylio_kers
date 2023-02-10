@@ -1,29 +1,11 @@
-import sys
-
+import PIL.ImageFilter
 import numpy as np
+import xarray as xr
+from tqdm import tqdm
+import dask_image.ndfilters
+import scipy.ndimage
 
-# def make_gaussian(size, fwhm = 3, center=None):
-#     # From https://stackoverflow.com/questions/7687679/how-to-generate-2d-gaussian-with-python
-#     """ Make a square gaussian kernel.
-#
-#     size is the length of a side of the square
-#     fwhm is full-width-half-maximum, which
-#     can be thought of as an effective radius.
-#     """
-#
-#     x = np.arange(0, size, 1, float)
-#     y = x[:,np.newaxis]
-#
-#     if center is None:
-#         x0 = y0 = size // 2
-#     else:
-#         x0 = center[0]
-#         y0 = center[1]
-#
-#     return np.exp(-4*np.log(2) * ((x-x0)**2 + (y-y0)**2) / fwhm**2)
-
-
-def make_gaussian_mask(size, center=None, offset=(0, 0), sigma=1.291):
+def make_gaussian_mask(size, offsets, sigma=1.291):
     # TODO: Explain calculation in docstring
     # It is to keep the photon number the same after applying the mask.
     # If there is a PSF of N photons, which is nothing but a 2D Gauss function with given sigma and amplitude,
@@ -32,123 +14,160 @@ def make_gaussian_mask(size, center=None, offset=(0, 0), sigma=1.291):
     # The normalization factor should be different for different PSF size (i.e. different magnification or setup).
     # So N = sum(mask * (psf_single_photon*N)), and so sum(mask*psf_single_photon)
     # Both the mask and the psf are 2d Gaussians
+    import xarray as xr
+    roi = xr.DataArray(np.mgrid[0:size,0:size]-size//2, dims=('dimension','y','x'), coords={'dimension': ['y', 'x']})
+    masks = np.exp(-((roi - offsets) ** 2).sum('dimension') / sigma**2 / 2).transpose('molecule','channel','y','x')
+    psfs_single_photon = masks/masks.sum(dim=('x', 'y'))
+    norm_factors = (masks*psfs_single_photon).sum(dim=('x','y'))
+    masks = masks/norm_factors
+    return masks
 
-    x = np.arange(0, size, 1, float)
-    y = x[:, np.newaxis]
-
-    if center is None: center = [size // 2, size //2]
-    #
-    # mask_IDL = 2.0 * np.exp(- 0.3 * ((x - center[0] - offset[0]) ** 2 + (y - center[0] - offset[1]) ** 2))
-    mask = np.exp(-((x - center[0] - offset[0]) ** 2 + (y - center[0] - offset[1]) ** 2) / sigma**2 / 2)
-    psf_single_photon = mask/np.sum(mask)
-    norm_factor = np.sum(np.multiply(mask, psf_single_photon))
-    mask = np.divide(mask, norm_factor)
-
-    ### SHK to del. for debug
-    # print(np.sum(np.multiply(mask, psf_single_photon)))
-    # import matplotlib.pyplot as plt
-    # from mpl_toolkits.mplot3d import Axes3D
-    #
-    # fig = plt.figure(1101)
-    # fig.clf()
-    # ax = plt.axes(projection='3d')
-    # ax.plot_surface(x, y, mask_IDL)
-    # fig = plt.figure(1102)
-    # ax = plt.axes(projection='3d')
-    # ax.plot_surface(x, y, mask)
-    # xx, yy = np.meshgrid(x,y)
-    # ax.scatter(xx, yy, mask_IDL, c='k', depthshade=False, alpha=1, s=30)
-    # plt.show()
-    # fig = plt.figure(1103)
-    # ax = plt.axes(projection='3d')
-    # ax.plot_surface(x, y, np.subtract(mask_IDL, mask))
-    # plt.show()
-    ### END of SHK del
-
-    return mask
-
-def extract_trace_values_from_image(image, coordinates, background, twoD_gaussians):  # extract traces
-    coordinates = np.atleast_2d(coordinates)
-
-    # Probably indeed better to get this outside of the function, so that it is not redefined every time.
-    half_size_Gaussian = len(twoD_gaussians[0]) // 2
-
-    # This should likely be put on a central place in selection of locations
-    # coordinates = coordinates[self.is_within_margin(coordinates, edge = None, margin = half_size_Gaussian + 1)]
-
-    coordinates = np.floor(coordinates).astype(int)
-
-    trace_values = np.zeros(len(coordinates))
-
-    for i, coordinate in enumerate(coordinates):
-        # First crop around spot, then do multiplication
-        intensities = image[(coordinate[1] - half_size_Gaussian):(coordinate[1] + half_size_Gaussian + 1),
-                      (coordinate[0] - half_size_Gaussian):(coordinate[0] + half_size_Gaussian + 1)
-                      ]
-
-        intensities = intensities - background[i]
-
-        weighted_intensities = intensities * twoD_gaussians[i]
-        trace_values[i] = np.sum(weighted_intensities)
-        #trace_values[i]=np.sum(intensities) # MD testing
-    return trace_values
-
-
-def extract_traces(movie, coordinates, background=None, channel='all', mask_size=1.291, neighbourhood_size=11, number_illumination=1):
-    # return donor and acceptor for the full data set
-    #     root, name = os.path.split(self.filepath)
-    #     traces_fn=os.path.join(root,name[:-4]+'-P.traces')
-
-    # if os.path.isfile(traces_fn):
-    # # load if traces file already exist
-    #      with open(traces_fn, 'r') as infile:
-    #          Nframes = np.fromfile(infile, dtype = np.int32, count = 1).item()
-    #          Ntraces = np.fromfile(infile, dtype = np.int16, count = 1).item()
-    #          rawData = np.fromfile(infile, dtype = np.int16, count = self.number_of_channels*Nframes * Ntraces)
-    #      orderedData = np.reshape(rawData.ravel(), (self.number_of_channels, Ntraces//self.number_of_channels, Nframes), order = 'F')
-    #      donor=orderedData[0,:,:]
-    #      acceptor=orderedData[1,:,:]
-    #      donor=np.transpose(donor)
-    #      acceptor=np.transpose(acceptor)
-    # else:
-
+def extract_traces(movie, coordinates, background=None, mask_size=1.291, neighbourhood_size=11, correct_illumination=False):
     # go through all images, extract donor and acceptor signal
+    # TODO: Process the movie in chunks
+    # TODO: Make sure the corretions are not reloaded for each chunk,
+    #  for example by loading them once at the with statement or by keeping recent variables in the cache/memmory
 
-    # This should likely be put on a central place in selection of locations
-    # coordinates = coordinates[self.is_within_margin(coordinates, edge = None, margin = self.gauss_width // 2 + 1)]
+    coordinates['dimension'] = coordinates.dimension.astype('U')
+    with movie:
+        movie.read_header()
 
-    # donor=np.zeros(( self.number_of_frames,self.pts_number))
-    # acceptor=np.zeros((self.number_of_frames,self.pts_number))
+        intensity = xr.DataArray(np.empty((len(coordinates.molecule), len(coordinates.channel), movie.number_of_frames)),
+                                 dims=['molecule', 'channel', 'frame'],
+                                 coords=coordinates.drop('dimension').coords, name='intensity')
 
-    traces = np.zeros((len(coordinates), movie.number_of_frames))
+        # background_correction = xr.DataArray(np.empty((len(coordinates.molecule), len(coordinates.channel), movie.number_of_frames)),
+        #                          dims=['molecule', 'channel', 'frame'],
+        #                          coords=coordinates.drop('dimension').coords, name='background_correction')
 
-    if background is None:
-        background = np.zeros(len(coordinates))
+        # channel_offsets = xr.DataArray(np.vstack([channel.origin for channel in movie.channels]),
+        #                                dims=('channel', 'dimension'),
+        #                                coords={'channel': [channel.index for channel in movie.channels],
+        #                                        'dimension': ['x', 'y']}) # TODO: Move to Movie
+        # coordinates = coordinates - channel_offsets
 
-    # t0 = time.time()
+        # if background is None:
+        #     background = xr.DataArray(dims=['molecule','channel'], coords={'molecule': coordinates.molecule, 'channel': coordinates.channel})
 
-    #twoD_gaussian = make_gaussian(gauss_width, fwhm=3, center=(gauss_width // 2, gauss_width // 2))
+        offsets = coordinates % 1
+        twoD_gaussians = make_gaussian_mask(size=neighbourhood_size, offsets=offsets, sigma=mask_size)
 
-    offsets = coordinates % 1
-    twoD_gaussians = [make_gaussian_mask(size=neighbourhood_size, offset=offsets[i], sigma=mask_size) for i in range(len(coordinates))]
+        coordinates_floored = (coordinates // 1).astype(int)
 
-    for frame_number in range(movie.number_of_frames):  # self.number_of_frames also works for pm, len(self.movie_file_object.filelist) not
-        if frame_number % 13 == 0:
-            sys.stdout.write(f'\r   Frame {frame_number} of {movie.number_of_frames}')
+        roi_indices_general = xr.DataArray(np.mgrid[:neighbourhood_size, :neighbourhood_size] - neighbourhood_size // 2,
+                                           dims=('dimension', 'y', 'x'),
+                                           coords={'dimension': ['y', 'x']})#.transpose()
 
-        image = movie.read_frame(frame_number)
-        image = movie.get_channel(image, channel)
+        roi_indices = coordinates_floored + roi_indices_general
 
-        current_background = background[frame_number % number_illumination]
-        trace_values_in_frame = extract_trace_values_from_image(image, coordinates, current_background, twoD_gaussians)
+        # if correct_illumination:
+        #     illumination_correction = IlluminationCorrection(movie.number_of_frames,
+        #                                                      filter_function=scipy.ndimage.minimum_filter,
+        #                                                      size=15, mode='wrap')
 
-        traces[:, frame_number] = trace_values_in_frame  # will multiply with gaussian, spot location is not drift compensated
-    sys.stdout.write(f'\r   Frame {frame_number+1} of {movie.number_of_frames}\n')
-    # t1=time.time()
-    # elapsed_time=t1-t0; print(elapsed_time)
+        # background_per_frame = background.sel(illumination=movie.illumination)
+        # background_correction[:] = weighed_background(background_per_frame, twoD_gaussians).transpose((1,2,0))
 
-    # root, name = os.path.split(self.filepath)
 
-    # if os.path.isfile(trace_fn):
+        frames = movie.read_frames(xarray=False, flatten_channels=True)#.astype('uint16')
 
-    return traces
+        oneD_indices = (roi_indices.sel(dimension='y')*movie.width+roi_indices.sel(dimension='x')).stack(peak=('molecule','channel')).stack(i=('y','x'))
+        for frame_index in tqdm(range(movie.number_of_frames), desc=movie.name, leave=True):  # self.number_of_frames also works for pm, len(self.movie_file_object.filelist) not
+            # print(frame_number)
+            # if frame_number % 13 == 0:
+            #     sys.stdout.write(f'\r   Frame {frame_number} of {movie.number_of_frames}')
+
+            # image = movie.read_frame(frame_index, xarray=False, flatten_channels=True).astype('uint16')
+            image = frames[frame_index]
+            frame = xr.DataArray(image, dims=('y','x'))
+
+            # TODO: Proper background subtraction
+
+            # if correct_illumination:
+            #     illumination_correction.add_frame(frame_index, frame)
+            #     # TODO: Determine how illumination correction is dependent on background
+
+            # if 'illumination' in background.dims:
+            #     # TODO: Make this work properly and rename illumination in Movie
+            #     # Do background subtraction on entire frame instead???
+            #     frame_background = background.sel(illumination=movie.illumination.sel(frame=frame_index))
+            #     # frame_background = background[frame_number % number_illumination]
+            # else:
+            #     frame_background = background
+
+            #intensity[:, :, frame_index] = extract_intensity_from_frame(frame, background, roi_indices, twoD_gaussians)
+            # intensity[:, :, frame_index] = extract_intensity_from_frame(frame, frame_background, oneD_indices, twoD_gaussians)
+            intensity[:, :, frame_index] = extract_intensity_from_frame(frame, oneD_indices, twoD_gaussians)
+
+
+        # sys.stdout.write(f'\r   Frame {frame_number+1} of {movie.number_of_frames}\n')
+        dataset = intensity.to_dataset()
+        # dataset['intensity_raw'] = dataset.intensity.copy()
+
+        # if correct_illumination:
+        #     dataset['illumination_correction'] = illumination_correction.illumination_correction
+        #     dataset['intensity'] *= dataset['illumination_correction']
+
+        # dataset['background_correction'] = background_correction
+        # dataset['intensity'] -= dataset['background_correction'].sel(frame=0, drop=True)
+
+    return dataset
+
+# def extract_intensity_from_frame(frame, background, roi_indices, twoD_gaussians):
+#     intensities = frame.sel(x=roi_indices.sel(dimension='x'), y=roi_indices.sel(dimension='y'))
+#     intensities = intensities - background
+#     weighted_intensities = intensities * twoD_gaussians
+#     intensity_in_frame = weighted_intensities.sum(dim=('x', 'y'))
+#     return intensity_in_frame
+
+# A ufunc is probably better here
+# def extract_intensity_from_frame(frame, background, roi_indices, twoD_gaussians):
+#     intensities = frame.values[roi_indices.values[:,:,1,:,:], roi_indices.values[:,:,0,:,:]]
+#     intensities = intensities - background.values[:,:,None,None]
+#     weighted_intensities = intensities * twoD_gaussians.values
+#     intensity_in_frame = weighted_intensities.sum(axis=(2,3))
+#     return intensity_in_frame
+
+def extract_intensity_from_frame(frame, oneD_indices, twoD_gaussians):  # extract traces
+    intensities = frame.values.take(oneD_indices.values).reshape(twoD_gaussians.shape)
+    # intensities = intensities - background.values[:,:,None,None]
+    weighted_intensities = intensities * twoD_gaussians.values
+    intensity_in_frame = weighted_intensities.sum(axis=(2,3))
+    return intensity_in_frame
+
+def weighed_background(background, twoD_gaussians):
+    weighed_background_intensity = background.values[:, :, :, None, None] * twoD_gaussians.values[None, :, :, :, :]
+    return weighed_background_intensity.sum(axis=(3, 4))
+
+class IlluminationCorrection:
+    # In time
+    def __init__(self, number_of_frames, filter_function=scipy.ndimage.minimum_filter, **kwargs):
+        self.filter_function = filter_function
+        self.filter_kwargs = kwargs
+        self._illumination_correction = np.empty(number_of_frames)
+
+    def add_frame(self, index, frame):
+        filtered_frame = self.filter_function(np.array(frame), **self.filter_kwargs)
+        self._illumination_correction[index] = filtered_frame.sum()
+
+    @property
+    def illumination_correction(self):
+        correction = self._illumination_correction.max() / self._illumination_correction
+        return xr.DataArray(correction, dims=('frame',), name='illumination_correction')
+
+
+
+# def illumination_intensity_from_frames(frames=None, filter_neighbourhood_size=15):
+#     if frames is None:
+#         frames = self.movie.read_frames_raw()
+#
+#     if not frames.chunks:
+#         filtered_images = minimum_filter(frames, size=(1, 1, filter_neighbourhood_size, filter_neighbourhood_size))
+#     else:
+#         filtered_images = dask_image.ndfilters.minimum_filter(frames.data, size=(1, 1, filter_neighbourhood_size, filter_neighbourhood_size))
+#
+#     filtered_images = xr.DataArray(filtered_images, coords=frames.coords, name='illumination_correction')
+#     illumination_intensity = filtered_images.sum(dim=('x','y'))
+#     illumination_correction = (illumination_intensity.max(dim='frame') / illumination_intensity).T
+#     # illumination_correction = illumination_correction.reset_index('frame', drop=True)
+#     illumination_correction.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')

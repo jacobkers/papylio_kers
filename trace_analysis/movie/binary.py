@@ -2,7 +2,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 from trace_analysis.movie.movie import Movie
 
+
 class BinaryMovie(Movie):
+    extensions = ['.bin']
+
     def __init__(self, arg, *args, **kwargs):
         super().__init__(arg, *args, **kwargs)
         
@@ -23,7 +26,7 @@ class BinaryMovie(Movie):
         self.illumination_arrangement = np.array([1, 0])
         self.channel_arrangement = np.array([[[1]], [[0]]])
 
-        self.read_header()
+        # self.read_header()
 
         self.create_frame_info() # Possibly move to Movie later on
 

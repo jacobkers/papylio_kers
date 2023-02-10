@@ -1,12 +1,228 @@
 import math
 import numpy as np
+import xarray as xr
+from pathlib2 import Path
+
+
+###################################################
+## To enable interactive plotting with PySide2 in PyCharm 2022.3
+import PySide2
+import sys
+sys.modules['PyQt5'] = sys.modules['PySide2']
+from matplotlib import use
+use('Qt5Agg')
+###################################################
+
 import matplotlib.pyplot as plt
-from trace_analysis.coordinate_transformations import transform
 import matplotlib.patches as patches
 from matplotlib.patches import ConnectionPatch
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
+
+
+
+# ## Generated dataset
+# sequence = 'AAAA'
+# sequences = [sequence]
+# bases = 'ACTG'
+# for i in range(len(sequence)):
+#     for base in bases:
+#         new = sequence[0:i] + base + sequence[i + 1:len(sequence)]
+#         if new != sequence:
+#             sequences.append(new)
+# da = xr.DataArray(np.random.rand(len(sequences)), coords={'sequence': sequences})
+
+
+def single_mutations(sequence):
+    sequences = [] # [sequence]
+    bases = 'ACTG'
+    for i in range(len(sequence)):
+        for base in bases:
+            new = sequence[0:i] + base + sequence[i + 1:len(sequence)]
+            if new != sequence:
+                sequences.append(new)
+    return sequences
+
+def plot_single_mutation_data(sequence, da):
+    sequences = [sequence] + single_mutations(sequence)
+    da = da.sel(sequence=sequences)
+
+    fig, ax = plt.subplots(figsize=(1+len(sequence)*0.75, 3), tight_layout=True)
+    width = 0.25
+    position = np.arange(len(sequence))
+    x = np.hstack([-1, np.vstack([position - width, position, position + width]).T.flatten()])
+    ax.bar(x, da.values, width=width)
+
+    ticklabels = ['WT'] + [label for p in position for label in list(bases.replace(sequence[p], ''))]
+    ax.set_xticks(x, ticklabels)
+    ax.set_ylabel(da.name)
+
+    for p in position:
+        # for xi in x[p*3+1:(p+1)*3+1]:
+        # ax.annotate(seq[p], xy=(xi,-20), xytext=(p,-20), xycoords=('data', 'axes points'), textcoords=('data','offset points'),
+        #             ha='center', va='bottom', arrowprops={'width': 0.3, 'headwidth': 3, 'headlength':2})
+        # text = seq[p]
+        for xi in [-1, 0, 1]:
+            if xi == 0:
+                text = sequence[p]
+            else:
+                text = ' '
+            ax.annotate(text, xy=(p + xi * width * 2.3 / 3, -17), xytext=(p, -20), xycoords=('data', 'axes points'),
+                        textcoords=('data', 'offset points'),
+                        ha='center', va='bottom', arrowprops={'width': 0.2, 'headwidth': 3, 'headlength': 2})
+
+def double_mutations(sequence, add_reference=False):
+    ## Generated dataset
+    # sequence = 'GGCGCCGC'
+    sequences = []
+    if add_reference:
+        sequences.append(sequence)
+    bases = 'ACTG'
+
+    for i in range(len(sequence)):
+        for j in range(len(sequence)):
+            if i == j:
+                for base in bases:
+                    if base != sequence[i]:
+                        print(i, j, base)
+                        new = sequence[0:i] + base + sequence[(i+1):len(sequence)]
+                        sequences.append(new)
+            elif i < j:
+                for base1 in bases:
+                    for base2 in bases:
+                        if base1 != sequence[i] and base2 != sequence[j]:
+                            print(i, j, base1, base2)
+                            new = sequence[0:i] + base1 + sequence[(i+1):j] + base2 + sequence[(j + 1):len(sequence)]
+                            sequences.append(new)
+
+    return sequences
+
+
+def plot_double_mutations(sequence, da, da_annotation=None, save=False, save_path=None, **kwargs):
+    # sequences = [sequence] + double_mutations(sequence)
+    bases = 'ACTG'
+    data = np.zeros((len(sequence)*3, len(sequence)*3))
+    data_annotation = np.zeros((len(sequence)*3, len(sequence)*3))
+    data[:] = np.nan
+    data_annotation[:] = np.nan
+    bases_axes = []
+
+    for i in range(len(sequence)):
+        for j in range(len(sequence)):
+            if i == j:
+                k = 0
+                for base in bases:
+                    if base != sequence[i]:
+                        new = sequence[0:i] + base + sequence[(i+1):len(sequence)]
+                        # sequences.append(new)
+                        data[i*3+k,i*3+k] = da.sel(sequence=new).item()
+                        if da_annotation is not None:
+                            data_annotation[i * 3 + k, i * 3 + k] = da_annotation.sel(sequence=new).item()
+                        bases_axes.append(base)
+                        # print(i, j, k, base)
+                        k += 1
+            elif i < j:
+                k1 = 0
+                for base1 in bases:
+                    if base1 != sequence[i]:
+                        k2 = 0
+                        for base2 in bases:
+                             if base2 != sequence[j]:
+                                new = sequence[0:i] + base1 + sequence[(i+1):j] + base2 + sequence[(j + 1):len(sequence)]
+                                # sequences.append(new)
+                                data[j*3+k2, i*3+k1] = da.sel(sequence=new).item()
+                                if da_annotation is not None:
+                                    data_annotation[j * 3 + k2, i * 3 + k1] = da_annotation.sel(sequence=new).item()
+                                # print(i, j, k1, k2, base1, base2)
+                                k2 += 1
+                        k1 += 1
+
+    figsize = 1+len(sequence)*0.75
+    fig, ax = plt.subplots(figsize=(figsize, figsize), tight_layout=True)
+
+    if sequence in da.sequence:
+        data[0,data.shape[1]//2] = da.sel(sequence=sequence).item()
+        if da_annotation is not None:
+            data_annotation[0, data.shape[1] // 2] = da_annotation.sel(sequence=sequence).item()
+
+    # Plot the heatmap
+    im = ax.imshow(data, cmap="Greens", **kwargs)
+
+
+    # Create colorbar
+    cax = ax.inset_axes([1.04, 0.2, 0.05, 0.6], transform=ax.transAxes)
+    cbar = ax.figure.colorbar(im, ax=ax, cax=cax)
+    cbar.ax.set_ylabel(da.name.capitalize().replace('_',' '), rotation=-90, va="bottom")
+
+    # Show all ticks and label them with the respective list entries.
+    ax.set_xticks(np.arange(data.shape[1]), labels=bases_axes)
+    ax.set_yticks(np.arange(data.shape[0]), labels=bases_axes)
+    #
+    # # Let the horizontal axes labeling appear on top.
+    # ax.tick_params(top=True, bottom=False,
+    #                labeltop=True, labelbottom=False)
+    #
+    # # Rotate the tick labels and set their alignment.
+    # plt.setp(ax.get_xticklabels(), rotation=-30, ha="right",
+    #          rotation_mode="anchor")
+
+    # Turn spines off and create white grid.
+    ax.spines[:].set_visible(False)
+
+    ax.set_xticks(np.arange(0, data.shape[1] + 1, 3) - .5, minor=True)
+    ax.set_yticks(np.arange(0, data.shape[0] + 1, 3) - .5, minor=True)
+    ax.grid(which="minor", color="w", linestyle='-', linewidth=3)
+    ax.tick_params(which="minor", bottom=False, left=False)
+    ax.set_title(sequence)
+
+
+    position = np.arange(len(sequence))
+    # x = np.hstack([np.vstack([position-1, position, position+1]).T.flatten()])
+
+    for p in position:
+        #for xi in x[p*3+1:(p+1)*3+1]:
+            # ax.annotate(seq[p], xy=(xi,-20), xytext=(p,-20), xycoords=('data', 'axes points'), textcoords=('data','offset points'),
+            #             ha='center', va='bottom', arrowprops={'width': 0.3, 'headwidth': 3, 'headlength':2})
+        text = sequence[p]
+        for xi in [-1,0,1]:
+            if xi == 0:
+                text = sequence[p]+str(p+1)
+                # ax.annotate(p+1, xy=(p * 3 + 1, -57), xycoords=('data', 'axes points'), ha='center', va='bottom')
+                # ax.annotate(p + 1, xy=(-57, p * 3 + 1), xycoords=('axes points', 'data'), ha='left', va='center')
+            else:
+                text = '    '
+            ax.annotate(text, xy=(p*3+1+xi*2.3/3, -17), xytext=(p*3+1, -20), xycoords=('data', 'axes points'),
+                        textcoords=('data', 'offset points'),
+                        ha='center', va='bottom', arrowprops={'width': 0.2, 'headwidth': 3, 'headlength': 2}, in_layout=True)
+            ax.annotate(text, xy=(-17, p * 3 + 1 + xi * 2.3 / 3), xytext=(-25, p * 3 + 1), xycoords=('axes points', 'data'),
+                        textcoords=('offset points', 'data'),
+                        ha='left', va='center', arrowprops={'width': 0.2, 'headwidth': 3, 'headlength': 2}, in_layout=True)
+
+
+    ax.set_xlabel('Mutation 1', ha='center', labelpad=25)
+    ax.set_ylabel('Mutation 2', labelpad=30)
+    # ax.xaxis.set_label_coords(0.5, -0.12)
+    # ax.yaxis.set_label_coords(-0.13, 0.5)
+
+    if da_annotation is not None:
+        for i in range(data.shape[0]):
+            for j in range(data.shape[1]):
+                value = data_annotation[i, j]
+                if ~np.isnan(value):
+                    text = ax.text(j, i, value.astype(int),
+                                   ha="center", va="center", color="k")
+
+    if save and save_path is not None:
+        save_path = Path(save_path)
+        fig.savefig(save_path / (sequence + '_double_mutations_' + da.name + '.pdf'))
+        fig.savefig(save_path / (sequence + '_double_mutations_' + da.name + '.png'))
+
+    return fig, ax
+
+
+
 def plot_sequencing_match(match, write_path, title, filename, unit = 'um', MiSeq_pixels_to_um = None, Fluo_pixels_to_um = None, save=True):
+    # TODO: Update for new tile and sequencing matches
     source = match.source
     source_in_destination = match.transform_coordinates(source)
     destination = match.destination
@@ -139,6 +355,8 @@ def plot_sequencing_match(match, write_path, title, filename, unit = 'um', MiSeq
 
 # Show all matched files in tiles
 def plot_matched_files_in_tile(files, show_file_coordinates=False, show_file_vertices=True, unit='um', save=False):
+    # TODO: Update for new tile and sequencing matches
+
     def MiSeq_pixels_to_um(pixels):
         return 958 / 2800 * (pixels - 1000) / 10
 
@@ -204,10 +422,11 @@ def plot_matched_files_in_tile(files, show_file_coordinates=False, show_file_ver
             figure.tight_layout()
             figure.savefig(f'Matched_files_in_tile_{tile.name}.png', bbox_inches='tight', dpi=250)
 
-def plot_cluster_locations_per_tile(df, number_of_tiles=19, number_of_sides=2, save_filepath=None):
+def plot_cluster_locations_per_tile(dataset, number_of_tiles=19, number_of_surfaces=2, save_filepath=None):
+    # TODO: Update for new tile and sequencing matches
     # df should contain Tile number, x and y
 
-    number_of_rows = number_of_sides * math.ceil(number_of_tiles / 10)
+    number_of_rows = number_of_surfaces * math.ceil(number_of_tiles / 10)
     number_of_columns = np.min([10, number_of_tiles])
     figure, axes = plt.subplots(number_of_rows, number_of_columns, sharex=True, sharey=True,
                                 figsize=(number_of_columns*2, number_of_rows*2))
@@ -227,13 +446,14 @@ def plot_cluster_locations_per_tile(df, number_of_tiles=19, number_of_sides=2, s
             ax.set_visible(False)
             continue
 
-        df_tile = df[df.Tile == tile_number]
+        dataset_tile = dataset[{'sequence': dataset.tile == tile_number}]
 
-        df_tile.plot.scatter(x='x', y='y', ax=ax, marker='.', s=7)
+        dataset_tile.to_dataframe().plot.scatter(x='x', y='y', ax=ax, marker='.', s=7)
         ax.set_title(tile_number)
         ax.set_aspect('equal')
         ax.set_xlabel('x (sequencer)')
         ax.set_ylabel('y (sequencer)')
+
 
     figure.tight_layout()
     if save_filepath:

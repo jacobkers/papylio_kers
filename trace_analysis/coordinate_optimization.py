@@ -18,6 +18,24 @@ def coordinates_within_margin_selection(coordinates,  image = None, bounds = Non
 
     return criteria.all(axis=0)
 
+def coordinates_within_margin_selection(coordinates,  image = None, bounds = None, margin=10):
+    if coordinates.size == 0:
+        return np.array([])
+
+    if image is not None:
+        bounds = np.array([[0,0], [image.shape[1],image.shape[0]]])
+
+    if isinstance(margin, int):
+        margin = np.array([margin, margin])
+
+    criteria = np.array([(coordinates[:, 0] > (bounds[0, 0] + margin[0])),
+                         (coordinates[:, 0] < (bounds[1, 0] - margin[0])),
+                         (coordinates[:, 1] > (bounds[0, 1] + margin[1])),
+                         (coordinates[:, 1] < (bounds[1, 1] - margin[1]))
+                         ])
+
+    return criteria.all(axis=0)
+
 
 def coordinates_within_margin(coordinates, image=None, bounds=None, margin=10):
     criteria = coordinates_within_margin_selection(coordinates,  image=image, bounds=bounds, margin=margin)
@@ -66,9 +84,10 @@ def fit_twoD_gaussian(Z):
     X, Y = np.meshgrid(x, y)
     xdata = np.vstack((X.ravel(), Y.ravel()))
 
+    # p0 = [20,20,0,0,1,1]
     p0 = [np.min(Z), np.max(Z)-np.min(Z), 0, 0, 1, 1]
-    popt, pcov = curve_fit(twoD_gaussian, xdata, Z.ravel(), p0) #input: function, xdata, ydata,p0
-      
+    popt, pcov = curve_fit(twoD_gaussian, xdata, Z.ravel(), p0) #, maxfev=3000) #input: function, xdata, ydata,p0
+
     # The offset can potentially be used for background subtraction
     return popt
 

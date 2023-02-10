@@ -5,6 +5,8 @@ from trace_analysis.movie.movie import Movie
 
 
 class NskMovie(Movie):
+    extensions = ['.nsk']
+
     def __init__(self, arg, *args, **kwargs):
         super().__init__(arg, *args, **kwargs)
 
@@ -16,8 +18,10 @@ class NskMovie(Movie):
 
         self.data_type = np.dtype(np.uint16)
 
-        self.read_header()
+        # self.read_header()
         self.create_frame_info()  # Possibly move to Movie later on
+
+        # self._initialized = True
 
     def _read_header(self):
         with self.filepath.open('rb') as fid:
@@ -33,3 +37,7 @@ class NskMovie(Movie):
             image = np.reshape(image, (self.width, self.height))
 
         return image
+
+    def _read_frames(self, indices):
+        # Can probably be implemented more efficiently
+        return np.stack([self._read_frame(i) for i in indices])

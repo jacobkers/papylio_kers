@@ -13,13 +13,11 @@ import xarray as xr
 import skimage as ski
 import warnings
 import sys
+import re
+import tifffile
 # from trace_analysis.molecule import Molecule
-from trace_analysis.movie.sifx import SifxMovie
-from trace_analysis.movie.pma import PmaMovie
-from trace_analysis.movie.nsk import NskMovie
+from trace_analysis.movie.movie import Movie
 from trace_analysis.movie.tif import TifMovie
-from trace_analysis.movie.nd2 import ND2Movie
-from trace_analysis.movie.binary import BinaryMovie
 from trace_analysis.plotting import histogram
 from trace_analysis.mapping.mapping import Mapping2
 from trace_analysis.peak_finding import find_peaks
@@ -30,13 +28,14 @@ from trace_analysis.coordinate_optimization import  coordinates_within_margin, \
                                                     set_of_tuples_from_array, array_from_set_of_tuples, \
                                                     coordinates_within_margin_selection
 from trace_analysis.trace_extraction import extract_traces
-from trace_analysis.coordinate_transformations import translate, transform # MD: we don't want to use this anymore I think, it is only linear
+from trace_analysis.mapping.coordinate_transformations import translate, transform # MD: we don't want to use this anymore I think, it is only linear
                                                                            # IS: We do! But we just need to make them usable with the nonlinear mapping
 from trace_analysis.background_subtraction import extract_background
+from trace_analysis.analysis.hidden_markov_modelling import hmm_traces
 # from trace_analysis.plugin_manager import PluginManager
 # from trace_analysis.plugin_manager import PluginMetaClass
 from trace_analysis.plugin_manager import plugins
-
+# from trace_analysis.trace_plot import TraceAnalysisFrame
 
 @plugins
 class File:
@@ -54,7 +53,7 @@ class File:
     #     else:
     #         return super().__new__(cls._plugin_mixin_class)
 
-    def __init__(self, relativeFilePath, experiment, *args, **kwargs):
+    def __init__(self, relativeFilePath, extensions=None, experiment=None):
         relativeFilePath = Path(relativeFilePath)
         self.experiment = experiment
 
@@ -74,13 +73,11 @@ class File:
 
         self.movie = None
         self.mapping = None
-        self._average_image = None
-        self._maximum_projection_image = None
 
-        if 'fov_info' in kwargs:
-            self.nd2_fov_info = kwargs['fov_info']  # fov = Field of View
 
-        self.dataset_variables = ['molecule', 'coordinates', 'background', 'intensity', 'FRET', 'selected', 'molecule_in_file']
+        self.dataset_variables = ['molecule', 'coordinates', 'background', 'intensity', 'FRET', 'selected',
+                                  'molecule_in_file', 'illumination_correction']
+
 
         # I think it will be easier if we have import functions for specific data instead of specific files.
         # For example. the sifx, pma and tif files can better be handled in the Movie class. Here we then just have a method import_movie.
@@ -88,35 +85,28 @@ class File:
         # TODO: Make an import_movie method and move the specific file type handling to the movie class (probably this should also include the log file)
         # TODO: Make an import_mapping method and move the specific mapping type handling (.map, .coeff) to the mapping class.
 
-        self.importFunctions = {'.sifx': self.import_sifx_file,
-                                '.pma': self.import_pma_file,
-                                '.nsk': self.import_nsk_file,
-                                '.nd2': self.import_nd2_file,
-                                '.tif': self.import_tif_file,
-                                '.tiff': self.import_tif_file,
-                                '.bin': self.import_bin_file,
-                                '.TIF': self.import_tif_file,
-                                '.TIFF': self.import_tif_file,
-                                '_ave.tif': self.import_average_tif_file,
-                                '_max.tif': self.import_maximum_projection_tif_file,
+        self.importFunctions = {'.sifx': self.import_movie,
+                                '.pma': self.import_movie,
+                                '.nd2': self.import_movie,
+                                '.tif': self.import_movie,
+                                '.tiff': self.import_movie,
+                                '.TIF': self.import_movie,
+                                '.TIFF': self.import_movie,
+                                '.bin': self.import_movie,
                                 '.coeff': self.import_coeff_file,
                                 '.map': self.import_map_file,
                                 '.mapping': self.import_mapping_file,
                                 '.pks': self.import_pks_file,
                                 '.traces': self.import_traces_file,
-                                '.log': self.import_log_file,
                                 '_steps_data.xlsx': self.import_excel_file,
-                                '_selected_molecules.txt': self.import_selected,
                                 '.nc': self.noneFunction
                                 }
 
-        print(self)
+        # print(self)
 
-        super().__init__()
-
-        # if self.experiment.import_all is True:
-        #     self.findAndAddExtensions()
-
+        if extensions is None:
+            extensions = self.find_extensions()
+        self.add_extensions(extensions, load=self.experiment.import_all)
 
     def __repr__(self):
         return (f'{self.__class__.__name__}({self.relativePath.joinpath(self.name)})')
@@ -131,11 +121,21 @@ class File:
 
     @property
     def number_of_molecules(self):
-        return len(self.molecule)
+        # return len(self.dataset.molecule)
+        # if self.absoluteFilePath.with_suffix('.nc').exists():
+        try:
+            with xr.open_dataset(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf') as dataset:
+                return len(dataset.molecule)
+        except FileNotFoundError:
+            return 0
+
+    @property
+    def configuration(self):
+        return self.experiment.configuration
 
     # @property
     # def molecule(self):
-    #     with xr.open_dataset(self.relativeFilePath.with_suffix('.nc'), engine='h5netcdf') as dataset:
+    #     with xr.open_dataset(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf') as dataset:
     #         return dataset['molecule'].load()
     # @number_of_molecules.setter
     # def number_of_molecules(self, number_of_molecules):
@@ -157,61 +157,59 @@ class File:
         return self.molecule[self.selected]
 
     @property
-    def average_image(self):
-        if self._average_image is None:
-            # Refresh configuration
-            self.experiment.import_config_file()
-            # number_of_frames = self.experiment.configuration['compute_image']['number_of_frames']
-            configuration_show_movie = self.experiment.configuration['show_movie']
-            if configuration_show_movie['illumination'] == 'None' or configuration_show_movie['illumination'] == 'none':
-                illumination = None
-            else:
-                illumination = int(configuration_show_movie['illumination'])
-            first_frame = int(configuration_show_movie['frames_for_show_movie']['first_frame'])
-            if configuration_show_movie['frames_for_show_movie']['last_frame'] == 'last':
-                last_frame = self.number_of_frames-1
-            else:
-                last_frame = int(configuration_show_movie['frames_for_show_movie']['last_frame'])
-            number_of_frames = last_frame-first_frame + 1
+    def number_of_selected_molecules(self):
+        return len(self.selected_molecules)
 
-            self._average_image = self.movie.make_average_image(start_frame=first_frame,
-                                                                number_of_frames=number_of_frames,
-                                                                illumination=illumination, write=True)
-        return self._average_image
+    # def get_projection_image(self, configuration):
+
+    @property
+    def projection_image(self):
+        return self.get_projection_image()
+
+    @property
+    def average_image(self):
+        return self.get_projection_image(projection_type='average')
 
     @property
     def maximum_projection_image(self):
-        if self._maximum_projection_image is None:
-            # Refresh configuration
-            self.experiment.import_config_file()
-            # number_of_frames = self.experiment.configuration['compute_image']['number_of_frames']
-            configuration_show_movie = self.experiment.configuration['show_movie']
-            if configuration_show_movie['illumination'] == 'None' or configuration_show_movie['illumination'] == 'none':
-                illumination = None
-            else:
-                illumination = int(configuration_show_movie['illumination'])
-            first_frame = int(configuration_show_movie['frames_for_show_movie']['first_frame'])
-            if configuration_show_movie['frames_for_show_movie']['last_frame'] == 'last':
-                last_frame = self.number_of_frames-1
-            else:
-                last_frame = int(configuration_show_movie['frames_for_show_movie']['last_frame'])
-            number_of_frames = last_frame-first_frame + 1
+        return self.get_projection_image(projection_type='maximum')
 
-            self._maximum_projection_image = self.movie.make_maximum_projection(start_frame=first_frame,
-                                                                                number_of_frames=number_of_frames,
-                                                                                illumination=illumination, write=True)
-        return self._maximum_projection_image
+    def get_projection_image(self, **kwargs):
+        configuration = self.experiment.configuration['projection_image'].copy()
+        configuration.update(kwargs)
+        image_filename = Movie.image_info_to_filename(self.name, **configuration)
+        image_file_path = self.absoluteFilePath.with_name(image_filename).with_suffix('.tif')
+
+        if image_file_path.is_file():
+            # TODO: Make independent of movie, so that we can also load this without movie present
+            # Perhaps make a get_projection_image a class method of Movie
+            # return self.movie.separate_channels(tifffile.imread(image_file_path))
+            return tifffile.imread(image_file_path)
+        else:
+            return self.movie.make_projection_image(**configuration, write=True, flatten_channels=True)
 
     # @property
     # def coordinates(self):
-    #     with xr.open_dataset(self.relativeFilePath.with_suffix('.nc'), engine='h5netcdf') as dataset:
+    #     with xr.open_dataset(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf') as dataset:
     #         #.set_index({'molecule': ('molecule_in_file','file')})
     #         return dataset['coordinates'].load()
     #
     # @coordinates.setter
 
+    @property
+    def coordinates_metric(self):
+        return self.coordinates * self.movie.pixel_size
+
+    @property
+    def coordinates_stage(self):
+        coordinates = self.coordinates.sel(channel=0)
+        # coordinates = coordinates.stack(temp=('molecule', 'channel')).T
+        coordinates_stage = self.movie.pixel_to_stage_coordinates_transformation(coordinates)
+        return xr.DataArray(coordinates_stage, coords=coordinates.coords)
+
     def set_coordinates_of_channel(self, coordinates, channel):
         # TODO: make this usable for more than two channels
+        # TODO: Make this work for xarray DataArrays
         channel_index = self.movie.get_channel_number(channel)  # Or possibly make it self.channels
         if channel_index == 0:
             coordinates_in_main_channel = coordinates
@@ -241,22 +239,33 @@ class File:
 
         return self.coordinates.sel(channel=channel)
 
+    def __getstate__(self):
+        return self.__dict__.copy()
+
+    def __setstate__(self, dict):
+        self.__dict__.update(dict)
+
     def __getattr__(self, item):
+        if item == 'dataset_variables':
+            return
         if item in self.dataset_variables:
-            with xr.open_dataset(self.relativeFilePath.with_suffix('.nc'), engine='h5netcdf') as dataset:
+            with xr.open_dataset(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf') as dataset:
                 return dataset[item].load()
         # else:
         #     super().__getattribute__(item)
-        raise AttributeError
+        raise AttributeError(f'Attribute {item} not found')
 
     def get_data(self, key):
-        with xr.open_dataset(self.relativeFilePath.with_suffix('.nc'), engine='h5netcdf') as dataset:
+        with xr.open_dataset(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf') as dataset:
             return dataset[key].load()
 
     @property
     def dataset(self):
-        with xr.open_dataset(self.relativeFilePath.with_suffix('.nc'), engine='h5netcdf') as dataset:
-            return dataset.load()
+        if self.absoluteFilePath.with_suffix('.nc').exists():
+            with xr.open_dataset(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf') as dataset:
+                return dataset.load()
+        else:
+            return None
 
     # def get_coordinates(self, selected=False):
     #     if selected:
@@ -283,134 +292,67 @@ class File:
     #     return np.vstack([molecule.background[channel] for molecule in self.molecules])
     #
 
-    @property
-    def time(self):  # the time axis of the experiment, if not found in log it will be asked as input
-        if self.exposure_time is None:
-            # SHK modification for debuging. Should be set back to original code later
-            print('exposure_time is set to 0.1s (see file.time())')
-            self.exposure_time = 0.1
-            # original code:
-            # self.exposure_time = float(input(f'Exposure time for {self.name}: '))
-        return np.arange(0, self.number_of_frames)*self.exposure_time
-
     def _init_dataset(self, number_of_molecules):
-        dataset = xr.Dataset(
-            {
-                'selected': ('molecule', xr.DataArray(False, coords=[range(number_of_molecules)]))#,
-                # 'x': (('molecule', 'channel'), xr.DataArray(np.nan, coords=[molecule_multiindex, []])),
-                # 'y': (('molecule', 'channel'), xr.DataArray(np.nan, coords=[molecule_multiindex, []])),
-                # 'background': (('molecule', 'channel'), xr.DataArray(np.nan, coords=[molecule_multiindex, []])),
-                # 'intensity': (
-                # ('molecule', 'channel', 'frame'), xr.DataArray(np.nan, coords=[molecule_multiindex, [], []]))
-            },
-            coords=
-            {
-                'molecule': ('molecule', range(number_of_molecules)),
-                # # pd.MultiIndex.from_tuples([], names=['molecule_in_file', 'file'])),
-                # 'frame': ('frame', np.array([], dtype=int)),
-                # 'channel': ('channel', np.array([], dtype=int))
-            }
-        )
-        dataset = dataset.reset_index('molecule').rename(molecule_='molecule_in_file')
-        dataset = dataset.assign_coords({'file': ('molecule', [str(self.relativeFilePath)]*number_of_molecules)})
-
-        dataset.to_netcdf(self.relativeFilePath.with_suffix('.nc'), engine='h5netcdf', mode='w')
+        selected = xr.DataArray(False, dims=('molecule',), coords={'molecule': range(number_of_molecules)}, name='selected')
+        dataset = selected.reset_index('molecule').rename(molecule_='molecule_in_file').to_dataset()
+        dataset = dataset.assign_coords({'file': ('molecule', [str(self.relativeFilePath).encode()] * number_of_molecules)})
+        encoding = {'file': {'dtype': '|S'}, 'selected': {'dtype': bool}}
+        dataset.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='w', encoding=encoding)
         self.extensions.add('.nc')
 
-    def findAndAddExtensions(self):
-        file_keyword = self.name
-        # special treatment for multi-fov nd2 file
-        if hasattr(self, 'nd2_fov_info'):
-            token_position = self.name.find('_fov')
-            file_keyword = self.name[:token_position]
+        # # pd.MultiIndex.from_tuples([], names=['molecule_in_file', 'file'])),
 
-        foundFiles = [file.name for file in self.experiment.main_path.joinpath(self.relativePath).glob(file_keyword + '*')]
-        # foundExtensions = [file[len(self.name):] for file in foundFiles]
-        foundExtensions = [file[len(file_keyword):] for file in foundFiles]
-
+    def find_extensions(self):
+        file_names = [file.name for file in self.experiment.main_path.joinpath(self.relativePath).glob(self.name + '*')]
+        extensions = [file_name[len(self.name):] for file_name in file_names]
         # For the special case of a sifx file, which is located inside a folder
-        if '' in foundExtensions: foundExtensions[foundExtensions.index('')] = '.sifx'
+        if '' in extensions:
+            extensions[extensions.index('')] = '.sifx'
+        # elif 'fov' in self.name:
+        #     # TODO: Check whether this works
+        #     token_position = self.name.find('_fov')
+        #     file_keyword = self.name[:token_position]
+        #     if self.absoluteFilePath.with_name(file_keyword).with_suffix('.nd2').is_file():
+        #         extensions.append('.nd2')
+        return extensions
 
-        newExtensions = [extension for extension in foundExtensions if extension not in self.extensions]
-        # self.extensions = self.extensions + newExtensions
-        for extension in newExtensions: self.importExtension(extension)
+    def find_and_add_extensions(self):
+        self.add_extensions(self.find_extensions())
 
-    def importExtension(self, extension):
+    def add_extensions(self, extensions, load=True):
+        if isinstance(extensions, str):
+            extensions = [extensions]
+        for extension in set(extensions)-self.extensions:
+            if load:
+                self.importFunctions.get(extension, self.noneFunction)(extension)
+            if extension in self.importFunctions.keys():
+                self.extensions.add(extension)
+        # or self.extensions = self.extensions | extensions
 
-        # print(f.relative_to(self.experiment.main_path))
-
-        # if extension not in self.extensions: # better to use sets here
-        #     self.extensions.append(extension)
-
-        # print(extension)
-
-        self.importFunctions.get(extension, self.noneFunction)()
-        if extension in self.importFunctions.keys():
-            self.extensions.add(extension)
-
-    def noneFunction(self):
+    def noneFunction(self, *args, **kwargs):
         return
 
-    def import_log_file(self):
-        self.exposure_time = np.genfromtxt(f'{self.relativeFilePath}.log', max_rows=1)[2]
-        print(f'Exposure time set to {self.exposure_time} sec for {self.name}')
-        self.log_details = open(f'{self.relativeFilePath}.log').readlines()
-        self.log_details = ''.join(self.log_details)
-
-    def import_sifx_file(self):
-        imageFilePath = self.absoluteFilePath.joinpath('Spooled files.sifx')
-        self.movie = SifxMovie(imageFilePath)
-        # self.movie.number_of_channels = self.experiment.number_of_channels
-        self.number_of_frames = self.movie.number_of_frames
-
-    def import_pma_file(self):
-        imageFilePath = self.absoluteFilePath.with_suffix('.pma')
-        self.movie = PmaMovie(imageFilePath)
-        # self.movie.number_of_channels = self.experiment.number_of_channels
-        self.number_of_frames = self.movie.number_of_frames
-
-    def import_nsk_file(self):
-        imageFilePath = self.absoluteFilePath.with_suffix('.nsk')
-        self.movie = NskMovie(imageFilePath)
-        # self.movie.number_of_channels = self.experiment.number_of_channels
-        self.number_of_frames = self.movie.number_of_frames
-
-    def import_tif_file(self):
-        #TODO: Pass all image files to the Movie class and let the Movie class decide what to do
-        imageFilePath = self.absoluteFilePath.with_suffix('.tif')
-        self.movie = TifMovie(imageFilePath)
-        # self.movie.number_of_channels = self.experiment.number_of_channels
-        self.number_of_frames = self.movie.number_of_frames
-
-    def import_nd2_file(self):
-        if hasattr(self, 'nd2_fov_info'):
-            # special treatment for multi-fov nd2 file
-            token_position = self.name.find('_fov')
-            file_keyword = self.name[:token_position]
-            imageFilePath = self.absoluteFilePath.parent.joinpath(file_keyword).with_suffix('.nd2')
-            self.movie = ND2Movie(imageFilePath, fov_info=self.nd2_fov_info)
+    def import_movie(self, extension):
+        if extension == '.sifx':
+            filepath = self.absoluteFilePath.joinpath('Spooled files.sifx')
+        # elif extension == '.nd2' and '_fov' in self.name:
+        #     # TODO: Make this working
+        #     token_position = self.name.find('_fov')
+        #     movie_name = self.name[:token_position]
+        #     filepath = self.absoluteFilePath.with_name(movie_name).with_suffix(extension)
+            # self.movie = ND2Movie(imageFilePath, fov_info=self.nd2_fov_info)
         else:
-            imageFilePath = self.absoluteFilePath.with_suffix('.nd2')
-            self.movie = ND2Movie(imageFilePath)
-        self.number_of_frames = self.movie.number_of_frames
+            filepath = self.absoluteFilePath.with_suffix(extension)
 
-    def import_bin_file(self):
-        imageFilePath = self.absoluteFilePath.with_suffix('.bin')
-        self.movie = BinaryMovie(imageFilePath)
-        self.number_of_frames = self.movie.number_of_frames
+        rot90 = self.configuration['movie']['rot90']
+        self.movie = Movie(filepath, rot90)
 
-    def import_average_tif_file(self):
-        averageTifFilePath = self.absoluteFilePath.with_name(self.name+'_ave.tif')
-        self._average_image = io.imread(averageTifFilePath, as_gray=True)
+        # self.number_of_frames = self.movie.number_of_frames
 
-    def import_maximum_projection_tif_file(self):
-        maxTifFilePath = self.absoluteFilePath.with_name(self.name+'_max.tif')
-        self._maximum_projection_image = io.imread(maxTifFilePath, as_gray=True)
-
-    def import_coeff_file(self):
+    def import_coeff_file(self, extension):
         from skimage.transform import AffineTransform
         if self.mapping is None: # the following only works for 'linear'transformation_type
-            file_content=np.genfromtxt(str(self.relativeFilePath) + '.coeff')
+            file_content=np.genfromtxt(str(self.absoluteFilePath) + '.coeff')
             if len(file_content)==12:
                 [coefficients, coefficients_inverse] = np.split(file_content,2)
             elif len(file_content)==6:
@@ -445,10 +387,11 @@ class File:
     def export_mapping(self, filetype='yml'):
         self.mapping.save(self.absoluteFilePath, filetype)
 
-    def import_map_file(self):
+    def import_map_file(self, extension):
+        # TODO: Move this to the Mapping2 class
         from trace_analysis.mapping.polywarp import PolywarpTransform
-        #coefficients = np.genfromtxt(self.relativeFilePath.with_suffix('.map'))
-        file_content=np.genfromtxt(self.relativeFilePath.with_suffix('.map'))
+        #coefficients = np.genfromtxt(self.absoluteFilePath.with_suffix('.map'))
+        file_content=np.genfromtxt(self.absoluteFilePath.with_suffix('.map'))
         if len(file_content) == 64:
             [coefficients, coefficients_inverse] = np.split(file_content, 2)
         elif len(file_content) == 32:
@@ -492,8 +435,8 @@ class File:
         warnings.warn('The export_map_file method will be depricated, use export_mapping instead')
         self.export_mapping(filetype='classic')
 
-    def import_mapping_file(self):
-        self.mapping = Mapping2(load=self.absoluteFilePath.with_suffix('.mapping'))
+    def import_mapping_file(self, extension):
+        self.mapping = Mapping2.load(self.absoluteFilePath.with_suffix(extension))
 
     def find_coordinates(self, configuration=None):
         '''
@@ -541,46 +484,37 @@ class File:
         ADD DESCRIPTIONS HERE!!!
         '''
 
+        # TODO: Add configuration to nc file
+        # TODO: Split method into multiple functions
+
         # --- Refresh configuration ----
         if not configuration:
-            self.experiment.import_config_file()
             configuration = self.experiment.configuration['find_coordinates']
 
         # --- Get settings from configuration file ----
         channels = configuration['channels']
         method = configuration['method']
         peak_finding_configuration = configuration['peak_finding']
-        projection_image_type = configuration['projection_image_type']
+        projection_type = configuration['projection_image']['projection_type']
+        frame_range = configuration['projection_image']['frame_range']
+        illumination = configuration['projection_image']['illumination']
 
         sliding_window = configuration['sliding_window']
-        use_sliding_window = bool(sliding_window['use_sliding_window'])
-        window_size = sliding_window['window_size']
+        use_sliding_window = configuration['sliding_window']['use_sliding_window']
         minimal_point_separation = sliding_window['minimal_point_separation']
-
-        frames_for_peak_finding = configuration['frames_for_peak_finding']
-        if frames_for_peak_finding['last_frame'] == 'last':
-            frames_for_peak_finding['last_frame'] = self.movie.number_of_frames-1
 
         # --- set illumination configuration
         #  An integer number for choosing one of the laser lines (the order of it first appeared)
         #  ex. Two laser lines (532 and 640) in Alex mode starting with 532 excitation: 0 for green and 1 for red
         #  None for simple average of the frames regardless of the order of illumination profile.
-        illumination = None
-        if 'illumination' in configuration:
-            if configuration['illumination'] == 'None':
-                illumination = None
-            else:
-                illumination = configuration['illumination']
-                print(f'  frames with "{self.movie.illuminations[illumination]}" were chosen for peak finding')
-
 
         # --- make the windows
         # (if no sliding windows, just a single window is made to make it compatible with next bit of code) ----
+        frame_ranges = [frame_range]
         if use_sliding_window:
-            window_start_frames = [i * window_size for i in range(self.number_of_frames // window_size)]
-        else:
-            window_start_frames = [int(frames_for_peak_finding['first_frame'])]
-            window_size = int(frames_for_peak_finding['last_frame']) - frames_for_peak_finding['first_frame'] + 1
+            start_frames = (frame_ranges[0][0], self.movie.number_of_frames, sliding_window['frame_increment'])
+            window_size = frame_ranges[0][1] - frame_ranges[0][0]
+            frame_ranges = frame_ranges + [window_size, window_size, 0] * np.arange(start_frames)[:, None]
 
         # coordinates = set()
         if method == 'by_channel':
@@ -596,11 +530,14 @@ class File:
         # coordinate_sets = [set() for channel in channels]
 
         # --- Loop over all frames and find unique set of molecules ----
-        for window_start_frame in window_start_frames:
+        for frame_range in frame_ranges:
 
             # --- allowed to apply sliding window to either the max projection OR the averages ----
-            image = self.movie.make_projection_image(projection_type=projection_image_type, start_frame=window_start_frame,
-                                                     number_of_frames=window_size, illumination=illumination)
+            image = self.get_projection_image(projection_type=projection_type, frame_range=frame_range,
+                                              illumination=illumination)
+
+            # image = self.average_image
+            self.movie.read_header()
 
             # Do we need a separate image?
             # # --- we output the "sum of these images" ----
@@ -643,7 +580,10 @@ class File:
                      'coordinates_after_gaussian_fit': coordinates_after_gaussian_fit,
                      'coordinates_without_intensity_at_radius': coordinates_without_intensity_at_radius}
                 for f, kwargs in configuration['coordinate_optimization'].items():
+                    if len(channel_coordinates) == 0:
+                        break
                     channel_coordinates = coordinate_optimization_functions[f](channel_coordinates, channel_image, **kwargs)
+
 
                 channel_coordinates = set_of_tuples_from_array(channel_coordinates)
 
@@ -652,7 +592,12 @@ class File:
         # Check whether points are found
         for coordinate_set in coordinate_sets:
             if len(coordinate_set) == 0:
-                self._init_dataset(0)  # SHK: Creating a dummy dataset tp avoid errors in the downstream analysis
+                # Reset current .nc file
+                self._init_dataset(0) # SHK: Creating a dummy dataset tp avoid errors in the downstream analysis
+                # This actually creates an empty dataset.
+                coordinates = xr.DataArray(np.empty((0, 2, 2)), dims=('molecule', 'channel', 'dimension'),
+                                    coords={'channel': [0, 1], 'dimension': [b'x', b'y']}, name='coordinates')
+                coordinates.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
                 print('no peaks found')
                 return
 
@@ -693,15 +638,16 @@ class File:
         # TODO: Use set_coordinates_of_channel
         coordinates_in_main_channel = coordinates
         coordinates_list = [coordinates]
-        for i in range(self.number_of_channels)[1:]: # This for loop will only be useful once we make this usable for more than two channels
-            if self.number_of_channels > 2:
+        for i in range(self.movie.number_of_channels)[1:]: # This for loop will only be useful once we make this usable for more than two channels
+            if self.movie.number_of_channels > 2:
                 raise NotImplementedError()
             coordinates_in_other_channel = self.mapping.transform_coordinates(coordinates_in_main_channel, direction='Donor2Acceptor')
             coordinates_list.append(coordinates_in_other_channel)
 
         coordinates = np.hstack(coordinates_list)
 
-        coordinates_selections = [coordinates_within_margin_selection(coordinates, bounds=self.movie.channels[i].boundaries)
+        coordinates_selections = [coordinates_within_margin_selection(coordinates, bounds=self.movie.channels[i].boundaries,
+                                                                      **configuration['coordinate_optimization']['coordinates_within_margin'])
                                   for i, coordinates in enumerate(coordinates_list)]
         selection = np.vstack(coordinates_selections).all(axis=0)
         coordinates = coordinates[selection]
@@ -716,13 +662,18 @@ class File:
         # self.coordinates = coordinates
 
         peaks = xr.DataArray(coordinates, dims=("peak", 'dimension'),
-                     coords={'peak': range(len(coordinates)), 'dimension': ['x', 'y']}, name='coordinates')
+                     coords={'peak': range(len(coordinates)), 'dimension': [b'x', b'y']}, name='coordinates')
 
-        coordinates = split_dimension(peaks, 'peak', ('molecule', 'channel'), (-1, 2)).reset_index('molecule', drop=True)
+        coordinates = split_dimension(peaks, 'peak', ('molecule', 'channel'), (-1, self.movie.number_of_channels)).reset_index('molecule', drop=True)
         # file = str(self.relativeFilePath)
         # #coordinates = split_dimension(coordinates, 'molecule', ('molecule_in_file', 'file'), (-1, 1), (-1, [file]), to='multiindex')
         # coordinates = coordinates.reset_index('molecule').rename(molecule_='molecule_in_file')
         # self.experiment.dataset.drop_sel(file=str(self.relativeFilePath), errors='ignore')
+
+        # Because split_dimension doesn't keep the channels in case of an empty array.
+        if len(coordinates) == 0:
+            coordinates = xr.DataArray(np.empty((0, 2, 2)), dims=('molecule', 'channel', 'dimension'),
+                                       coords={'channel': [0, 1], 'dimension': [b'x', b'y']}, name='coordinates')
 
         # if len(coordinates) !=0:
 
@@ -732,21 +683,30 @@ class File:
 
     @property
     def coordinates(self):
-        return self.dataset.coordinates
+        if self.absoluteFilePath.with_suffix('.nc').exists():
+            with xr.open_dataset(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf') as dataset:
+                if hasattr(self.dataset, 'coordinates'):
+                    return dataset['coordinates'].load()
+                else:
+                    return None
+        else:
+            return None
 
     @coordinates.setter
     def coordinates(self, coordinates):
         # Reset current .nc file
         self._init_dataset(len(coordinates.molecule))
 
-        coordinates.to_netcdf(self.relativeFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
-        self.extract_background()
+        coordinates.drop('file', errors='ignore').to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
+        # self.extract_background()
+
+        # self.molecules.export_pks_file(self.absoluteFilePath.with_suffix('.pks'))
 
     def extract_background(self, configuration=None):
+        #TODO: probably remove this
         sys.stdout.write(f' Calculating background in {self}')
         # --- Refresh configuration ----
         if not configuration:
-            self.experiment.import_config_file()
             configuration = self.experiment.configuration['background']
 
         # --- get settings from configuration file ----
@@ -784,6 +744,7 @@ class File:
         #
         # background = xr.DataArray(np.vstack(background_list).T, dims=['molecule','channel'], name='background')
 
+
         # END of original, START modified
         background_list = []
         for illumination_id, illumination in enumerate(illuminations_to_use):
@@ -793,15 +754,15 @@ class File:
                 channel_coordinates = self.coordinates_from_channel(i).values-self.movie.channels[i].vertices[0]
                 tmp_background_list.append(extract_background(channel_image, channel_coordinates, method=configuration['method']))
             background_list.append(np.vstack(tmp_background_list).T)
-        background = xr.DataArray(background_list, dims=['illuminations', 'molecule', 'channel'], name='background')
+        background = xr.DataArray(background_list, dims=['illumination', 'molecule', 'channel'], name='background')
         # END modified
 
-        background.to_netcdf(self.relativeFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
+        background.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
         sys.stdout.write(f'\r   background calculated {self}\n')
 
     def import_excel_file(self, filename=None):
         if filename is None:
-            filename = f'{self.relativeFilePath}_steps_data.xlsx'
+            filename = f'{self.absoluteFilePath}_steps_data.xlsx'
         try:
             steps_data = pd.read_excel(filename, index_col=[0,1],
                                        dtype={'kon':np.str})       # reads from the 1st excel sheet of the file
@@ -823,37 +784,22 @@ class File:
                 mol.kon_boolean = np.array(k).astype(bool).reshape((4,3))
         return steps_data
 
-    def import_selected(self):
-        '''
-        Imports the selected molecules stored in {filename}_selected_molecules.txt
-        '''
-        pass
-        # try:
-        #     filename = f'{self.relativeFilePath}_selected_molecules.txt'
-        #     selected = np.atleast_1d(np.loadtxt(filename, dtype=int))
-        # except FileNotFoundError:
-        #     return
-        # # print(selected, type(selected))
-        # for i in list(selected):
-        #     self.molecules[i-1].isSelected = True
-
     def extract_traces(self, configuration=None):
+        # TODO: Add configuration to nc file
         if self.number_of_molecules == 0:
             print('   no traces available!!')
             return
-
-        # Refresh configuration
-        self.experiment.import_config_file()
 
         if self.movie is None: raise FileNotFoundError('No movie file was found')
 
         print(f'  Extracting traces in {self}')
 
-        if configuration is None: configuration = self.experiment.configuration['trace_extraction']
+        if configuration is None: configuration = self.configuration['trace_extraction']
         channel = configuration['channel']  # Default was 'all'
         mask_size = configuration['mask_size']  # Default was 11
         neighbourhood_size = configuration['neighbourhood_size']  # Default was 11
         subtract_background = configuration['subtract_background']
+        correct_illumination = configuration['correct_illumination']
 
         if mask_size == 'TIR-T' or mask_size == 'TIR-V':
             mask_size = 1.291
@@ -863,41 +809,36 @@ class File:
             mask_size = 0.55
 
         if subtract_background:
-            background = self.background.stack(peak=('molecule', 'channel'))
+            background = self.background
         else:
             background = None
 
-        coordinates = self.coordinates.stack(peak=('molecule', 'channel')).T
+        # if correct_illumination:
+        #     if not hasattr(self.dataset, 'illumination_correction'):
+        #         self.determine_illumination_correction(frames=frames)
+        #     # frames = frames.astype(float)
+        #     # frames.loc[{'channel': channel.index}] *= self.illumination_correction[frame_number, channel.index]
+        #     frames = frames * self.illumination_correction
 
-        if self.movie.illumination_arrangement is not None:
-            number_illumination = len(self.movie.illumination_arrangement)
-        else:
-            number_illumination = 1
+        # channel_offsets = xr.DataArray(np.vstack([channel.origin for channel in self.movie.channels]),
+        #                                dims=('channel', 'dimension'),
+        #                                coords={'channel': [channel.index for channel in self.movie.channels],
+        #                                        'dimension': ['x', 'y']}) # TODO: Move to Movie
+        # coordinates = self.coordinates - channel_offsets
 
-        # todo: we do not have to pass "number_illumination" as an argument, because "self.movie" is also passed to the function.
-        traces = extract_traces(self.movie, coordinates.values, background=background.values, channel=channel,
-                                mask_size=mask_size, neighbourhood_size=neighbourhood_size,
-                                number_illumination=number_illumination)
+        intensity = extract_traces(self.movie, self.coordinates, background, mask_size=mask_size,
+                                   neighbourhood_size=neighbourhood_size, correct_illumination=correct_illumination)
 
-        intensity = xr.DataArray(traces, dims=['peak', 'frame'], name='intensity')\
-            .assign_coords({'peak': coordinates.peak.to_index()})\
-            .unstack('peak').reset_index('molecule', drop=True)\
-            .assign_coords(self.coordinates.sel(dimension='x', drop=True).coords)\
-            .transpose('molecule', 'channel', 'frame')
-        # number_of_molecules = len(traces) // self.number_of_channels
-        # traces = traces.reshape((number_of_molecules, self.number_of_channels, self.movie.number_of_frames)).swapaxes(0, 1)
-
-        if hasattr(self.movie, 'time'):
+        if self.movie.time is not None: # hasattr(self.movie, 'time')
             intensity = intensity.assign_coords(time=self.movie.time)
 
-        if self.movie.illumination is not None:
-            intensity = intensity.assign_coords(illumination=self.movie.illumination)
+        # if self.movie.illumination is not None:
+        intensity = intensity.assign_coords(illumination=self.movie.illumination_index_per_frame)
 
-        intensity.to_netcdf(self.relativeFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
+        intensity.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
 
-        self.calculate_FRET()
-
-        #self.export_traces_file()
+        if self.movie.number_of_channels > 1:
+            self.calculate_FRET()
 
     def calculate_FRET(self):
         # TODO: Make suitable for mutliple colours
@@ -906,42 +847,45 @@ class File:
         acceptor = self.intensity.sel(channel=1, drop=True)
         FRET = acceptor/(donor+acceptor)
         FRET.name = 'FRET'
-        FRET.to_netcdf(self.relativeFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
+        FRET.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
 
+    def classify_traces(self):
+        ds = hmm_traces(self.FRET, n_components=2, covariance_type="full", n_iter=100)
+        ds.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
 
-    def import_pks_file(self):
-        peaks = import_pks_file(self.relativeFilePath.with_suffix('.pks'))
+    def import_pks_file(self, extension):
+        peaks = import_pks_file(self.absoluteFilePath.with_suffix('.pks'))
         peaks = split_dimension(peaks, 'peak', ('molecule', 'channel'), (-1, 2)).reset_index('molecule', drop=True)
         # peaks = split_dimension(peaks, 'molecule', ('molecule_in_file', 'file'), (-1, 1), (-1, [file]), to='multiindex')
 
-        if not self.relativeFilePath.with_suffix('.nc').is_file():
+        if not self.absoluteFilePath.with_suffix('.nc').is_file():
             self._init_dataset(len(peaks.molecule))
 
         coordinates = peaks.sel(parameter=['x', 'y']).rename(parameter='dimension')
         background = peaks.sel(parameter='background', drop=True)
 
         xr.Dataset({'coordinates': coordinates, 'background': background})\
-            .to_netcdf(self.relativeFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
+            .to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
 
     def export_pks_file(self):
         peaks = xr.merge([self.coordinates.to_dataset('dimension'), self.background.to_dataset()])\
             .stack(peaks=('molecule', 'channel')).to_array(dim='parameter').T
-        export_pks_file(peaks, self.relativeFilePath.with_suffix('.pks'))
+        export_pks_file(peaks, self.absoluteFilePath.with_suffix('.pks'))
         self.extensions.add('.pks')
 
-    def import_traces_file(self):
-        traces = import_traces_file(self.relativeFilePath.with_suffix('.traces'))
+    def import_traces_file(self, extension):
+        traces = import_traces_file(self.absoluteFilePath.with_suffix('.traces'))
         intensity = split_dimension(traces, 'trace', ('molecule', 'channel'), (-1, 2))\
             .reset_index(['molecule','frame'], drop=True)
 
-        if not self.relativeFilePath.with_suffix('.nc').is_file():
+        if not self.absoluteFilePath.with_suffix('.nc').is_file():
             self._init_dataset(len(intensity.molecule))
 
-        xr.Dataset({'intensity': intensity}).to_netcdf(self.relativeFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
+        xr.Dataset({'intensity': intensity}).to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
 
     def export_traces_file(self):
         traces = self.intensity.stack(trace=('molecule', 'channel')).T
-        export_traces_file(traces, self.relativeFilePath.with_suffix('.traces'))
+        export_traces_file(traces, self.absoluteFilePath.with_suffix('.traces'))
         self.extensions.add('.traces')
 
 
@@ -960,7 +904,7 @@ class File:
 
     def savetoExcel(self, filename=None, save=True):
         if filename is None:
-            filename = f'{self.relativeFilePath}_steps_data.xlsx'
+            filename = f'{self.absoluteFilePath}_steps_data.xlsx'
 
         # Find the molecules for which steps were selected
         molecules_with_data = [mol for mol in self.molecules if mol.steps is not None]
@@ -1015,10 +959,6 @@ class File:
             input("Press enter to continue")
 
     def perform_mapping(self, configuration = None):
-        # Refresh configuration
-        if not configuration:
-            self.experiment.import_config_file()
-
         image = self.average_image
         if configuration is None:
             configuration = self.experiment.configuration['mapping']
@@ -1109,10 +1049,10 @@ class File:
         for file in self.experiment.selectedFiles:
             if file is not self:
                 file._init_dataset(len(self.molecule))
-                self.coordinates.to_netcdf(file.relativeFilePath.with_suffix('.nc'), engine='h5netcdf')
+                self.coordinates.to_netcdf(file.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf')
 
     def use_mapping_for_all_files(self):
-        print(f"\n{File} used as mapping")
+        print(f"\n{self} used as mapping")
         self.is_mapping_file = True
         #mapping = self.movie.use_for_mapping()
         for file in self.experiment.files:
@@ -1120,41 +1060,54 @@ class File:
                 file.mapping = self.mapping
                 file.is_mapping_file = False
 
-    def show_image(self, image_type='default', figure=None, **kwargs):
+    def show_image(self, projection_type='default', figure=None, unit='pixel', **kwargs):
+        # TODO: Show two channels separately and connect axes
         # Refresh configuration
-        if image_type == 'default':
-            self.experiment.import_config_file()
-            image_type = self.experiment.configuration['show_movie']['image']
+        if projection_type == 'default':
+            projection_type = self.experiment.configuration['projection_image']['projection_type']
 
         if figure is None:
             figure = plt.figure()
         axis = figure.gca()
 
         # Choose method to plot
-        if image_type == 'average_image':
+        if projection_type == 'average':
             image = self.average_image
             axis.set_title('Average image')
-        elif image_type == 'maximum_image':
+        elif projection_type == 'maximum':
             image = self.maximum_projection_image
             axis.set_title('Maximum projection')
 
-        image_handle = axis.imshow(image)
 
-        # process keyword arguments
-        colorscale = list(image_handle.get_clim())
-        if 'vmin' in kwargs:
-            colorscale[0] = kwargs['vmin']
-        if 'vmax' in kwargs:
-            colorscale[1] = kwargs['vmax']
-        image_handle.set_clim(colorscale)
+        if unit == 'pixel':
+            unit_string = ' (pixels)'
+        elif unit == 'metric':
+            kwargs['extent'] = self.movie.boundaries_metric.T.flatten()[[0,1,3,2]]
+            unit_string = f' ({self.movie.pixel_size_unit})'
+
+        axis.imshow(image, **kwargs)
+        axis.set_title(self.relativeFilePath)
+        axis.set_xlabel('x'+unit_string)
+        axis.set_ylabel('y'+unit_string)
+
+        # TODO: Remove following commented out code
+        # as the vmin and vmax can now be set by passing the kwargs to imshow.
+        #
+        # image_handle = axis.imshow(image)
+        #
+        # # process keyword arguments
+        # colorscale = list(image_handle.get_clim())
+        # if 'vmin' in kwargs:
+        #     colorscale[0] = kwargs['vmin']
+        # if 'vmax' in kwargs:
+        #     colorscale[1] = kwargs['vmax']
+        # image_handle.set_clim(colorscale)
+
 
     def show_average_image(self, figure=None):
-        self.show_image(image_type='average_image', figure=figure)
+        self.show_image(projection_type='average', figure=figure)
 
-    def show_coordinates(self, figure=None, annotate=None, **kwargs):
-        # Refresh configuration
-        self.experiment.import_config_file()
-
+    def show_coordinates(self, figure=None, annotate=None, unit='pixel', **kwargs):
         if not figure:
             figure = plt.figure()
 
@@ -1163,11 +1116,18 @@ class File:
 
         if self.coordinates is not None:
             axis = figure.gca()
-            coordinates = self.coordinates.stack({'peak': ('molecule', 'channel')}).T.values
+            if unit == 'pixel':
+                coordinates = self.coordinates
+            elif unit == 'metric':
+                coordinates = self.coordinates_metric
+            else:
+                raise ValueError('Unit can be either "pixel" or "metric"')
+
+            coordinates = coordinates.stack({'peak': ('molecule', 'channel')}).T.values
             sc_coordinates = axis.scatter(coordinates[:, 0], coordinates[:, 1], facecolors='none', edgecolors='red', **kwargs)
             # marker='o'
 
-            selected_coordinates = self.coordinates[self.selected].stack({'peak': ('molecule', 'channel')}).T.values
+            selected_coordinates = self.coordinates.sel(molecule=self.selected).stack({'peak': ('molecule', 'channel')}).T.values
             axis.scatter(selected_coordinates[:, 0], selected_coordinates[:, 1], facecolors='none', edgecolors='green', **kwargs)
 
             if annotate:
@@ -1220,10 +1180,30 @@ class File:
         self.show_coordinates(figure=figure)
         # plt.savefig(self.writepath.joinpath(self.name + '_ave_circles.png'), dpi=600)
 
+    def show_traces(self, **kwargs):
+        dataset = self.dataset
+        save_path = self.experiment.main_path.joinpath('Trace_plots')
+        if not save_path.is_dir():
+            save_path.mkdir()
+
+        # app = wx.App(False)
+        # frame = TraceAnalysisFrame(None, dataset, "Sample editor", plot_variables=plot_variables, #'classification'],
+        #          ylims=[(0, 1000), (0, 1), (-1,2)], colours=[('g', 'r'), ('b'), ('k')], save_path=save_path)
+        # app.MainLoop()
+        #
+        from trace_analysis.trace_plot import TracePlotWindow
+        TracePlotWindow(dataset=dataset, save_path=save_path, **kwargs)
+
+        # We could also save the whole dataset, but since currently only alterations are made to selected.
+        dataset.selected.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
+
 
 def import_pks_file(pks_filepath):
     pks_filepath = Path(pks_filepath)
-    data = np.atleast_2d(np.genfromtxt(pks_filepath)[:,1:])
+    data = np.genfromtxt(pks_filepath)
+    if len(data) == 0:
+        return xr.DataArray(np.empty((0,3)), dims=("peak",'parameter'), coords={'parameter': ['x', 'y', 'background']})
+    data = np.atleast_2d(data)[:,1:]
     if data.shape[1] == 2:
         data = np.hstack([data, np.zeros((len(data),1))])
     return xr.DataArray(data, dims=("peak",'parameter'),
@@ -1282,10 +1262,14 @@ def split_dimension(data_array, old_dim, new_dims, new_dims_shape=None, new_dims
     new_dims_coords = (range(new_dims_shape[i]) if new_dims_coord == -1 else new_dims_coord
                        for i, new_dims_coord in enumerate(new_dims_coords))
 
+    new_dims_coords = [np.arange(new_dims_shape[i]) if new_dims_coord == -1 else new_dims_coord
+                       for i, new_dims_coord in enumerate(new_dims_coords)]
+
     new_index = pd.MultiIndex.from_product(new_dims_coords, names=new_dims)
     data_array = data_array.assign_coords(**{old_dim: new_index})
 
     if to == 'dimensions':
+        # Unstack does not work well for empty data_arrays, but in principle all necessary information is contained in the multiindex, i.e. range of all dimensions.
         return data_array.unstack(old_dim).transpose(*all_dims)
     elif to == 'multiindex':
         return data_array

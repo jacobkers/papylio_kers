@@ -3,7 +3,10 @@ import numpy as np
 
 from trace_analysis.movie.movie import Movie
 
+
 class PmaMovie(Movie):
+    extensions = ['.pma']
+
     def __init__(self, arg, *args, **kwargs):
         super().__init__(arg, *args, **kwargs)
         
@@ -23,8 +26,16 @@ class PmaMovie(Movie):
                             'point-selection':  (45,25)
                             }
 
-        self.read_header()
-        self.create_frame_info()  # Possibly move to Movie later on
+        # self.read_header()
+        # self.create_frame_info()  # Possibly move to Movie later on
+
+
+
+    def open(self):
+        pass  # TODO: implement this
+
+    def close(self):
+        pass  # TODO: implement this
 
     def _read_header(self):
         statinfo = os.stat(self.filepath)       
@@ -33,6 +44,12 @@ class PmaMovie(Movie):
             self.width = np.fromfile(pma_file, np.int16, count=1)[0].astype(int)
             self.height = np.fromfile(pma_file, np.int16, count=1)[0].astype(int)
             self.number_of_frames = int((statinfo.st_size-4)/(self.width*self.height))
+
+        # TODO: Import log file
+        # self.exposure_time = np.genfromtxt(f'{self.absoluteFilePath}.log', max_rows=1)[2]
+        # print(f'Exposure time set to {self.exposure_time} sec for {self.name}')
+        # self.log_details = open(f'{self.absoluteFilePath}.log').readlines()
+        # self.log_details = ''.join(self.log_details)
 
     def _read_frame(self, frame_number):
         with self.filepath.open('rb') as pma_file:
@@ -50,8 +67,11 @@ class PmaMovie(Movie):
 
         return image
 
+    def _read_frames(self, indices):
+        # Can probably be implemented more efficiently
+        return np.stack([self._read_frame(i) for i in indices])
 
 if __name__ == "__main__":
     movie = PmaMovie(r'.\Example_data\pma\movie.pma')
-    movie.intensity_range = (0, 120)
-    movie.make_projection_images()
+    # movie.intensity_range = (0, 120)
+    # movie.make_projection_images()

@@ -8,6 +8,8 @@ from trace_analysis.movie.movie import Movie
 
 
 class SifxMovie(Movie):
+    extensions = ['.sifx']
+
     # Based on https://github.com/lightingghost/sifreader/blob/master/sifreader/sifreader.py
     def __init__(self, arg, *args, **kwargs):
         super().__init__(arg, *args, **kwargs)
@@ -22,6 +24,8 @@ class SifxMovie(Movie):
                             'point-selection':  (45,25)
                             }
         self.create_frame_info()  # Possibly move to Movie later on
+
+        # self._initialized = True
 
     def find_filelist(self):
         self.filelist=[p.relative_to(self.filepath.parent) for p in self.filepath.parent.glob('*spool.dat')]
@@ -196,6 +200,9 @@ class SifxMovie(Movie):
         
         return im
 
+    def _read_frames(self, indices):
+        # Can probably be implemented more efficiently
+        return np.stack([self._read_frame(i) for i in indices])
 
 if __name__ == "__main__":
     movie = SifxMovie(r'.\Example_data\sifx\movie\Spooled files.sifx')

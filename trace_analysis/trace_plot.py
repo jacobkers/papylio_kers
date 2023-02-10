@@ -4,41 +4,102 @@ Created on Fri Sep 14 15:44:52 2018
 
 @author: ivoseverins
 """
-import wx
-import wx.lib.mixins.inspection as wit
-import matplotlib as mpl
-mpl.use('WXAgg')
+# import wx
+# import wx.lib.mixins.inspection as wit
+# import sys
+# print('PyQt5', sys.modules.get("PyQt5.QtCore"))
+# print('PySide2', sys.modules.get("PySide2.QtCore"))
+
+###################################################
+## To enable interactive plotting with PySide2 in PyCharm 2022.3
+import PySide2
+import sys
+sys.modules['PyQt5'] = sys.modules['PySide2']
+import matplotlib
+matplotlib.use('Qt5Agg')
+###################################################
+
 import matplotlib.pyplot as plt
-from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg as FigureCanvas
-from matplotlib.backends.backend_wxagg import NavigationToolbar2WxAgg as NavigationToolbar
+
+# from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg as FigureCanvas
+# from matplotlib.backends.backend_wxagg import NavigationToolbar2WxAgg as NavigationToolbar
+# from matplotlib.backends.backend_qtagg import FigureCanvas
+# from matplotlib.backends.backend_qtagg import NavigationToolbar2QT as NavigationToolbar
+
+import numpy as np
+from pathlib2 import Path
+
+from PySide2.QtWidgets import QMainWindow, QPushButton, QWidget, QVBoxLayout
+from PySide2.QtGui import QKeySequence
+from PySide2.QtCore import Qt
+
+import sys
+import time
+
 import numpy as np
 
+# from matplotlib.backends.qt_compat import QtWidgets
+from PySide2 import QtWidgets
+from matplotlib.backends.backend_qt5agg import (
+    FigureCanvasQTAgg, NavigationToolbar2QT as NavigationToolbar)
+from matplotlib.figure import Figure
 
-class TraceAnalysisFrame(wx.Frame):
-    def __init__(self, parent=None, dataset=None, title='Traces', plot_variables=['intensity', 'FRET'],
-                 ylims=[(0, 35000), (0, 1)], colours=[('g', 'r'), ('b')]):
-        wx.Frame.__init__(self, parent, title=title, size=(1400, 700))
+
+class TracePlotWindow(QWidget):
+    def __init__(self, dataset=None, plot_variables=['intensity', 'FRET'],
+                 ylims=[(0, 35000), (0, 1)], colours=[('g', 'r'), ('b')], width=14, height=7, save_path=None, parent=None):
+        from trace_analysis.experiment import get_QApplication
+        app = get_QApplication()
+
+        super().__init__()
+
         self.parent = parent
-        self.dataset = dataset
+
+        self.setWindowTitle("Traces")
+
         self.plot_variables = plot_variables
         self.ylims = ylims
         self.colours = colours
-        #self.Bind(wx.EVT_CLOSE, self.OnClose)
-        self.trace_panel = TraceAnalysisPanel(parent=self)
-        # self.control_panel = ControlPanel(parent=self)
-        self.Bind(wx.EVT_CHAR_HOOK, self.OnNavigationKey)
 
+        if save_path is None:
+            self.save_path = save_path
+        else:
+            self.save_path = Path(save_path)
+
+        self._dataset = dataset
+        self.canvas = TracePlotCanvas(self, width=width, height=height, dpi=100)
+
+        # Create toolbar, passing canvas as first parament, parent (self, the MainWindow) as second.
+        toolbar = NavigationToolbar(self.canvas, self)
+
+        layout = QVBoxLayout()
+        layout.addWidget(toolbar)
+        layout.addWidget(self.canvas)
+
+        self.setLayout(layout)
+        # Create a placeholder widget to hold our toolbar and canvas.
+        # widget = QWidget()
+        # widget.setLayout(layout)
+        # self.setCentralWidget(widget)
+
+        self.dataset = dataset
+
+        self.show()
+
+        app.exec_()
+
+    @property
+    def dataset(self):
+        return self._dataset
+
+    @dataset.setter
+    def dataset(self, value):
+        if value is not None and (hasattr(value, 'frame') or hasattr(value, 'time')):
+            self._dataset = value
+            self.canvas.init_plot_artists()
+        else:
+            self._dataset = None
         self.molecule_index = 0
-
-        self.Show()
-
-    # @property
-    # def molecules(self):
-    #     return self._molecules
-    #
-    # @molecules.setter
-    # def molecules(self, molecules):
-    #     self._molecules = molecules
 
 
     @property
@@ -48,7 +109,10 @@ class TraceAnalysisFrame(wx.Frame):
     @molecule_index.setter
     def molecule_index(self, molecule_index):
         self._molecule_index = molecule_index
-        self.molecule = self.dataset.isel(molecule=self.molecule_index)
+        if self.dataset is not None:
+            self.molecule = self.dataset.isel(molecule=self._molecule_index)
+        else:
+            self.molecule = None
 
     def next_molecule(self):
         if (self.molecule_index+1) < len(self.dataset.molecule):
@@ -58,46 +122,38 @@ class TraceAnalysisFrame(wx.Frame):
         if self.molecule_index > 0:
             self.molecule_index -= 1
 
+    def update_current_molecule(self):
+        self.molecule_index = self.molecule_index
+
     @property
     def molecule(self):
-        return self.panel.molecule
+        return self.canvas.molecule
 
     @molecule.setter
     def molecule(self, molecule):
-        self.trace_panel.molecule = molecule
+        self.canvas.molecule = molecule
 
-    def OnNavigationKey(self, event):
-        key_code = event.GetKeyCode()
-        # print(key_code)
-        if key_code == 316:
+    def keyPressEvent(self, e):
+        key = e.key()
+        if key == Qt.Key_Right: # Right arrow
             self.next_molecule()
-        elif key_code == 314:
+        elif key == Qt.Key_Left: # Left arrow
             self.previous_molecule()
+        elif key == Qt.Key_Space: # Spacebar
+            self.dataset.selected[dict(molecule=self.molecule_index)] = ~self.dataset.selected[dict(molecule=self.molecule_index)]
+            self.update_current_molecule()
+        elif key == Qt.Key_S: # S
+            self.canvas.save()
 
 
-# class ControlPanel(wx.Panel):
-# To file/molecule
-# Selected button changes colour (spacebar)
-# Y-axis limits
-# Classification technique - change classification pannel based on specific technique
-
-# class Threshold_classification_panel
-
-# class HMM_classification_panel
-
-
-
-
-class TraceAnalysisPanel(wx.Panel):
+class TracePlotCanvas(FigureCanvasQTAgg):
     # Kader om plot als geselecteerd
     # Autosave function
-    def __init__(self, parent, id=-1, dpi=None, **kwargs):
-        wx.Panel.__init__(self, parent, id=id, size=(1400,700), **kwargs)
-
-        self.parent = parent
-        self.figure = mpl.figure.Figure(dpi=dpi, constrained_layout=True)#, figsize=(2, 2))
-
-        plot_variables = self.parent.plot_variables
+    def __init__(self, parent=None, width=14, height=7, dpi=100):
+        self.figure = matplotlib.figure.Figure(figsize=(width, height), dpi=dpi, constrained_layout=True)  # , figsize=(2, 2))
+        super().__init__(self.figure)
+        self.parent_window = parent
+        plot_variables = self.parent_window.plot_variables
 
         grid = self.figure.add_gridspec(len(plot_variables), 2, width_ratios=[10, 1]) #, height_ratios=(2, 7),
                          # left=0.1, right=0.9, bottom=0.1, top=0.9,
@@ -114,11 +170,8 @@ class TraceAnalysisPanel(wx.Panel):
                 plot.sharex(self.plot_axes[plot_variables[0]])
                 # histogram.sharex(self.histogram_axes[plot_variables[0]])
 
-            plot.set_ylim(self.parent.ylims[i])
+            plot.set_ylim(self.parent_window.ylims[i])
             plot.set_ylabel(plot_variable)
-
-            if i == len(plot_variables)-1:
-                plot.set_xlabel('Time')
 
             histogram.get_yaxis().set_visible(False)
 
@@ -138,19 +191,70 @@ class TraceAnalysisPanel(wx.Panel):
         #self.figure, self.axes = mpl.figure.Figure().subplots(2,1)
 
 
-        self.canvas = FigureCanvas(self, -1, self.figure)
-        self.toolbar = NavigationToolbar(self.canvas)
-        self.toolbar.Realize()
-
-        sizer = wx.BoxSizer(wx.VERTICAL)
-        sizer.Add(self.toolbar, 0, wx.LEFT | wx.EXPAND)
-        sizer.Add(self.canvas, 1, wx.EXPAND)
-        self.SetSizer(sizer)
 
         self._molecule = None
 
         self.plot_artists = {}
         self.histogram_artists = {}
+
+
+    def show_artists(self, show, draw=True):
+        for artists in self.plot_artists.values():
+            for artist in artists:
+                artist.set_alpha(int(show))
+        for artists in self.histogram_artists.values():
+            for artist in artists:
+                for bar in artist:
+                    bar.set_alpha(int(show)*0.5)
+        if draw:
+            self.draw()
+
+    def init_plot_artists(self):
+        for i, plot_variable in enumerate(self.parent_window.plot_variables):
+            if 'time' in self.parent_window.dataset.coords.keys():
+                x = self.parent_window.dataset.time
+            else:
+                x = self.parent_window.dataset.frame
+            self.plot_artists[plot_variable] = self.plot_axes[plot_variable].plot(x, self.parent_window.dataset[plot_variable].sel(molecule=0).T)
+            if i == 0:
+                self.title_artist = self.plot_axes[plot_variable].set_title('')
+            for j, plot_artist in enumerate(self.plot_artists[plot_variable]):
+                plot_artist.set_color(self.parent_window.colours[i][j])
+            # molecule.intensity.plot.line(x='frame', ax=self.plot_axes[plot_variable], color=self.parent_window.colours[i])
+            self.histogram_artists[plot_variable] = self.histogram_axes[plot_variable].hist(self.parent_window.dataset[plot_variable].sel(molecule=0).T,
+                                                                                            bins=50,
+                                                                                            orientation='horizontal',
+                                                                                            range=self.plot_axes[
+                                                                                                plot_variable].get_ylim(),
+                                                                                            color=
+                                                                                            self.parent_window.colours[
+                                                                                                i], alpha=0.5)[2]
+            if not isinstance(self.histogram_artists[plot_variable], list):
+                self.histogram_artists[plot_variable] = [self.histogram_artists[plot_variable]]
+
+            if i == len(self.parent_window.plot_variables) - 1:
+                if 'time' in self.parent_window.dataset.coords.keys():
+                    self.plot_axes[plot_variable].set_xlabel(f'Time ({self.parent_window.dataset.time.units})')
+                else:
+                    self.plot_axes[plot_variable].set_xlabel('Frame')
+
+        # self.artists += [self.intensity_plot.plot(g, c='g')]
+        # self.artists += [self.intensity_plot.plot(r, c='r')]
+        # self.artists += [self.FRET_plot.plot(e, c='b')]
+        # self.artists += [[self.intensity_plot.set_title('test')]]
+        # self.artists += [self.intensity_histogram.hist(g, bins=100, orientation='horizontal',
+        #                                                range=self.intensity_plot.get_ylim(), color='g', alpha=0.5)[2]]
+        # self.artists += [self.intensity_histogram.hist(r, bins=100, orientation='horizontal',
+        #                                                range=self.intensity_plot.get_ylim(), color='r', alpha=0.5)[2]]
+        # self.artists += [self.FRET_histogram.hist(e, bins=100, orientation='horizontal',
+        #                                           range=self.FRET_plot.get_ylim(), color='b')[2]]
+
+        # self.axes[1].plot(molecule.E(), animate=True)
+        artists = [self.title_artist] + \
+                  [a for b in self.plot_artists.values() for a in b] + \
+                  [a for c in self.histogram_artists.values() for b in c for a in b]
+        self.bm = BlitManager(self, artists)
+        self.draw()
 
     @property
     def molecule(self):
@@ -158,50 +262,38 @@ class TraceAnalysisPanel(wx.Panel):
 
     @molecule.setter
     def molecule(self, molecule):
+        previous_molecule = self._molecule
         self._molecule = molecule
+
+        if molecule is None and previous_molecule is not None:
+            self.show_artists(False, draw=True)
+            return
+        elif molecule is None and previous_molecule is None:
+            return
+        elif molecule is not None and previous_molecule is None:
+            self.show_artists(True, draw=False)
+
+
+        self._molecule['file'] = self._molecule['file'].astype(str)
 
         # g = molecule.intensity.sel(channel=0).values
         # r = molecule.intensity.sel(channel=1).values
         # e = molecule.FRET.values
 
         if not self.plot_artists:
-            for i, plot_variable in enumerate(self.parent.plot_variables):
-                self.plot_artists[plot_variable] = self.plot_axes[plot_variable].plot(molecule[plot_variable].T)
-                if i==0:
-                    self.title_artist = self.plot_axes[plot_variable].set_title('')
-                for j, plot_artist in enumerate(self.plot_artists[plot_variable]):
-                    plot_artist.set_color(self.parent.colours[i][j])
-                #molecule.intensity.plot.line(x='frame', ax=self.plot_axes[plot_variable], color=self.parent.colours[i])
-                self.histogram_artists[plot_variable] = self.histogram_axes[plot_variable].hist(molecule[plot_variable].T,
-                                bins=50, orientation='horizontal', range=self.plot_axes[plot_variable].get_ylim(),
-                                                                    color=self.parent.colours[i], alpha=0.5)[2]
-                if not isinstance(self.histogram_artists[plot_variable], list):
-                    self.histogram_artists[plot_variable] = [self.histogram_artists[plot_variable]]
-
-            # self.artists += [self.intensity_plot.plot(g, c='g')]
-            # self.artists += [self.intensity_plot.plot(r, c='r')]
-            # self.artists += [self.FRET_plot.plot(e, c='b')]
-            # self.artists += [[self.intensity_plot.set_title('test')]]
-            # self.artists += [self.intensity_histogram.hist(g, bins=100, orientation='horizontal',
-            #                                                range=self.intensity_plot.get_ylim(), color='g', alpha=0.5)[2]]
-            # self.artists += [self.intensity_histogram.hist(r, bins=100, orientation='horizontal',
-            #                                                range=self.intensity_plot.get_ylim(), color='r', alpha=0.5)[2]]
-            # self.artists += [self.FRET_histogram.hist(e, bins=100, orientation='horizontal',
-            #                                           range=self.FRET_plot.get_ylim(), color='b')[2]]
-
-            #self.axes[1].plot(molecule.E(), animate=True)
-            artists = [self.title_artist] + \
-                      [a for b in self.plot_artists.values() for a in b] + \
-                      [a for c in self.histogram_artists.values() for b in c for a in b]
-            self.bm = BlitManager(self.canvas, artists)
-            self.canvas.draw()
+            self.init_plot_artists()
 
         # for axis in self.axes:
         #     axis.cla()
 
-        for i, plot_variable in enumerate(self.parent.plot_variables):
+        for i, plot_variable in enumerate(self.parent_window.plot_variables):
             data = np.atleast_2d(molecule[plot_variable])
-            self.title_artist.set_text(f'File: {molecule.file.values} | Molecule: {molecule.molecule_in_file.values}')#| Sequence: {molecule.sequence_name.values}')
+            if self._molecule.selected.item():
+                selection_string = ' | Selected'
+            else:
+                selection_string = ''
+
+            self.title_artist.set_text(f'# {self.parent_window.molecule_index} of {len(self.parent_window.dataset.molecule)} | File: {molecule.file.values} | Molecule: {molecule.molecule_in_file.values}' + selection_string)#| Sequence: {molecule.sequence_name.values}')
             for j in range(len(data)):
                 self.plot_artists[plot_variable][j].set_ydata(data[j])
                 n, _ = np.histogram(data[j], 50, range=self.plot_axes[plot_variable].get_ylim())
@@ -269,6 +361,104 @@ class TraceAnalysisPanel(wx.Panel):
         # self.sizer.Add(wx.Button(self, -1, "Button 1"), 0, wx.EXPAND | wx.ALL, 10)
         # self.sizer.Add(wx.Button(self, -1, "Button 2"), 0, wx.EXPAND | wx.ALL, 10)
         # self.SetSizer(self.sizer)
+
+    def save(self):
+        if self.parent_window.save_path is not None:
+            file_name = self.molecule.file.item().replace('\\' ,' - ')+f' - mol {self.molecule.molecule_in_file.item()}.png'
+            file_path = self.parent_window.save_path.joinpath(file_name)
+            self.figure.savefig(file_path, bbox_inches='tight')
+        else:
+            raise ValueError('No save_path set')
+
+
+
+
+
+#
+#
+#
+# class TraceAnalysisFrame(QMainWindow):
+#     def __init__(self, parent=None, dataset=None, title='Traces', plot_variables=['intensity', 'FRET'],
+#                  ylims=[(0, 35000), (0, 1)], colours=[('g', 'r'), ('b')], save_path=None):
+#         wx.Frame.__init__(self, parent, title=title, size=(1400, 700))
+#         self.parent = parent
+#         self.dataset = dataset
+#         self.plot_variables = plot_variables
+#         self.ylims = ylims
+#         self.colours = colours
+#
+#         if save_path is None:
+#             self.save_path = save_path
+#         else:
+#             self.save_path = Path(save_path)
+#         #self.Bind(wx.EVT_CLOSE, self.OnClose)
+#         self.trace_panel = TraceAnalysisPanel(parent=self)
+#         # self.control_panel = ControlPanel(parent=self)
+#         self.Bind(wx.EVT_CHAR_HOOK, self.OnNavigationKey)
+#
+#         self.molecule_index = 0
+#
+#         self.Show()
+#
+#     # @property
+#     # def molecules(self):
+#     #     return self._molecules
+#     #
+#     # @molecules.setter
+#     # def molecules(self, molecules):
+#     #     self._molecules = molecules
+#
+#
+#     @property
+#     def molecule_index(self):
+#         return self._molecule_index
+#
+#     @molecule_index.setter
+#     def molecule_index(self, molecule_index):
+#         self._molecule_index = molecule_index
+#         self.molecule = self.dataset.isel(molecule=self.molecule_index)
+#
+#     def next_molecule(self):
+#         if (self.molecule_index+1) < len(self.dataset.molecule):
+#             self.molecule_index += 1
+#
+#     def previous_molecule(self):
+#         if self.molecule_index > 0:
+#             self.molecule_index -= 1
+#
+#     def update_current_molecule(self):
+#         self.molecule_index = self.molecule_index
+#
+#     @property
+#     def molecule(self):
+#         return self.panel.molecule
+#
+#     @molecule.setter
+#     def molecule(self, molecule):
+#         self.trace_panel.molecule = molecule
+#
+#     def OnNavigationKey(self, event):
+#         key_code = event.GetKeyCode()
+#         print(key_code)
+#         if key_code == 316: # Right arrow
+#             self.next_molecule()
+#         elif key_code == 314: # Left arrow
+#             self.previous_molecule()
+#         elif key_code == 32: # Spacebar
+#             self.dataset.selected[dict(molecule=self.molecule_index)] = ~self.dataset.selected[dict(molecule=1)]
+#             self.update_current_molecule()
+#         elif key_code == 83: # S
+#             self.trace_panel.save()
+
+# class ControlPanel(wx.Panel):
+# To file/molecule
+# Selected button changes colour (spacebar)
+# Y-axis limits
+# Classification technique - change classification pannel based on specific technique
+
+# class Threshold_classification_panel
+
+# class HMM_classification_panel
 
 
 class BlitManager:
@@ -353,28 +543,57 @@ class BlitManager:
 
 if __name__ == "__main__":
 
+    # # Check whether there is already a running QApplication (e.g., if running
+    # # from an IDE).
+    # qapp = QtWidgets.QApplication.instance()
+    # if not qapp:
+    #     qapp = QtWidgets.QApplication(sys.argv)
+    #
+    # app = ApplicationWindow()
+    # app.show()
+    # app.activateWindow()
+    # app.raise_()
+    # qapp.exec_()
+
+
     import trace_analysis as ta
-    exp = ta.Experiment(r'D:\SURFdrive\Promotie\Code\Python\traceAnalysis\twoColourExampleData\20141017 - Holliday junction - Copy')
-    # exp = ta.Experiment(r'D:\20200918 - Test data\Single-molecule data small')
-    #exp = ta.Experiment(r'P:\SURFdrive\Promotie\Data\Test data')
-    # exp = ta.Experiment(r'/Users/ivoseverins/SURFdrive/Promotie/Data/Test data')
-    # print(exp.files)
-    # m = exp.files[1].molecules[0]
-    # print(exp.files[2])
-    import xarray as xr
-    #file_paths = [p for p in exp.nc_file_paths if '561' in str(p)]
-    file_paths = [exp.nc_file_paths[0]]
-    with xr.open_mfdataset(file_paths, concat_dim='molecule', combine='nested') as ds:
-        # ds_sel = ds.sel(molecule=ds.sequence_name=='HJ7_G')# .reset_index('molecule', drop=True) # HJ1_WT, HJ7_G116T
-        app = wx.App(False)
-        # app = wit.InspectableApp()
-        frame = TraceAnalysisFrame(None, ds, "Sample editor", plot_variables=['intensity', 'FRET'], #'classification'],
-                 ylims=[(0, 1000), (0, 1), (-1,2)], colours=[('g', 'r'), ('b'), ('k')])
-        # frame.molecules = exp.files[1].molecules
-        print('test')
-        import wx.lib.inspection
-        wx.lib.inspection.InspectionTool().Show()
-        app.MainLoop()
+    import os, sys
+    mapping_path = Path(os.getcwd()).joinpath('trace_analysis').joinpath('mapping')
+    sys.path.append(mapping_path)
+    print(sys.path)
+    from trace_analysis.experiment import Experiment
+    exp = Experiment(r'D:\SURFdrive\Promotie\Code\Python\traceAnalysis\twoColourExampleData\20141017 - Holliday junction - Copy')
+    ds = exp.files[0].dataset
+
+    from PySide2.QtWidgets import QApplication
+
+    app = QApplication(sys.argv)
+    frame = TracePlotWindow(ds)
+        #, "Sample editor", plot_variables=['intensity', 'FRET'],  # 'classification'],
+        #          ylims=[(0, 1000), (0, 1), (-1,2)], colours=[('g', 'r'), ('b'), ('k')])
+
+    app.exec_()
+
+    # # exp = ta.Experiment(r'D:\20200918 - Test data\Single-molecule data small')
+    # #exp = ta.Experiment(r'P:\SURFdrive\Promotie\Data\Test data')
+    # # exp = ta.Experiment(r'/Users/ivoseverins/SURFdrive/Promotie/Data/Test data')
+    # # print(exp.files)
+    # # m = exp.files[1].molecules[0]
+    # # print(exp.files[2])
+    # import xarray as xr
+    # #file_paths = [p for p in exp.nc_file_paths if '561' in str(p)]
+    # file_paths = [exp.nc_file_paths[0]]
+    # with xr.open_mfdataset(file_paths, concat_dim='molecule', combine='nested') as ds:
+    #     # ds_sel = ds.sel(molecule=ds.sequence_name=='HJ7_G')# .reset_index('molecule', drop=True) # HJ1_WT, HJ7_G116T
+    #     app = wx.App(False)
+    #     # app = wit.InspectableApp()
+    #     frame = TraceAnalysisFrame(None, ds, "Sample editor", plot_variables=['intensity', 'FRET'], #'classification'],
+    #              ylims=[(0, 1000), (0, 1), (-1,2)], colours=[('g', 'r'), ('b'), ('k')])
+    #     # frame.molecules = exp.files[1].molecules
+    #     print('test')
+    #     import wx.lib.inspection
+    #     wx.lib.inspection.InspectionTool().Show()
+    #     app.MainLoop()
 
 
 

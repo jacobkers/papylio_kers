@@ -12,9 +12,9 @@ from pathlib2 import Path
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.pyplot import cm
 import scipy.stats
-from trace_analysis.mapping.mapping import Mapping2
-from trace_analysis.coordinate_transformations import translate, rotate, magnify, reflect, transform
-from trace_analysis.plugins.sequencing.plotting import plot_sequencing_match
+from mapping import Mapping2
+from coordinate_transformations import translate, rotate, magnify, reflect, transform
+# from trace_analysis.plugins.sequencing.plotting import plot_sequencing_match
 
 
 def mapToPoint(pointSet,startPoints,endPoints,returnTransformationMatrix = False, tr = None, di = None, ro = None):
@@ -110,7 +110,7 @@ def pointHash(pointSet, bases='all', mode='similarity', hashTableRange = np.arra
         NbasisPoints = 1
     
     
-    if bases is 'all':
+    if bases == 'all':
         #bases = np.arange(testPointSet.shape[0])
         
         baseNumbersPerAxis = np.mgrid[[slice(pointSet.shape[0]) for i in range(NbasisPoints)]]
@@ -209,7 +209,7 @@ def findMatch(testPointSet, hashTable, bases = 'all', returnMatchedBases = False
         endPoints = np.array([[0,0]])
         NbasisPoints = 1
     
-    if bases is 'all':
+    if bases == 'all':
         #bases = np.arange(testPointSet.shape[0])
         
         baseNumbersPerAxis = np.mgrid[[slice(testPointSet.shape[0]) for i in range(NbasisPoints)]]
@@ -322,7 +322,7 @@ def pointHashTranslation(pointSet, bases='all'):
 
     #endPoints = np.array([[-0.5,0],[0.5,0]])
     
-    if bases is 'all':
+    if bases == 'all':
         bases = np.arange(pointSet.shape[0])
         
 #        basesX, basesY = np.mgrid[0:pointSet.shape[0],0:pointSet.shape[0]]
@@ -386,7 +386,7 @@ def findMatchTranslation(testPointSet, hashTable, bases = 'all', returnMatchedBa
     
     endPoints = np.array([[-0.5,0],[0.5,0]])
     
-    if bases is 'all':
+    if bases == 'all':
         bases = np.arange(testPointSet.shape[0])
 
     
@@ -597,10 +597,10 @@ class SequencingDataMapping:
         figure.savefig(self.dataPath.joinpath(n + '_raw.pdf'), bbox_inches='tight')
         figure.savefig(self.dataPath.joinpath(n + '_raw.png'), bbox_inches='tight', dpi=1000)
 
-    def plot_match(self, match):
-        name = str(self.files[self.matches.index(match)].relativeFilePath)
-        print(name)
-        plot_sequencing_match(match, self.dataPath, name, unit='um')
+    # def plot_match(self, match):
+    #     name = str(self.files[self.matches.index(match)].relativeFilePath)
+    #     print(name)
+    #     plot_sequencing_match(match, self.dataPath, name, unit='um')
 
     def loop_through_matches(self, figure=None):
         if figure is None:
