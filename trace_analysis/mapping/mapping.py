@@ -1354,7 +1354,7 @@ class Mapping2:
         else:
             source_tree = cKDTree(source)
             destination_tree = cKDTree(destination)
-            return source_tree.sparse_distance_matrix(destination_tree, max_distance=max_distance, **kwargs).todense()
+            return source_tree.sparse_distance_matrix(destination_tree, max_distance=max_distance, **kwargs)
 
     def density_source(self, crop=False, space='source'):
         return self.get_source(crop).shape[0] / self.get_source_area(crop=crop, space=space)
