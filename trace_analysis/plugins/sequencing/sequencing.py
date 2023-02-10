@@ -11,7 +11,7 @@ import xarray as xr
 import os.path
 # from trace_analysis.experiment import Experiment
 # from trace_analysis.file import File
-from trace_analysis.mapping.geometricHashing import SequencingDataMapping
+# from trace_analysis.mapping.geometricHashing import SequencingDataMapping
 from trace_analysis.mapping.mapping import Mapping2
 from trace_analysis.mapping.polynomial import PolynomialTransform
 from .fastqAnalysis import FastqData
@@ -69,6 +69,7 @@ class Experiment:
                                                add_aligned_sequence=add_aligned_sequence,
                                                extract_sequence_subset=extract_sequence_subset, chunksize=chunksize)
         self.sequencing_data = SequencingData(nc_file_path, load=False)
+        # TODO: Insert full path if the path is on another drive.
         if store_relative_filepath:
             nc_file_path = os.path.relpath(nc_file_path, start=self.main_path)
         self.configuration['sequencing'] = {'data_file_path': nc_file_path}
@@ -136,7 +137,7 @@ class Experiment:
         coordinates_sm = xr.DataArray(dims=['mapping_name','sequence','dimension'],
                                       coords={'mapping_name': list(self.tile_mappings_dict.keys()), 'sequence':coords['sequence'], 'dimension': coords['dimension']})
         tile_mappings_dict = self.tile_mappings_dict
-        for tile, coordinates in self.sequencing_data.coordinates.groupby('tile'):
+        for tile, coordinates in tqdm.tqdm(self.sequencing_data.coordinates.groupby('tile'), unit='tile'):
             for mapping_name, tile_mappings in tile_mappings_dict.items():
                 if tile in tile_mappings.keys():
                     coordinates_sm.loc[dict(mapping_name=mapping_name, sequence=(coordinates_sm.tile == tile))] = \
@@ -416,6 +417,18 @@ class File:
     def sequencing_match(self, value):
         self._sequencing_match = value
         self.export_sequencing_match()
+
+    @property
+    def has_sequencing_match(self):
+        filepath = self.absoluteFilePath.with_name(self.name + '_sequencing_match')
+        # TODO: Link this to the possible file formats of Mapping2
+        for suffix in ['.nc', '.mapping']:
+            filepath = filepath.with_suffix(suffix)
+            if filepath.is_file():
+                return True
+        else:
+            return False
+
 
     @property
     def sequencing_data(self):
