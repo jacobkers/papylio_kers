@@ -29,3 +29,34 @@ def test_add_sequence_data_to_dataset(sam_filepath, index1_fastq_filepath):
     nc_filepath = sam_filepath.with_suffix('.nc')
     add_sequence_data_to_dataset(nc_filepath, index1_fastq_filepath, 'index1')
 
+
+# def test_unlim_vs_lim_dim_netcdf4():
+#     import netCDF4
+#     import numpy as np
+#
+#     ds_unlim = netCDF4.Dataset(r'D:\Test\ds_unlim.nc', 'w')
+#     ds_unlim.createDimension('test_dim', None)
+#     ds_unlim.createVariable('test_var', np.uint32, ('test_dim',), chunksizes=(1,))
+#     ds_unlim['test_var'][:] = np.arange(10 ** 6)
+#     ds_unlim.close()
+#
+#     ds_lim = netCDF4.Dataset(r'D:\Test\ds_lim.nc', 'w')
+#     ds_lim.createDimension('test_dim', 10**6)
+#     ds_lim.createVariable('test_var', np.uint32, ('test_dim',))
+#     ds_lim['test_var'][:] = np.arange(10 ** 6)
+#     ds_lim.close()
+#
+#
+#     import xarray as xr
+#     import time
+#     ds_unlim = xr.open_dataset(r'D:\Test\ds_unlim.nc')
+#     start = time.time()
+#     ds_unlim['test_var'].load()
+#     print(time.time()-start)
+#     ds_unlim.close()
+#
+#     ds_lim = xr.open_dataset(r'D:\Test\ds_lim.nc')
+#     start = time.time()
+#     ds_lim['test_var'].load()
+#     print(time.time()-start)
+#     ds_lim.close()
