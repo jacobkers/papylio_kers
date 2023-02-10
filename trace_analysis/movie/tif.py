@@ -83,8 +83,10 @@ class TifMovie(Movie):
     #
     @property
     def time(self):
+        # TODO: Get time when in read_frame
         if self._time is None:
             with self:
+                # print('Time is obtained')
                 if 'DateTime' in self.file.pages[0].tags:
                     # For which files is this?
                     # Note that looping over tif pages will be slow.
