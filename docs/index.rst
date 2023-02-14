@@ -27,6 +27,7 @@ Getting started
 
    Installation
    Getting started
+   Examples <examples/index>
    GUI
    API reference
    Contributing

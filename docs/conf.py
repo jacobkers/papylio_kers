@@ -20,8 +20,15 @@ project = 'traceAnalysis'
 copyright = '2022 - Chirlmin Joo lab'
 author = 'Sung Hyun Kim, Carolien Bastiaansen, Iason Katechis, Margreet Docter, Roy Simons, Pim America, Ivo Severins'
 
+from git import Repo
+from pathlib2 import Path
+# raise ValueError(Path(__file__).parent.parent)
+repo = Repo(Path(__file__).parent.parent)
+
+sha = repo.head.object.hexsha
+
 # The full version, including alpha/beta/rc tags
-release = '0.1.1'
+release = f'develop-{sha[0:7]}'
 
 
 # -- General configuration ---------------------------------------------------
@@ -41,6 +48,9 @@ extensions = [
     # "sphinx.ext.todo",
     # "sphinx.ext.autosectionlabel",
     # "sphinx.ext.githubpages",
+    # "nbsphinx",
+    # "IPython.sphinxext.ipython_directive",
+    # "IPython.sphinxext.ipython_console_highlighting",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
