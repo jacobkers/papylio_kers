@@ -555,13 +555,12 @@ class Mapping2:
         ----------
         method : str
             Method to use for finding the distance threshold. Choose from:
-            -   'single_match_optimization': Optimizes the number of singly-matched pairs,
-                i.e. the source point having only a single destination point within the distance threshold and the
-                destination point having only a single source point within the distance threshold.
-                See the Mapping2.single_match_optimization method.
+                -   'single_match_optimization': Optimizes the number of singly-matched pairs,
+                    i.e. the source point having only a single destination point within the distance threshold and the
+                    destination point having only a single source point within the distance threshold.
+                    See the Mapping2.single_match_optimization method.
         kwargs
             Keyword arguments to pass to method.
-
         """
         if method == 'single_match_optimization':
             self.single_match_optimization(**kwargs)
@@ -915,7 +914,7 @@ class Mapping2:
         ----------
         method : str
             Mapping method, if not specified the object method is used.
-        **kwargs
+        kwargs
             Keyword arguments passed to mapping methods.
         """
 
@@ -940,14 +939,18 @@ class Mapping2:
     def direct_match(self, transformation_type=None, **kwargs):
         """Find transformation from source to destination points by matching based on the point order
 
-        Note: the number and the order of source points should be equal to the number and the order of destination points.
+        The found transformation is stored in the object transformation parameter.
+
+        Note
+        ----
+        The number and the order of source points should be equal to the number and the order of destination points.
 
         Parameters
         ----------
         transformation_type : str
             Type of transformation used, either linear or polynomial can be chosen.
             If not specified the object transformation_type is used.
-        **kwargs
+        kwargs
             Keyword arguments passed to the direct match function.
 
         """
@@ -960,12 +963,14 @@ class Mapping2:
         print(f'Direct match\n'
               f'Mean-squared error: {error}')
 
-    def nearest_neighbour_match(self, distance_threshold=None, transformation_type=None, **kwargs):
-        """Find transformation from source to destination points by matching nearest neighbours
+    def nearest_neighbour_match(self, destination_distance_threshold=None, transformation_type=None, **kwargs):
+        """Find transformation from source to destination points by matching nearest neighbours.
 
         Two-way nearest neighbours are detected, i.e. the source point should be the nearest neighbour of the
         destination point and vice versa. Only nearest neighbours closer than the distance threshold are used to find
         the transformation.
+
+        The found transformation is stored in the object transformation parameter.
 
         Note
         ----
@@ -977,16 +982,16 @@ class Mapping2:
 
         Parameters
         ----------
-        distance_threshold : float
-            Distance threshold for nearest neighbour match, i.e. only nearest neighbours with a distance smaller than
-            the distance threshold are used.
+        destination_distance_threshold : float
+            Distance threshold for nearest neighbour match in destination space. Only nearest neighbours with a
+            distance smaller than the distance threshold are used.
         transformation_type : str
-            Type of transformation used, either linear or polynomial can be chosen.
+            Type of transformation used. For options see Mapping2.transformation_type.
             If not specified the object transformation_type is used.
-        **kwargs
+        kwargs
             Keyword arguments passed to the nearest-neighbour match function.
-
         """
+
         if transformation_type is not None:
             self.transformation_type = transformation_type
 
@@ -998,7 +1003,7 @@ class Mapping2:
         print(f'Nearest-neighbour match\n'
               f'Mean-squared error: {error}')
 
-    def iterative_closest_point(self, distance_threshold=None, **kwargs):
+    def iterative_closest_point(self, destination_distance_threshold=None, **kwargs):
         """Find transformation from source to destination points using an iterative closest point algorithm
 
         In the iterative closest point algorithm, the two-way nearest neigbhbours are found and these are used to
@@ -1007,6 +1012,8 @@ class Mapping2:
 
         The iterative closest point algorithm can be used in situations when deviations between the two point sets
         are relatively small.
+
+        The found transformation is stored in the object transformation parameter.
 
         Note
         ----
@@ -1018,23 +1025,55 @@ class Mapping2:
 
         Parameters
         ----------
-        distance_threshold : int or float
+        destination_distance_threshold : int or float
             Distance threshold applied to select nearest-neighbours in the final round of icp,
             i.e. nearest-neighbours with di.
-        **kwargs
-            Keyword arguments passed to icp.
-
+        kwargs
+            Keyword arguments passed to the algorithm.
         """
 
         self.transformation, self.transformation_inverse, error, number_of_iterations = \
-            icp(self.source, self.destination, distance_threshold_final=distance_threshold,
+            icp(self.source, self.destination, distance_threshold_final=destination_distance_threshold,
                 initial_transformation=self.transformation, transform_final=self.transform, **kwargs)
 
         print(f'Iterative closest point match\n'
               f'Mean-squared error: {error}\n'
               f'Number of iterations: {number_of_iterations}')
 
-    def kernel_correlation(self, bounds=((0.97, 1.02), (-0.05, 0.05), (-10, 10), (-10, 10)), sigma=1, crop=False, plot=False, **kwargs):
+    def kernel_correlation(self, bounds=((0.97, 1.02), (-0.05, 0.05), (-10, 10), (-10, 10)), sigma=1, crop=False,
+                           plot=False, **kwargs):
+        """Find transformation from source to destination points using an kernel correlation algorithm.
+
+        The found transformation is stored in the object transformation parameter.
+
+        Note
+        ----
+        The found kernel correlation value is stored in the objects mapping statistics with key
+        "kernel_correlation_value".
+
+        Parameters
+        ----------
+        bounds : tuple of tuples
+            The bounds for variation of the transformation parameters.
+            The number of tuples passed determines the number of varied parameters.
+            - Two tuples indicates variation of the x and y translation.
+            - Three tuples indicate rotation, x-translation and y-translation.
+            - Four tuples indicate scale, rotation, x-translation and y-translation.
+            - Five tuples indicate scale, rotation, shear, x-translation and y-translation.
+            - Six tuples indicate scale-x, scale-y, rotation, shear, x-translation and y-translation.
+            The rotation parameter is given in radians.
+        sigma : float
+            The standard deviation of the Gaussian kernel used.
+        crop : bool or str, optional
+               If True: the overlap between the source and destination point set is used.
+               If 'source': only the source is cropped to the destination point set.
+               If 'destination': only the destination is cropped to the source point set.
+               If False: no cropping is applied.
+        plot : bool
+            Whether to plot the mapping process.
+        kwargs
+            Keyword arguments passed to the algorithm.
+        """
         transformation, result = kernel_correlation(self.get_source(crop, space='destination'), self.get_destination(crop),
                                                     bounds, sigma, plot=plot, **kwargs)
         self.transformation = AffineTransform(matrix=(self.transformation + transformation).params)
@@ -1042,6 +1081,26 @@ class Mapping2:
         self.mapping_statistics = {'kernel_correlation_value': result.fun}
 
     def kernel_correlation_score(self, sigma=1, crop=False, per_point_pair=False):
+        """Determine the kernel correlation score for the current transformation.
+
+        Parameters
+        ----------
+        sigma : float
+            The standard deviation of the Gaussian kernel used.
+        crop : bool or str, optional
+            If True: the overlap between the source and destination point set is used.
+            If 'source': only the source is cropped to the destination point set.
+            If 'destination': only the destination is cropped to the source point set.
+            If False: no cropping is applied.
+        per_point_pair : bool
+            If True the kernel correlation score is returned for each point pair in a 2D matrix.
+            If False a summed kernel correlation score is returned.
+
+        Returns
+        -------
+        float or NxM numpy.ndarray
+            Kernel correlation score
+        """
         return compute_kernel_correlation(self.transformation, self.get_source(crop), self.get_destination(crop),
                                           sigma=sigma, per_point_pair=per_point_pair)
 
