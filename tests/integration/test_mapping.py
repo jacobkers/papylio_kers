@@ -25,6 +25,19 @@ def test_vertices(mapping):
     assert (mapping.get_destination_vertices(crop=True) == mapping.destination_cropped_vertices).all()
 
 
+def test_iterative_closest_point():
+    mapping = Mapping2.simulate()
+    mapping.transformation = AffineTransform(translation=(256,0))
+    mapping.iterative_closest_point(5)
+    assert mapping.transformation_is_similar_to_correct_transformation(translation_error=1, rotation_error=0.001, scale_error=0.01)
+
+def test_iterative_closest_point_polynomial():
+    mapping = Mapping2.simulate()
+    mapping.transformation = AffineTransform(translation=(256,0))
+    mapping.transformation_type = 'polynomial'
+    mapping.iterative_closest_point(5)
+    #TODO add comparison for polynomial transforms, or based on point distances
+
 def test_geometric_hash_table():
     translation = np.array([256, 10])
     rotation = 125 / 360 * 2 * np.pi

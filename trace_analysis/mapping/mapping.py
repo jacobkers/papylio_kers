@@ -1006,7 +1006,7 @@ class Mapping2:
     def iterative_closest_point(self, distance_threshold=None, **kwargs):
         """Find transformation from source to destination points using an iterative closest point algorithm
 
-        In the iterative closest point algorithm, the two-way nearest neigbhbours are found and these are used to
+        In the iterative closest point algorithm, the two-way nearest neighbours are found and these are used to
         find the most optimal transformation. Subsequently the source is transformed according to this
         transformation. This process is repeated until the changes detected are below a tolerance level.
 
@@ -1027,7 +1027,7 @@ class Mapping2:
         ----------
         distance_threshold : int or float
             Distance threshold applied to select nearest-neighbours in the final round of icp,
-            i.e. nearest-neighbours with di.
+            i.e. nearest-neighbours with distances smaller than distance_threshold.
         kwargs
             Keyword arguments passed to the algorithm.
         """
