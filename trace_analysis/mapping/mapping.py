@@ -963,7 +963,7 @@ class Mapping2:
         print(f'Direct match\n'
               f'Mean-squared error: {error}')
 
-    def nearest_neighbour_match(self, destination_distance_threshold=None, transformation_type=None, **kwargs):
+    def nearest_neighbour_match(self, distance_threshold=None, transformation_type=None, **kwargs):
         """Find transformation from source to destination points by matching nearest neighbours.
 
         Two-way nearest neighbours are detected, i.e. the source point should be the nearest neighbour of the
@@ -982,7 +982,7 @@ class Mapping2:
 
         Parameters
         ----------
-        destination_distance_threshold : float
+        distance_threshold : float
             Distance threshold for nearest neighbour match in destination space. Only nearest neighbours with a
             distance smaller than the distance threshold are used.
         transformation_type : str
@@ -1003,7 +1003,7 @@ class Mapping2:
         print(f'Nearest-neighbour match\n'
               f'Mean-squared error: {error}')
 
-    def iterative_closest_point(self, destination_distance_threshold=None, **kwargs):
+    def iterative_closest_point(self, distance_threshold=None, **kwargs):
         """Find transformation from source to destination points using an iterative closest point algorithm
 
         In the iterative closest point algorithm, the two-way nearest neigbhbours are found and these are used to
@@ -1025,7 +1025,7 @@ class Mapping2:
 
         Parameters
         ----------
-        destination_distance_threshold : int or float
+        distance_threshold : int or float
             Distance threshold applied to select nearest-neighbours in the final round of icp,
             i.e. nearest-neighbours with di.
         kwargs
@@ -1033,7 +1033,7 @@ class Mapping2:
         """
 
         self.transformation, self.transformation_inverse, error, number_of_iterations = \
-            icp(self.source, self.destination, distance_threshold_final=destination_distance_threshold,
+            icp(self.source, self.destination, distance_threshold_final=distance_threshold,
                 initial_transformation=self.transformation, transform_final=self.transform, **kwargs)
 
         print(f'Iterative closest point match\n'
