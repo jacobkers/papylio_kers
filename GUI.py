@@ -10,6 +10,7 @@ from matplotlib.backends.backend_qtagg import (
 
 
 from trace_analysis import Experiment, File
+from trace_analysis.trace_plot import TracePlotWindow
 
 # class TreeNode:
 #     def __init__(self, node_object, parent=None):
@@ -287,15 +288,37 @@ class MainWindow(QMainWindow):
         self.controls.setMinimumWidth(200)
 
 
+        extraction_layout = QHBoxLayout()
+        extraction_layout.addWidget(self.image)
+        extraction_layout.addWidget(self.controls)
+
+        tabs = QTabWidget()
+        tabs.setTabPosition(QTabWidget.North)
+        tabs.setMovable(False)
+        tabs.setDocumentMode(True)
+
+
+        tab1 = QWidget(self)
+        tab1.setLayout(extraction_layout)
+        tabs.addTab(tab1, 'Movie')
+        self.traces = TracePlotWindow(parent=self, width=4, height=3, show=False)
+        tabs.addTab(self.traces, 'Traces')
+        tabs.currentChanged.connect(self.setTracesFocus)
+
         layout = QHBoxLayout()
         layout.addWidget(self.tree)
-        layout.addWidget(self.image)
-        layout.addWidget(self.controls)
+        layout.addWidget(tabs)
 
         widget = QWidget()
         widget.setLayout(layout)
         self.setCentralWidget(widget)
 
+    def keyPressEvent(self, e):
+        self.traces.keyPressEvent(e)
+
+    def setTracesFocus(self, e):
+        if e == 1:
+            self.traces.setFocus()
 
     def midChange(self, input):
         input = int(input)
@@ -313,14 +336,15 @@ class MainWindow(QMainWindow):
         selected_files = self.experiment.selectedFiles
         if selected_files:
             selected_files.find_coordinates()
-            self.image_canvas.refresh()
+            # self.image_canvas.refresh()
+            self.update_plots()
 
     def extract_traces(self):
         selected_files = self.experiment.selectedFiles
         if selected_files:
             selected_files.extract_traces()
-            self.image_canvas.refresh()
-
+            # self.image_canvas.refresh()
+            self.update_plots()
 
     def onItemChange(self, item):
         if isinstance(item.data(), File):
@@ -335,7 +359,15 @@ class MainWindow(QMainWindow):
             self.update = True
 
         if self.update:
-            self.image_canvas.file = (self.experiment.selectedFiles + [None])[0]
+            self.update_plots()
+
+    def update_plots(self):
+        selected_files = self.experiment.selectedFiles + [None]
+        self.image_canvas.file = selected_files[0]
+        if selected_files[0] is not None:
+            self.traces.dataset = selected_files[0].dataset
+        else:
+            self.traces.dataset = None
 
     def addExperiment(self, experiment):
 

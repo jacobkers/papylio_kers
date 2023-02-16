@@ -47,7 +47,8 @@ from matplotlib.figure import Figure
 
 class TracePlotWindow(QWidget):
     def __init__(self, dataset=None, plot_variables=['intensity', 'FRET'],
-                 ylims=[(0, 35000), (0, 1)], colours=[('g', 'r'), ('b')], width=14, height=7, save_path=None, parent=None):
+                 ylims=[(0, 35000), (0, 1)], colours=[('g', 'r'), ('b')], width=14, height=7, save_path=None, parent=None,
+                 show=True):
         from trace_analysis.experiment import get_QApplication
         app = get_QApplication()
 
@@ -84,9 +85,10 @@ class TracePlotWindow(QWidget):
 
         self.dataset = dataset
 
-        self.show()
+        if show:
+            self.show()
 
-        app.exec_()
+            app.exec_()
 
     @property
     def dataset(self):
