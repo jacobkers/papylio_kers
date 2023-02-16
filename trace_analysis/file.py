@@ -294,7 +294,7 @@ class File:
 
     def _init_dataset(self, number_of_molecules):
         selected = xr.DataArray(False, dims=('molecule',), coords={'molecule': range(number_of_molecules)}, name='selected')
-        dataset = selected.reset_index('molecule').rename(molecule_='molecule_in_file').to_dataset()
+        dataset = selected.reset_index('molecule').rename(molecule='molecule_in_file').to_dataset()
         dataset = dataset.assign_coords({'file': ('molecule', [str(self.relativeFilePath).encode()] * number_of_molecules)})
         encoding = {'file': {'dtype': '|S'}, 'selected': {'dtype': bool}}
         dataset.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='w', encoding=encoding)
