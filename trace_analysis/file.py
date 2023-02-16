@@ -1127,7 +1127,7 @@ class File:
             sc_coordinates = axis.scatter(coordinates[:, 0], coordinates[:, 1], facecolors='none', edgecolors='red', **kwargs)
             # marker='o'
 
-            selected_coordinates = self.coordinates.sel(molecule=self.selected).stack({'peak': ('molecule', 'channel')}).T.values
+            selected_coordinates = self.coordinates.sel(molecule=self.selected.values).stack({'peak': ('molecule', 'channel')}).T.values
             axis.scatter(selected_coordinates[:, 0], selected_coordinates[:, 1], facecolors='none', edgecolors='green', **kwargs)
 
             if annotate:
