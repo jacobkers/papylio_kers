@@ -1105,6 +1105,7 @@ class File:
         #     colorscale[1] = kwargs['vmax']
         # image_handle.set_clim(colorscale)
 
+        return figure, axis
 
     def show_average_image(self, figure=None):
         self.show_image(projection_type='average', figure=figure)
