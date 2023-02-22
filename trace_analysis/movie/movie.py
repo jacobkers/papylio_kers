@@ -823,6 +823,8 @@ class Movie:
     def determine_general_background_correction(self, method='median', frame_range=(0, 20)):
         # self.temporal_background_correction = self.spatial_background_correction = None
 
+        frame_range = (frame_range[0], min(int(self.frame_indices[-1].values), frame_range[1]))
+
         frame_indices = np.arange(*frame_range)
         frames = self.read_frames(frame_indices=frame_indices, apply_corrections=False, xarray=False)
 
