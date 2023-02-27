@@ -1120,8 +1120,10 @@ class Mapping2:
             If 'manual': cross-correlation image is created, but the peak has to be determined manually.
             The found pixel coordinates of the peak in the image can be set using the method 'set_correlation_peak_coordinates',
             the correct transformation will then be calculated.
-        gaussian_width : int
-            The size of the gaussian kernel.
+        kernel_size : int
+            The size in pixels of the gaussian kernel. The kernel will have shape (kernel_size x kernel_size).
+        gaussian_sigma : float
+            The standard deviation of the gaussian kernel. The same standard deviation is used for x and y.
         divider : int or float
             The number by which the point set coordinates are divided to obtain pixel indices.
             (Translating the lowest coordinates to the pixel (0,0) is done automatically.)
