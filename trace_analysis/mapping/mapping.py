@@ -1104,7 +1104,7 @@ class Mapping2:
         return compute_kernel_correlation(self.transformation, self.get_source(crop), self.get_destination(crop),
                                           sigma=sigma, per_point_pair=per_point_pair)
 
-    def cross_correlation(self, peak_detection='auto', gaussian_width=7, divider=5, crop=False, space='destination',
+    def cross_correlation(self, peak_detection='auto', kernel_size=7, gaussian_sigma=1, divider=5, crop=False, space='destination',
                           plot=False, axes=None):
         """Perform cross correlation on synthesized images of the two datasets.
 
@@ -1150,8 +1150,12 @@ class Mapping2:
         if self.transformation is None:
             self.transformation = AffineTransform()
             self.transformation_inverse = AffineTransform()
+
+        if plot and axes is None:
+            figure, axes = plt.subplots(1, 4)
+
         correlation, self.correlation_conversion_function = cross_correlate(self.get_source(crop, space), self.get_destination(crop, space),
-                                                                            gaussian_width=gaussian_width, divider=divider,
+                                                                            kernel_size=kernel_size, gaussian_sigma=gaussian_sigma, divider=divider,
                                                                             subtract_background=True, plot=plot, axes=axes)
 
         if peak_detection == 'auto':

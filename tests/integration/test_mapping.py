@@ -5,6 +5,7 @@ import numpy as np
 from skimage.transform import SimilarityTransform, AffineTransform
 from trace_analysis.mapping.mapping import Mapping2
 
+
 @pytest.fixture
 def mapping():
     translation = np.array([10, -10])
@@ -31,12 +32,20 @@ def test_iterative_closest_point():
     mapping.iterative_closest_point(5)
     assert mapping.transformation_is_similar_to_correct_transformation(translation_error=1, rotation_error=0.001, scale_error=0.01)
 
+
 def test_iterative_closest_point_polynomial():
     mapping = Mapping2.simulate()
     mapping.transformation = AffineTransform(translation=(256,0))
     mapping.transformation_type = 'polynomial'
     mapping.iterative_closest_point(5)
     #TODO add comparison for polynomial transforms, or based on point distances
+
+
+def test_cross_correlation():
+    mapping = Mapping2.simulate()
+    mapping.cross_correlation()
+    assert mapping.transformation_is_similar_to_correct_transformation(translation_error=5, rotation_error=0.02, scale_error=0.03)
+
 
 def test_geometric_hash_table():
     translation = np.array([256, 10])
