@@ -226,8 +226,9 @@ class TracePlotCanvas(FigureCanvasQTAgg):
             self.histogram_artists[plot_variable] = self.histogram_axes[plot_variable].hist(self.parent_window.dataset[plot_variable].sel(molecule=0).T,
                                                                                             bins=50,
                                                                                             orientation='horizontal',
-                                                                                            range=self.plot_axes[
-                                                                                                plot_variable].get_ylim(),
+                                                                                            # range=self.plot_axes[
+                                                                                            #     plot_variable].get_ylim(),
+                                                                                            range=self.parent_window.ylims[i],
                                                                                             color=
                                                                                             self.parent_window.colours[
                                                                                                 i], alpha=0.5)[2]
@@ -298,7 +299,8 @@ class TracePlotCanvas(FigureCanvasQTAgg):
             self.title_artist.set_text(f'# {self.parent_window.molecule_index} of {len(self.parent_window.dataset.molecule)} | File: {molecule.file.values} | Molecule: {molecule.molecule_in_file.values}' + selection_string)#| Sequence: {molecule.sequence_name.values}')
             for j in range(len(data)):
                 self.plot_artists[plot_variable][j].set_ydata(data[j])
-                n, _ = np.histogram(data[j], 50, range=self.plot_axes[plot_variable].get_ylim())
+                # TODO: When you shift the view, change the y positions of the bars to the new view, if possible.
+                n, _ = np.histogram(data[j], 50, range=self.parent_window.ylims[i]) # range=self.plot_axes[plot_variable].get_ylim())
                 for count, artist in zip(n, self.histogram_artists[plot_variable][j]):
                     artist.set_width(count)
 
