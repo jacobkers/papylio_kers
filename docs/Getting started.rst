@@ -52,6 +52,7 @@ Once the emission channel mapping is obtained, the molecule coordinates can be d
 As a first step determine the files you want to analyze.
 
 .. code-block:: python
+
     # All files
     file_selection = exp.files
 

@@ -1007,13 +1007,13 @@ class Mapping2:
         """Find transformation from source to destination points using an iterative closest point algorithm
 
         In the iterative closest point algorithm, the two-way nearest neighbours are found and these are used to
-        find the most optimal transformation. Subsequently the source is transformed according to this
+        find the most optimal transformation. Subsequently, the source is transformed according to this
         transformation. This process is repeated until the changes detected are below a tolerance level.
 
         The iterative closest point algorithm can be used in situations when deviations between the two point sets
         are relatively small.
 
-        The found transformation is stored in the object transformation parameter.
+        The found transformation is stored in the object's transformation attribute.
 
         Note
         ----
@@ -1044,7 +1044,7 @@ class Mapping2:
                            plot=False, **kwargs):
         """Find transformation from source to destination points using an kernel correlation algorithm.
 
-        The found transformation is stored in the object transformation parameter.
+        The found transformation is stored in the object's transformation attribute.
 
         Note
         ----
@@ -1104,7 +1104,49 @@ class Mapping2:
         return compute_kernel_correlation(self.transformation, self.get_source(crop), self.get_destination(crop),
                                           sigma=sigma, per_point_pair=per_point_pair)
 
-    def cross_correlation(self, peak_detection='auto', gaussian_width=7, divider=5, crop=False, space='destination', plot=False, axes=None):
+    def cross_correlation(self, peak_detection='auto', gaussian_width=7, divider=5, crop=False, space='destination',
+                          plot=False, axes=None):
+        """Perform cross correlation on synthesized images of the two datasets.
+
+        The current transformation is used as a starting point. Because cross-correlation only varies translation,
+        other transformation parameters such rotation and scale should already be correct.
+        The found transformation is stored in the object's transformation attribute.
+
+        Parameters
+        ----------
+        peak_detection : str
+            If 'auto': the cross-correlation peak is automatically determined by finding the most intense pixel in the
+            cross-correlation image.
+            If 'manual': cross-correlation image is created, but the peak has to be determined manually.
+            The found pixel coordinates of the peak in the image can be set using the method 'set_correlation_peak_coordinates',
+            the correct transformation will then be calculated.
+        gaussian_width : int
+            The size of the gaussian kernel.
+        divider : int or float
+            The number by which the point set coordinates are divided to obtain pixel indices.
+            (Translating the lowest coordinates to the pixel (0,0) is done automatically.)
+        crop : int or float, optional
+            If True: the overlap between the source and destination point set is used.
+            If 'source': only the source is cropped to the destination point set.
+            If 'destination': only the destination is cropped to the source point set.
+            If False: no cropping is applied.
+        space : str, optional
+            In which coordinate space to perform the correlation. Either 'source' or 'destination'.
+        plot : bool
+            If True: plots of the synthetic images and the cross-correlation image are shown.
+        axes : list of matplotlib.axis.Axis
+            Three axes to use for plotting.
+
+        Note
+        ----
+        Automatic background subtraction of the cross-correlation image is performed by subtracting a minimum filtered
+        version of the cross-correlation image. This reduces the difference in intensity between the edges and the center
+        that naturally occur when doing cross-correlation, and it thus helps to find the correct peak.
+        """
+        #TODO: Make Gaussian without multiplying mask.
+        #TODO: Add standard deviation as a parameter. (And change gaussian_width name to kernal_width?)
+        #TODO: Use maximum_number_of_pixels instead of divider.
+
         if self.transformation is None:
             self.transformation = AffineTransform()
             self.transformation_inverse = AffineTransform()
@@ -1123,8 +1165,23 @@ class Mapping2:
                 axes[2].plot(*peak_coordinates_in_image.T, marker='o', markerfacecolor='none', markeredgecolor='r')
                 axes[3].plot(*peak_coordinates_in_image.T, marker='o', markerfacecolor='none', markeredgecolor='r')
             self.set_correlation_peak_coordinates(correlation_peak_coordinates)
+        elif peak_detection == 'manual':
+            pass
+        else:
+            raise ValueError(f'{peak_detection} is not a valid value for peak_detection. Use either "auto" or "manual".')
 
     def set_correlation_peak_coordinates(self, correlation_peak_coordinates):
+        """Manually set the peak coordinates after cross-cross correlation.
+
+        Note
+        ----
+        This function can only be used after cross-correlation is run.
+
+        Parameters
+        ----------
+        correlation_peak_coordinates : list, tuple or 1D numpy.ndarray
+            Pixel coordinates of the manually found peak in the cross-correlation image.
+        """
         if not hasattr(self, 'correlation_conversion_function') and self.correlation_conversion_function is not None:
             raise RuntimeError('Run cross_correlation first')
         transformation = self.correlation_conversion_function(correlation_peak_coordinates) # is this the correct direction
@@ -1132,15 +1189,35 @@ class Mapping2:
         self.transformation_inverse = AffineTransform(matrix=self.transformation._inv_matrix)
         self.correlation_conversion_function = None
 
-    def geometric_hashing(self, method='test_one_by_one', tuple_size=4, maximum_distance_source=None,
+    def geometric_hashing(self, method='one_by_one', tuple_size=4, maximum_distance_source=None,
                           maximum_distance_destination=None, **kwargs):
+        """Perform mapping by geometric hashing.
+
+        The found transformation is stored in the object's transformation attribute.
+
+        Parameters
+        ----------
+        method : str
+            The method to use:
+            - 'one_by_one': tuples are generated, matched and tested sequentially.
+            - 'abundant_transformations': All tuples are generated and matched. Transformation parameters are determined
+               for matched tuples and the highest density cluster is determined.
+        tuple_size : int
+            Number of points per tuple.
+        maximum_distance_source : float
+            Maximum distance between the two outermost points in a tuple of the source point set.
+        maximum_distance_destination : float
+            Maximum distance between the two outermost points in a tuple of the destination point set.
+        kwargs
+            Keyword arguments to pass to the geometric hashing query function.
+        """
         hash_table = GeometricHashTable([self.destination], source_vertices=self.source_vertices,
                                         initial_source_transformation=self.transformation,
                                         number_of_source_bases=20, number_of_destination_bases='all',
                                         tuple_size=tuple_size, maximum_distance_source=maximum_distance_source,
                                         maximum_distance_destination=maximum_distance_destination)
 
-        if method == 'test_one_by_one':
+        if method == 'one_by_one':
             found_transformation = hash_table.query(self.source, **kwargs)
         elif method == 'abundant_transformations':
             found_transformation = hash_table.query_tuple_transformations([self.source], **kwargs)
@@ -1152,18 +1229,71 @@ class Mapping2:
 
 
     def get_unit(self, space):
-            return self.__getattribute__(f'{space}_unit')
+        """Get the unit of the source or destination point set.
+
+        Parameters
+        ----------
+        space : str
+            For which coordinate space to obtain the unit. Either 'source' or 'destination'.
+
+        Returns
+        -------
+        str
+            The unit of the point set.
+        """
+        return self.__getattribute__(f'{space}_unit')
 
     def get_unit_label(self, space):
+        """Get the string to add the axis label during plotting.
+        This is either the unit between parentheses, or if no unit is set it is an empty string.
+
+        Parameters
+        ----------
+        space : str
+            For which coordinate space to obtain the unit. Either 'source' or 'destination'.
+
+        Returns
+        -------
+        str
+            Unit label
+        """
         if self.get_unit(space) is not None:
             return f' ({self.get_unit(space)})'
         else:
             return ''
 
     def show_source(self, **kwargs):
+        """Plot the source point set.
+
+        Parameters
+        ----------
+        kwargs
+            Keyword arguments to pass to the show function. Keyword arguments starting with "show" should not be used.
+
+        Returns
+        -------
+        figure : matplotlib.figure.Figure
+            Figure of the plot
+        axis : matplotlib.axes.Axes
+            Axis of the plot
+        """
         return self.show(show_source=True, show_destination=False, show_transformed_coordinates=False, **kwargs)
 
     def show_destination(self, **kwargs):
+        """Plot the destination point set.
+
+        Parameters
+        ----------
+        kwargs
+            Keyword arguments to pass to the show function. Keyword arguments starting with "show" should not be used.
+
+        Returns
+        -------
+        figure : matplotlib.figure.Figure
+            Figure of the plot
+        axis : matplotlib.axes.Axes
+            Axis of the plot
+        """
         return self.show(show_source=False, show_destination=True, show_transformed_coordinates=False, **kwargs)
 
     def show_mapping_transformation(self, *args, **kwargs):
