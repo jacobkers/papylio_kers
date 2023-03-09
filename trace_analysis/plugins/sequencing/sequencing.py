@@ -118,7 +118,7 @@ class Experiment:
         tile_mapping_path.mkdir(parents=True, exist_ok=True)
 
         tile_mappings = []
-        for tile, coordinates_tile in tqdm.tqdm(coordinates_seq.groupby('tile'), 'Make tile mappings'):
+        for tile in tqdm.tqdm(np.unique(coordinates_seq.tile), 'Make tile mappings'):
             mapping = Mapping2(source=coordinates_sm, destination=coordinates_seq.sel(tile=tile))
             mapping.transformation_type = 'linear'
             mapping.name = f'Tile {tile}'
@@ -133,15 +133,17 @@ class Experiment:
         self._tile_mappings = None
 
     def transform_sequencing_to_single_molecule_coordinates(self):
-        coords = self.sequencing_data.coordinates.coords
+        coordinates_seq = self.sequencing_data.coordinates
+        coords = coordinates_seq.coords
         coordinates_sm = xr.DataArray(dims=['mapping_name','sequence','dimension'],
-                                      coords={'mapping_name': list(self.tile_mappings_dict.keys()), 'sequence':coords['sequence'], 'dimension': coords['dimension']})
+                                      coords={'mapping_name': list(self.tile_mappings_dict.keys()), 'sequence': coords['sequence'], 'dimension': coords['dimension']})
         tile_mappings_dict = self.tile_mappings_dict
-        for tile, coordinates in tqdm.tqdm(self.sequencing_data.coordinates.groupby('tile'), unit='tile'):
+        # for tile, coordinates in tqdm.tqdm(self.sequencing_data.coordinates.groupby('tile'), unit='tile'):
+        for tile in tqdm.tqdm(np.unique(coordinates_seq.tile), unit='tile'):
             for mapping_name, tile_mappings in tile_mappings_dict.items():
                 if tile in tile_mappings.keys():
                     coordinates_sm.loc[dict(mapping_name=mapping_name, sequence=(coordinates_sm.tile == tile))] = \
-                       tile_mappings[tile].transformation_inverse(coordinates)
+                       tile_mappings[tile].transformation_inverse(coordinates_seq.sel(tile=tile))
                 # coordinates_sm.append(mapping.transform_coordinates(coordinates, inverse=True))
 
         self.sequencing_data.dataset['x_sm'] = coordinates_sm.sel(dimension='x')
