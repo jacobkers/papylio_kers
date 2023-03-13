@@ -18,6 +18,11 @@ def mapping():
     return mapping
 
 
+def test_determine_matched_pairs(mapping):
+    mapping.transformation = mapping.transformation_correct
+    mapping.determine_matched_pairs(distance_threshold=5)
+    assert mapping.number_of_matched_points == 23
+
 def test_vertices(mapping):
     assert (mapping.get_source_vertices() == mapping.source_vertices).all()
     assert (mapping.get_destination_vertices() == mapping.destination_vertices).all()
@@ -55,7 +60,7 @@ def test_geometric_hash_table():
     mapping = Mapping2.simulate(number_of_points=200, transformation=transformation,
                                 bounds=([0, 0], [256, 512]), crop_bounds=((50, 200), None), fraction_missing=(0.1, 0.1),
                                 error_sigma=(0.5, 0.5), shuffle=True, seed=10252)
-    mapping.geometric_hashing(method='test_one_by_one', tuple_size=4, maximum_distance_source=100, maximum_distance_destination=1000,
+    mapping.geometric_hashing(method='one_by_one', tuple_size=4, maximum_distance_source=100, maximum_distance_destination=1000,
                               alpha=0.9, sigma=10, K_threshold=10e9, hash_table_distance_threshold=0.01,
                               magnification_range=None, rotation_range=None)
 
