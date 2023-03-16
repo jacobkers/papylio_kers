@@ -938,7 +938,7 @@ class Movie:
 
     @property
     def corrections(self):
-        if hasattr(self, 'fov_index'):
+        if hasattr(self, 'fov_index') and self.fov_index is not None:
             corrections_filepath = self.filepath.with_name(self.name + f'_fov{self.fov_index:03d}' + '_corrections.nc')
         else:
             corrections_filepath = self.filepath.with_name(self.name + '_corrections.nc')
