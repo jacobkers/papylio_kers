@@ -115,7 +115,9 @@ class SequencingData:
 
     @property
     def coordinates(self):
-        return self.dataset[['x','y']].to_array(dim='dimension', name='coordinates').transpose('sequence',...)
+        return xr.DataArray([self.dataset['x'], self.dataset['y']],
+                            coords={'dimension': ['x','y'], 'sequence':self.dataset.sequence}, name='coordinates').T
+        # return self.dataset[['x','y']].to_array(dim='dimension', name='coordinates').transpose('sequence',...)
             # xr.DataArray(self.data[['x','y']], dims=['sequence', 'dimension'], name='coordinates')\
             # .reset_index('sequence', drop=True)
 
@@ -134,6 +136,7 @@ class SequencingData:
         return SequencingData(dataset=self.dataset.sel(*args, **kwargs))
 
     def plot_cluster_locations_per_tile(self, save_filepath=None):
+        # TODO: Fix bug self.dataset[['x','y']]
         plot_cluster_locations_per_tile(self.dataset[['x','y']], **self.reagent_kit_info, save_filepath=save_filepath)
 
     def save(self, filepath):
