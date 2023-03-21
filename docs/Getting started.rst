@@ -91,7 +91,7 @@ The intensity and corresponding FRET traces are added to the existing .nc file.
 Trace visualization
 -------------------
 Traces can be visualized for a specific file using the :py:meth:`.show_traces` method. This will open a window showing the traces.
-The y-limits of the plots can be adjusted using the `ylims` keyword argument. In addition the colors of the plots can be changed.
+The y-limits of the plots can be adjusted using the ``ylims`` keyword argument. In addition the colors of the plots can be changed.
 
 .. code-block:: python
 
