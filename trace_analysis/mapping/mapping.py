@@ -1160,6 +1160,8 @@ class Mapping2:
                                                                             kernel_size=kernel_size, gaussian_sigma=gaussian_sigma, divider=divider,
                                                                             subtract_background=True, plot=plot, axes=axes)
 
+        self.correlation_space = space
+
         if peak_detection == 'auto':
             #TODO: Fit peak to gaussian to determine location with sub-pixel accuracy???
             correlation_peak_coordinates = np.array(np.where(correlation==correlation.max())).flatten()[::-1]+0.5
@@ -1191,7 +1193,12 @@ class Mapping2:
         if not hasattr(self, 'correlation_conversion_function') and self.correlation_conversion_function is not None:
             raise RuntimeError('Run cross_correlation first')
         transformation = self.correlation_conversion_function(correlation_peak_coordinates) # is this the correct direction
-        self.transformation = AffineTransform(matrix=(self.transformation + transformation).params)
+        if self.correlation_space == 'source':
+            self.transformation = AffineTransform(matrix=(transformation + self.transformation).params)
+        elif self.correlation_space == 'destination':
+            self.transformation = AffineTransform(matrix=(self.transformation + transformation).params)
+        else:
+            raise ValueError('Unkown correlation_space, use either "source" or "destination"')
         self.transformation_inverse = AffineTransform(matrix=self.transformation._inv_matrix)
         self.correlation_conversion_function = None
 
@@ -1303,22 +1310,66 @@ class Mapping2:
         return self.show(show_source=False, show_destination=True, show_transformed_coordinates=False, **kwargs)
 
     def show_mapping_transformation(self, *args, **kwargs):
+        """Show the mapping. Identical to `Mapping2.show()`.
+        """
         return self.show(*args, **kwargs)
 
     def show(self, axis=None, show_source=False, show_destination=False, show_transformed_coordinates=True,
              show_pairs=True, crop=False, inverse=False, source_colour='forestgreen', destination_colour='r',
-             pair_colour='b', use_distance_threshold=False, save=False, save_path=None, legend_off=False,
+             pair_colour='b', use_distance_threshold=False, save=False, save_path=None, show_legend=False,
              return_plot=False):
-        """Show a point scatter of the source transformed to the destination points and the destination.
+        #TODO: Always return plot?
+        """Show the mapping.
+
+        Show the source and destination points in a scatter plot.
 
         Parameters
         ----------
-        figure : matplotlib.figure.Figure
-            If figure is passed then the scatter plot will be made in the currently active axis.
-            If no figure is passed a new figure will be made.
+        axis : matplotlib.axis.Axis
+            The axis to use for plotting. If no axis is given a new figure and axis are created.
         show_source : bool
-            If True then the source points are also displayed
+            If True: the original source point set is shown.
+        show_destination : bool
+            If True: the original destination point set is shown.
+        show_transformed_coordinates : bool
+            If True: the transformed point set is shown. If 'inverse' is set to False, this is the transformed source
+            point set. If 'inverse' is set to True, this is the transformed destination point set.
+        show_pairs : bool
+            If True: the paired points are indicated in a different colour.
+        crop : bool or str
+            If True: the overlap between the source and destination point set is used.
+            If 'source': only the source is cropped to the destination point set.
+            If 'destination': only the destination is cropped to the source point set.
+            If False: no cropping is applied.
+        inverse : bool
+            Indicates the direction of the transformation to use.
+            If False: the source is transformed to destination space.
+            If True: the destination is transformed to the source space.
+        source_colour : str
+            Colour used for the source points.
+        destination_colour : str
+            Colour used for the destination points.
+        pair_colour : str
+            Colour used to indicate paired points.
+        use_distance_threshold : bool
+            If True: the open circles of the transformed point set will have the size of the source or destination
+            distance threshold. Note: using this option slows down plotting so it is not recommended for large datasets.
+        save : bool
+            If True: the figure is saved in the save path.
+        save_path : str or pathlib2.Path
+            Folderpath to save the figure to. If no path is given, the object's save_path is used.
+            For the name of the file, the object's name attribute is used.
+        show_legend : bool
+            If True: the legend is shown.
+        return_plot : bool
+            If True: the figure and axis are returned by the function.
 
+        Returns
+        -------
+        figure : matplotlib.figure.Figure
+            Figure of the plot
+        axis : matplotlib.axes.Axes
+            Axis of the plot
         """
 
         if axis is None:
@@ -1400,7 +1451,6 @@ class Mapping2:
         axis.set_xlabel('x'+unit_label)
         axis.set_ylabel('y'+unit_label)
 
-
         legend_dict = {label: handle for handle, label in zip(*axis.get_legend_handles_labels())}
         if show_transformed_coordinates:
             transformed_coordinates_marker = mlines.Line2D([], [], linewidth=0, markerfacecolor='none',
@@ -1414,7 +1464,7 @@ class Mapping2:
                                          markeredgecolor='none', marker='.')
             legend_dict[f'matched pairs ({self.number_of_matched_points})'] = (pair_marker1, pair_marker2)
             # .get_legend().get_lines()[1].set_markerfacecolor('g')
-        if not legend_off:
+        if show_legend:
             axis.legend(legend_dict.values(), legend_dict.keys(), loc='upper right')
 
         if save:
@@ -1427,6 +1477,28 @@ class Mapping2:
             return figure, axis
 
     def show_outline(self, inverse=False, source_colour='forestgreen', destination_colour='r', axis=None):
+        """Show the outline or border of the point sets.
+
+        Parameters
+        ----------
+        inverse : bool
+            Indicates the direction of the transformation to use.
+            If False: the source is transformed to destination space.
+            If True: the destination is transformed to the source space.
+        source_colour : str
+            Colour used for the source points.
+        destination_colour : str
+            Colour used for the destination points.
+        axis : matplotlib.axis.Axis
+            The axis to use for plotting. If no axis is given a new figure and axis are created.
+
+        Returns
+        -------
+        figure : matplotlib.figure.Figure
+            Figure of the plot
+        axis : matplotlib.axes.Axes
+            Axis of the plot
+        """
         if axis is None:
             figure, axis = plt.subplots()
         else:
@@ -1448,20 +1520,21 @@ class Mapping2:
 
         axis.set_aspect('equal')
 
+        return figure, axis
+
     def get_transformation_direction(self, direction):
-        """ Get inverse parameter based on direction
+        """Get inverse parameter based on direction
 
         Parameters
         ----------
         direction : str
-            Another way of specifying the direction of the transformation, choose '<source_name>2<destination_name>' or
-            '<destination_name>2<source_name>'
+           The direction of the transformation, either '<source_name>2<destination_name>' or
+            '<destination_name>2<source_name>'. 'source2destination' and 'destination2source' can also be used.
 
         Returns
         -------
         inverse : bool
-            Specifier for the use of the forward or inverse transformation
-
+            Specifier for the use of the forward or inverse transformation.
         """
 
         if direction in [self.source_name + '2' + self.destination_name, 'source2destination']:
@@ -1474,20 +1547,29 @@ class Mapping2:
         return inverse
 
     def calculate_inverse_transformation(self):
+        #TODO: Make transformation a property and automatically calculate the inverse transformation.
+        """Calculates the reverse transformation from the forward transformation.
+
+        Sets the object's transformation_inverse attribute.
+
+        Note
+        ----
+        This is only possible for linear transformations.
+        """
         self.transformation_inverse = type(self.transformation)(matrix=self.transformation._inv_matrix)
 
     def transform_coordinates(self, coordinates, inverse=False, direction=None):
-        """Transform coordinates using the transformation
+        """Transform coordinates using the object's transformation.
 
         Parameters
         ----------
         coordinates : Nx2 numpy.ndarray
             Coordinates to be transformed
         inverse : bool
-            If True then the inverse transformation will be used (i.e. from destination to source)
+            If True: the inverse transformation will be used (i.e. from destination to source)
         direction : str
-            Another way of specifying the direction of the transformation, choose '<source_name>2<destination_name>' or
-            '<destination_name>2<source_name>'
+            Another way of specifying the direction of the transformation, choose 'source2destination',
+            'destination2source' or use the object's source and destination names instead of 'source' and 'destination'.
 
         Returns
         -------
@@ -1506,24 +1588,24 @@ class Mapping2:
         return current_transformation(coordinates)
 
     def transform_image(self, image, inverse=False, direction=None):
-        """Transform image using the transformation
+        """Transform an image using the objects transformation.
 
-            Parameters
-            ----------
-            image : NxM numpy.ndarray
-                Image to be transformed
-            inverse : bool
-                If True then the inverse transformation will be used (i.e. from destination to source)
-            direction : str
-                Another way of specifying the direction of the transformation, choose '<source_name>2<destination_name>' or
-                '<destination_name>2<source_name>'
+        Parameters
+        ----------
+        image : NxM numpy.ndarray
+            Image to be transformed.
+        inverse : bool
+            If True: the inverse transformation will be used (i.e. from destination to source)
+        direction : str
+            Another way of specifying the direction of the transformation, choose 'source2destination',
+            'destination2source' or use the object's source and destination names instead of 'source' and 'destination'.
 
-            Returns
-            -------
-            NxM numpy.ndarray
-                Transformed image
+        Returns
+        -------
+        NxM numpy.ndarray
+            Transformed image
 
-            """
+        """
 
         if direction is not None:
             inverse = self.get_transformation_direction(direction)
@@ -1537,6 +1619,33 @@ class Mapping2:
         return skimage.transform.warp(image, current_transformation, preserve_range=True)
 
     def distance_matrix(self, crop=True, space='destination', margin=None, max_distance=None, **kwargs):
+        """Distance matrix for all point combinations of the source and destination.
+
+        Parameters
+        ----------
+        crop : int or float, optional
+            If True: the overlap between the source and destination point set is used.
+            If 'source': only the source is cropped to the destination point set.
+            If 'destination': only the destination is cropped to the source point set.
+            If False: no cropping is applied.
+        space : str, optional
+            In which coordinate space to obtain the distances. Either 'source' or 'destination'.
+        margin : float or tuple of floats
+            Margins to exclude for the point sets.
+            A tuple should be given in the format (margin_source, margin_destination).
+            If a single margin is passed, then it will be used for both the source and destination.
+        max_distance : float
+            Maximum distance to include in the distance matrix.
+            If given, then a sparse distance matrix will be returned.
+        kwargs
+            Keyword arguments to pass to the scipy.spatial.cKDTree.distance_matrix or
+            scipy.spatial.cKDTree.sparse_distance_matrix function.
+
+        Returns
+        -------
+        distance_matrix : MxN numpy.ndarray or scipy.sparse.spmatrix
+            Distance matrix.
+        """
         if margin is not None and len(margin) == 2:
             margin_source, margin_destination = margin
         else:
@@ -1552,9 +1661,43 @@ class Mapping2:
             return source_tree.sparse_distance_matrix(destination_tree, max_distance=max_distance, **kwargs)
 
     def density_source(self, crop=False, space='source'):
+        """Source density estimation from the number of points and the area contained within the convex hull.
+
+        Parameters
+        ----------
+         crop : int or float, optional
+            If True: the overlap between the source and destination point set is used.
+            If 'source': only the source is cropped to the destination point set.
+            If 'destination': only the destination is cropped to the source point set.
+            If False: no cropping is applied.
+        space : str, optional
+            In which coordinate space to obtain the source density. Either 'source' or 'destination'.
+
+        Returns
+        -------
+        density_source : float
+            Density of the source dataset
+        """
         return self.get_source(crop).shape[0] / self.get_source_area(crop=crop, space=space)
 
     def density_destination(self, crop=False, space='destination'):
+        """Destination density estimation from the number of points and the area contained within the convex hull.
+
+        Parameters
+        ----------
+         crop : int or float, optional
+            If True: the overlap between the source and destination point set is used.
+            If 'source': only the source is cropped to the destination point set.
+            If 'destination': only the destination is cropped to the source point set.
+            If False: no cropping is applied.
+        space : str, optional
+            In which coordinate space to obtain the destination density. Either 'source' or 'destination'.
+
+        Returns
+        -------
+        density_source : float
+            Density of the destination dataset
+        """
         return self.get_destination(crop).shape[0] / self.get_destination_area(crop=crop, space=space)
 
     def Ripleys_K(self, crop=True, space='destination'):
