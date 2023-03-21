@@ -48,7 +48,11 @@ def test_iterative_closest_point_polynomial():
 
 def test_cross_correlation():
     mapping = Mapping2.simulate()
-    mapping.cross_correlation()
+    mapping.transformation = AffineTransform()
+    mapping.calculate_inverse_transformation()
+    mapping.cross_correlation(space='source')
+    assert mapping.transformation_is_similar_to_correct_transformation(translation_error=5, rotation_error=0.02, scale_error=0.03)
+    mapping.cross_correlation(space='destination')
     assert mapping.transformation_is_similar_to_correct_transformation(translation_error=5, rotation_error=0.02, scale_error=0.03)
 
 

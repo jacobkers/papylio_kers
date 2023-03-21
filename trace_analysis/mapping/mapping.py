@@ -1160,6 +1160,8 @@ class Mapping2:
                                                                             kernel_size=kernel_size, gaussian_sigma=gaussian_sigma, divider=divider,
                                                                             subtract_background=True, plot=plot, axes=axes)
 
+        self.correlation_space = space
+
         if peak_detection == 'auto':
             #TODO: Fit peak to gaussian to determine location with sub-pixel accuracy???
             correlation_peak_coordinates = np.array(np.where(correlation==correlation.max())).flatten()[::-1]+0.5
@@ -1191,7 +1193,12 @@ class Mapping2:
         if not hasattr(self, 'correlation_conversion_function') and self.correlation_conversion_function is not None:
             raise RuntimeError('Run cross_correlation first')
         transformation = self.correlation_conversion_function(correlation_peak_coordinates) # is this the correct direction
-        self.transformation = AffineTransform(matrix=(self.transformation + transformation).params)
+        if self.correlation_space == 'source':
+            self.transformation = AffineTransform(matrix=(transformation + self.transformation).params)
+        elif self.correlation_space == 'destination':
+            self.transformation = AffineTransform(matrix=(self.transformation + transformation).params)
+        else:
+            raise ValueError('Unkown correlation_space, use either "source" or "destination"')
         self.transformation_inverse = AffineTransform(matrix=self.transformation._inv_matrix)
         self.correlation_conversion_function = None
 
