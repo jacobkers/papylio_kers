@@ -245,6 +245,7 @@ class MainWindow(QMainWindow):
         self.tree.setModel(self.model)
         self.addExperiment(self.experiment)
         self.tree.expandAll()
+        self.tree.setFocusPolicy(Qt.NoFocus)
         self.update = True
 
         self.model.itemChanged.connect(self.onItemChange)
