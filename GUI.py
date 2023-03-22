@@ -1,13 +1,15 @@
 import sys
 import PySide2
-from PySide2.QtCore import QDir
-from PySide2.QtWidgets import QTreeView, QFileSystemModel, QApplication, QLabel, QMainWindow, QMenu
-from PySide2.QtCore import QAbstractItemModel, QModelIndex
-from PySide2 import QtCore
+
+import sys
+from PySide2.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QGridLayout, QTreeView, QApplication, QMainWindow, \
+    QPushButton, QTabWidget
+from PySide2.QtGui import QStandardItem, QStandardItemModel
+from PySide2.QtCore import Qt
+
 import matplotlib as mpl
 from matplotlib.backends.backend_qtagg import (
     FigureCanvas, NavigationToolbar2QT as NavigationToolbar)
-
 
 from trace_analysis import Experiment, File
 from trace_analysis.trace_plot import TracePlotWindow
@@ -204,11 +206,6 @@ from trace_analysis.trace_plot import TracePlotWindow
 #         self.setCentralWidget(self.tree)
 
 
-import sys
-from PySide2.QtWidgets import *
-from PySide2.QtGui import *
-from PySide2.QtCore import *
-
 class MainWindow(QMainWindow):
     # def __init__(self):
     #     super().__init__()
@@ -236,7 +233,7 @@ class MainWindow(QMainWindow):
         self.experiment = Experiment()
 
         self.tree = QTreeView(self)
-        layout = QVBoxLayout(self)
+        layout = QVBoxLayout()
         layout.addWidget(self.tree)
         self.model = QStandardItemModel()
         self.root = self.model.invisibleRootItem()
@@ -246,6 +243,7 @@ class MainWindow(QMainWindow):
         self.addExperiment(self.experiment)
         self.tree.expandAll()
         self.tree.setFocusPolicy(Qt.NoFocus)
+        self.tree.setFixedWidth(256)
         self.update = True
 
         self.model.itemChanged.connect(self.onItemChange)
@@ -304,7 +302,7 @@ class MainWindow(QMainWindow):
         tabs.addTab(tab1, 'Movie')
         self.traces = TracePlotWindow(parent=self, width=4, height=3, show=False)
         tabs.addTab(self.traces, 'Traces')
-        tabs.currentChanged.connect(self.setTracesFocus)
+        tabs.currentChanged.connect(self.setTabFocus)
 
         layout = QHBoxLayout()
         layout.addWidget(self.tree)
@@ -317,7 +315,9 @@ class MainWindow(QMainWindow):
     def keyPressEvent(self, e):
         self.traces.keyPressEvent(e)
 
-    def setTracesFocus(self, e):
+    def setTabFocus(self, e):
+        if e == 0:
+            self.image.setFocus()
         if e == 1:
             self.traces.setFocus()
 
@@ -337,7 +337,7 @@ class MainWindow(QMainWindow):
         selected_files = self.experiment.selectedFiles
         if selected_files:
             selected_files.find_coordinates()
-            # self.image_canvas.refresh()
+            self.image_canvas.refresh()
             self.update_plots()
 
     def extract_traces(self):
