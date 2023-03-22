@@ -683,6 +683,57 @@ class File:
 
         # self.molecules.export_pks_file(self.relativeFilePath.with_suffix('.pks'))
 
+    def determine_psf_size(self, method='gaussian_fit', projection_type='average', frame_range=(0,20), channel=0, illumination=0,
+                           peak_finding_kwargs={'minimum_intensity_difference': 150}, maximum_radius=5):
+        image = self.get_projection_image(projection_type=projection_type, frame_range=frame_range,
+                                          illumination=illumination)
+        image = self.movie.get_channel(image, channel=channel)
+
+        coordinates = find_peaks(image=image, **peak_finding_kwargs)  # .astype(int)))
+        coordinates_fit, parameters = coordinates_after_gaussian_fit(coordinates, image, gaussian_width=15, return_fit_parameters=True)
+        # offset, amplitude, x0, y0, sigma_x, sigma_y
+        sigmas = parameters[:, 4]
+        selection = (0 < sigmas) & (sigmas < maximum_radius)
+        sigmas = sigmas[selection]
+
+        fig, ax = plt.subplots(layout='constrained')
+        ax.imshow(image)
+        # ax.scatter(*coordinates_fit.T, s=0.5, c=parameters[:,0])
+        for c, s in zip(coordinates_fit[selection], sigmas):
+            circle = plt.Circle(c, 2*s, ec='r', fc='None')
+            ax.add_patch(circle)
+        ax.set_xlabel('x (pixel)')
+        ax.set_ylabel('y (pixel)')
+        ax.set_title('Circles at $2\sigma$')
+
+        bins = 100
+        fig, ax = plt.subplots(layout='constrained')
+        counts, bin_edges, _ = ax.hist(sigmas, bins=bins, range=(0, maximum_radius))
+        ax.set_xlabel('σ (pixel)')
+        ax.set_ylabel('Count')
+        bin_centers = (bin_edges[1:] + bin_edges[:-1])/2
+
+        if method == 'median':
+            psf_size = np.median(sigmas)
+
+        elif method == 'gaussian_fit':
+            from scipy.optimize import curve_fit
+            def oneD_gaussian(x, offset, amplitude, x0, sigma):
+                return offset + amplitude * np.exp(- (x - x0)**2 / (2 * sigma**2))
+
+            p0 = [np.min(counts), np.max(counts) - np.min(counts), np.median(sigmas), np.std(sigmas)]
+            popt, pcov = curve_fit(oneD_gaussian, bin_centers, counts, p0)
+            x = np.linspace(0, maximum_radius, 1000)
+            ax.plot(x, oneD_gaussian(x, *popt), c='r')
+            psf_size = popt[2]
+
+        y_range = ax.get_ylim()
+        ax.vlines(psf_size, *y_range, color='r')
+        ax.set_ylim(y_range)
+        ax.set_title(f'psf_size = {psf_size}')
+
+        return psf_size
+
     @property
     def coordinates(self):
         if self.absoluteFilePath.with_suffix('.nc').exists():
@@ -809,6 +860,8 @@ class File:
             mask_size = 0.8
         elif mask_size == 'TIR-S 1x 2x2':
             mask_size = 0.55
+        elif mask_size == 'BN-TIRF':
+            mask_size = 1.01
 
         if subtract_background:
             background = self.background

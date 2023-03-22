@@ -74,9 +74,13 @@ def crop(image, center, width):
     center = np.round(center).astype(int)
     return image[(center[1]-width//2):(center[1]+width//2+1),(center[0]-width//2):(center[0]+width//2+1)]
 
-def twoD_gaussian(M, offset, amplitude, x0, y0, sigma_x, sigma_y):
+# def twoD_gaussian(M, offset, amplitude, x0, y0, sigma_x, sigma_y):
+#     x, y = M
+#     return offset + amplitude * np.exp(- ((x-x0)/(2*sigma_x))**2 - ((y-y0)/(2*sigma_y))**2)
+
+def twoD_gaussian(M, offset, amplitude, x0, y0, sigma):
     x, y = M
-    return offset + amplitude * np.exp(- ((x-x0)/(2*sigma_x))**2 - ((y-y0)/(2*sigma_y))**2)
+    return offset + amplitude * np.exp(- ((x-x0)**2+(y-y0)**2)/(2*sigma**2))
 
 def fit_twoD_gaussian(Z):
     height, width = Z.shape
@@ -85,14 +89,17 @@ def fit_twoD_gaussian(Z):
     xdata = np.vstack((X.ravel(), Y.ravel()))
 
     # p0 = [20,20,0,0,1,1]
-    p0 = [np.min(Z), np.max(Z)-np.min(Z), 0, 0, 1, 1]
+    # p0 = [np.min(Z), np.max(Z) - np.min(Z), 0, 0, 1, 1]
+    p0 = [np.min(Z), np.max(Z) - np.min(Z), 0, 0, 1]
     popt, pcov = curve_fit(twoD_gaussian, xdata, Z.ravel(), p0) #, maxfev=3000) #input: function, xdata, ydata,p0
 
     # The offset can potentially be used for background subtraction
     return popt
 
-def coordinates_after_gaussian_fit(coordinates, image, gaussian_width = 9):
+def coordinates_after_gaussian_fit(coordinates, image, gaussian_width = 9, return_fit_parameters=False):
+    # TODO: fix standard deviation to the psf size, this may improve correct peak localization when two peaks are close.
     new_coordinates = []
+    fit_parameters = []
     if len(coordinates) == 0:  # This statement may not be necessary. However, check the code thoroughly before you remove this.
         new_coordinates = coordinates
     else:
@@ -109,10 +116,14 @@ def coordinates_after_gaussian_fit(coordinates, image, gaussian_width = 9):
                 new_coordinate = coordinate + coefficients[2:4]
                 if np.sum(np.abs(coefficients[2:4]))<gaussian_width*2:
                     new_coordinates.append(new_coordinate)
+                    fit_parameters.append(coefficients)
                 # else: #MD do nothing, you don't want to include fits with a center far outside the cropped image
             except RuntimeError:
                 pass
-    return np.array(new_coordinates)
+    if return_fit_parameters:
+        return np.array(new_coordinates), np.array(fit_parameters)
+    else:
+        return np.array(new_coordinates)
 
 
 def merge_nearby_coordinates(coordinates, distance_threshold=2, plot=False):

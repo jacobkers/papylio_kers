@@ -74,7 +74,7 @@ mapping:
         #  fraction_of_peak_max: 0.35
 trace_extraction:
     channel: 'all'
-    mask_size: TIR-T # float number, Presets: "TIR-T", "TIR-V", "TIR-S 1.5x 2x2", "TIR-S 1x 2x2"
+    mask_size: TIR-T # float number, Presets: "TIR-T", "TIR-V", "TIR-S 1.5x 2x2", "TIR-S 1x 2x2", "BN-TIRF"
     neighbourhood_size: 11
     subtract_background: False
     correct_illumination: False

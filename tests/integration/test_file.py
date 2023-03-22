@@ -52,3 +52,7 @@ def test_extract_traces(file):
 
 def test_property_coordinates(file_output):
     file_output.coordinates
+
+def test_determine_psf_size(file):
+    psf_size = file.determine_psf_size()
+    assert np.isclose(psf_size, 1.01, atol=0.005)

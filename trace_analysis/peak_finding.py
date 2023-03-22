@@ -5,7 +5,7 @@ import scipy.ndimage as ndimage
 import scipy.ndimage.filters as filters
 import math
 
-def find_peaks(image=None, method='AKAZE', **kwargs):
+def find_peaks(image=None, method='local-maximum', **kwargs):
     if method == 'AKAZE':
         coordinates = analyze(image, **kwargs)[2]
     elif method == 'absolute-threshold':
