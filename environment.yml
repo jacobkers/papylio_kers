@@ -17,7 +17,7 @@ dependencies:
 - pandas=1.4
 - seaborn=0.11
 - openpyxl=3.0
-- sphinx=4.4
+- sphinx
 - sphinx_book_theme=1.0
 - gitpython=3.1
 - nd2reader=3.3
@@ -37,7 +37,7 @@ dependencies:
 - pytest-datadir
 - numba=0.56
 - pomegranate=0.14
-- git=2.4
+- git
 #- bioconda::logomaker=0.8
 # Logomaker has a matplotlib dependency, which installs PyQt
 # So please install manually if needed using
