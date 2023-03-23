@@ -280,6 +280,12 @@ class Experiment:
                 return file
 
     @property
+    def analysis_path(self):
+        analysis_path = self.main_path.joinpath('Analysis')
+        analysis_path.mkdir(parents=True, exist_ok=True)
+        return analysis_path
+
+    @property
     def file_paths(self):
         return [file.relativeFilePath for file in self.files]
 

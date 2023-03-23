@@ -169,6 +169,10 @@ class Movie:
             illumination_index = cls.get_illumination_from_name(illumination).index
             filename += f'_i{illumination_index}'
 
+        # if channel is not None:  # and self.number_of_illuminations_in_movie > 1:
+        #     channel_index = cls.get_channel_from_name(channel).index
+        #     filename += f'_i{channel_index}'
+
         return filename
 
     def __new__(cls, filepath, rot90=0):

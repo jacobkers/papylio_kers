@@ -114,7 +114,7 @@ class Experiment:
                 raise ValueError('Surface can be either 0 or 1')
             coordinates_seq = self.sequencing_data[selection].coordinates
 
-        tile_mapping_path = self.main_path.joinpath('Analysis').joinpath('Tile mappings')
+        tile_mapping_path = self.analysis_path.joinpath('Tile mappings')
         tile_mapping_path.mkdir(parents=True, exist_ok=True)
 
         tile_mappings = []

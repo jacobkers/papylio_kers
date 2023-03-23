@@ -683,11 +683,11 @@ class File:
 
         # self.molecules.export_pks_file(self.relativeFilePath.with_suffix('.pks'))
 
-    def determine_psf_size(self, method='gaussian_fit', projection_type='average', frame_range=(0,20), channel=0, illumination=0,
+    def determine_psf_size(self, method='gaussian_fit', projection_type='average', frame_range=(0,20), channel_index=0, illumination_index=0,
                            peak_finding_kwargs={'minimum_intensity_difference': 150}, maximum_radius=5):
         image = self.get_projection_image(projection_type=projection_type, frame_range=frame_range,
-                                          illumination=illumination)
-        image = self.movie.get_channel(image, channel=channel)
+                                          illumination=illumination_index)
+        image = self.movie.get_channel(image, channel=channel_index)
 
         coordinates = find_peaks(image=image, **peak_finding_kwargs)  # .astype(int)))
         coordinates_fit, parameters = coordinates_after_gaussian_fit(coordinates, image, gaussian_width=15, return_fit_parameters=True)
@@ -705,6 +705,12 @@ class File:
         ax.set_xlabel('x (pixel)')
         ax.set_ylabel('y (pixel)')
         ax.set_title('Circles at $2\sigma$')
+
+        psf_size_path = self.experiment.analysis_path.joinpath('PSF_size')
+        psf_size_path.mkdir(parents=True, exist_ok=True)
+        filename = Movie.image_info_to_filename('fits_in_image', projection_type=projection_type, frame_range=frame_range,
+                                                illumination=illumination_index) + f'_c{channel_index}.png'
+        fig.savefig(psf_size_path / filename, bbox_inches='tight')
 
         bins = 100
         fig, ax = plt.subplots(layout='constrained')
@@ -731,6 +737,9 @@ class File:
         ax.vlines(psf_size, *y_range, color='r')
         ax.set_ylim(y_range)
         ax.set_title(f'psf_size = {psf_size}')
+        filename = Movie.image_info_to_filename('sigma_plot', projection_type=projection_type, frame_range=frame_range,
+                                                illumination=illumination_index) + f'_c{channel_index}.png'
+        fig.savefig(psf_size_path / filename, bbox_inches='tight')
 
         return psf_size
 
