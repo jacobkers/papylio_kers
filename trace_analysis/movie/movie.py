@@ -827,9 +827,7 @@ class Movie:
     def determine_general_background_correction(self, method='median', frame_range=(0, 20)):
         # self.temporal_background_correction = self.spatial_background_correction = None
 
-        frame_range = (frame_range[0], min(int(self.frame_indices[-1].values), frame_range[1]))
-
-        frame_indices = np.arange(*frame_range)
+        frame_indices = self.frame_indices[slice(*frame_range)]
         frames = self.read_frames(frame_indices=frame_indices, apply_corrections=False, xarray=False)
 
         general_background_correction = xr.DataArray(0, dims=('illumination', 'channel'),
@@ -901,7 +899,7 @@ class Movie:
                               spatial_background_correction=None)
 
     def determine_spatial_background_correction(self, method='median_filter', frame_range=(0, 20), **kwargs):
-        frame_indices = np.arange(*frame_range)
+        frame_indices = self.frame_indices[slice(*frame_range)]
         frames = self.read_frames(frame_indices=frame_indices, apply_corrections=False, xarray=False)
 
         spatial_background_correction = xr.DataArray(np.zeros((self.number_of_illuminations,) + frames.shape[1:]),
