@@ -10,6 +10,7 @@ from PySide2.QtCore import Qt
 import matplotlib as mpl
 from matplotlib.backends.backend_qtagg import (
     FigureCanvas, NavigationToolbar2QT as NavigationToolbar)
+import matplotlib.pyplot as plt
 
 from trace_analysis import Experiment, File
 from trace_analysis.trace_plot import TracePlotWindow
@@ -330,8 +331,9 @@ class MainWindow(QMainWindow):
         print(t)
         selected_files = self.experiment.selectedFiles
         if selected_files:
-            selected_files.perform_mapping()
+            selected_files.serial.perform_mapping()
             self.image_canvas.refresh()
+            plt.show()
 
     def find_coordinates(self):
         selected_files = self.experiment.selectedFiles
