@@ -177,6 +177,8 @@ class File:
     def get_projection_image(self, **kwargs):
         configuration = self.experiment.configuration['projection_image'].copy()
         configuration.update(kwargs)
+        # TODO: Make this independent of Movie, probably we want to copy all Movie metadata to the nc file.
+        configuration['frame_range'][1] = np.min([configuration['frame_range'][1], self.movie.number_of_frames])
         image_filename = Movie.image_info_to_filename(self.name, **configuration)
         image_file_path = self.absoluteFilePath.with_name(image_filename).with_suffix('.tif')
 
