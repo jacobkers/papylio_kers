@@ -32,6 +32,11 @@ def extract_traces(movie, coordinates, background=None, mask_size=1.291, neighbo
     with movie:
         movie.read_header()
 
+        if movie.number_of_frames > 500:
+            all_frames_in_memory = False
+        else:
+            all_frames_in_memory = True
+
         intensity = xr.DataArray(np.empty((len(coordinates.molecule), len(coordinates.channel), movie.number_of_frames)),
                                  dims=['molecule', 'channel', 'frame'],
                                  coords=coordinates.drop('dimension').coords, name='intensity')
@@ -68,8 +73,8 @@ def extract_traces(movie, coordinates, background=None, mask_size=1.291, neighbo
         # background_per_frame = background.sel(illumination=movie.illumination)
         # background_correction[:] = weighed_background(background_per_frame, twoD_gaussians).transpose((1,2,0))
 
-
-        frames = movie.read_frames(xarray=False, flatten_channels=True)#.astype('uint16')
+        if all_frames_in_memory:
+            frames = movie.read_frames(xarray=False, flatten_channels=True)#.astype('uint16')
 
         oneD_indices = (roi_indices.sel(dimension='y')*movie.width+roi_indices.sel(dimension='x')).stack(peak=('molecule','channel')).stack(i=('y','x'))
         for frame_index in tqdm(range(movie.number_of_frames), desc=movie.name, leave=True):  # self.number_of_frames also works for pm, len(self.movie_file_object.filelist) not
@@ -78,7 +83,10 @@ def extract_traces(movie, coordinates, background=None, mask_size=1.291, neighbo
             #     sys.stdout.write(f'\r   Frame {frame_number} of {movie.number_of_frames}')
 
             # image = movie.read_frame(frame_index, xarray=False, flatten_channels=True).astype('uint16')
-            image = frames[frame_index]
+            if all_frames_in_memory:
+                image = frames[frame_index]
+            else:
+                image = movie.read_frame(frame_index, xarray=False, flatten_channels=True)#.astype('uint16')
             frame = xr.DataArray(image, dims=('y','x'))
 
             # TODO: Proper background subtraction
