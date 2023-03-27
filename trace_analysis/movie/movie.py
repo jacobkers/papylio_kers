@@ -2,6 +2,7 @@ import re
 import sys
 import itertools
 import warnings
+import tqdm
 import re
 from numba import njit
 from pathlib import Path
@@ -707,10 +708,10 @@ class Movie:
 
         if projection_type == 'average':
             number_of_frames = len(frame_indices)
-            if len(frame_indices) > 100:
-                print(f'\n Making average image of {self.name}')
+            # if len(frame_indices) > 100:
+                # print(f'\n Making average image of {self.name}')
             with self:
-                for frame_indices_subset in frame_indices_subsets:
+                for frame_indices_subset in tqdm.tqdm(frame_indices_subsets, desc='Average image'):
                     # if len(frame_indices) > 100 and i % 13 == 0:
                     #     sys.stdout.write(
                     #         f'\r   Processing frame {frame_index} in {frame_indices[0]}-{frame_indices[-1]}')
@@ -719,15 +720,15 @@ class Movie:
                     image = image + frames.sum(axis=0)
             image = (image / number_of_frames)
         elif projection_type == 'maximum':
-            print(f'\n Making maximum projection image of {self.name}')
+            # print(f'\n Making maximum projection image of {self.name}')
             with self:
-                for frame_indices_subset in frame_indices_subsets:
+                for frame_indices_subset in tqdm.tqdm(frame_indices_subsets, desc='Maximum projection image'):
                     # if i % 13 == 0:
                     #     sys.stdout.write(
                     #         f'\r   Processing frame {frame_index} in {frame_indices[0]}-{frame_indices[-1]}')
                     frames = self.read_frames(frame_indices_subset, xarray=False, flatten_channels=False)
                     image = np.maximum(image, frames.max(axis=0))
-            sys.stdout.write(f'\r   Processed frames {frame_indices[0]}-{frame_indices[-1]}\n')
+            # sys.stdout.write(f'\r   Processed frames {frame_indices[0]}-{frame_indices[-1]}\n')
 
         if write:
             filename = Movie.image_info_to_filename(self.name, projection_type=projection_type, frame_range=frame_range,
@@ -826,9 +827,9 @@ class Movie:
     # Do we really need this?
     def determine_general_background_correction(self, method='median', frame_range=(0, 20)):
         # self.temporal_background_correction = self.spatial_background_correction = None
-
-        frame_indices = self.frame_indices[slice(*frame_range)]
-        frames = self.read_frames(frame_indices=frame_indices, apply_corrections=False, xarray=False)
+        frame_indices = self.frame_indices[slice(*frame_range)].values
+        with self:
+            frames = self.read_frames(frame_indices=frame_indices, apply_corrections=False, xarray=False)
 
         general_background_correction = xr.DataArray(0, dims=('illumination', 'channel'),
                                                       coords={'channel': self.channel_indices,
@@ -899,8 +900,9 @@ class Movie:
                               spatial_background_correction=None)
 
     def determine_spatial_background_correction(self, method='median_filter', frame_range=(0, 20), **kwargs):
-        frame_indices = self.frame_indices[slice(*frame_range)]
-        frames = self.read_frames(frame_indices=frame_indices, apply_corrections=False, xarray=False)
+        frame_indices = self.frame_indices[slice(*frame_range)].values
+        with self:
+            frames = self.read_frames(frame_indices=frame_indices, apply_corrections=False, xarray=False)
 
         spatial_background_correction = xr.DataArray(np.zeros((self.number_of_illuminations,) + frames.shape[1:]),
                                                      dims=('illumination', 'channel', 'y', 'x'),

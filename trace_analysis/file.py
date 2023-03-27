@@ -178,12 +178,15 @@ class File:
         configuration = self.experiment.configuration['projection_image'].copy()
         configuration.update(kwargs)
         # TODO: Make this independent of Movie, probably we want to copy all Movie metadata to the nc file.
-        configuration['frame_range'][1] = np.min([configuration['frame_range'][1], self.movie.number_of_frames])
+        if configuration['frame_range'][1] > self.movie.number_of_frames:
+            configuration['frame_range'][1] = self.movie.number_of_frames
+            warnings.warn(f'Frame range exceeds available frames, used frame range {configuration["frame_range"]} instead')
         image_filename = Movie.image_info_to_filename(self.name, **configuration)
         image_file_path = self.absoluteFilePath.with_name(image_filename).with_suffix('.tif')
 
         if image_file_path.is_file():
             # TODO: Make independent of movie, so that we can also load this without movie present
+            # Perhaps make it part of Movie
             # Perhaps make a get_projection_image a class method of Movie
             # return self.movie.separate_channels(tifffile.imread(image_file_path))
             return tifffile.imread(image_file_path)
