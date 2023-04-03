@@ -1129,6 +1129,100 @@ class File:
                 file.mapping = self.mapping
                 file.is_mapping_file = False
 
+    def get_variable(self, variable, selected=False, frame_range=None, average=False):
+        with xr.open_dataset(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf') as dataset:
+            da = dataset[variable].load()
+
+        if selected:
+            da = da.sel(molecule=self.selected)
+
+        if frame_range is not None:
+            da = da.sel(frame=slice(*frame_range))
+
+        if average:
+            da = da.mean(dim='frame')
+
+        return da
+
+    def set_variable(self, data, **kwargs):
+        da = xr.DataArray(data, **kwargs)
+        da.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
+
+    def get_intensity_total(self, **kwargs):
+        intensity_total = self.get_intensity(**kwargs).sum(dim='channel')
+        return intensity_total
+
+    def get_FRET(self, **kwargs):
+        return self.get_variable('FRET', **kwargs)
+
+    def get_intensity(self, **kwargs):
+        intensity = self.get_variable('intensity', **kwargs)
+        if hasattr(self, 'background_correction') and self.background_correction is not None:
+            intensity[dict(channel=0)] -= self.background_correction[0]
+            intensity[dict(channel=1)] -= self.background_correction[1]
+        if hasattr(self, 'alpha_correction') and self.alpha_correction is not None:
+            intensity[dict(channel=0)] += self.alpha_correction * intensity[dict(channel=0)]
+            intensity[dict(channel=1)] -= self.alpha_correction * intensity[dict(channel=0)]
+        # if hasattr(self, 'delta_correction') and self.delta_correction is not None:
+        #     intensity[dict(channel=0)] *= self.delta_correction
+        if hasattr(self, 'gamma_correction') and self.gamma_correction is not None:
+            intensity[dict(channel=0)] *= self.gamma_correction
+        # if hasattr(self, 'beta_correction') and self.beta_correction is not None:
+        #     intensity[dict(channel=0)] *= self.beta_correction
+
+        return intensity
+
+    def histogram_intensity(self, selected=False, frame_range=None, average=False, axis=None, **hist_kwargs):
+        intensity = self.get_intensity(selected=selected, frame_range=frame_range, average=average)
+
+        if axis is None:
+            figure, axis = plt.subplots()
+        for channel in intensity.channel:
+            axis.hist(intensity.sel(channel=channel).values.flatten(), histtype='step', label=channel.item(),
+                      **hist_kwargs)
+            axis.set_xlabel('Intensity (a.u.)')
+            axis.set_ylabel('Count')
+
+        axis.legend()
+
+        return axis
+
+    def histogram_intensity_total(self, selected=False, frame_range=None, average=False, axis=None, **hist_kwargs):
+        total_intensity_values = self.get_intensity_total(selected=selected, frame_range=frame_range, average=average).values.flatten()
+
+        if axis is None:
+            figure, axis = plt.subplots()
+        axis.hist(total_intensity_values, **hist_kwargs)
+        axis.set_xlabel('Total intensity (a.u.)')
+        axis.set_ylabel('Count')
+
+        return axis
+
+    def histogram_FRET(self, selected=False, frame_range=None, average=False, axis=None, **hist_kwargs):
+        FRET_values = self.get_FRET(selected=selected, frame_range=frame_range, average=average).values.flatten()
+
+        if axis is None:
+            figure, axis = plt.subplots()
+        axis.hist(FRET_values, range=(-0.05, 1.05), **hist_kwargs)
+        axis.set_xlabel('FRET')
+        axis.set_ylabel('Count')
+
+        return axis
+
+    def histogram_FRET_intensity_total(self, selected=False, frame_range=None, average=True, axis=None,
+                                       **hist2d_kwargs):
+        FRET_values = self.get_FRET(selected=selected, frame_range=frame_range, average=average).values.flatten()
+        total_intensity_values = self.get_intensity_total(selected=selected, frame_range=frame_range,
+                                                          average=average).values.flatten()
+
+        if axis is None:
+            figure, axis = plt.subplots()
+        axis.hist2d(FRET_values, total_intensity_values, range=((-0.05, 1.05), None), **hist2d_kwargs)
+        axis.set_xlabel('FRET')
+        axis.set_ylabel('Total intensity (a.u.)')
+
+        return axis
+
     def show_image(self, projection_type='default', figure=None, unit='pixel', **kwargs):
         # TODO: Show two channels separately and connect axes
         # Refresh configuration
