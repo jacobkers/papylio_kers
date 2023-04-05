@@ -36,7 +36,7 @@ import tifffile
 
 from trace_analysis.file import File
 # from trace_analysis.molecule import Molecules
-from trace_analysis.collection import Collection
+from trace_analysis.file_collection import FileCollection
 from trace_analysis.plotting import histogram
 from trace_analysis.movie.movie import Movie
 # from trace_analysis.plugin_manager import PluginManager
@@ -184,7 +184,7 @@ class Experiment:
 
         self.name = os.path.basename(main_path)
         self.main_path = Path(main_path).absolute()
-        self.files = Collection()
+        self.files = FileCollection()
         self.import_all = import_all
 
         self._channels = np.atleast_1d(np.array(channels))
