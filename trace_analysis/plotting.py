@@ -8,36 +8,31 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 # from trace_analysis.molecule import Molecule
 
-def histogram(molecules, axis=None, bins=100, parameter='E', molecule_averaging=False, makeFit=False, collection_name='', **kwargs):
-    if not molecules: return None
-    if not axis:
-        axis = plt.gca()
-        axis.cla()
-    #    if not isinstance(input,list): input = [input]
-    #
-    #    molecules = list()
-    #
-    #    for i in input:
-    #        if isinstance(i, Molecule):
-    #            molecules.append(i)
-    #        else:
-    #            molecules.append(i.molecules)
+def histogram(da, axis=None, **hist_kwargs):
+    if axis is None:
+        figure, axis = plt.subplots()
+    else:
+        figure = axis.figure()
 
-    # data = np.concatenate([molecule.intensity[0,:] for molecule in molecules])
-    # axis.hist(data,100)
-    # data = np.concatenate([molecule.E() for molecule in molecules])
+    if 'channel' in da.dims:
+        das = [da.sel(channel=channel) for channel in da.channel]
+    else:
+        das = [da]
 
-    if parameter == 'E':
-        if molecule_averaging:
-            data = np.array([np.mean(molecule.E()) for molecule in molecules])
-        else:
-            data = np.concatenate([molecule.E() for molecule in molecules])
-        histogram_FRET(data, bins=bins, axis=axis, **kwargs)
+    if len(das) > 1:
+        hist_kwargs['histtype'] = 'step'
 
-    axis.set_title(f'{parameter} histogram - {collection_name} \n Bins: {bins} - Number of molecules: {len(molecules)} - Molecule averaging: {molecule_averaging}')
+    for da in das:
+        da.plot.hist(ax=axis, **hist_kwargs)
+    axis.set_ylabel('Count')
+    axis.set_title('')
 
-    if makeFit:
-        fit_hist(data, axis)
+    # if save:
+    #     fig.savefig(self.absoluteFilePath.with_name(f'{self.name}_{parameter}_histogram').with_suffix('.png'))
+
+    return figure, axis
+
+
 
 def histogram_FRET(data, axis, **kwargs):
     axis.hist(data, range=(0, 1), **kwargs)

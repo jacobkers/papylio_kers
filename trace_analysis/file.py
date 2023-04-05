@@ -963,14 +963,6 @@ class File:
     #     self.molecules.append(Molecule(self))
     #     self.molecules[-1].index = index
 
-    def histogram(self, axis=None, bins=100, parameter='E', molecule_averaging=False,
-                  makeFit=False, export=False, **kwargs):
-        histogram(self.molecules, axis=axis, bins=bins, parameter=parameter, molecule_averaging=molecule_averaging, makeFit=makeFit, collection_name=self, **kwargs)
-        if export:
-            plt.savefig(self.absoluteFilePath.with_name(f'{self.name}_{parameter}_histogram').with_suffix('.png'))
-
-
-
     def savetoExcel(self, filename=None, save=True):
         if filename is None:
             filename = f'{self.absoluteFilePath}_steps_data.xlsx'
@@ -1015,17 +1007,6 @@ class File:
         filename = self.name+'_steps_data.xlsx'
         data = self.savetoExcel(filename)
         return data
-
-    def select(self, figure=None):
-        # iasonas: I think this function is not needed anymore
-        plt.ion()
-        for index, molecule in enumerate(self.molecules):
-            molecule.plot(figure=figure)
-            plt.title('Molecule ' + str(index), y=-0.01)
-            plt.show()
-            plt.pause(0.001)
-            print('Molecule ' + str(index))
-            input("Press enter to continue")
 
     def perform_mapping(self, configuration = None):
         image = self.average_image
@@ -1129,9 +1110,15 @@ class File:
                 file.mapping = self.mapping
                 file.is_mapping_file = False
 
+    # def get_variable(self, variable, selected=False, frame_range=None, average=False):
+    #     if variable in ['intensity','FRET','intensity_total']:
+    #         da = getattr(self, 'get_'+variable)
+    #     else:
+    #         with xr.open_dataset(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf') as dataset:
+    #             da = dataset[variable].load()
+    #
     def get_variable(self, variable, selected=False, frame_range=None, average=False):
-        with xr.open_dataset(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf') as dataset:
-            da = dataset[variable].load()
+        da = getattr(self, variable)
 
         if selected:
             da = da.sel(molecule=self.selected)
@@ -1148,66 +1135,38 @@ class File:
         da = xr.DataArray(data, **kwargs)
         da.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
 
-    def get_intensity_total(self, **kwargs):
-        intensity_total = self.get_intensity(**kwargs).sum(dim='channel')
-        return intensity_total
+    @property
+    def intensity_total(self):
+        return self.intensity.sum(dim='channel')
 
-    def get_FRET(self, **kwargs):
-        return self.get_variable('FRET', **kwargs)
 
-    def get_intensity(self, **kwargs):
-        intensity = self.get_variable('intensity', **kwargs)
-        if hasattr(self, 'background_correction') and self.background_correction is not None:
-            intensity[dict(channel=0)] -= self.background_correction[0]
-            intensity[dict(channel=1)] -= self.background_correction[1]
-        if hasattr(self, 'alpha_correction') and self.alpha_correction is not None:
-            intensity[dict(channel=0)] += self.alpha_correction * intensity[dict(channel=0)]
-            intensity[dict(channel=1)] -= self.alpha_correction * intensity[dict(channel=0)]
-        # if hasattr(self, 'delta_correction') and self.delta_correction is not None:
-        #     intensity[dict(channel=0)] *= self.delta_correction
-        if hasattr(self, 'gamma_correction') and self.gamma_correction is not None:
-            intensity[dict(channel=0)] *= self.gamma_correction
-        # if hasattr(self, 'beta_correction') and self.beta_correction is not None:
-        #     intensity[dict(channel=0)] *= self.beta_correction
+    #
+    # def get_FRET(self, **kwargs):
+    #     return self.get_variable('FRET', **kwargs)
+    #
+    # def get_intensity(self, **kwargs):
+    #     intensity = self.get_variable('intensity', **kwargs)
+    #     if hasattr(self, 'background_correction') and self.background_correction is not None:
+    #         intensity[dict(channel=0)] -= self.background_correction[0]
+    #         intensity[dict(channel=1)] -= self.background_correction[1]
+    #     if hasattr(self, 'alpha_correction') and self.alpha_correction is not None:
+    #         intensity[dict(channel=0)] += self.alpha_correction * intensity[dict(channel=0)]
+    #         intensity[dict(channel=1)] -= self.alpha_correction * intensity[dict(channel=0)]
+    #     # if hasattr(self, 'delta_correction') and self.delta_correction is not None:
+    #     #     intensity[dict(channel=0)] *= self.delta_correction
+    #     if hasattr(self, 'gamma_correction') and self.gamma_correction is not None:
+    #         intensity[dict(channel=0)] *= self.gamma_correction
+    #     # if hasattr(self, 'beta_correction') and self.beta_correction is not None:
+    #     #     intensity[dict(channel=0)] *= self.beta_correction
+    #
+    #     return intensity
 
-        return intensity
-
-    def histogram_intensity(self, selected=False, frame_range=None, average=False, axis=None, **hist_kwargs):
-        intensity = self.get_intensity(selected=selected, frame_range=frame_range, average=average)
-
-        if axis is None:
-            figure, axis = plt.subplots()
-        for channel in intensity.channel:
-            axis.hist(intensity.sel(channel=channel).values.flatten(), histtype='step', label=channel.item(),
-                      **hist_kwargs)
-            axis.set_xlabel('Intensity (a.u.)')
-            axis.set_ylabel('Count')
-
-        axis.legend()
-
-        return axis
-
-    def histogram_intensity_total(self, selected=False, frame_range=None, average=False, axis=None, **hist_kwargs):
-        total_intensity_values = self.get_intensity_total(selected=selected, frame_range=frame_range, average=average).values.flatten()
-
-        if axis is None:
-            figure, axis = plt.subplots()
-        axis.hist(total_intensity_values, **hist_kwargs)
-        axis.set_xlabel('Total intensity (a.u.)')
-        axis.set_ylabel('Count')
-
-        return axis
-
-    def histogram_FRET(self, selected=False, frame_range=None, average=False, axis=None, **hist_kwargs):
-        FRET_values = self.get_FRET(selected=selected, frame_range=frame_range, average=average).values.flatten()
-
-        if axis is None:
-            figure, axis = plt.subplots()
-        axis.hist(FRET_values, range=(-0.05, 1.05), **hist_kwargs)
-        axis.set_xlabel('FRET')
-        axis.set_ylabel('Count')
-
-        return axis
+    def show_histogram(self, variable, selected=False, frame_range=None, average=False, axis=None, **hist_kwargs):
+        # TODO: add save
+        da = self.get_variable(variable, selected=selected, frame_range=frame_range, average=average)
+        figure, axis = histogram(da, axis=None, **hist_kwargs)
+        axis.set_title(str(self.relativeFilePath))
+        return figure, axis
 
     def histogram_FRET_intensity_total(self, selected=False, frame_range=None, average=True, axis=None,
                                        **hist2d_kwargs):
@@ -1350,11 +1309,6 @@ class File:
         if not save_path.is_dir():
             save_path.mkdir()
 
-        # app = wx.App(False)
-        # frame = TraceAnalysisFrame(None, dataset, "Sample editor", plot_variables=plot_variables, #'classification'],
-        #          ylims=[(0, 1000), (0, 1), (-1,2)], colours=[('g', 'r'), ('b'), ('k')], save_path=save_path)
-        # app.MainLoop()
-        #
         from trace_analysis.trace_plot import TracePlotWindow
         TracePlotWindow(dataset=dataset, save_path=save_path, **kwargs)
 

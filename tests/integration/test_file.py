@@ -56,3 +56,7 @@ def test_property_coordinates(file_output):
 def test_determine_psf_size(file):
     psf_size = file.determine_psf_size()
     assert np.isclose(psf_size, 1.01, atol=0.005)
+
+def test_show_histogram(file_output):
+    file_output.show_histogram('intensity')
+    file_output.show_histogram('FRET', bins=100, range=(0,1))
