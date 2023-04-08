@@ -31,7 +31,7 @@ from trace_analysis.trace_extraction import extract_traces
 from trace_analysis.mapping.coordinate_transformations import translate, transform # MD: we don't want to use this anymore I think, it is only linear
                                                                            # IS: We do! But we just need to make them usable with the nonlinear mapping
 from trace_analysis.background_subtraction import extract_background
-from trace_analysis.analysis.hidden_markov_modelling import hmm_traces
+from trace_analysis.analysis.hidden_markov_modelling import hmm_traces, hidden_markov_modelling
 # from trace_analysis.plugin_manager import PluginManager
 # from trace_analysis.plugin_manager import PluginMetaClass
 from trace_analysis.plugin_manager import plugins
@@ -75,7 +75,7 @@ class File:
         self.mapping = None
 
 
-        self.dataset_variables = ['molecule', 'coordinates', 'background', 'intensity', 'FRET', 'selected',
+        self.dataset_variables = ['molecule', 'frame', 'coordinates', 'background', 'intensity', 'FRET', 'selected',
                                   'molecule_in_file', 'illumination_correction']
 
 
@@ -253,7 +253,7 @@ class File:
     def __getattr__(self, item):
         if item == 'dataset_variables':
             return
-        if item in self.dataset_variables:
+        if item in self.dataset_variables or item.startswith('selection') or item.startswith('classification'):
             with xr.open_dataset(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf') as dataset:
                 return dataset[item].load()
         # else:
@@ -851,7 +851,8 @@ class File:
                 mol.kon_boolean = np.array(k).astype(bool).reshape((4,3))
         return steps_data
 
-    def extract_traces(self, configuration=None):
+    def extract_traces(self, mask_size=None, neighbourhood_size=None, background_correction=None, alpha_correction=None,
+                       gamma_correction=None):
         # TODO: Add configuration to nc file
         if self.number_of_molecules == 0:
             print('   no traces available!!')
@@ -861,12 +862,14 @@ class File:
 
         print(f'  Extracting traces in {self}')
 
-        if configuration is None: configuration = self.configuration['trace_extraction']
-        channel = configuration['channel']  # Default was 'all'
-        mask_size = configuration['mask_size']  # Default was 11
-        neighbourhood_size = configuration['neighbourhood_size']  # Default was 11
-        subtract_background = configuration['subtract_background']
-        correct_illumination = configuration['correct_illumination']
+        configuration = self.configuration['trace_extraction']
+        # channel = configuration['channel']  # Default was 'all'
+        if mask_size is None:
+            mask_size = configuration['mask_size']  # Default was 11
+        if neighbourhood_size is None:
+            neighbourhood_size = configuration['neighbourhood_size']  # Default was 11
+        # subtract_background = configuration['subtract_background']
+        # correct_illumination = configuration['correct_illumination']
 
         if mask_size == 'TIR-T' or mask_size == 'TIR-V':
             mask_size = 1.291
@@ -877,10 +880,10 @@ class File:
         elif mask_size == 'BN-TIRF':
             mask_size = 1.01
 
-        if subtract_background:
-            background = self.background
-        else:
-            background = None
+        # if subtract_background:
+        #     background = self.background
+        # else:
+        #     background = None
 
         # if correct_illumination:
         #     if not hasattr(self.dataset, 'illumination_correction'):
@@ -895,8 +898,24 @@ class File:
         #                                        'dimension': ['x', 'y']}) # TODO: Move to Movie
         # coordinates = self.coordinates - channel_offsets
 
-        intensity = extract_traces(self.movie, self.coordinates, background, mask_size=mask_size,
-                                   neighbourhood_size=neighbourhood_size, correct_illumination=correct_illumination)
+        intensity = extract_traces(self.movie, self.coordinates, background=None, mask_size=mask_size,
+                                   neighbourhood_size=neighbourhood_size, correct_illumination=False)
+
+        if background_correction is not None:
+            intensity[dict(channel=0)] -= background_correction[0]
+            intensity[dict(channel=1)] -= background_correction[1]
+            intensity.attrs['background_correction'] = background_correction
+        if alpha_correction is not None:
+            intensity[dict(channel=0)] += alpha_correction * intensity[dict(channel=0)]
+            intensity[dict(channel=1)] -= alpha_correction * intensity[dict(channel=0)]
+            intensity.attrs['alpha_correction'] = alpha_correction
+        # if delta_correction is not None:
+        #     intensity[dict(channel=0)] *= self.delta_correction
+        if gamma_correction is not None:
+            intensity[dict(channel=0)] *= gamma_correction
+            intensity.attrs['gamma_correction'] = gamma_correction
+        # if beta_correction is not None:
+        #     intensity[dict(channel=0)] *= self.beta_correction
 
         if self.movie.time is not None: # hasattr(self.movie, 'time')
             intensity = intensity.assign_coords(time=self.movie.time)
@@ -918,8 +937,15 @@ class File:
         FRET.name = 'FRET'
         FRET.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
 
-    def classify_traces(self):
-        ds = hmm_traces(self.FRET, n_components=2, covariance_type="full", n_iter=100)
+    # def classify_traces(self):
+    #     ds = hmm_traces(self.FRET, n_components=2, covariance_type="full", n_iter=100)
+    #     ds.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
+
+    def classify_hmm(self, variable):#, use_selection=True, use_classification=True):
+        if isinstance(variable, str):
+            variable = getattr(self, variable)
+
+        ds = hidden_markov_modelling(variable, self.classification, self.selected)
         ds.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
 
     def import_pks_file(self, extension):
@@ -1137,8 +1163,58 @@ class File:
 
     @property
     def intensity_total(self):
-        return self.intensity.sum(dim='channel')
+        intensity_total = self.intensity.sum(dim='channel')
+        intensity_total.name = 'intensity_total'
+        return intensity_total
 
+    @property
+    def selections(self):
+        with xr.open_dataset(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf') as dataset:
+            return xr.Dataset({value.name: value for key, value in dataset.data_vars.items()
+                               if key.startswith('selection')}).to_array(dim='selection')
+        # return xr.concat([value for key, value in self.dataset.data_vars.items() if key.startswith('filter')], dim='filter')
+
+    def apply_selections(self, selection_names='all'):
+        invert = np.zeros(len(selection_names), bool)
+        for i, selection_name in enumerate(selection_names):
+            if selection_name.startswith('~'):
+                invert[i] = True
+                selection_names[i] = selection_name[1:]
+
+        if selection_names in ['all', None]:
+            selections = self.selections
+        else:
+            selections = self.selections.sel(selection=selection_names)
+
+        selections[invert] = ~selections[invert]
+
+        self.set_variable(selections.all(dim='selection'), name='selected')
+
+    def apply_classifications(self, **kwargs):
+        classification_combined = np.zeros((len(self.molecule), len(self.frame)),'int8')
+        for classification_name, state_indices in kwargs.items():
+            if not classification_name.startswith('classification'):
+                raise ValueError('Only insert classifications')
+
+            classification = getattr(self, classification_name)
+
+            if classification.dtype == 'bool':
+                if type(state_indices) == list:
+                    classification_combined[~classification] = state_indices[0]
+                    classification_combined[classification] = state_indices[1]
+                elif type(state_indices) == int:
+                    if state_indices < 0:
+                        classification_combined[~classification] = state_indices
+                    else:
+                        classification_combined[classification] = state_indices
+                else:
+                    raise TypeError('Wrong classification datatype')
+            else: #if classification.dtype == int:
+                for i, c in enumerate(np.unique(classification)):
+                    if state_indices[i] is not None:
+                        classification_combined[classification == c] = state_indices[i]
+
+        self.set_variable(classification_combined, name='classification', dims=('molecule','frame'))
 
     #
     # def get_FRET(self, **kwargs):
@@ -1303,17 +1379,29 @@ class File:
         self.show_coordinates(figure=figure)
         # plt.savefig(self.writepath.joinpath(self.name + '_ave_circles.png'), dpi=600)
 
-    def show_traces(self, **kwargs):
-        dataset = self.dataset
+    def show_traces(self, plot_variables=['intensity', 'FRET'], selected=False, **kwargs):
+        # probably better to put selected option in TracePlotWindow
+        dataset = xr.Dataset()
+        for variable in plot_variables:
+            dataset[variable] = getattr(self, variable)
+        selected_original = self.selected
+        dataset['selected'] = selected_original
+        if selected:
+            dataset = dataset.sel(molecule=dataset['selected'])
+        # dataset = self.dataset
         save_path = self.experiment.main_path.joinpath('Trace_plots')
         if not save_path.is_dir():
             save_path.mkdir()
 
         from trace_analysis.trace_plot import TracePlotWindow
-        TracePlotWindow(dataset=dataset, save_path=save_path, **kwargs)
+        TracePlotWindow(dataset=dataset, plot_variables=plot_variables, save_path=save_path, **kwargs)
+        if selected:
+            selected_original[dict(molecule=selected_original)] = dataset.selected
+        else:
+            selected_original = dataset.selected
 
         # We could also save the whole dataset, but since currently only alterations are made to selected.
-        dataset.selected.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
+        selected_original.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
 
 
 def import_pks_file(pks_filepath):

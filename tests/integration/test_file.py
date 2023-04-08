@@ -49,6 +49,10 @@ def test_find_molecules(file):
 def test_extract_traces(file):
     file.find_coordinates()
     file.extract_traces()
+    file.extract_traces(mask_size=None, neighbourhood_size=None,
+                        background_correction=(-150,-30),
+                        alpha_correction=0.075,
+                        gamma_correction=1.2)
 
 def test_property_coordinates(file_output):
     file_output.coordinates
@@ -60,3 +64,6 @@ def test_determine_psf_size(file):
 def test_show_histogram(file_output):
     file_output.show_histogram('intensity')
     file_output.show_histogram('FRET', bins=100, range=(0,1))
+
+def test_show_traces(file_output):
+    file_output.show_traces(selected=False)
