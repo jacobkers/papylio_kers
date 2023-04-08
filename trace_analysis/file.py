@@ -75,7 +75,7 @@ class File:
         self.mapping = None
 
 
-        self.dataset_variables = ['molecule', 'frame', 'coordinates', 'background', 'intensity', 'FRET', 'selected',
+        self.dataset_variables = ['molecule', 'frame', 'time', 'coordinates', 'background', 'intensity', 'FRET', 'selected',
                                   'molecule_in_file', 'illumination_correction']
 
 
@@ -1215,6 +1215,24 @@ class File:
                         classification_combined[classification == c] = state_indices[i]
 
         self.set_variable(classification_combined, name='classification', dims=('molecule','frame'))
+
+    @property
+    def cycle_time(self):
+        return self.time.diff('frame').mean().item()
+
+    @property
+    def frame_rate(self):
+        return 1 / self.cycle_time
+
+    def determine_dwells_from_classification(self, variable='FRET'):
+        from trace_analysis.analysis.dwelltime_analysis import dwell_times_from_classification
+        # TODO: Make it possible to pass multiple traces.
+        dwells = dwell_times_from_classification(self.classification, traces=getattr(self, variable), cycle_time=self.cycle_time)
+        dwells.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), group='dwells', engine='h5netcdf', mode='a')
+
+    @property
+    def dwells(self):
+        return xr.load_dataset(self.absoluteFilePath.with_suffix('.nc'), group='dwells', engine='h5netcdf')
 
     #
     # def get_FRET(self, **kwargs):

@@ -26,7 +26,7 @@ def determine_dwell_means(traces_flattened, dwell_frames):
     return dwell_means
 
 def set_states(dwell_molecules, dwell_states, at_trace_edges=True, around_negative_states=True, to_state=-2):
-    states_to_set = np.zeros(len(dwell_states)).astype(bool)
+    states_to_set = np.zeros(len(dwell_states), dtype=bool)
 
     switched_molecule = np.diff(dwell_molecules).astype(bool)
     start_and_end_trace = np.concatenate([[True], switched_molecule]) | np.concatenate([switched_molecule, [True]])
@@ -49,24 +49,41 @@ def set_states(dwell_molecules, dwell_states, at_trace_edges=True, around_negati
 
 def dwell_times_from_classification(classification, traces=None, cycle_time=None, inactivate_start_and_end_states=True):
     if isinstance(classification, xr.DataArray):
+        molecule_coords = {n: c.values for n, c in classification.coords.items() if c.dims[0] == 'molecule' and len(c.dims) == 1}
         classification = classification.values
+    else:
+        molecule_coords = None
     dwell_molecules, dwell_states, dwell_frames = dwell_frames_from_classification(classification)
     if inactivate_start_and_end_states:
-        dwell_states = set_states(dwell_molecules, dwell_states)
+        dwell_states = set_states(dwell_molecules, dwell_states, to_state=-128)
 
-    ds = xr.Dataset({'molecule': ('dwell', dwell_molecules),
-                     'state': ('dwell', dwell_states),
-                     'frame_count': ('dwell', dwell_frames)})
+    ds = xr.Dataset()
+    if molecule_coords is not None:
+        for n, c in molecule_coords.items():
+            ds[n] = ('dwell', c[dwell_molecules])
+    else:
+        ds['molecule'] = ('dwell', dwell_molecules)
+
+    ds['state'] = ('dwell', dwell_states)
+    ds['frame_count'] = ('dwell', dwell_frames)
 
     if cycle_time is not None:
         dwell_times = dwell_frames * cycle_time
-        ds['duration'] = xr.DataArray(dwell_times, dims=['dwell'])
+        ds['duration'] =('dwell', dwell_times)
 
     if traces is not None:
+        # if isinstance(traces, xr.Dataset):
+        #     for name, da in traces.data_vars.items():
+        #         dwell_means = determine_dwell_means(da.values.flatten(), dwell_frames)
+        #         ds['mean'] = xr.DataArray(dwell_means, dims=['dwell'])
+        name = ''
         if isinstance(traces, xr.DataArray):
+            if traces.name is not None:
+                name = '_' + traces.name
             traces = traces.values
+
         dwell_means = determine_dwell_means(traces.flatten(), dwell_frames)
-        ds['mean'] = xr.DataArray(dwell_means, dims=['dwell'])
+        ds['mean'+name] = ('dwell', dwell_means)
 
     return ds
 
