@@ -117,7 +117,7 @@ def analyze_dwells(dwells, fit_function=single_decaying_exponential, cycle_time=
             # axes[i].set_title(+ ',' + str())
             if popt is not None:
                 axes[i].plot(t, fit_function(t, *popt), c='r', label=r'$count = Ae^{-\frac{t}{\tau}}$')
-                text_string = f'A={popt[0]:.5}\nτ={popt[-1]:.5}\nmean={dwells_with_state["mean"].mean().item():.5}'
+                text_string = f'A={popt[0]:.5}\nτ={popt[-1]:.5}' #\nmean={dwells_with_state["mean"].mean().item():.5}'
             else:
                 text_string = 'No fit found'
 

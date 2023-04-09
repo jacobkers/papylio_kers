@@ -36,6 +36,7 @@ from trace_analysis.analysis.hidden_markov_modelling import hmm_traces, hidden_m
 # from trace_analysis.plugin_manager import PluginMetaClass
 from trace_analysis.plugin_manager import plugins
 # from trace_analysis.trace_plot import TraceAnalysisFrame
+from trace_analysis.analysis.dwelltime_analysis import dwell_times_from_classification, analyze_dwells
 
 @plugins
 class File:
@@ -1225,7 +1226,6 @@ class File:
         return 1 / self.cycle_time
 
     def determine_dwells_from_classification(self, variable='FRET'):
-        from trace_analysis.analysis.dwelltime_analysis import dwell_times_from_classification
         # TODO: Make it possible to pass multiple traces.
         dwells = dwell_times_from_classification(self.classification, traces=getattr(self, variable), cycle_time=self.cycle_time)
         dwells.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), group='dwells', engine='h5netcdf', mode='a')
@@ -1233,6 +1233,9 @@ class File:
     @property
     def dwells(self):
         return xr.load_dataset(self.absoluteFilePath.with_suffix('.nc'), group='dwells', engine='h5netcdf')
+
+    def analyze_dwells(self, plot=False, axes=None, state_names={0: 'Low FRET state', 1: 'High FRET state'}):
+        return analyze_dwells(self.dwells, cycle_time=self.cycle_time, plot=plot, axes=axes, state_names=state_names)
 
     #
     # def get_FRET(self, **kwargs):

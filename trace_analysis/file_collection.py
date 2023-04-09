@@ -19,6 +19,8 @@ class FileCollection(Collection):
 
         elif isinstance(attrs[0], xr.DataArray):
             attrs = xr.concat(attrs, dim='molecule')
+        elif item == 'dwells':
+            attrs = xr.concat(attrs, dim='dwell')
         return attrs
 
     @property
@@ -41,3 +43,10 @@ class FileCollection(Collection):
         axis.set_ylabel('Total intensity (a.u.)')
 
         return axis
+
+    @property
+    def cycle_time(self):
+        return self[0].cycle_time
+
+    def analyze_dwells(self,  *args, **kwargs):
+        return File.analyze_dwells(self.serial, *args, **kwargs)
