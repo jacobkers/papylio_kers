@@ -23,24 +23,24 @@ def file_output(experiment_output):
 
 
 def test_projection_image(file, shared_datadir):
-    image_newly_made = file.projection_image
+    image_newly_made = file.projection_image()
     image_from_original_file = tifffile.imread(shared_datadir / 'BN_TIRF_output_test_file' / 'TIRF 561 0001_ave_f0-10_i0.tif')
     assert (image_newly_made == image_from_original_file).all()
-    image_loaded = file.projection_image
+    image_loaded = file.projection_image()
     assert (image_loaded == image_from_original_file).all()
 
 def test_average_image(file, shared_datadir):
-    image_newly_made = file.average_image
+    image_newly_made = file.average_image()
     image_from_original_file = tifffile.imread(shared_datadir / 'BN_TIRF_output_test_file' / 'TIRF 561 0001_ave_f0-10_i0.tif')
     assert (image_newly_made == image_from_original_file).all()
-    image_loaded = file.average_image
+    image_loaded = file.average_image()
     assert (image_loaded == image_from_original_file).all()
 
 def test_maximum_projection_image(file, shared_datadir):
-    image_newly_made = file.maximum_projection_image
+    image_newly_made = file.maximum_projection_image()
     image_from_original_file = tifffile.imread(shared_datadir / 'BN_TIRF_output_test_file' / 'TIRF 561 0001_max_f0-10_i0.tif')
     assert (image_newly_made == image_from_original_file).all()
-    image_loaded = file.maximum_projection_image
+    image_loaded = file.maximum_projection_image()
     assert (image_loaded == image_from_original_file).all()
 
 def test_find_molecules(file):

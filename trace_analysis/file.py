@@ -163,15 +163,15 @@ class File:
 
     # def get_projection_image(self, configuration):
 
-    @property
+    # @property
     def projection_image(self):
         return self.get_projection_image()
 
-    @property
+    # @property
     def average_image(self):
         return self.get_projection_image(projection_type='average')
 
-    @property
+    # @property
     def maximum_projection_image(self):
         return self.get_projection_image(projection_type='maximum')
 
@@ -544,7 +544,7 @@ class File:
             image = self.get_projection_image(projection_type=projection_type, frame_range=frame_range,
                                               illumination=illumination)
 
-            # image = self.average_image
+            # image = self.average_image()
             self.movie.read_header()
 
             # Do we need a separate image?
@@ -1036,7 +1036,7 @@ class File:
         return data
 
     def perform_mapping(self, configuration = None):
-        image = self.average_image
+        image = self.average_image()
         if configuration is None:
             configuration = self.experiment.configuration['mapping']
 
@@ -1291,10 +1291,10 @@ class File:
 
         # Choose method to plot
         if projection_type == 'average':
-            image = self.average_image
+            image = self.average_image()
             axis.set_title('Average image')
         elif projection_type == 'maximum':
-            image = self.maximum_projection_image
+            image = self.maximum_projection_image()
             axis.set_title('Maximum projection')
 
 
