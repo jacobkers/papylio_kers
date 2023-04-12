@@ -238,6 +238,8 @@ class Movie:
 
         self._common_corrections = xr.Dataset()
 
+        self.fov_index = None
+
         # self.load_corrections()
 
         self.header_is_read = False
@@ -731,8 +733,8 @@ class Movie:
             # sys.stdout.write(f'\r   Processed frames {frame_indices[0]}-{frame_indices[-1]}\n')
 
         if write:
-            filename = Movie.image_info_to_filename(self.name, projection_type=projection_type, frame_range=frame_range,
-                                                    illumination=illumination_index)
+            filename = Movie.image_info_to_filename(self.name, fov_index=self.fov_index, projection_type=projection_type,
+                                                    frame_range=frame_range, illumination=illumination_index)
             filepath = self.writepath.joinpath(filename)
             write_image = self.flatten_channels(image)
             if write in [True, 'tif']:
@@ -771,8 +773,8 @@ class Movie:
                 channel_images.append(self.channels[channel_index].colour_map(channel_image, bytes=True))
 
             images_combined = np.hstack(channel_images)
-            filename = Movie.image_info_to_filename(self.name, projection_type=projection_type, frame_range=frame_range,
-                                                    illumination=illumination_index)
+            filename = Movie.image_info_to_filename(self.name, fov_index=self.fov_index, projection_type=projection_type,
+                                                    frame_range=frame_range, illumination=illumination_index)
             filepath = self.writepath.joinpath(filename)
             plt.imsave(filepath.with_suffix('.png'), images_combined)
 
