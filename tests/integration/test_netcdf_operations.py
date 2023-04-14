@@ -1,6 +1,6 @@
 import pytest
 import numpy as np
-from trace_analysis.netcdf_operations import merge_datasets
+from trace_analysis.netcdf_operations import merge_datasets, reorder_datasets_using_sequence_subset
 import netCDF4
 
 @pytest.fixture
@@ -23,6 +23,9 @@ def test_merge_datasets_sequence_only(shared_datadir, netcdf_filepaths):
     assert ds_out.dimensions['molecule'].size == np.sum([(netCDF4.Dataset(p)['sequence'][:]!=b'-').all(axis=1).sum() for p in netcdf_filepaths])
     ds_in1 = netCDF4.Dataset(netcdf_filepaths[1])
     assert (ds_out['intensity'][319:319+318] == ds_in1['intensity'][(ds_in1['sequence'][:]!=b'-').all(axis=1)]).all()
+
+def test_reorder_datasets_using_sequence_subset(shared_datadir, netcdf_filepaths):
+    reorder_datasets_using_sequence_subset(netcdf_filepaths, shared_datadir, 'molecule')
 
 
 

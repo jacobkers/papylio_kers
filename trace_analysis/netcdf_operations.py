@@ -2,12 +2,14 @@ import tqdm
 import numpy as np
 import netCDF4
 from joblib import Parallel, delayed
+from pathlib2 import Path
 
 
 def get_dimension_size(filepath, dimension, with_sequence_only=False):
     with netCDF4.Dataset(filepath) as ds:
         if with_sequence_only:
-            return (~(ds['sequence'][:] == b'-').all(axis=1)).sum()
+            # return (~(ds['sequence_aligned'][:] == b'-').all(axis=1)).sum()
+            return (ds['sequence_tile'][:] > 0).sum()
         else:
             return ds.dimensions[dimension].size
 
@@ -32,13 +34,15 @@ def merge_datasets(files_in, file_out, concat_dim, init_file=None, with_sequence
         for file_in in tqdm.tqdm(files_in):
             with netCDF4.Dataset(file_in) as ds_in:
                 if with_sequence_only:
-                    has_sequence = (~(ds_in['sequence'][:] == b'-').all(axis=1))
+                    # has_sequence = (~(ds_in['sequence_aligned'][:] == b'-').all(axis=1))
+                    has_sequence = ds_in['sequence_tile'][:] > 0
                     _, start_index_out = append_to_dataset(ds_in, ds_out, concat_dim, selection_in=has_sequence, start_index_out=start_index_out)
                 else:
                     _, start_index_out = append_to_dataset(ds_in, ds_out, concat_dim, selection_in=None, start_index_out=start_index_out)
 
 
 def reorder_datasets_using_sequence_subset(files_in, folder_out, concat_dim):
+    folder_out = Path(folder_out)
     for file_in in tqdm.tqdm(files_in):
         with netCDF4.Dataset(file_in) as ds_in:
             # selection = np.squeeze(ds['sequence_subset'][:].view('S8') != b'--------')
@@ -46,7 +50,7 @@ def reorder_datasets_using_sequence_subset(files_in, folder_out, concat_dim):
             selection = (sequence_subsets != b'-').all(axis=1)
             indices = np.where(selection)[0]
 
-            sequence_subsets = sequence_subsets.view('S8').astype('U').squeeze()
+            sequence_subsets = sequence_subsets.view(f'S{sequence_subsets.shape[1]}').astype('U').squeeze()
 
             for i in indices:
                 sequence_subset = sequence_subsets[i]
