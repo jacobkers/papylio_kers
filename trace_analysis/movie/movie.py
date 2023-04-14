@@ -200,7 +200,7 @@ class Movie:
     def __init__(self, filepath, rot90=0):  # , **kwargs):
         self.filepath = Path(filepath)
         self._with_counter = 0
-
+        self.fov_index = None
         # self.filepaths = [Path(filepath) for filepath in filepaths] # For implementing multiple files, e.g. two channels over two files
         self.is_mapping_movie = False
 
@@ -237,8 +237,6 @@ class Movie:
         # self._temporal_illumination_correction = None
 
         self._common_corrections = xr.Dataset()
-
-        self.fov_index = None
 
         # self.load_corrections()
 
