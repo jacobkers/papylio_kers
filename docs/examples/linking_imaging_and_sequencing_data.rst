@@ -1,5 +1,5 @@
 Link single-molecule and sequencing data
-===========================================
+========================================
 
 To link single-molecule and sequencing data, go through the following steps:
 
@@ -19,7 +19,7 @@ To link single-molecule and sequencing data, go through the following steps:
 There are no changes here compared to a regular single-molecule analysis (See: :doc:`/Getting started`).
 
 2. Generate tile mappings
-----------------------------------------------------
+--------------------------
 Import the sam file with all sequences aligned to your reference sequence(s) (See: :doc:`/examples/sequence_alignment` on how to generate the sam file) as shown below. With ``sequence_subset``
 you can indicate the indices of the nucleotides of interest.
 
@@ -63,7 +63,7 @@ When you are satisfied with the tile mappings, you can save them:
 
 
 3. Generate and fine-tune sequencing matches
-------------------------------
+--------------------------------------------
 In this step, each single-molecule image is matched to the sequencing tiles. For each single-molecule image there might
 be slight deviations in the mapping due to image aberrations or inaccuracies in the stage position. Therefore, the
 translation, rotation and scaling for each single-molecule image are fine-tuned. Make sure to exclude the molecules that
