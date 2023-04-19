@@ -1,66 +1,22 @@
+# When running Linux for the first time on Windows 10:
+# 1. In the search field of the start menu search for "Turn Windows features on and off"
+# 2. Scroll down to "Windows Subsystem for Linux", check the box and click the OK button
+# 3. In settings go to "Update & Security", select "For developers" and turn on the developer mode
+# 4. In the Microsoft store search for and install "Ubuntu 22.04.2 LTS"
+# 5. Restart the computer
+# 6. Run the code in the sequencing_setup file in Ubuntu
+
 # Steps to follow:
 # 1. Copy everything from the sequence_analysis folder to the folder with your sequencing data (not on network location)
-# 2. Rename the sequencing file to Read1
+# 2. Unzip the fastq file and rename it to Read1
 # 3. Adjust the sequences in the reference file
 # 4. Open Ubuntu
 # 5. Navigate to the folder with your sequencing data 
 # 6. Run the lines below
 
-# CONDA_BASE=$(conda info --base)
-# source $CONDA_BASE/etc/profile.d/conda.sh
-# CONDA=$(conda info --base)"/condabin/conda"
 source ~/miniconda3/etc/profile.d/conda.sh
 conda activate sequence_analysis
 
-# bowtie2-build Reference.fasta Reference
-# bowtie2 -x Reference -U *R1_001.fastq -S Alignment.sam --local --np 0 --very-sensitive-local --n-ceil L,0,1 --threads 4 --score-min G,20,4 --norc
-
-zcat *R1_001.fastq.gz > Read1.fastq
-zcat *I1_001.fastq.gz > Index1.fastq
-
-# cat *R1_001.fastq.gz > Read1.fastq.gz
-# cat *I1_001.fastq.gz > Index1.fastq.gz
-
-# gzip -d Read1.fastq.gz
-# gzip -d Index1.fastq.gz
-
-bwa index Reference.fasta
-bwa mem Reference.fasta Read1.fastq -k 5 -T 15 -Y -L 10 -t 12 > Alignment.sam
-
-# samtools view -o Alignment.bam Alignment.sam  # use the -c option to just count alignment records
-# samtools sort Alignment.bam -o Alignment.sorted.bam
-# samtools index Alignment.sorted.bam
-
-# while IFS="" read -r line || [ -n "$line" ]; do
-  # if  [[ $line == \>* ]];
-  # then
-    # name=${line#">"}
-    # name=$(tr -dc '[[:print:]]' <<< "$name")
-    # read sequence
-    # sequence=$(tr -dc '[[:print:]]' <<< "$sequence")
-    # echo Working on $name
-    # samtools view Alignment.sam | awk -v refname="$name" -v refseq="$sequence" -f ./Align_string.awk > sequencing_data_$name.csv
-  # fi
-# done <./Reference.fasta
-
-# # To extract specific positions
-# # gawk -v pos_string="31 32 56 57 82 83 108 109" -f ./Extract_section.awk -i inplace sequencing_data_HJ_general.csv
-
-# read -p 'Press Enter to continue...' var
-
-# samtools mpileup -f Reference.fasta Alignment.sorted.bam -l Position\ list.BED -o test.txt --output-extra QNAME -O
-
-#files=$(find . -name "*.fastq")
-#files=$(echo $files | tr "\n" "," )
-
-# bedtools intersect -a Alignment.sorted.bam -b Position\ list.BED -wa > test.bam
-
-# awk 'NR%4==2 {print substr($0, 0, 4)}' Empty_S1_L001_R1_001.fastq | head
-
-# samtools view Alignment.sam | awk '$3=="HJ_general" {print substr($10, 0, 4)}' > indexL1.txt
-
-# samtools view Alignment.sam | awk '$3=="HJ_general" { split("31 32 56 57 82 83 108 109", a, " "); print a; for (i in a) {$3 = $3 substr($10, a[i], 1); print a[i]; print substr($10, a[i], 1)}; print $3}' | head
-
-# samtools view Alignment.sorted.bam | awk 'BEGIN {print "Tile\tx\ty"} $3=="MapSeq" {split($1,a,":"); print a[5] "\t" a[6] "\t" a[7]}' > mapping_coordinates.txt
-
-# http://bowtie-bio.sourceforge.net/bowtie2/manual.shtml#getting-started-with-bowtie-2-lambda-phage-example
+bowtie2-build Reference.fasta Reference
+bowtie2 -x Reference -U Read1.fastq -S Alignment.sam --local --np 0 --very-sensitive-local --n-ceil L,0,1 --threads 4 --score-min G,20,4 --norc
+# Check the manual for all the options: https://bowtie-bio.sourceforge.net/bowtie2/manual.shtml
