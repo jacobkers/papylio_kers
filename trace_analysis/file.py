@@ -938,6 +938,21 @@ class File:
         FRET.name = 'FRET'
         FRET.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
 
+    def get_traces(self, selected=False):
+        dataset = self.dataset
+
+        included_data_var_names = []
+        for name in list(dataset.data_vars.keys()):
+            if 'frame' in dataset[name].dims:
+                included_data_var_names.append(name)
+
+        traces = dataset[included_data_var_names]
+
+        if selected:
+            traces = traces.sel(molecule=dataset.selected)
+
+        return traces
+
     # def classify_traces(self):
     #     ds = hmm_traces(self.FRET, n_components=2, covariance_type="full", n_iter=100)
     #     ds.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
