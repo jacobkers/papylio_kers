@@ -27,6 +27,9 @@ class FileCollection(Collection):
     def experiment(self):
         return self[0].experiment
 
+    def select(self, search_string, variable='relativeFilePath'):
+        return self[getattr(self, variable).str.regex(search_string)]
+
     def show_histogram(self, *args, **kwargs):
         figure, axis = File.show_histogram(self.serial, *args, **kwargs)
         axis.set_title('')
