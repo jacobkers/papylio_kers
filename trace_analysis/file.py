@@ -446,7 +446,7 @@ class File:
     def import_mapping_file(self, extension):
         self.mapping = Mapping2.load(self.absoluteFilePath.with_suffix(extension))
 
-    def find_coordinates(self, configuration=None):
+    def find_coordinates(self, **configuration):
         '''
         This function finds and sets the locations of all molecules within the movie's images.
 
