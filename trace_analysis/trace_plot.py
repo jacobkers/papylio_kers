@@ -47,9 +47,14 @@ from matplotlib.figure import Figure
 
 class TracePlotWindow(QWidget):
     def __init__(self, dataset=None, plot_variables=['intensity', 'FRET'],
-                 ylims=[(0, 35000), (0, 1)], colours=[('g', 'r'), ('b')], width=14, height=7, save_path=None, parent=None,
+                 ylims=[(0, 35000), (0, 1)], colours=[('g', 'r'), ('b')], width=14, height=None, save_path=None, parent=None,
                  show=True):
+
+        if height is None:
+            height = np.max(len(plot_variables) * 3.5, 9)
+
         from trace_analysis.experiment import get_QApplication
+        #TODO: Use selection only if it is present.
         app = get_QApplication()
 
         super().__init__()
@@ -213,17 +218,24 @@ class TracePlotCanvas(FigureCanvasQTAgg):
 
     def init_plot_artists(self):
         for i, plot_variable in enumerate(self.parent_window.plot_variables):
+            data_array = self.parent_window.dataset[plot_variable]
+
+            # For excluding nan values
+            dims_wihtout_frame = set(data_array.dims).difference({'frame'})
+            frame_not_nan = ~data_array.isnull().all(dim=dims_wihtout_frame)
+            data_array = data_array.sel(frame=frame_not_nan)
+
             if 'time' in self.parent_window.dataset.coords.keys():
-                x = self.parent_window.dataset.time
+                x = data_array.time  # self.parent_window.dataset.time[frame_not_nan]
             else:
-                x = self.parent_window.dataset.frame
-            self.plot_artists[plot_variable] = self.plot_axes[plot_variable].plot(x, self.parent_window.dataset[plot_variable].sel(molecule=0).T)
+                x = data_array.frame  # self.parent_window.dataset.frame[frame_not_nan]
+            self.plot_artists[plot_variable] = self.plot_axes[plot_variable].plot(x, data_array.sel(molecule=0).T)
             if i == 0:
                 self.title_artist = self.plot_axes[plot_variable].set_title('')
             for j, plot_artist in enumerate(self.plot_artists[plot_variable]):
                 plot_artist.set_color(self.parent_window.colours[i][j])
             # molecule.intensity.plot.line(x='frame', ax=self.plot_axes[plot_variable], color=self.parent_window.colours[i])
-            self.histogram_artists[plot_variable] = self.histogram_axes[plot_variable].hist(self.parent_window.dataset[plot_variable].sel(molecule=0).T,
+            self.histogram_artists[plot_variable] = self.histogram_axes[plot_variable].hist(data_array.sel(molecule=0).T,
                                                                                             bins=50,
                                                                                             orientation='horizontal',
                                                                                             # range=self.plot_axes[
@@ -291,6 +303,10 @@ class TracePlotCanvas(FigureCanvasQTAgg):
 
         for i, plot_variable in enumerate(self.parent_window.plot_variables):
             data = np.atleast_2d(molecule[plot_variable])
+
+            # For excluding nan values (can go wrong when trace contains nans that are not present in all molecules)
+            data = data[:, ~np.isnan(data).all(axis=0)]
+
             if self._molecule.selected.item():
                 selection_string = ' | Selected'
             else:
@@ -299,7 +315,7 @@ class TracePlotCanvas(FigureCanvasQTAgg):
             self.title_artist.set_text(f'# {self.parent_window.molecule_index} of {len(self.parent_window.dataset.molecule)} | File: {molecule.file.values} | Molecule: {molecule.molecule_in_file.values}' + selection_string)#| Sequence: {molecule.sequence_name.values}')
             for j in range(len(data)):
                 self.plot_artists[plot_variable][j].set_ydata(data[j])
-                # TODO: When you shift the view, change the y positions of the bars to the new view, if possible.
+                # TODO: When you shift the view, change the y positions of the bars to the new view, if possible. use set_y
                 n, _ = np.histogram(data[j], 50, range=self.parent_window.ylims[i]) # range=self.plot_axes[plot_variable].get_ylim())
                 for count, artist in zip(n, self.histogram_artists[plot_variable][j]):
                     artist.set_width(count)
