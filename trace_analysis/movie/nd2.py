@@ -108,7 +108,7 @@ class ND2Movie(Movie):
             # self.number_of_fields_of_view = len(images.metadata["experiment"]["loops"])  # number of fov is now available from self.fov_info
             self.number_of_frames = len(self.file)
 
-            self.illuminations = [Illumination(self, name) for name in self.file.metadata["channels"]]
+            self.illuminations = [Illumination(name) for name in self.file.metadata["channels"]]
 
             if self.fov_index is not None:
                 self.frame_offset = self.first_frame_of_each_fov[self.fov_index] * self.number_of_illuminations
