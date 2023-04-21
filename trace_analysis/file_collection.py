@@ -53,3 +53,8 @@ class FileCollection(Collection):
 
     def analyze_dwells(self,  *args, **kwargs):
         return File.analyze_dwells(self.serial, *args, **kwargs)
+
+    def print(self):
+        for i, file in enumerate(self):
+            print(f"{i:3d}.  {file.relativeFilePath}")
+

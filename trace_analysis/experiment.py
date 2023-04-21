@@ -611,8 +611,7 @@ class Experiment:
             input("Press enter to continue")
 
     def print_files(self):
-        for i, file in enumerate(self.files):
-            print(f"{i:3d}.  {file.relativeFilePath}")
+        self.files.print()
 
     def plot_trace(self, files=None, query={}, **kwargs):
         # from trace_analysis.trace_plot import TraceAnalysisFrame
