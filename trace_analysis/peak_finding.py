@@ -111,7 +111,7 @@ def find_peaks_local_maximum(image,
 
 
 def find_peaks_local_maximum_auto(image,
-                                  fraction_difference = 0.6,
+                                  fraction_difference = 0.5,
                                   filter_neighbourhood_size_min=10,
                                   filter_neighbourhood_size_max=5):
 
@@ -153,7 +153,7 @@ def find_peaks_local_maximum_auto(image,
     maxima_values = image_max[maxima]
 
 
-    maxima_values = maxima_values[maxima_values>np.median(image)+np.std(image_min)*3]
+    maxima_values = maxima_values[maxima_values>np.max(image_min)+np.std(image_min)*5]
 
     minimum_intensity_difference = (np.median(maxima_values) - np.median(image_min.flatten())) * fraction_difference
 
