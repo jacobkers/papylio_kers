@@ -514,7 +514,8 @@ class File:
             self.sequencing_match = None
 
     def insert_sequencing_data_into_file_dataset(self, include_raw_sequences=False, include_aligned_sequences=True,
-                                                 include_sequence_subset=True, determine_matched_pairs=True):
+                                                 include_sequence_subset=True, determine_matched_pairs=True,
+                                                 include_aligned_position=False):
         sequencing_data = self.sequencing_data # Load sequencing data
         if self.sequencing_match is None:
             #selected_sequencing_data = None
@@ -552,6 +553,9 @@ class File:
             subset_length = len(self.sequencing_data.sequence_subset[0].item())
             variable_dict['sequence_subset'] = ('sequence_subset', b'-' * subset_length)
             variable_dict['sequence_quality_subset'] = ('quality_subset', b' ' * subset_length)
+
+        if include_aligned_position and hasattr(self.sequencing_data, 'position'):
+            variable_dict['sequence_aligned_position'] = ('position', -1)
 
         is_empty = selected_sequencing_data is None or (len(selected_sequencing_data) == 0)
 
