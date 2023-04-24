@@ -446,7 +446,7 @@ class File:
     def import_mapping_file(self, extension):
         self.mapping = Mapping2.load(self.absoluteFilePath.with_suffix(extension))
 
-    def find_coordinates(self, configuration=None):
+    def find_coordinates(self, **configuration):
         '''
         This function finds and sets the locations of all molecules within the movie's images.
 
@@ -938,6 +938,21 @@ class File:
         FRET.name = 'FRET'
         FRET.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
 
+    def get_traces(self, selected=False):
+        dataset = self.dataset
+
+        included_data_var_names = []
+        for name in list(dataset.data_vars.keys()):
+            if 'frame' in dataset[name].dims:
+                included_data_var_names.append(name)
+
+        traces = dataset[included_data_var_names]
+
+        if selected:
+            traces = traces.sel(molecule=dataset.selected)
+
+        return traces
+
     # def classify_traces(self):
     #     ds = hmm_traces(self.FRET, n_components=2, covariance_type="full", n_iter=100)
     #     ds.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
@@ -1400,8 +1415,9 @@ class File:
         self.show_coordinates(figure=figure)
         # plt.savefig(self.writepath.joinpath(self.name + '_ave_circles.png'), dpi=600)
 
-    def show_traces(self, plot_variables=['intensity', 'FRET'], selected=False, **kwargs):
-        # probably better to put selected option in TracePlotWindow
+    def show_traces(self, plot_variables=['intensity', 'FRET'], ylims=[(0, 35000), (0, 1)], colours=[('g', 'r'), ('b')],
+                    selected=False, split_illuminations=True, **kwargs):
+        # probably better to put selected and illumination options in TracePlotWindow
         dataset = xr.Dataset()
         for variable in plot_variables:
             dataset[variable] = getattr(self, variable)
@@ -1409,13 +1425,29 @@ class File:
         dataset['selected'] = selected_original
         if selected:
             dataset = dataset.sel(molecule=dataset['selected'])
+
+        if split_illuminations:
+            illuminations_in_file = np.unique(dataset.illumination)
+            if len(illuminations_in_file) > 1:
+                for plot_variable in ['intensity', 'FRET']:
+                    if plot_variable in plot_variables:
+                        plot_variable_index = plot_variables.index(plot_variable)
+                        for j, illumination_index in enumerate(illuminations_in_file):
+                            name = f'{plot_variable}_i{illumination_index}'
+                            dataset[name] = dataset[plot_variable].sel(frame=dataset.illumination == illumination_index)
+                            plot_variables.insert(plot_variable_index + j + 1, name)
+                            if j > 0:
+                                ylims.insert(plot_variable_index + j, ylims[plot_variable_index])
+                                colours.insert(plot_variable_index + j, colours[plot_variable_index])
+                        plot_variables.pop(plot_variable_index)
+
         # dataset = self.dataset
         save_path = self.experiment.main_path.joinpath('Trace_plots')
         if not save_path.is_dir():
             save_path.mkdir()
 
         from trace_analysis.trace_plot import TracePlotWindow
-        TracePlotWindow(dataset=dataset, plot_variables=plot_variables, save_path=save_path, **kwargs)
+        TracePlotWindow(dataset=dataset, plot_variables=plot_variables, ylims=ylims, colours=colours, save_path=save_path, **kwargs)
         if selected:
             selected_original[dict(molecule=selected_original)] = dataset.selected
         else:
