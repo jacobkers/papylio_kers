@@ -4,13 +4,14 @@ import h5py
 import re
 import pandas as pd
 import netCDF4
+import tabulate
 # import h5netcdf.legacyapi as netCDF4
 # import h5netcdf
 import tqdm
 from contextlib import ExitStack
 import xarray as xr
 import re
-
+import matplotlib.pyplot as plt
 
 from trace_analysis.plugins.sequencing.plotting import plot_cluster_locations_per_tile
 
@@ -53,7 +54,7 @@ class SequencingData:
     # def load(cls):
     #     cls()
 
-    def __init__(self, file_path=None, dataset=None, name='', reagent_kit='v3', load=True, file_kwargs={}):
+    def __init__(self, file_path=None, dataset=None, name='', reagent_kit='v3', load=True, file_kwargs={}, save_path=None):
         if file_path is not None:
             file_path = Path(file_path)
             if file_path.suffix == '.nc':
@@ -63,7 +64,11 @@ class SequencingData:
                     self.dataset = xr.load_dataset(file_path.with_suffix('.nc'), engine='netcdf4')
                 else:
                     self.dataset = xr.open_dataset(file_path.with_suffix('.nc'), engine='netcdf4')#, chunks=10000)
-                self.dataset = self.dataset.set_index({'sequence': ('tile', 'x', 'y')})
+                # self.dataset = self.dataset.set_index({'sequence': ('tile', 'x', 'y')})
+                # self.dataset.coordsupdate
+                # self.dataset.update(
+                #     {'sequence': pd.MultiIndex.from_frame(self.dataset[['tile', 'x', 'y']].to_pandas())})
+
             else:
                 data = pd.read_csv(file_path, delimiter='\t')
                 data.columns = data.columns.str.lower()
@@ -81,6 +86,10 @@ class SequencingData:
             raise ValueError('Either file_path or data should be given')
 
         self.name = name
+        if save_path is None:
+            self.save_path = file_path.parent
+        else:
+            self.save_path = save_path
 
         self.reagent_kit = reagent_kit
         self.reagent_kit_info = SequencingData.reagent_kit_info[reagent_kit]
@@ -125,22 +134,134 @@ class SequencingData:
     def tile_numbers(self):
         return np.unique(self.dataset.tile)
 
-    @property
-    def tiles(self):
-        if not self._tiles:
-            # Perhaps more elegant if this returns SequencingData objects [25-10-2021 IS]
-            self._tiles = [Tile(tile, tile_coordinates) for tile, tile_coordinates in self.coordinates.groupby('tile')]
-        return self._tiles
+    # @property
+    # def tiles(self):
+    #     if not self._tiles:
+    #         # Perhaps more elegant if this returns SequencingData objects [25-10-2021 IS]
+    #         self._tiles = [Tile(tile, tile_coordinates) for tile, tile_coordinates in self.coordinates.groupby('tile')]
+    #     return self._tiles
 
     def sel(self, *args, **kwargs):
         return SequencingData(dataset=self.dataset.sel(*args, **kwargs))
 
+    def reference_distribution(self, save=True, report=True):
+        reference_names, counts = np.unique(self.dataset.reference_name, return_counts=True)
+
+        analysis_reference = xr.Dataset(coords={'reference_name': reference_names})
+        analysis_reference['reference_count'] = xr.DataArray(counts, dims='reference_name')
+        analysis_reference['reference_fraction'] = xr.DataArray(counts / counts.sum(), dims='reference_name')
+
+        full_subset_counts = np.zeros(len(reference_names), dtype='int64')
+        for i, reference_name in enumerate(reference_names):
+            ds_sel = self.dataset.sel(sequence=self.dataset.reference_name == reference_name)
+            full_subset_counts[i] = (~ds_sel.sequence_subset.str.contains('-')).sum().item()
+        analysis_reference['full_subset_count'] = xr.DataArray(full_subset_counts, dims='reference_name')
+        analysis_reference['full_subset_fraction'] = analysis_reference['full_subset_count'] / analysis_reference[
+            'reference_count']
+
+        # reference_names[reference_names=='*'] = 'Unmapped'
+        # analysis_reference.reindex({'reference': reference_names})
+        if save:
+            analysis_reference.to_netcdf(self.save_path / 'reference_distribution.nc')
+
+        if report:
+            string = 'Mapped sequences \n================\n\n' + \
+                     tabulate.tabulate(analysis_reference.to_pandas(),
+                                       headers=["Reference name", "Reference\nCount", "\nPercentage",
+                                                "Full subset\nCount", "\nPercentage"],
+                                       floatfmt=(None, ".0f", ".2%", ".0f", ".2%"))
+            print(string)
+            self.add_to_report_file(string)
+
+        return analysis_reference
+
+    def show_reference_distribution(self, save=True):
+        analysis_reference = self.reference_distribution(save=save)
+
+        fig, ax = plt.subplots(layout='tight', figsize=(analysis_reference.reference_name.size,3))
+        ax.bar(analysis_reference['reference_name'], analysis_reference['reference_count'], fc='grey')
+        total = analysis_reference['reference_count'].sum().item()
+        secax = ax.secondary_yaxis('right', functions=(lambda x: x/total, lambda x: x*total))
+        ax.ticklabel_format(axis='y', style='sci', scilimits=(-3,3))
+        ax.set_xlabel('Reference')
+        ax.set_ylabel('Count')
+        secax.set_ylabel('Fraction')
+        ax.set_title('Reference distribution')
+
+        if hasattr(analysis_reference, 'full_subset_count'):
+            ax.bar(analysis_reference['reference_name'], analysis_reference['full_subset_count'], fc='grey', ec='white', lw=0, label='Complete subset', hatch='/////')
+            ax.set_ylim(0, ax.get_ylim()[1]*1.2)
+            ax.legend(frameon=False, loc='upper right') # bbox_to_anchor=(1, 1),
+
+        if save:
+            fig.savefig(self.save_path / 'reference_distribution.png')
+            fig.savefig(self.save_path / 'reference_distribution.pdf')
+
+    def base_composition(self, reference_name=None, variable='read1_sequence', positions=None, remove_incomplete_sequences=True, save=True):
+        dataset = self.dataset
+        if reference_name is not None:
+            dataset = dataset.sel(sequence=self.dataset.reference_name == reference_name)
+
+        sequences = dataset[variable].load()
+
+        if remove_incomplete_sequences:
+            is_complete = ~np.array(['-' in sequence for sequence in sequences.values])
+            sequences = sequences[is_complete]
+
+        if positions is None:
+            positions = np.arange(len(sequences[0].item()))
+
+        base_count = xr.DataArray(0, dims=['position', 'base'],
+                                  coords={'position': positions, 'base': ['A', 'T', 'C', 'G']})
+
+        for p in tqdm.tqdm(base_count.position.values):
+            base_count[dict(position=p)] = \
+                [(sequences.str.get(p) == b).sum().item() for b in base_count.base.values]
+
+        base_fractions = base_count / len(sequences)
+
+        base_composition = xr.Dataset()
+        base_composition['base_count'] = base_count
+        base_composition['base_fraction'] = base_fractions
+
+        base_composition.attrs['reference_name'] = reference_name
+        base_composition.attrs['variable'] = variable
+        base_composition.attrs['remove_incomplete_sequences'] = str(remove_incomplete_sequences)
+
+        if save:
+            base_composition.to_netcdf(self.save_path / f'base_composition_{variable}.nc')
+
+        return base_composition
+
+    def show_base_composition(self, save=True, **kwargs):
+        base_composition = self.base_composition(**kwargs)
+        import logomaker
+
+        figure, axis = plt.subplots(figsize=(5, 2.5), layout='constrained')
+        nn_logo = logomaker.Logo(base_composition.base_fraction.to_pandas(), stack_order='fixed', ax=axis)
+        axis.set_ylabel('Fraction')
+        axis.set_xlabel('Position')
+        variable = base_composition.attrs['variable']
+        axis.set_title('Base composition - ' + variable)
+        if save:
+            figure.savefig(self.save_path / f'base_composition_{variable}.png')
+            figure.savefig(self.save_path / f'base_composition_{variable}.pdf')
+
+    def new_report_file(self):
+        report = open(self.save_path / 'report.txt', 'w')
+        report.close()
+
+    def add_to_report_file(self, string):
+        report = open(self.save_path / 'report.txt', 'a')
+        report.write(string)
+        report.close()
+
     def plot_cluster_locations_per_tile(self, save_filepath=None):
         # TODO: Fix bug self.dataset[['x','y']]
-        plot_cluster_locations_per_tile(self.dataset[['x','y']], **self.reagent_kit_info, save_filepath=save_filepath)
+        plot_cluster_locations_per_tile(self.dataset[['tile','x','y']], **self.reagent_kit_info, save_filepath=save_filepath)
 
-    def save(self, filepath):
-        self.dataset.reset_index('sequence').to_netcdf(filepath, engine='h5netcdf', mode='w')
+    # def save(self, filepath):
+    #     self.dataset.reset_index('sequence').to_netcdf(filepath, engine='netcdf4', mode='w')
 
 class Tile:
     def __init__(self, number, coordinates):
