@@ -469,13 +469,18 @@ class Experiment:
     #     else:
     #         self.files.movie.flatfield_correction = None
 
-    def determine_flatfield_and_darkfield_corrections(self, files, illumination_index=0, frame_index=0, **kwargs):
+    def determine_flatfield_and_darkfield_corrections(self, files, method='BaSiC', illumination_index=0, frame_index=0,
+                                                      estimate_darkfield=True, **kwargs):
         from trace_analysis.movie.basic_shading_correction import spatial_shading_correction
 
-        darkfield, flatfield = spatial_shading_correction(files.movie, illumination_index, frame_index, **kwargs)
-        tifffile.imwrite(self.main_path / f'darkfield_i{illumination_index}.tif', darkfield)
+        darkfield, flatfield = spatial_shading_correction(files.movie, method=method,
+                                                          illumination_index=illumination_index,
+                                                          frame_index=frame_index,
+                                                          estimate_darkfield=estimate_darkfield, **kwargs)
+        if estimate_darkfield:
+            tifffile.imwrite(self.main_path / f'darkfield_i{illumination_index}.tif', darkfield)
+            self.load_darkfield_correction()
         tifffile.imwrite(self.main_path / f'flatfield_i{illumination_index}.tif', flatfield)
-        self.load_darkfield_correction()
         self.load_flatfield_correction()
 
     def load_flatfield_correction(self):
@@ -528,6 +533,9 @@ class Experiment:
 
     def add_common_image_corrections_to_movies(self):
         self.files.movie._common_corrections = self.common_image_corrections
+
+    # def show_flatfield_and_darkfield_corrections(self, name='', save=True):
+    #     pass
 
     # def load_darkfield_correction(self):
     #     file_paths = list(self.main_path.glob('darkfield*'))
