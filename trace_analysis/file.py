@@ -1050,9 +1050,9 @@ class File:
         data = self.savetoExcel(filename)
         return data
 
-    def perform_mapping(self, configuration = None):
+    def perform_mapping(self, **configuration):
         image = self.average_image()
-        if configuration is None:
+        if not configuration:
             configuration = self.experiment.configuration['mapping']
 
         transformation_type = configuration['transformation_type']
@@ -1135,7 +1135,27 @@ class File:
         # self.export_mapping(filetype='classic')
         self.export_mapping()
 
+        self.show_mapping_in_image()
+
         self.use_mapping_for_all_files()
+
+    def show_mapping_in_image(self, axis=None, save=True):
+        if not hasattr(self, 'mapping') or self.mapping is None:
+            raise RuntimeError('File does not contain a mapping.')
+        if axis is None:
+            figure, axis = plt.subplots()
+        else:
+            figure = axis.figure
+        self.show_average_image(figure=figure)
+        self.mapping.show_mapping_transformation(axis=axis, show_source=True)
+
+        if save:
+            axis.axis('off')
+            axis.set_title('')
+            figure.set_size_inches(8, 8)
+            figure.savefig(self.relativePath / (self.name + '_mapping.png'), bbox_inches="tight", pad_inches=0, dpi=300)
+
+        return figure, axis
 
     def copy_coordinates_to_selected_files(self):
         for file in self.experiment.selectedFiles:
