@@ -662,9 +662,6 @@ class File:
 
         coordinates = coordinates.reshape((-1, 2))
 
-        sys.stdout.write('\r')
-        print(f'   {coordinates.shape[0]} molecules found')
-
         # should also have incorporated check coordinatesDA_within_margin from MD_check_boundaries
         # --- finally, we set the coordinates of the molecules ---
         # self.coordinates = coordinates
@@ -677,6 +674,9 @@ class File:
         # #coordinates = split_dimension(coordinates, 'molecule', ('molecule_in_file', 'file'), (-1, 1), (-1, [file]), to='multiindex')
         # coordinates = coordinates.reset_index('molecule').rename(molecule_='molecule_in_file')
         # self.experiment.dataset.drop_sel(file=str(self.relativeFilePath), errors='ignore')
+
+        sys.stdout.write('\r')
+        print(f'   {coordinates.molecule.size} molecules found')
 
         # Because split_dimension doesn't keep the channels in case of an empty array.
         if len(coordinates) == 0:
