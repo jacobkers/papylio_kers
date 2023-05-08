@@ -28,6 +28,8 @@ class FileCollection(Collection):
         return self[0].experiment
 
     def select(self, search_string, variable='relativeFilePath'):
+        # TODO: Make this accept keyword arguments where the key is the variable and the item is the search_string.
+        # TODO: Make this accept mulitple keyword arguments.
         return self[getattr(self, variable).str.regex(search_string)]
 
     def show_histogram(self, *args, **kwargs):
