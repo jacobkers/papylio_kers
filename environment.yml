@@ -41,4 +41,4 @@ dependencies:
 #- bioconda::logomaker=0.8
 # Logomaker has a matplotlib dependency, which installs PyQt
 # So please install manually if needed using
-# "conda install bioconda::logomaker=0.8 -conda-forge --no-deps"
+# "conda install bioconda::logomaker=0.8 -c conda-forge --no-deps"
