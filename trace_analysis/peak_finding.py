@@ -18,6 +18,8 @@ def find_peaks(image=None, method='local-maximum', **kwargs):
         coordinates = find_peaks_local_maximum_auto(image, **kwargs)
     elif method == 'relative-local-maximum':
         coordinates = find_peaks_relative_local_maximum(image, **kwargs)
+    else:
+        raise ValueError(f'Unkown method {method}.')
     return coordinates
 
 def find_peaks_absolute_threshold(image, threshold = None, minimum_area = 5, maximum_area = 15):
