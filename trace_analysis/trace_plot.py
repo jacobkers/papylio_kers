@@ -51,7 +51,7 @@ class TracePlotWindow(QWidget):
                  show=True):
 
         if height is None:
-            height = np.max(len(plot_variables) * 3.5, 9)
+            height = max(len(plot_variables) * 3.5, 9)
 
         from trace_analysis.experiment import get_QApplication
         #TODO: Use selection only if it is present.
