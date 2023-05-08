@@ -214,7 +214,7 @@ class Collection(UserList):
         return Collection([str(datum) for datum in self.data], **self.dict_without_data)
 
     def regex(self, pattern):
-        p = re.compile(re.escape(pattern))
+        p = re.compile(pattern.replace('\\', r'\\'))
         return [True if p.search(string) else False for string in self.data]
 
     def not_none(self):
