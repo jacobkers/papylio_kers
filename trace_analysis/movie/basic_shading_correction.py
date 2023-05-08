@@ -77,7 +77,7 @@ def squeeze_channel_from_frames(frames):
     # test2.unstack('channel').stack(channel=('channel_index_x','channel_index_y'))
     # test2.unstack('channel').stack(x_pixel=('channel_index_x','x'), y_pixel=('channel_index_y','y'))
 
-def spatial_shading_correction(movies, illumination_index=0, frame_index=0, **kwargs):
+def spatial_shading_correction(movies, method='BaSiC', illumination_index=0, frame_index=0, estimate_darkfield=True, **kwargs):
     selected_movies = [movie for movie in movies if illumination_index in movie.illumination_indices_in_movie]
     frame_with_illumination = [np.where(movie.illumination_index_per_frame == illumination_index)[0][frame_index] for movie in selected_movies]
     # frames = xr.concat([movie.read_frames([frame], apply_corrections=False, xarray=True, flatten_channels=False)
@@ -88,14 +88,23 @@ def spatial_shading_correction(movies, illumination_index=0, frame_index=0, **kw
                                             'Read frames', len(selected_movies))])
 
     flatfield = np.ones_like(frames[0], dtype=float)
-    darkfield = np.zeros_like(frames[0], dtype=float)
+    if estimate_darkfield:
+        darkfield = np.zeros_like(frames[0], dtype=float)
+    else:
+        darkfield = selected_movies[0].corrections.darkfield_correction.sel(illumination=illumination_index).values
+        frames = frames - darkfield[None, :, :, :]
 
-    for channel_index in movies[0].channel_indices:
-        optimizer = BaSiC(frames[:, channel_index, :, :], estimate_darkfield=True, extension=None, verbose=True, **kwargs)
-        optimizer.prepare()
-        optimizer.run()
-        flatfield[channel_index,:,:] = optimizer.flatfield_fullsize
-        darkfield[channel_index,:,:] = optimizer.darkfield_fullsize
+    if method == 'BaSiC':
+        for channel_index in movies[0].channel_indices:
+            optimizer = BaSiC(frames[:, channel_index, :, :], estimate_darkfield=estimate_darkfield, extension=None, verbose=True, **kwargs)
+            optimizer.prepare()
+            optimizer.run()
+            flatfield[channel_index,:,:] = optimizer.flatfield_fullsize
+            if estimate_darkfield:
+                darkfield[channel_index,:,:] = optimizer.darkfield_fullsize
+    elif method == 'average':
+        flatfield = frames.mean(axis=0)
+        flatfield = flatfield / flatfield.mean(axis=(-2,-1), keepdims=True)
 
     # flatfield = squeeze_channel_from_frames(flatfield)
     # darkfield = squeeze_channel_from_frames(darkfield)
