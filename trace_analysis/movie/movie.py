@@ -1017,6 +1017,31 @@ class Movie:
 
         return frames
 
+    def show_correction(self, correction_name, save=True, **kwargs):
+        correction = self.corrections[correction_name]
+        number_of_illuminations = len(correction.illumination)
+        figure, axes = plt.subplots(1, number_of_illuminations+1, gridspec_kw=dict(width_ratios=(4,)*number_of_illuminations + (0.15,)),
+                                    figsize=(4*number_of_illuminations+0.15, 4), layout='tight')
+        for i, illumination_index in enumerate(correction.illumination):
+            axes[i].axis('off')
+            image = axes[i].imshow(self.flatten_channels(correction.sel(illumination=illumination_index)), **kwargs)
+            axes[i].set_title(f'Illumination {illumination_index.item()}', fontsize=8)
+
+        from mpl_toolkits.axes_grid1 import make_axes_locatable
+        # divider = make_axes_locatable(axes[-1])
+        # cax = divider.append_axes("right", "4%", pad="15%")
+        cax = axes[-1]
+        figure.colorbar(image, aspect=50, cax=cax)
+        cax.set_ylabel('Intensity (a.u.)')
+        # cax.axes.ticklabel_format(scilimits=(0, 0))
+        for spine in cax.spines.values():
+            spine.set_visible(False)
+
+        figure.suptitle(f'{self.name} - {correction_name}', fontsize=8)
+
+        if save:
+            figure.savefig(self.filepath.with_name(f'{self.name} - {correction_name}.png'), bbox_inches='tight')
+
 
 class Channel:
     def __init__(self, movie, name, short_name, other_names=[], colour_map=None):
