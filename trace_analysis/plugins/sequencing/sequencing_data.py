@@ -14,19 +14,25 @@ import re
 import matplotlib.pyplot as plt
 
 from trace_analysis.plugins.sequencing.plotting import plot_cluster_locations_per_tile
-
+#
 # class DatasetPointer:
+#     class_attributes = ['file_path', '_dataset']
+#
 #     def __init__(self, file_path):
 #         self.__dict__['file_path'] = file_path
 #         self.__dict__['_dataset'] = None
 #
 #     def __enter__(self):
-#         self._dataset = xr.open_dataset(self.file_path, engine='h5netcdf')
+#         self._dataset = xr.open_dataset(self.file_path, engine='netcdf4')
 #         return self._dataset
 #
 #     def __exit__(self, exc_type, exc_val, exc_tb):
 #         self._dataset.close()
 #         self._dataset = None
+#
+#     def __repr__(self):
+#         with self as ds:
+#             return str(ds)
 #
 #     def __getattr__(self, item):
 #         print(item)
@@ -34,9 +40,13 @@ from trace_analysis.plugins.sequencing.plotting import plot_cluster_locations_pe
 #             return ds[item].load()
 #
 #     def __setattr__(self, key, value):
-#         value = xr.DataArray(value)
-#         value.name = key
-#         value.to_netcdf(self.file_path, mode='a', engine='h5netcdf')
+#         if key in DatasetPointer.class_attributes:
+#             super().__setattr__(key, value)
+#         else:
+#             print('__setattr__', key, value)
+#             value = xr.DataArray(value)
+#             value.name = key
+#             value.to_netcdf(self.file_path, mode='a', engine='h5netcdf')
 
 
 
@@ -64,6 +74,7 @@ class SequencingData:
                     self.dataset = xr.load_dataset(file_path.with_suffix('.nc'), engine='netcdf4')
                 else:
                     self.dataset = xr.open_dataset(file_path.with_suffix('.nc'), engine='netcdf4')#, chunks=10000)
+                    # self.dataset = DatasetPointer(file_path.with_suffix('.nc'))
                 # self.dataset = self.dataset.set_index({'sequence': ('tile', 'x', 'y')})
                 # self.dataset.coordsupdate
                 # self.dataset.update(
@@ -114,7 +125,7 @@ class SequencingData:
         #     super().__getattribute__(item)
 
     def __getitem__(self, item):
-        return SequencingData(dataset=self.dataset[dict(sequence=item)])
+        return SequencingData(dataset=self.dataset[dict(sequence=item)], reagent_kit=self.reagent_kit, save_path=self.save_path)
 
     def __repr__(self):
         return (f'{self.__class__.__name__}({self.name})')
@@ -143,6 +154,8 @@ class SequencingData:
 
     def sel(self, *args, **kwargs):
         return SequencingData(dataset=self.dataset.sel(*args, **kwargs))
+
+    # def classify_sequences(self, variable=''):
 
     def reference_distribution(self, save=True, report=True):
         reference_names, counts = np.unique(self.dataset.reference_name, return_counts=True)
@@ -197,7 +210,62 @@ class SequencingData:
             fig.savefig(self.save_path / 'reference_distribution.png')
             fig.savefig(self.save_path / 'reference_distribution.pdf')
 
-    def base_composition(self, reference_name=None, variable='read1_sequence', positions=None, remove_incomplete_sequences=True, save=True):
+    def distribution(self, variable='reference_name', save=True, report=True):
+        names, counts = np.unique(self.dataset[variable], return_counts=True)
+
+        ds = xr.Dataset(coords={variable: names})
+        ds['count'] = xr.DataArray(counts, dims=variable)
+        ds['fraction'] = xr.DataArray(counts / counts.sum(), dims=variable)
+
+        full_subset_counts = np.zeros(len(names), dtype='int64')
+        for i, name in enumerate(names):
+            ds_sel = self.dataset.sel(sequence=self.dataset[variable] == name)
+            full_subset_counts[i] = (~ds_sel.sequence_subset.str.contains('-')).sum().item()
+        ds['full_subset_count'] = xr.DataArray(full_subset_counts, dims=variable)
+        ds['full_subset_fraction'] = ds['full_subset_count'] / ds['count']
+
+        # reference_names[reference_names=='*'] = 'Unmapped'
+        # analysis_reference.reindex({'reference': reference_names})
+        if save:
+            ds.to_netcdf(self.save_path / f'{variable}_distribution.nc')
+
+        if report:
+            string = 'Mapped sequences \n================\n\n' + \
+                     tabulate.tabulate(ds.to_pandas(),
+                                       headers=[variable, "Count", "\nPercentage",
+                                                "Full subset\nCount", "\nPercentage"],
+                                       floatfmt=(None, ".0f", ".2%", ".0f", ".2%"))
+            print(string)
+            self.add_to_report_file(string)
+
+        return ds
+
+    def show_distribution(self, variable='reference_name', save=True):
+        ds = self.distribution(variable=variable, save=save)
+
+        #TODO: Move to plotting.py ?
+        fig, ax = plt.subplots(layout='tight', figsize=(ds[variable].size+1, 3))
+        ds[variable] = ds[variable].astype('U').str.replace('_','\n')
+        ax.bar(ds[variable], ds['count'], fc='grey')
+        total = ds['count'].sum().item()
+        secax = ax.secondary_yaxis('right', functions=(lambda x: x / total, lambda x: x * total))
+        ax.ticklabel_format(axis='y', style='sci', scilimits=(-3, 3))
+        ax.set_xlabel(variable)
+        ax.set_ylabel('Count')
+        secax.set_ylabel('Fraction')
+        ax.set_title(f'{variable} distribution')
+
+        if hasattr(ds, 'full_subset_count'):
+            ax.bar(ds[variable], ds['full_subset_count'], fc='grey', ec='white',
+                   lw=0, label='Complete subset', hatch='/////')
+            ax.set_ylim(0, ax.get_ylim()[1] * 1.2)
+            ax.legend(frameon=False, loc='upper right')  # bbox_to_anchor=(1, 1),
+
+        if save:
+            fig.savefig(self.save_path / f'{variable}_distribution.png')
+            fig.savefig(self.save_path / f'{variable}_distribution.pdf')
+
+    def get_sequences(self, reference_name=None, variable='read1_sequence', remove_incomplete_sequences=True):
         dataset = self.dataset
         if reference_name is not None:
             dataset = dataset.sel(sequence=self.dataset.reference_name == reference_name)
@@ -208,6 +276,24 @@ class SequencingData:
             is_complete = ~np.array(['-' in sequence for sequence in sequences.values])
             sequences = sequences[is_complete]
 
+        return sequences
+
+    def sequence_count(self, variable='sequence_subset',  remove_incomplete_sequences=True, save=True):
+        sequences = self.get_sequences(variable=variable, remove_incomplete_sequences=remove_incomplete_sequences)
+        n, c = np.unique(sequences, return_counts=True)
+        sequence_count = xr.DataArray(c, coords={variable: n})
+
+        sequence_count.name = f'{self.name} - sequence_count - {variable}'
+        sequence_count.attrs['variable'] = variable
+        sequence_count.attrs['remove_incomplete_sequences'] = str(remove_incomplete_sequences)
+
+        if save:
+            sequence_count.to_netcdf(self.save_path / f'{self.name} - sequence_count - {variable}.nc')
+
+        return sequence_count
+
+    def base_composition(self, variable='read1_sequence', positions=None, remove_incomplete_sequences=True, save=True):
+        sequences = self.get_sequences(variable=variable, remove_incomplete_sequences=remove_incomplete_sequences)
         if positions is None:
             positions = np.arange(len(sequences[0].item()))
 
@@ -224,12 +310,11 @@ class SequencingData:
         base_composition['base_count'] = base_count
         base_composition['base_fraction'] = base_fractions
 
-        base_composition.attrs['reference_name'] = reference_name
         base_composition.attrs['variable'] = variable
         base_composition.attrs['remove_incomplete_sequences'] = str(remove_incomplete_sequences)
 
         if save:
-            base_composition.to_netcdf(self.save_path / f'base_composition_{variable}.nc')
+            base_composition.to_netcdf(self.save_path / f'{self.name} - base_composition - {variable}.nc')
 
         return base_composition
 
@@ -237,15 +322,48 @@ class SequencingData:
         base_composition = self.base_composition(**kwargs)
         import logomaker
 
-        figure, axis = plt.subplots(figsize=(5, 2.5), layout='constrained')
+        figure, axis = plt.subplots(figsize=(min(1+base_composition.position.size/2, 10), 2.5), layout='constrained')
         nn_logo = logomaker.Logo(base_composition.base_fraction.to_pandas(), stack_order='fixed', ax=axis)
         axis.set_ylabel('Fraction')
         axis.set_xlabel('Position')
         variable = base_composition.attrs['variable']
-        axis.set_title('Base composition - ' + variable)
+        axis.set_title(f'{self.name} - base composition - {variable}')
         if save:
-            figure.savefig(self.save_path / f'base_composition_{variable}.png')
-            figure.savefig(self.save_path / f'base_composition_{variable}.pdf')
+            figure.savefig(self.save_path / f'{self.name} - base_composition - {variable}.png')
+            figure.savefig(self.save_path / f'{self.name} - base_composition - {variable}.pdf')
+
+    def basepair_count(self, variable='read1_sequence', positions=None, remove_incomplete_sequences=True, save=True):
+        filepath = self.save_path / f'{self.name} - basepair_count - {variable}.nc'
+        if filepath.exists():
+            basepair_count = xr.load_dataarray(filepath, engine='netcdf4')
+            return basepair_count
+
+        sequences = self.get_sequences(variable=variable, remove_incomplete_sequences=remove_incomplete_sequences)
+        if positions is None:
+            positions = np.arange(len(sequences[0].item()))
+
+        bases = ['A', 'T', 'C', 'G']
+        basepair_count = xr.DataArray(0, dims=['position_0', 'position_1', 'base_0', 'base_1'],
+                                      coords={'position_0': positions, 'position_1': positions, 'base_0': bases,
+                                              'base_1': bases})
+        basepair_count.name = f'{self.name} - basepair_count - {variable}'
+        basepair_count.attrs['variable'] = variable
+        basepair_count.attrs['remove_incomplete_sequences'] = str(remove_incomplete_sequences)
+
+
+        for position_0 in tqdm.tqdm(positions):
+            bases_position_0 = sequences.str.get(position_0)
+            for position_1 in positions:
+                bases_position_1 = sequences.str.get(position_1)
+                for base_0 in bases:
+                    for base_1 in bases:
+                        basepair_count.loc[
+                            dict(position_0=position_0, position_1=position_1, base_0=base_0, base_1=base_1)] = \
+                            ((bases_position_0 == base_0) & (bases_position_1 == base_1)).sum()
+        if save:
+            basepair_count.to_netcdf(self.save_path / (basepair_count.name + '.nc'))
+
+        return basepair_count
 
     def new_report_file(self):
         report = open(self.save_path / 'report.txt', 'w')
@@ -783,6 +901,58 @@ def make_sequencing_dataset(file_path, index1_file_path=None, remove_duplicates=
     return nc_file_path
 
 
+
+# TODO: Add to sam to nc file conversion
+import re
+import tqdm
+
+def determine_read_end_position(cigar_string, reference_start_postion, reference_length):
+    cigar_string_split = [(int(s[:-1]), s[-1]) for s in re.findall(r'[0-9]*[MIDNSHP=X]', cigar_string)]
+    reference_index = reference_start_postion
+    read_index = 0
+    for length, code in cigar_string_split:
+        if code in ['M',  'D', 'N', '=', 'X']:
+            reference_index += length
+        if code in ['M', 'I', 'S', '=', 'X']:
+            read_index += length
+        if reference_index >= reference_length:
+            return read_index-(reference_index-reference_length)+1
+    return reference_length
+
+def determine_read_end_positions(sequencing_data, reference_length):
+    cigar_strings = sequencing_data.dataset.cigar_string.load()
+    reference_start_positions = sequencing_data.dataset.position.load()
+
+    end_positions = np.zeros(len(cigar_strings)).astype('int16')
+    for i, (cigar_string, reference_start_position) in tqdm.tqdm(enumerate(zip(cigar_strings, reference_start_positions))):
+        end_positions[i] = determine_read_end_position(cigar_string.item(), reference_start_position.item(), reference_length)
+    return end_positions
+
+
+def sequence_correspondence(sequences, references, minimum_match=None):
+    reference_names = np.array(list(references.keys()))
+    reference_barcodes = np.array(list(references.values()))
+    length = len(sequences[0])
+    sequences_split = sequences.astype('S').view('S1').reshape(-1,length)
+    reference_barcodes_split = reference_barcodes.astype('S').view('S1').reshape(-1,length)
+    N_matched = (sequences_split[:, None, :] == reference_barcodes_split[None, :, :]).sum(axis=-1)
+    correspondence = reference_names[N_matched.argmax(axis=1)]
+    score = N_matched.max(axis=1)
+    if minimum_match is not None:
+        correspondence[score < minimum_match] = ''
+    return correspondence, score
+
+#
+# def write_string_variable_to_nc_file(nc_file, name, array, indices=None):
+#     from trace_analysis.plugins.sequencing.sequencing_data import create_string_variable_in_nc_file
+#
+#     if indices is None:
+#         indices = slice(None)
+#
+#     array = array.astype('S')
+#     size = int(str(array.dtype)[2:])
+#     create_string_variable_in_nc_file(nc_file, name, dimensions=('sequence',), size=size)
+#     nc_file[name][indices] = array
 
 if __name__ == '__main__':
     file_path = r'J:\Ivo\20211011 - Sequencer (MiSeq)\Analysis\sequencing_data_MapSeq.csv'
