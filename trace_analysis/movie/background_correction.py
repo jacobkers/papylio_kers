@@ -82,25 +82,41 @@ def gaussian_maximum_fit(frame, width_around_peak_fitted=200):
     # max_bin_center = edges[count.argmax():count.argmax()+2].mean()
 
     frame_min = np.floor(frame.min()).astype(int)
-    frame_max = np.ceil(frame.max()).astype(int)
+    frame_max = int(np.quantile(frame, 0.999))  # np.ceil(frame.max()).astype(int)
 
     frame_flattened = frame.flatten()
 
-    count, edges = np.histogram(frame_flattened, bins=frame_max - frame_min + 1, range=(frame_min - 0.5, frame_max + 0.5))
+    # factor = 10
+    # number_of_bins = int((frame_max - frame_min + 1)/factor)
+    number_of_bins = 500
+    factor = (frame_max - frame_min + 1)/number_of_bins
+
+    count, edges = np.histogram(frame_flattened, bins=number_of_bins, range=(frame_min - 0.5, frame_max + 0.5))
 
     bincenters = (edges[:-1] + edges[1:]) / 2
     max_bin_center = bincenters[count.argmax()]
 
     width = width_around_peak_fitted
-    selection = np.vstack(
-        [max_bin_center - width / 2 < bincenters, bincenters < max_bin_center + width / 2]).all(axis=0)
-    x = bincenters[selection]
-    y = count[selection]
 
-    std = np.std(frame_flattened[(frame_flattened > x.min()) & (frame_flattened < x.max())])
+    x_peak = None
+    while x_peak is None:
+        selection = np.vstack(
+            [max_bin_center - width / 2 < bincenters, bincenters < max_bin_center + width / 2]).all(axis=0)
+        x = bincenters[selection]
+        y = count[selection]
 
-    popt, pcov = scipy.optimize.curve_fit(gauss_function, x, y, p0=[count.max(), max_bin_center, std], maxfev=2000)
-    return popt[1]
+        std = np.std(frame_flattened[(frame_flattened > x.min()) & (frame_flattened < x.max())])
+        try:
+            popt, pcov = scipy.optimize.curve_fit(gauss_function, x, y, p0=[count.max(), max_bin_center, std], maxfev=2000)
+            x_peak = popt[1]
+        except RuntimeError:
+            # x_peak = gaussian_maximum_fit(frame, width_around_peak_fitted*2)
+            width *= 2
+
+    # plt.figure();
+    # plt.hist(frame_flattened, bins=number_of_bins, range=(frame_min - 0.5, frame_max + 0.5))
+    # plt.plot(x, gauss_function(x, *popt))
+    return x_peak
 
 
 
