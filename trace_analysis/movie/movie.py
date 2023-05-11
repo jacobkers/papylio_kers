@@ -827,82 +827,105 @@ class Movie:
     # Do we really need this?
     def determine_general_background_correction(self, method='median', frame_range=(0, 20)):
         # self.temporal_background_correction = self.spatial_background_correction = None
+        self.save_corrections(general_background_correction=None)
+
         frame_indices = self.frame_indices[slice(*frame_range)].values
         with self:
-            frames = self.read_frames(frame_indices=frame_indices, apply_corrections=False, xarray=False)
+            frames = self.read_frames(frame_indices=frame_indices, apply_corrections=True, xarray=False)
 
         general_background_correction = xr.DataArray(0, dims=('illumination', 'channel'),
                                                       coords={'channel': self.channel_indices,
                                                               'illumination': self.illumination_indices},
                                                       name='general_background_correction')
 
-        corrections = self.corrections
+        # corrections = self.corrections
 
         for illumination, channel in itertools.product(self.illumination_indices_in_movie,
                                                        np.array(self.channel_indices)):
             frame_indices_subset = (self.illumination_index_per_frame[frame_indices] == illumination).frame
             average_image = frames[frame_indices_subset, channel].mean(axis=0)
 
-            if 'flatfield_correction' in corrections:
-                flatfield = corrections.flatfield_correction.sel(illumination=illumination, channel=channel).values
-            else:
-                flatfield = None
+            # if 'flatfield_correction' in corrections:
+            #     flatfield = corrections.flatfield_correction.sel(illumination=illumination, channel=channel).values
+            # else:
+            #     flatfield = None
+            #
+            # if 'darkfield_correction' in corrections:
+            #     darkfield = corrections.darkfield_correction.sel(illumination=illumination, channel=channel).values
+            # else:
+            #     darkfield = None
 
-            if 'darkfield_correction' in corrections:
-                darkfield = corrections.darkfield_correction.sel(illumination=illumination, channel=channel).values
-            else:
-                darkfield = None
+            correction = determine_single_value_background_correction(average_image, method)#, flatfield, darkfield)
 
-            correction = determine_single_value_background_correction(average_image, method, flatfield, darkfield)
+            # if 'temporal_illumination_correction' in corrections:
+            #     correction /= corrections.temporal_illumination_correction[illumination, channel].mean().item()
+            #
+            # if 'temporal_background_correction' in corrections:
+            #     correction -= corrections.temporal_background_correction[frame_indices_subset, channel].mean().item()
+            #
+            # if 'spatial_background_correction' in corrections:
+            #     correction -= corrections.spatial_background_correction[illumination, channel].mean().item()
 
             general_background_correction[dict(illumination=illumination, channel=channel)] = correction
 
         # self.general_background_correction = general_background_correction
-        self.save_corrections(general_background_correction=general_background_correction,
-                              temporal_background_correction=None, spatial_background_correction=None)
+        # self.save_corrections(general_background_correction=general_background_correction,
+        #                       temporal_background_correction=None, spatial_background_correction=None)
+        self.save_corrections(general_background_correction=general_background_correction)
 
     def determine_temporal_background_correction(self, method='median'):
-        self.spatial_background_correction = None
+        # self.spatial_background_correction = None
+        self.save_corrections(temporal_background_correction=None,
+                              spatial_background_correction=None,
+                              general_background_correction=None)
 
-        frames = self.read_frames(frame_indices=None, apply_corrections=False, xarray=False)
+        frames = self.read_frames(frame_indices=None, apply_corrections=True, xarray=False)
 
         temporal_background_correction = xr.DataArray(0, dims=('frame', 'channel'),
                                                       coords={'frame': self.frame_indices,
                                                               'channel': self.channel_indices},
                                                       name='temporal_background_correction')
 
-        corrections = self.corrections
+        # corrections = self.corrections
 
         for illumination, channel in itertools.product(self.illumination_indices_in_movie, np.array(self.channel_indices)):
 
             frame_indices_subset = (self.illumination_index_per_frame==illumination).frame
             frames_subset = frames[frame_indices_subset, channel]
 
-            if 'flatfield_correction' in corrections:
-                flatfield = corrections.flatfield_correction.sel(illumination=illumination, channel=channel).values
-            else:
-                flatfield = None
+            # if 'flatfield_correction' in corrections:
+            #     flatfield = corrections.flatfield_correction.sel(illumination=illumination, channel=channel).values
+            # else:
+            #     flatfield = None
+            #
+            # if 'darkfield_correction' in corrections:
+            #     darkfield = corrections.darkfield_correction.sel(illumination=illumination, channel=channel).values
+            # else:
+            #     darkfield = None
 
-            if 'darkfield_correction' in corrections:
-                darkfield = corrections.darkfield_correction.sel(illumination=illumination, channel=channel).values
-            else:
-                darkfield = None
+            correction = determine_temporal_background_correction(frames_subset, method)#, flatfield, darkfield)
 
-            correction = determine_temporal_background_correction(frames_subset, method, flatfield, darkfield)
+            # if 'general_background_correction' in corrections:
+            #     correction -= corrections.general_background_correction[illumination, channel].item()
 
-            if 'general_background_correction' in corrections:
-                correction -= corrections.general_background_correction[illumination, channel].item()
+            # if 'spatial_background_correction' in corrections:
+            #     correction -= corrections.spatial_background_correction[illumination, channel].mean().item()
 
             temporal_background_correction[dict(frame=frame_indices_subset, channel=channel)] = correction
 
         # self.temporal_background_correction = temporal_background_correction
-        self.save_corrections(temporal_background_correction=temporal_background_correction,
-                              spatial_background_correction=None)
+        # self.save_corrections(temporal_background_correction=temporal_background_correction,
+        #                       spatial_background_correction=None)
+        self.save_corrections(temporal_background_correction=temporal_background_correction)#,
+                              # spatial_background_correction=None,
+                              # general_background_correction=None)
 
     def determine_spatial_background_correction(self, method='median_filter', frame_range=(0, 20), **kwargs):
+        self.save_corrections(spatial_background_correction=None, general_background_correction=None)
+
         frame_indices = self.frame_indices[slice(*frame_range)].values
         with self:
-            frames = self.read_frames(frame_indices=frame_indices, apply_corrections=False, xarray=False)
+            frames = self.read_frames(frame_indices=frame_indices, apply_corrections=True, xarray=False)
 
         spatial_background_correction = xr.DataArray(np.zeros((self.number_of_illuminations,) + frames.shape[1:]),
                                                      dims=('illumination', 'channel', 'y', 'x'),
@@ -910,36 +933,38 @@ class Movie:
                                                              'channel': self.channel_indices, },
                                                      name='spatial_background_correction')
 
-        corrections = self.corrections
+        # corrections = self.corrections
 
         for illumination, channel in itertools.product(self.illumination_indices_in_movie,
                                                        np.array(self.channel_indices)):
             frame_indices_subset = (self.illumination_index_per_frame[frame_indices] == illumination).frame
             average_image = frames[frame_indices_subset, channel].mean(axis=0)
 
-            if 'flatfield_correction' in corrections:
-                flatfield = corrections.flatfield_correction.sel(illumination=illumination, channel=channel).values
-            else:
-                flatfield = None
+            # if 'flatfield_correction' in corrections:
+            #     flatfield = corrections.flatfield_correction.sel(illumination=illumination, channel=channel).values
+            # else:
+            #     flatfield = None
+            #
+            # if 'darkfield_correction' in corrections:
+            #     darkfield = corrections.darkfield_correction.sel(illumination=illumination, channel=channel).values
+            # else:
+            #     darkfield = None
 
-            if 'darkfield_correction' in corrections:
-                darkfield = corrections.darkfield_correction.sel(illumination=illumination, channel=channel).values
-            else:
-                darkfield = None
+            correction = determine_spatial_background_correction(average_image, method, **kwargs) # flatfield, darkfield, **kwargs)
 
-            correction = determine_spatial_background_correction(average_image, method, flatfield, darkfield, **kwargs)
+            # if 'general_background_correction' in corrections:
+            #     correction -= corrections.general_background_correction[illumination, channel].item()
 
-            if 'general_background_correction' in corrections:
-                correction -= corrections.general_background_correction[illumination, channel].item()
-
-            if 'temporal_background_correction' in corrections:
-                correction -= corrections.temporal_background_correction[frame_indices_subset, channel].mean().item()
+            # if 'temporal_background_correction' in corrections:
+            #     correction -= corrections.temporal_background_correction[frame_indices_subset, channel].mean().item()
 
             spatial_background_correction[dict(illumination=illumination, channel=channel)] = correction
 
         # self.spatial_background_correction = spatial_background_correction
-        self.save_corrections(spatial_background_correction=spatial_background_correction)
-
+        # self.save_corrections(spatial_background_correction=spatial_background_correction)
+        self.save_corrections(spatial_background_correction=spatial_background_correction)#,
+                              # temporal_background_correction=None,
+                              #general_background_correction=None)
     @property
     def corrections(self):
         if hasattr(self, 'fov_index') and self.fov_index is not None:
@@ -1005,15 +1030,16 @@ class Movie:
                 frames[frame_indices_with_illumination] /= \
                     corrections.temporal_illumination_correction.values[frame_indices][frame_indices_with_illumination, None, None, None]
 
-            if 'general_background_correction' in corrections:
-                frames[frame_indices_with_illumination] -= corrections.general_background_correction.values[None, illumination_index, :, None, None]
-
             if 'temporal_background_correction' in corrections:
                 frames[frame_indices_with_illumination] -= \
                     corrections.temporal_background_correction.values[frame_indices][frame_indices_with_illumination, :, None, None]
 
             if 'spatial_background_correction' in corrections:
-                frames[frame_indices_with_illumination] -= corrections.spatial_background_correction.values[None, illumination_index, :, :, :]
+                frames[frame_indices_with_illumination] -= corrections.spatial_background_correction.values[None,
+                                                           illumination_index, :, :, :]
+
+            if 'general_background_correction' in corrections:
+                frames[frame_indices_with_illumination] -= corrections.general_background_correction.values[None, illumination_index, :, None, None]
 
         return frames
 
