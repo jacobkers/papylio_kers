@@ -175,7 +175,7 @@ class File:
     def maximum_projection_image(self):
         return self.get_projection_image(projection_type='maximum')
 
-    def get_projection_image(self, **kwargs):
+    def get_projection_image(self, load=True, **kwargs):
         configuration = self.experiment.configuration['projection_image'].copy()
         configuration.update(kwargs)
         # TODO: Make this independent of Movie, probably we want to copy all Movie metadata to the nc file.
@@ -185,7 +185,7 @@ class File:
         image_filename = Movie.image_info_to_filename(self.name, **configuration)
         image_file_path = self.absoluteFilePath.with_name(image_filename).with_suffix('.tif')
 
-        if image_file_path.is_file():
+        if load and image_file_path.is_file():
             # TODO: Make independent of movie, so that we can also load this without movie present
             # Perhaps make it part of Movie
             # Perhaps make a get_projection_image a class method of Movie
@@ -254,7 +254,7 @@ class File:
     def __getattr__(self, item):
         if item == 'dataset_variables':
             return
-        if item in self.dataset_variables or item.startswith('selection') or item.startswith('classification'):
+        if item in self.dataset_variables or item.startswith('selection') or item.startswith('classification') or item.startswith('intensity'):
             with xr.open_dataset(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf') as dataset:
                 return dataset[item].load()
         # else:
@@ -273,6 +273,10 @@ class File:
         else:
             return None
 
+    @property
+    def data_vars(self):
+        with xr.open_dataset(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf') as dataset:
+            return dataset.data_vars
     # def get_coordinates(self, selected=False):
     #     if selected:
     #         molecules = self.selectedMolecules
@@ -902,22 +906,6 @@ class File:
         intensity = extract_traces(self.movie, self.coordinates, background=None, mask_size=mask_size,
                                    neighbourhood_size=neighbourhood_size, correct_illumination=False)
 
-        if background_correction is not None:
-            intensity[dict(channel=0)] -= background_correction[0]
-            intensity[dict(channel=1)] -= background_correction[1]
-            intensity.attrs['background_correction'] = background_correction
-        if alpha_correction is not None:
-            intensity[dict(channel=0)] += alpha_correction * intensity[dict(channel=0)]
-            intensity[dict(channel=1)] -= alpha_correction * intensity[dict(channel=0)]
-            intensity.attrs['alpha_correction'] = alpha_correction
-        # if delta_correction is not None:
-        #     intensity[dict(channel=0)] *= self.delta_correction
-        if gamma_correction is not None:
-            intensity[dict(channel=0)] *= gamma_correction
-            intensity.attrs['gamma_correction'] = gamma_correction
-        # if beta_correction is not None:
-        #     intensity[dict(channel=0)] *= self.beta_correction
-
         if self.movie.time is not None: # hasattr(self.movie, 'time')
             intensity = intensity.assign_coords(time=self.movie.time)
 
@@ -926,16 +914,31 @@ class File:
 
         intensity.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
 
+        if background_correction is not None or alpha_correction is not None or gamma_correction is not None:
+            self.apply_trace_corrections(background_correction, alpha_correction, gamma_correction)
+
         if self.movie.number_of_channels > 1:
             self.calculate_FRET()
 
+    def apply_trace_corrections(self, background_correction=None, alpha_correction=None,
+                       gamma_correction=None):
+        from trace_analysis.trace_correction import trace_correction
+
+        if 'intensity_raw' in self.data_vars:
+            intensity_raw = self.intensity_raw
+        else:
+            intensity_raw = self.intensity
+            intensity_raw.name = 'intensity_raw'
+            intensity_raw.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
+
+        intensity = trace_correction(intensity_raw, background_correction, alpha_correction, gamma_correction)
+        intensity.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
+
+        if 'FRET' in self.data_vars:
+            self.calculate_FRET()
+
     def calculate_FRET(self):
-        # TODO: Make suitable for mutliple colours
-        # TODO: Implement corrections
-        donor = self.intensity.sel(channel=0, drop=True)
-        acceptor = self.intensity.sel(channel=1, drop=True)
-        FRET = acceptor/(donor+acceptor)
-        FRET.name = 'FRET'
+        FRET = calculate_FRET(self.intensity)
         FRET.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
 
     def get_traces(self, selected=False):
@@ -1199,9 +1202,7 @@ class File:
 
     @property
     def intensity_total(self):
-        intensity_total = self.intensity.sum(dim='channel')
-        intensity_total.name = 'intensity_total'
-        return intensity_total
+        return calculate_intensity_total(self.intensity)
 
     @property
     def selections(self):
@@ -1292,6 +1293,10 @@ class File:
     #     #     intensity[dict(channel=0)] *= self.beta_correction
     #
     #     return intensity
+
+    def determine_trace_correction(self):
+        from trace_analysis.trace_correction import TraceCorrectionWindow
+        TraceCorrectionWindow(self.intensity)
 
     def show_histogram(self, variable, selected=False, frame_range=None, average=False, axis=None, **hist_kwargs):
         # TODO: add save
@@ -1476,6 +1481,29 @@ class File:
         # We could also save the whole dataset, but since currently only alterations are made to selected.
         selected_original.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
 
+
+def calculate_intensity_total(intensity):
+    intensity_total = intensity.sum(dim='channel')
+    intensity_total.name = 'intensity_total'
+    return intensity_total
+
+
+def calculate_FRET(intensity):
+    # TODO: Make suitable for mutliple colours
+    donor = intensity.sel(channel=0, drop=True)
+    acceptor = intensity.sel(channel=1, drop=True)
+    FRET = acceptor / (donor + acceptor)
+    FRET.name = 'FRET'
+    return FRET
+
+def calculate_stoichiometry(intensity):
+    intensity_total = calculate_intensity_total(intensity)
+    intensity_total_i0 = intensity_total.sel(frame=intensity.illumination == 0)
+    intensity_total_i1 = intensity_total.sel(frame=intensity.illumination == 1).values
+
+    stoichiometry = intensity_total_i0 / (intensity_total_i0 + intensity_total_i1)
+    stoichiometry.name = 'stoichiometry'
+    return stoichiometry
 
 def import_pks_file(pks_filepath):
     pks_filepath = Path(pks_filepath)
