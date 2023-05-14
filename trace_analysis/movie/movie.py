@@ -875,7 +875,8 @@ class Movie:
 
     def determine_temporal_background_correction(self, method='median'):
         # self.spatial_background_correction = None
-        self.save_corrections(temporal_background_correction=None,
+        self.save_corrections(temporal_illumination_correction=None,
+                              temporal_background_correction=None,
                               spatial_background_correction=None,
                               general_background_correction=None)
 
