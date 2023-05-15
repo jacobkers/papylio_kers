@@ -938,10 +938,8 @@ class Movie:
 
         for illumination, channel in itertools.product(self.illumination_indices_in_movie,
                                                        np.array(self.channel_indices)):
-            # frame_indices_subset = (self.illumination_index_per_frame[frame_indices] == illumination).frame
-            frame_indices_subset = self.illumination_index_per_frame[frame_indices].frame[self.illumination_index_per_frame[frame_indices] == illumination]
-            frame_indices_subset_reduced = [np.where(frame_indices==old_id)[0][0] for old_id in frame_indices_subset.values]
-            average_image = frames[frame_indices_subset_reduced, channel].mean(axis=0)
+            frame_selection = (self.illumination_index_per_frame[frame_indices] == illumination).values
+            average_image = frames[frame_selection, channel].mean(axis=0)
             # if 'flatfield_correction' in corrections:
             #     flatfield = corrections.flatfield_correction.sel(illumination=illumination, channel=channel).values
             # else:
