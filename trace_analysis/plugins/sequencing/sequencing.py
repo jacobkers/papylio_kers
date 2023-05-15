@@ -101,7 +101,7 @@ class Experiment:
         self.sequencing_data_for_mapping = seqdata
 
     def generate_tile_mappings(self, files_for_mapping, mapping_sequence_name=None, surface=0, name='All files'):
-        coordinates_sm = xr.concat(files_for_mapping.coordinates_stage, dim='molecule')
+        coordinates_sm = files_for_mapping.coordinates_stage
         if self.sequencing_data_for_mapping is not None and mapping_sequence_name is None:
             coordinates_seq = self.sequencing_data_for_mapping.coordinates ## To be removed
         else:
@@ -112,14 +112,16 @@ class Experiment:
                 selection &= self.sequencing_data.dataset.tile > 2000
             else:
                 raise ValueError('Surface can be either 0 or 1')
-            coordinates_seq = self.sequencing_data[selection].coordinates
+            sequencing_data = self.sequencing_data[selection]
+            coordinates_seq = sequencing_data.coordinates
+            tiles_seq = sequencing_data.tile
 
         tile_mapping_path = self.analysis_path.joinpath('Tile mappings')
         tile_mapping_path.mkdir(parents=True, exist_ok=True)
 
         tile_mappings = []
-        for tile in tqdm.tqdm(np.unique(coordinates_seq.tile), 'Make tile mappings'):
-            mapping = Mapping2(source=coordinates_sm, destination=coordinates_seq.sel(tile=tile))
+        for tile in tqdm.tqdm(sequencing_data.tile_numbers, 'Make tile mappings'):
+            mapping = Mapping2(source=coordinates_sm, destination=coordinates_seq.sel(sequence=tiles_seq==tile))
             mapping.transformation_type = 'linear'
             mapping.name = f'Tile {tile}'
             mapping.label = tile
@@ -136,14 +138,15 @@ class Experiment:
         coordinates_seq = self.sequencing_data.coordinates
         coords = coordinates_seq.coords
         coordinates_sm = xr.DataArray(dims=['mapping_name','sequence','dimension'],
-                                      coords={'mapping_name': list(self.tile_mappings_dict.keys()), 'sequence': coords['sequence'], 'dimension': coords['dimension']})
+                                      coords={'mapping_name': list(self.tile_mappings_dict.keys()), 'sequence': coords['sequence'],
+                                              'dimension': coords['dimension'], 'tile': coords['tile']})
         tile_mappings_dict = self.tile_mappings_dict
         # for tile, coordinates in tqdm.tqdm(self.sequencing_data.coordinates.groupby('tile'), unit='tile'):
-        for tile in tqdm.tqdm(np.unique(coordinates_seq.tile), unit='tile'):
+        for tile in tqdm.tqdm(self.sequencing_data.tile_numbers, unit='tile'):
             for mapping_name, tile_mappings in tile_mappings_dict.items():
                 if tile in tile_mappings.keys():
                     coordinates_sm.loc[dict(mapping_name=mapping_name, sequence=(coordinates_sm.tile == tile))] = \
-                       tile_mappings[tile].transformation_inverse(coordinates_seq.sel(tile=tile))
+                       tile_mappings[tile].transformation_inverse(coordinates_seq.sel(sequence=coordinates_seq.tile==tile))
                 # coordinates_sm.append(mapping.transform_coordinates(coordinates, inverse=True))
 
         self.sequencing_data.dataset['x_sm'] = coordinates_sm.sel(dimension='x')

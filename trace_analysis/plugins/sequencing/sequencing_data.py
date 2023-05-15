@@ -135,8 +135,8 @@ class SequencingData:
 
     @property
     def coordinates(self):
-        return xr.DataArray([self.dataset['x'], self.dataset['y']],
-                            coords={'dimension': ['x','y'], 'sequence':self.dataset.sequence}, name='coordinates').T
+        return xr.DataArray([self.dataset['x'], self.dataset['y']], dims=('dimension','sequence'),
+                            coords={'dimension': ['x','y'], 'sequence': self.dataset.sequence, 'tile': self.dataset.tile}, name='coordinates').T
         # return self.dataset[['x','y']].to_array(dim='dimension', name='coordinates').transpose('sequence',...)
             # xr.DataArray(self.data[['x','y']], dims=['sequence', 'dimension'], name='coordinates')\
             # .reset_index('sequence', drop=True)
@@ -378,8 +378,8 @@ class SequencingData:
         # TODO: Fix bug self.dataset[['x','y']]
         plot_cluster_locations_per_tile(self.dataset[['tile','x','y']], **self.reagent_kit_info, save_filepath=save_filepath)
 
-    # def save(self, filepath):
-    #     self.dataset.reset_index('sequence').to_netcdf(filepath, engine='netcdf4', mode='w')
+    def save(self, filepath):
+        self.dataset.reset_index('sequence').to_netcdf(filepath, engine='netcdf4', mode='w')
 
 class Tile:
     def __init__(self, number, coordinates):
@@ -571,6 +571,8 @@ def parse_sam(sam_filepath, read_name='read1', remove_duplicates=True, add_align
                         else:
                             nc_file[name][start_index:end_index] = df[name].values
 
+                    # To set the coords for xarray.
+                    nc_file.setncattr('coordinates', 'tile x y')
 
             # Use this if xarray should open the file with standard datatype "|S" instead of "object"
             # for name, datatype in df.dtypes.items():
