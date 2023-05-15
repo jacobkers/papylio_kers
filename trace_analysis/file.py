@@ -761,7 +761,7 @@ class File:
     @property
     def coordinates(self):
         if self.absoluteFilePath.with_suffix('.nc').exists():
-            with xr.open_dataset(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf') as dataset:
+            with xr.open_dataset(self.absoluteFilePath.with_suffix('.nc'), engine='netcdf4') as dataset:
                 if hasattr(dataset, 'coordinates'):
                     return dataset['coordinates'].load()
                 else:
