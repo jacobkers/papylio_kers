@@ -21,6 +21,13 @@ def experiment_output(shared_datadir):
 def file_output(experiment_output):
     return experiment_output.files[0]
 
+@pytest.fixture
+def file_output_with_selected(file_output):
+    #TODO: This is not optimal, perhaps add selection to the file.
+    selected = file_output.selected
+    selected[[0,5,33]] = True
+    file_output.set_variable(selected)
+    return file_output
 
 def test_projection_image(file, shared_datadir):
     image_newly_made = file.projection_image()
@@ -67,3 +74,9 @@ def test_show_histogram(file_output):
 
 def test_show_traces(file_output):
     file_output.show_traces(selected=False)
+
+def test_save_dataset_selected(file_output_with_selected):
+    file_output_with_selected.save_dataset_selected()
+    import xarray as xr
+    ds = xr.load_dataset(file_output_with_selected.absoluteFilePath.parent / (file_output_with_selected.name + '_selected.nc'))
+    assert (ds.molecule_in_file == np.array([0,5,33])).all().item()

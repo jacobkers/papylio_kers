@@ -274,6 +274,11 @@ class File:
             return None
 
     @property
+    def dataset_selected(self):
+        dataset = self.dataset
+        return dataset.sel(molecule=dataset.selected)
+
+    @property
     def data_vars(self):
         with xr.open_dataset(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf') as dataset:
             return dataset.data_vars
@@ -966,6 +971,10 @@ class File:
 
         ds = hidden_markov_modelling(variable, self.classification, self.selected)
         ds.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
+
+    def save_dataset_selected(self):
+        encoding = {'file': {'dtype': '|S'}, 'selected': {'dtype': bool}}
+        self.dataset_selected.to_netcdf(self.absoluteFilePath.parent / (self.name + '_selected.nc'), engine='h5netcdf', mode='w', encoding=encoding)
 
     def import_pks_file(self, extension):
         peaks = import_pks_file(self.absoluteFilePath.with_suffix('.pks'))
