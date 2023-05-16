@@ -22,3 +22,7 @@ def test_get_variable(files):
 def test_show_histogram(files):
     files.show_histogram('intensity')
     files.show_histogram('FRET', bins=100, range=(0,1))
+
+#TODO: Make new test dataset that does not contain background which has illumination as first dimension.
+# def test_merge_datasets(files):
+#     files.merge_datasets()

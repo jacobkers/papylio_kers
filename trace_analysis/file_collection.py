@@ -1,5 +1,6 @@
 from trace_analysis.collection import Collection
 from trace_analysis.file import File
+from trace_analysis.netcdf_operations import merge_datasets, reorder_datasets_using_sequence_subset
 
 import numpy as np
 import xarray as xr
@@ -17,7 +18,7 @@ class FileCollection(Collection):
                 return output
             return f2
 
-        elif isinstance(attrs[0], xr.DataArray):
+        elif isinstance(attrs[0], xr.DataArray) or isinstance(attrs[0], xr.Dataset):
             attrs = xr.concat(attrs, dim='molecule')
         elif item == 'dwells':
             attrs = xr.concat(attrs, dim='dwell')
@@ -60,3 +61,15 @@ class FileCollection(Collection):
         for i, file in enumerate(self):
             print(f"{i:3d}.  {file.relativeFilePath}")
 
+    def merge_datasets(self, filepath_out=None, init_file_index=0, with_selected_only=False, with_sequence_only=False):
+        #TODO: remove sequencing part, or move to the sequencing plugin
+        if filepath_out is None:
+            filepath_out = self[0].absoluteFilePath.parent / 'merged_dataset.nc'
+        filepaths_in = self.serial.absoluteFilePath.with_suffix('.nc')
+        merge_datasets(filepaths_in, filepath_out, concat_dim='molecule', init_file=filepaths_in[init_file_index],
+                       with_selected_only=with_selected_only, with_sequence_only=with_sequence_only)
+
+    def reorder_datasets_using_sequence_subset(self, folderpath_out):
+        files = self[self.has_sequencing_match]
+        filepaths_in = files.serial.absoluteFilePath.with_suffix('.nc')
+        reorder_datasets_using_sequence_subset(filepaths_in, folderpath_out, concat_dim='molecule')
