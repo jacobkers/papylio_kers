@@ -5,26 +5,29 @@ from joblib import Parallel, delayed
 from pathlib2 import Path
 
 
-def get_dimension_size(filepath, dimension, with_sequence_only=False):
+def get_dimension_size(filepath, dimension, with_selected_only=False, with_sequence_only=False):
     with netCDF4.Dataset(filepath) as ds:
-        if with_sequence_only:
+        if with_selected_only:
+            return ds['selected'][:].sum()
+        elif with_sequence_only:
             # return (~(ds['sequence_aligned'][:] == b'-').all(axis=1)).sum()
             return (ds['sequence_tile'][:] > 0).sum()
         else:
             return ds.dimensions[dimension].size
 
 
-def get_dimension_sizes(filepaths, dimension, with_sequence_only=False):
-    return Parallel(prefer="threads")(delayed(get_dimension_size)(filepath, dimension, with_sequence_only)
+def get_dimension_sizes(filepaths, dimension, with_selected_only=False, with_sequence_only=False):
+    return Parallel(prefer="threads")(delayed(get_dimension_size)(filepath, dimension, with_selected_only, with_sequence_only)
                                       for filepath in filepaths)
     # return [get_dimension_size(filepath, 'molecule', with_sequence_only) for filepath in filepaths]
 
 
-def merge_datasets(files_in, file_out, concat_dim, init_file=None, with_sequence_only=False):
+def merge_datasets(files_in, file_out, concat_dim, init_file=None, with_selected_only=False, with_sequence_only=False):
+    # TODO: remove sequencing part, or move to the sequencing plugin
     if init_file is None:
         init_file = files_in[0]
 
-    concat_dim_size = np.sum(get_dimension_sizes(files_in, concat_dim, with_sequence_only))
+    concat_dim_size = np.sum(get_dimension_sizes(files_in, concat_dim, with_selected_only, with_sequence_only))
 
     with netCDF4.Dataset(file_out, mode='w') as ds_out:
         with netCDF4.Dataset(init_file) as ds_in:
@@ -33,7 +36,10 @@ def merge_datasets(files_in, file_out, concat_dim, init_file=None, with_sequence
         start_index_out = 0
         for file_in in tqdm.tqdm(files_in):
             with netCDF4.Dataset(file_in) as ds_in:
-                if with_sequence_only:
+                if with_selected_only:
+                    _, start_index_out = append_to_dataset(ds_in, ds_out, concat_dim, selection_in=ds_in['selected'][:].astype(bool),
+                                                           start_index_out=start_index_out)
+                elif with_sequence_only:
                     # has_sequence = (~(ds_in['sequence_aligned'][:] == b'-').all(axis=1))
                     has_sequence = ds_in['sequence_tile'][:] > 0
                     _, start_index_out = append_to_dataset(ds_in, ds_out, concat_dim, selection_in=has_sequence, start_index_out=start_index_out)
@@ -96,7 +102,11 @@ def append_to_dataset(ds_in, ds_out, concat_dim, selection_in=None, start_index_
 
     for name, variable in ds_in.variables.items():
         if concat_dim in variable.dimensions:
-            ds_out[name][start_index_out:end_index_out] = ds_in[name][selection_in]
+            if name == 'file':
+                min_len = min(ds_in[name].shape[-1], ds_out[name].shape[-1])
+                ds_out[name][start_index_out:end_index_out, :min_len] = ds_in[name][selection_in, :min_len]
+            else:
+                ds_out[name][start_index_out:end_index_out] = ds_in[name][selection_in]
 
     return start_index_out, end_index_out
 
@@ -105,4 +115,8 @@ def append_index_to_dataset(ds_in, ds_out, concat_dim, index_in):
     index_to = ds_out.dimensions[concat_dim].size
     for name, variable in ds_in.variables.items():
         if concat_dim in variable.dimensions:
-            ds_out[name][index_to] = ds_in[name][index_in]
+            if name == 'file':
+                min_len = min(ds_in[name].shape[-1], ds_out[name].shape[-1])
+                ds_out[name][index_to, :min_len] = ds_in[name][index_in, :min_len]
+            else:
+                ds_out[name][index_to] = ds_in[name][index_in]
