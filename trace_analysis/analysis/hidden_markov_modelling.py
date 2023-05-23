@@ -19,10 +19,11 @@ def hidden_markov_modelling(traces, classification, selection):
     ds['number_of_states'] = number_of_states_from_models(models_per_molecule)
     state_parameters = state_parameters_from_models(models_per_molecule)
     transition_matrices = transition_matrices_from_models(models_per_molecule)
+    classification_hmm = trace_classification_models(traces, classification, models_per_molecule).astype('int8')
     # ds['state_parameters'], ds['transition_matrix'] = \
-    state_parameters, transition_matrices = \
-        sort_state_parameters_and_transition_matrices(state_parameters, transition_matrices)
-    ds['classification_hmm'] = trace_classification_models(traces, classification, models_per_molecule).astype('int8')
+    state_parameters, transition_matrices, classification_hmm = \
+        sort_states_in_data(state_parameters, transition_matrices, classification_hmm)
+    ds['classification_hmm'] = classification_hmm
 
     ds['state_mean'] = state_parameters.sel(parameter=0)
     ds['state_standard_deviation'] = state_parameters.sel(parameter=1)
@@ -73,6 +74,12 @@ def hmm1and2(input):
     if not selected:
         return None
 
+    classification_st_0 = classification < 0
+    if classification_st_0.all():
+        return None
+    if (~classification_st_0).sum() < 2:
+        return None
+
     included_frame_selection = classification >= 0
     xis, cis = split_by_classification(xi, included_frame_selection)
 
@@ -82,6 +89,7 @@ def hmm1and2(input):
     model1 = pg.HiddenMarkovModel.from_matrix([[1]], [dist1], [1])
     # model1 = pg.HiddenMarkovModel.from_samples(pg.NormalDistribution, n_components=1, X=[xi])
     model2 = pg.HiddenMarkovModel.from_samples(pg.NormalDistribution, n_components=2, X=xis)
+
     bic_model1 = BIC(model1, xis)
     bic_model2 = BIC(model2, xis)
 
@@ -148,7 +156,7 @@ def transition_matrices_from_models(models):
     transition_matrix = transition_matrix[:, [1,0,2,3],:][:,:,[1,0,2,3]]
     return xr.DataArray(transition_matrix, dims=('molecule','from_state','to_state'))
 
-def sort_state_parameters_and_transition_matrices(state_parameters, transition_matrices):
+def sort_states_in_data(state_parameters, transition_matrices, classification_hmm):
     sort_indices = state_parameters[:, :, 0].argsort(axis=1)
 
     sort_indices_start_end_states = xr.DataArray([[2, 3]] * len(state_parameters.molecule), dims=('molecule', 'state'))
@@ -157,7 +165,12 @@ def sort_state_parameters_and_transition_matrices(state_parameters, transition_m
     state_parameters = state_parameters.sel(state=xr.DataArray(sort_indices, dims=('molecule', 'state')))
     transition_matrices = transition_matrices.sel(from_state=sort_indices_transition_matrix.rename(state='from_state'),
                                               to_state=sort_indices_transition_matrix.rename(state='to_state'))
-    return state_parameters, transition_matrices
+
+    classification_hmm_sorted = np.take_along_axis(sort_indices.values, classification_hmm.values, axis=1)
+    classification_hmm_sorted[(classification_hmm < 0).values] = -1
+    classification_hmm[:] = classification_hmm_sorted[:]
+
+    return state_parameters, transition_matrices, classification_hmm
 
 def trace_classification_model(traces, model):
     classification = np.vstack([model.predict(traces[m].values) for m in traces.molecule.values])
@@ -177,7 +190,7 @@ def trace_classification_models(traces, classifications, models):
                 if cii[0] >= 0:
                     new_classification.append(model.predict(xii))
                 else:
-                    new_classification.append(cii)
+                    new_classification.append(-np.ones_like(cii))
             new_classification = np.hstack(new_classification)
             new_classifications.append(new_classification)
         else:
