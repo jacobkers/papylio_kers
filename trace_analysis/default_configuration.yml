@@ -1,6 +1,6 @@
 files:
   excluded_extensions: [pdf, dat, db, py, yml, png, pdf, xlsx]
-  excluded_names: [_ave, _max, _corrections, darkfield, flatfield]
+  excluded_names: [_ave, _max, _corrections, _dwells, _dwell_analysis, darkfield, flatfield]
   excluded_paths: [Analysis]
 movie:
     rot90: 0 # Needs to be set before loading the experiment
