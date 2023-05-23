@@ -162,7 +162,7 @@ class Collection(UserList):
             fun = getattr(type(self.data[0]), item)
             return self.map(fun)
         else:
-            return Collection([getattr(datum, item) if datum is not None else None for datum in self.data], **self.dict_without_data)
+            return Collection([getattr(datum, item) if datum is not None else None for datum in tqdm(self.data, delay=5)], **self.dict_without_data)
 
     def __setattr__(self, key, value):
         # if key == 'data':
