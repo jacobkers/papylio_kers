@@ -5,6 +5,7 @@ import sys
 import pandas as pd
 import matplotlib.pyplot as plt
 import scipy.optimize
+import inspect
 import seaborn as sns
 
 def dwell_frames_from_classification(classification):
@@ -90,26 +91,49 @@ def dwell_times_from_classification(classification, traces=None, cycle_time=None
 
 def single_decaying_exponential(t, A, tau):
     return A * np.exp(-t/tau)
+single_decaying_exponential.bounds = ((0,0),(np.inf,np.inf))
+def p0(t, y):
+    return y.max(), t.mean()
+single_decaying_exponential.p0 = p0
 
 def analyze_dwells(dwells, fit_function=single_decaying_exponential, cycle_time=1, plot=False,
-                   axes=None, state_names={1: 'Low FRET state', 2: 'High FRET state'}):
+                   axes=None, state_names={1: 'Low FRET state', 2: 'High FRET state'}, logy=False):
     states = np.unique(dwells.state)
     positive_states = states[states>=0]
 
     bins=50
 
     if plot and axes is None:
-        fig, axes = plt.subplots(1,len(positive_states), figsize=(len(positive_states)*3, 2), tight_layout=True, sharey=True)
+        fig, axes = plt.subplots(1,len(positive_states), figsize=(len(positive_states)*3, 2), layout='constrained', sharey=True)
+    else:
+        axes = None
 
-    fit_values = {}
+    fit_parameters = list(inspect.signature(fit_function).parameters)[1:]
+    fit_values = xr.Dataset(coords={'state': positive_states, 'parameter': fit_parameters})
+    fit_values['optimal_value'] = xr.DataArray(np.nan, dims=('state', 'parameter'), coords={'state': positive_states, 'parameter': fit_parameters})
+    fit_values['error'] = xr.DataArray(np.nan, dims=('state', 'parameter'), coords={'state': positive_states, 'parameter': fit_parameters})
+    fit_values['covariance'] = xr.DataArray(np.nan, dims=('state', 'parameter','parameter'),
+                                       coords={'state': positive_states, 'parameter': fit_parameters, 'parameter': fit_parameters})
+
+    fit_values.attrs['fit_function'] = fit_function.__name__
+
     for i, state in enumerate(positive_states):
         dwells_with_state = dwells.sel(dwell=dwells.state==state)
         c, t_edges = np.histogram(dwells_with_state.duration, bins=bins+1, range=[-cycle_time/2, (bins+1/2)*cycle_time])
         t = (t_edges[:-1]+t_edges[1:])/2
         try:
-            popt, pcov = scipy.optimize.curve_fit(fit_function, t[1:], c[1:])
+            popt, pcov = scipy.optimize.curve_fit(fit_function, t[1:], c[1:], p0=fit_function.p0(t[1:], c[1:]), bounds=fit_function.bounds)
+            perr = np.sqrt(np.diag(pcov))
+            fit_values['optimal_value'][dict(state=state)] = popt
+            fit_values['covariance'][dict(state=state)] = pcov
+            fit_values['error'][dict(state=state)] = perr
+
+            # fit_values[state] = {fit_parameter: {'value': value, 'error': error} for fit_parameter, value, error in
+            #                      zip(fit_parameters, popt, perr)}
+
         except RuntimeError:
-            popt = None
+            popt, pcov, perr = None
+            fit_values[state] = None
 
 
         if plot:
@@ -117,7 +141,7 @@ def analyze_dwells(dwells, fit_function=single_decaying_exponential, cycle_time=
             # axes[i].set_title(+ ',' + str())
             if popt is not None:
                 axes[i].plot(t, fit_function(t, *popt), c='r', label=r'$count = Ae^{-\frac{t}{\tau}}$')
-                text_string = f'A={popt[0]:.5}\nτ={popt[-1]:.5}' #\nmean={dwells_with_state["mean"].mean().item():.5}'
+                text_string = f'A={popt[0]:.5}\nτ={popt[-1]:.5}\n1/τ={1/popt[-1]:.5}' #\nmean={dwells_with_state["mean"].mean().item():.5}'
             else:
                 text_string = 'No fit found'
 
@@ -133,13 +157,15 @@ def analyze_dwells(dwells, fit_function=single_decaying_exponential, cycle_time=
                 axes[i].set_xlabel('Dwell time (s)')
             axes[i].set_xlim([-cycle_time/2,30*cycle_time])
             if axes[i].get_subplotspec().is_first_col():
+                # axes[i].set_ylim(0,c[1:].max()*1.1)
                 axes[i].set_ylabel('Dwell count')
+                if logy:
+                    axes[i].set_yscale('log')
+                    axes[i].set_ylim(0.5, axes[i].get_ylim()[1])
             # if axes[i].get_subplotspec().is_last_col():
             #     axes[i].legend()
 
-        fit_values[state] = popt
-
-    return fit_values
+    return fit_values, axes
 
 
 
