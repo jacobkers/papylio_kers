@@ -37,6 +37,7 @@ from trace_analysis.analysis.hidden_markov_modelling import hmm_traces, hidden_m
 from trace_analysis.plugin_manager import plugins
 # from trace_analysis.trace_plot import TraceAnalysisFrame
 from trace_analysis.analysis.dwelltime_analysis import dwell_times_from_classification, analyze_dwells
+from trace_analysis.decorators import return_none_when_executed_by_pycharm
 
 @plugins
 class File:
@@ -113,14 +114,17 @@ class File:
         return (f'{self.__class__.__name__}({self.relativePath.joinpath(self.name)})')
 
     @property
+    @return_none_when_executed_by_pycharm
     def relativeFilePath(self):
         return self.relativePath.joinpath(self.name)
 
     @property
+    @return_none_when_executed_by_pycharm
     def absoluteFilePath(self):
         return self.experiment.main_path.joinpath(self.relativeFilePath)
 
     @property
+    @return_none_when_executed_by_pycharm
     def number_of_molecules(self):
         # return len(self.dataset.molecule)
         # if self.absoluteFilePath.with_suffix('.nc').exists():
@@ -131,6 +135,7 @@ class File:
             return 0
 
     @property
+    @return_none_when_executed_by_pycharm
     def configuration(self):
         return self.experiment.configuration
 
@@ -150,14 +155,17 @@ class File:
     #                          f'possibly delete old pks or traces files')
 
     @property
+    @return_none_when_executed_by_pycharm
     def number_of_channels(self):
         return self.experiment.number_of_channels
 
     @property
+    @return_none_when_executed_by_pycharm
     def selected_molecules(self):
         return self.molecule[self.selected]
 
     @property
+    @return_none_when_executed_by_pycharm
     def number_of_selected_molecules(self):
         return len(self.selected_molecules)
 
@@ -203,10 +211,12 @@ class File:
     # @coordinates.setter
 
     @property
+    @return_none_when_executed_by_pycharm
     def coordinates_metric(self):
         return self.coordinates * self.movie.pixel_size
 
     @property
+    @return_none_when_executed_by_pycharm
     def coordinates_stage(self):
         coordinates = self.coordinates.sel(channel=0)
         # coordinates = coordinates.stack(temp=('molecule', 'channel')).T
@@ -266,6 +276,7 @@ class File:
             return dataset[key].load()
 
     @property
+    @return_none_when_executed_by_pycharm
     def dataset(self):
         if self.absoluteFilePath.with_suffix('.nc').exists():
             with xr.open_dataset(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf') as dataset:
@@ -274,11 +285,13 @@ class File:
             return None
 
     @property
+    @return_none_when_executed_by_pycharm
     def dataset_selected(self):
         dataset = self.dataset
         return dataset.sel(molecule=dataset.selected)
 
     @property
+    @return_none_when_executed_by_pycharm
     def data_vars(self):
         with xr.open_dataset(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf') as dataset:
             return dataset.data_vars
@@ -759,6 +772,7 @@ class File:
         return psf_size
 
     @property
+    @return_none_when_executed_by_pycharm
     def coordinates(self):
         if self.absoluteFilePath.with_suffix('.nc').exists():
             with xr.open_dataset(self.absoluteFilePath.with_suffix('.nc'), engine='netcdf4') as dataset:
@@ -1210,10 +1224,12 @@ class File:
         da.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='netcdf4', mode='a')
 
     @property
+    @return_none_when_executed_by_pycharm
     def intensity_total(self):
         return calculate_intensity_total(self.intensity)
 
     @property
+    @return_none_when_executed_by_pycharm
     def selections(self):
         with xr.open_dataset(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf') as dataset:
             return xr.Dataset({value.name: value for key, value in dataset.data_vars.items()
@@ -1264,10 +1280,12 @@ class File:
         self.set_variable(classification_combined, name='classification', dims=('molecule','frame'))
 
     @property
+    @return_none_when_executed_by_pycharm
     def cycle_time(self):
         return self.time.diff('frame').mean().item()
 
     @property
+    @return_none_when_executed_by_pycharm
     def frame_rate(self):
         return 1 / self.cycle_time
 
@@ -1277,6 +1295,7 @@ class File:
         dwells.to_netcdf(self.absoluteFilePath.with_name(self.name + '_dwells').with_suffix('.nc'), engine='netcdf4', mode='w')
 
     @property
+    @return_none_when_executed_by_pycharm
     def dwells(self):
         return xr.load_dataset(self.absoluteFilePath.with_name(self.name + '_dwells').with_suffix('.nc'), engine='netcdf4')
 
@@ -1292,6 +1311,7 @@ class File:
         return fit_values
 
     @property
+    @return_none_when_executed_by_pycharm
     def dwell_analysis(self):
         return xr.load_dataset(self.absoluteFilePath.with_name(self.name + '_dwell_analysis').with_suffix('.nc'), engine='netcdf4')
 

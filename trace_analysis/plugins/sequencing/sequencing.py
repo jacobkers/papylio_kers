@@ -13,6 +13,7 @@ import os.path
 # from trace_analysis.file import File
 # from trace_analysis.mapping.geometricHashing import SequencingDataMapping
 from trace_analysis.mapping.mapping import Mapping2
+from trace_analysis.decorators import return_none_when_executed_by_pycharm
 from trace_analysis.mapping.polynomial import PolynomialTransform
 from .fastqAnalysis import FastqData
 from .geometricHashing2 import geometric_hash, find_match_after_hashing
@@ -21,6 +22,7 @@ from .plotting import plot_sequencing_match, plot_matched_files_in_tile
 from trace_analysis.mapping.icp import icp, nearest_neighbor_pair
 from .sequencing_data import SequencingData, make_sequencing_dataset
 from .mapping_collection import MappingCollection
+
 
 
 class Experiment:
@@ -39,6 +41,7 @@ class Experiment:
                 print(f"\nImport sequencing data:\n{sequencing_data_relative_file_path}")
 
     @property
+    @return_none_when_executed_by_pycharm
     def tile_mappings(self):
         if self._tile_mappings is None:
             tile_mappings_path = self.main_path.joinpath('Analysis').joinpath('Tile mappings')
@@ -48,6 +51,7 @@ class Experiment:
         return self._tile_mappings
 
     @property
+    @return_none_when_executed_by_pycharm
     def tile_mappings_dict(self):
         d = {}
         for mapping in self.tile_mappings:
@@ -412,6 +416,7 @@ class File:
         return super().__getstate__()
 
     @property
+    @return_none_when_executed_by_pycharm
     def sequencing_match(self):
         if self._sequencing_match is None:
             self.import_sequencing_match()
@@ -424,6 +429,7 @@ class File:
         self.export_sequencing_match()
 
     @property
+    @return_none_when_executed_by_pycharm
     def has_sequencing_match(self):
         filepath = self.absoluteFilePath.with_name(self.name + '_sequencing_match')
         # TODO: Link this to the possible file formats of Mapping2
@@ -436,6 +442,7 @@ class File:
 
 
     @property
+    @return_none_when_executed_by_pycharm
     def sequencing_data(self):
         filepath = self.absoluteFilePath.with_name(self.name + '_sequencing_data.nc')
         if filepath.is_file():
@@ -915,16 +922,19 @@ class Molecule:
         self.sequence_index = None
 
     @property
+    @return_none_when_executed_by_pycharm
     def sequence_name(self):
         if self.sequence_index is not None:
             return self.file.sequencing_data.name[self.sequence_index]
 
     @property
+    @return_none_when_executed_by_pycharm
     def sequence(self):
         if self.sequence_index is not None:
             return self.file.sequencing_data.sequence[self.sequence_index, :].tobytes().decode('UTF-8')
 
     @property
+    @return_none_when_executed_by_pycharm
     def sequencing_data(self):
         if self.sequence_index is not None:
             return self.file.sequencing_data[self.sequence_index]
