@@ -1148,6 +1148,7 @@ class Mapping2:
         #TODO: Make Gaussian without multiplying mask.
         #TODO: Add standard deviation as a parameter. (And change gaussian_width name to kernal_width?)
         #TODO: Use maximum_number_of_pixels instead of divider.
+        #TODO: Add option to automatically save plot.
 
         if self.transformation is None:
             self.transformation = AffineTransform()

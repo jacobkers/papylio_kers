@@ -23,7 +23,7 @@ class SifxMovie(Movie):
         self.threshold = {  'view':             (0,200),
                             'point-selection':  (45,25)
                             }
-        self.create_frame_info()  # Possibly move to Movie later on
+        # self.create_frame_info()  # Possibly move to Movie later on
 
         # self._initialized = True
 
