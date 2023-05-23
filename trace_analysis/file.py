@@ -1207,7 +1207,7 @@ class File:
 
     def set_variable(self, data, **kwargs):
         da = xr.DataArray(data, **kwargs)
-        da.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
+        da.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='netcdf4', mode='a')
 
     @property
     def intensity_total(self):
@@ -1244,21 +1244,22 @@ class File:
 
             classification = getattr(self, classification_name)
 
+            # TODO: The .values after classification can likely be removed after a certain update of xarray.
             if classification.dtype == 'bool':
                 if type(state_indices) == list:
-                    classification_combined[~classification] = state_indices[0]
-                    classification_combined[classification] = state_indices[1]
+                    classification_combined[~classification.values] = state_indices[0]
+                    classification_combined[classification.values] = state_indices[1]
                 elif type(state_indices) == int:
                     if state_indices < 0:
-                        classification_combined[~classification] = state_indices
+                        classification_combined[~classification.values] = state_indices
                     else:
-                        classification_combined[classification] = state_indices
+                        classification_combined[classification.values] = state_indices
                 else:
                     raise TypeError('Wrong classification datatype')
             else: #if classification.dtype == int:
                 for i, c in enumerate(np.unique(classification)):
                     if state_indices[i] is not None:
-                        classification_combined[classification == c] = state_indices[i]
+                        classification_combined[(classification == c).values] = state_indices[i]
 
         self.set_variable(classification_combined, name='classification', dims=('molecule','frame'))
 
@@ -1273,14 +1274,31 @@ class File:
     def determine_dwells_from_classification(self, variable='FRET'):
         # TODO: Make it possible to pass multiple traces.
         dwells = dwell_times_from_classification(self.classification, traces=getattr(self, variable), cycle_time=self.cycle_time)
-        dwells.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), group='dwells', engine='h5netcdf', mode='a')
+        dwells.to_netcdf(self.absoluteFilePath.with_name(self.name + '_dwells').with_suffix('.nc'), engine='netcdf4', mode='w')
 
     @property
     def dwells(self):
-        return xr.load_dataset(self.absoluteFilePath.with_suffix('.nc'), group='dwells', engine='h5netcdf')
+        return xr.load_dataset(self.absoluteFilePath.with_name(self.name + '_dwells').with_suffix('.nc'), engine='netcdf4')
 
-    def analyze_dwells(self, plot=False, axes=None, state_names={0: 'Low FRET state', 1: 'High FRET state'}):
-        return analyze_dwells(self.dwells, cycle_time=self.cycle_time, plot=plot, axes=axes, state_names=state_names)
+    def analyze_dwells(self, plot=False, axes=None, state_names={0: 'Low FRET state', 1: 'High FRET state'}, logy=False):
+        fit_values, axes = analyze_dwells(self.dwells, cycle_time=self.cycle_time, plot=plot, axes=axes, state_names=state_names, logy=logy)
+        if axes is not None:
+            axes[0].set_title(self.name)
+            if logy:
+                axes[0].figure.savefig(self.absoluteFilePath.with_name(self.name + '_dwelltime_analysis_logy.png'))
+            else:
+                axes[0].figure.savefig(self.absoluteFilePath.with_name(self.name + '_dwelltime_analysis.png'))
+        self.dwell_analysis = fit_values
+        return fit_values
+
+    @property
+    def dwell_analysis(self):
+        return xr.load_dataset(self.absoluteFilePath.with_name(self.name + '_dwell_analysis').with_suffix('.nc'), engine='netcdf4')
+
+    @dwell_analysis.setter
+    def dwell_analysis(self, dataset):
+        dataset.to_netcdf(self.absoluteFilePath.with_name(self.name + '_dwell_analysis').with_suffix('.nc'),
+                          engine='netcdf4', mode='w')
 
     #
     # def get_FRET(self, **kwargs):
@@ -1488,7 +1506,7 @@ class File:
             selected_original = dataset.selected
 
         # We could also save the whole dataset, but since currently only alterations are made to selected.
-        selected_original.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
+        selected_original.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='netcdf4', mode='a')
 
 
 def calculate_intensity_total(intensity):
