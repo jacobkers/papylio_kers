@@ -544,6 +544,10 @@ class File:
 
         sequence_length = len(self.sequencing_data.read1_sequence[0].item())
 
+        if 'sample_name' in sequencing_data.dataset.data_vars:
+            sequence_sample_name_dtype = sequencing_data.dataset.sample_name.astype('S').dtype
+            variable_dict['sequence_sample_name'] = ('sample_name', np.array('').astype(sequence_sample_name_dtype))
+
         if include_raw_sequences:
             variable_dict['sequence'] = ('read1_sequence', b'-' * sequence_length)
             variable_dict['sequence_quality'] = ('read1_quality', b' ' * sequence_length)
