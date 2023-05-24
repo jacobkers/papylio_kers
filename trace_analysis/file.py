@@ -518,8 +518,11 @@ class File:
         # TODO: Split method into multiple functions
 
         # --- Refresh configuration ----
-        if not configuration:
-            configuration = self.experiment.configuration['find_coordinates']
+        # if not configuration:
+        configuration_from_config_file = self.experiment.configuration['find_coordinates']
+
+        configuration_from_config_file.update(configuration)
+        configuration = configuration_from_config_file
 
         # --- Get settings from configuration file ----
         channels = configuration['channels']
@@ -979,7 +982,8 @@ class File:
     #     ds = hmm_traces(self.FRET, n_components=2, covariance_type="full", n_iter=100)
     #     ds.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
 
-    def classify_hmm(self, variable):#, use_selection=True, use_classification=True):
+    def classify_hmm(self, variable, seed=0):#, use_selection=True, use_classification=True):
+        np.random.seed(seed)
         if isinstance(variable, str):
             variable = getattr(self, variable)
 
