@@ -4,6 +4,7 @@ import xarray as xr
 import numpy as np
 import itertools
 import tqdm
+from matplotlib import patches
 
 def basepaired_subsets():
     basepairs = ['AT', 'TA', 'CG', 'GC']
@@ -244,16 +245,33 @@ def basepaired_sequence_subset_count(sequence_subset_count, save_path):
 #
 
 
-def plot_basepaired_holliday_junction(data, size=1, name=None, s2max=None, geometry='rectangle',
+def plot_basepaired_holliday_junction(data, size=1, name=None, s2max=None, geometry='square',
                                       axis_facecolor="lightgrey", save_path=None, vmin=None, vmax=None):
     if name is None:
         name = data.name
 
+    if data.ndim == 1:
+        data = data.expand_dims('loop_dim', 0)
+
     data = xr.Dataset(dict(data=data))
-    if not np.isscalar(size):
+    if np.isscalar(size):
+        data['size'] = xr.DataArray(size, coords=data.data.coords)
+    elif isinstance(size, (list, tuple)):
+        data['size'] = xr.DataArray(np.full_like(data.data, np.array(size)[None,:].T, dtype='object'), dims=data.data.dims)
+    elif isinstance(size, xr.DataArray):
+        if size.ndim == 1:
+            size = size.expand_dims({data.data.dims[0]: data.data.shape[0]}, 0)
         data['size'] = size
-    if not isinstance(geometry, str):
+
+    if isinstance(geometry, str):
+        data['geometry'] = xr.DataArray(geometry, coords=data.data.coords)
+    elif isinstance(geometry, (list, tuple)):
+        data['geometry'] = xr.DataArray(np.full_like(data.data, np.array(geometry)[None,:].T, dtype='object'), dims=data.data.dims)
+    elif isinstance(geometry, xr.DataArray):
+        if geometry.ndim == 1:
+            geometry = geometry.expand_dims({data.data.dims[0]: data.data.shape[0]}, 0)
         data['geometry'] = geometry
+
     data = data.reindex(**{'sequence_subset': all_basepaired_subsets(), 'fill_value': np.nan})
 
     # bases = ['A', 'T', 'C', 'G']
@@ -291,39 +309,53 @@ def plot_basepaired_holliday_junction(data, size=1, name=None, s2max=None, geome
     x = data_bp_stacked2.bp02i.values
     y = data_bp_stacked2.bp13i.values
     from matplotlib.colors import Normalize
+    if vmin is None:
+        vmin = 0
+    if vmax is None:
+        vmax = 1
     norm = Normalize(vmin=vmin, vmax=vmax)
     cmap = 'coolwarm'
     from matplotlib.cm import ScalarMappable
     scalar_mappable = ScalarMappable(norm=norm, cmap=cmap)
     # c = plt.get_cmap('coolwarm')(norm(data_bp_stacked2.data.values))
-    c = scalar_mappable.to_rgba(data_bp_stacked2.data.values)
-    if np.isscalar(size):
-        s = np.ones_like(x) * size
-    else:
-        s = np.sqrt(data_bp_stacked2.size.values)
+
+    for i in range(data_bp_stacked2.data.shape[0]):
+        c = scalar_mappable.to_rgba(data_bp_stacked2.data[i].values)
+
+        s = np.sqrt(data_bp_stacked2.size[i].values)
         if s2max is None:
-            s2max = s.max()**2
+            s2max = np.nanmax(s)**2
         s = np.minimum(s/np.sqrt(s2max),1) #s/s.max()
 
-    if isinstance(geometry, str):
-        g = [geometry] * len(x)
-    else:
-        g = data_bp_stacked2.geometry.values
+        g = data_bp_stacked2.geometry[i].values
 
+        for xi, yi, ci, si, gi in zip(x,y,c,s,g):
+            shape_kwargs = dict(facecolor=ci, linewidth=None)
+            if gi == 'square':
+                rect = plt.Rectangle([xi - si / 2, yi - si / 2], si, si, **shape_kwargs)
+            elif gi == 'circle':
+                rect = plt.Circle([xi, yi], radius=si/2, **shape_kwargs)
+            elif gi == 'diamond':
+                si2 = si/np.sqrt(2)
+                rect = plt.Rectangle([xi, yi - si / 2], si2, si2, angle=45, **shape_kwargs)
+            elif gi == 'triangle_top_left':
+                rect = plt.Polygon([[xi - si / 2, yi - si / 2],
+                                    [xi - si / 2, yi + si / 2],
+                                    [xi + si / 2, yi - si / 2]], closed=True, **shape_kwargs)
+            elif gi == 'triangle_bottom_right':
+                rect = plt.Polygon([[xi + si / 2, yi + si / 2],
+                                    [xi - si / 2, yi + si / 2],
+                                    [xi + si / 2, yi - si / 2]], closed=True, **shape_kwargs)
+            elif gi == 'semi_circle_top_left':
+                rect = patches.Wedge([xi, yi], r=si / 2, theta1=-225, theta2=-45, **shape_kwargs)
+            elif gi == 'semi_circle_bottom_right':
+                rect = patches.Wedge([xi, yi], r=si / 2, theta1=-45, theta2=-225, **shape_kwargs)
 
-    for xi, yi, ci, si, gi in zip(x,y,c,s, g):
-        shape_kwargs = dict(facecolor=ci, linewidth=None)
-        if gi == 'rectangle':
-            rect = plt.Rectangle([xi - si / 2, yi - si / 2], si, si, **shape_kwargs)
-        elif gi == 'circle':
-            rect = plt.Circle([xi, yi], radius=si/2, **shape_kwargs)
-        elif gi == 'diamond':
-            si2 = si/np.sqrt(2)
-            rect = plt.Rectangle([xi, yi - si / 2], si2, si2, angle=45, **shape_kwargs)
-        axis.add_patch(rect)
+            axis.add_patch(rect)
     axis.set_aspect(1)
-    axis.set_xlim(x.min()-s.max()/2, x.max()+s.max()/2)
-    axis.set_ylim(y.min()-s.max()/2, y.max()+s.max()/2)
+    half_shape_size = np.nanmax(s)/2
+    axis.set_xlim(x.min()-half_shape_size, x.max()+half_shape_size)
+    axis.set_ylim(y.min()-half_shape_size, y.max()+half_shape_size)
     # axis.autoscale_view()
 
     # axis.images[0].set_data(data.values)
@@ -371,7 +403,11 @@ def plot_basepaired_holliday_junction(data, size=1, name=None, s2max=None, geome
 
     # figure.colorbar(image, aspect=30)
     # cax = figure.axes[-1]
-    cax.set_ylabel(name)
+    if 'unit' in data.data.attrs and data.data.attrs['unit'] !='':
+        unit_string = f' ({data.data.attrs["unit"]})'
+    else:
+        unit_string = ''
+    cax.set_ylabel(name + unit_string)
     cax.axes.ticklabel_format(scilimits=(0,0))
     for spine in cax.spines.values():
         spine.set_visible(False)
@@ -387,3 +423,51 @@ def plot_basepaired_holliday_junction(data, size=1, name=None, s2max=None, geome
         figure.savefig(savefile_path.with_suffix('.pdf'))
 
 
+def format_sequence_subset(sequence_subset):
+    ss = sequence_subset
+    return np.array(
+    [f'  ||  ',
+    f'  {ss[3]}{ss[4]}  ',
+    f'-{ss[2]}  {ss[5]}-',
+    f'-{ss[1]}  {ss[6]}-',
+    f'  {ss[0]}{ss[7]}  ',
+    f'  ||  ']
+    )
+
+def format_sequence_subsets(sequence_subsets):
+    spacer = np.array(['  ']*6)
+    sequence_subsets_formatted = np.array([format_sequence_subset(ss) for ss in sequence_subsets])
+    spacers = np.array([spacer]*len(sequence_subsets))
+
+    final = char_add([np.char.add(*s) for s in zip(sequence_subsets_formatted, spacers)])
+    final = '\n'.join(final)
+    return final
+
+# From itertools recipes
+def batched(iterable, n):
+    "Batch data into tuples of length n. The last batch may be shorter."
+    # batched('ABCDEFG', 3) --> ABC DEF G
+    if n < 1:
+        raise ValueError('n must be at least one')
+    it = iter(iterable)
+    while batch := tuple(itertools.islice(it, n)):
+        yield batch
+
+def print_sequence_subsets(sequence_subsets, rows=None):
+    if isinstance(sequence_subsets, str):
+        sequence_subsets = [sequence_subsets]
+    if rows is not None:
+        sequence_subsets = batched(sequence_subsets, rows)
+    else:
+        sequence_subsets = [sequence_subsets]
+    for sequence_subsets_row in sequence_subsets:
+        print(format_sequence_subsets(sequence_subsets_row), '\n\n')
+
+
+def char_add(strings):
+    for i, s in enumerate(strings):
+        if i == 0:
+            final = s
+        else:
+            final = np.char.add(final, s)
+    return final
