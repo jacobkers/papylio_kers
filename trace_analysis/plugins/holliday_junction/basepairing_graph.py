@@ -22,16 +22,30 @@ def sequence_subset_with_comparable_structure(sequence_subset):
     return set(sequence_subsets)
 
 
+# Old
+# def sequence_subset_structure_category():
+#     subset_category_dict = {}
+#     sequence_subsets = set(basepaired_subsets())
+#
+#     structure_index = 0
+#     while len(sequence_subsets) > 0:
+#         ss_with_structure = sequence_subset_with_comparable_structure(next(iter(sequence_subsets)))
+#         for ss in ss_with_structure:
+#             subset_category_dict[ss] = structure_index
+#         sequence_subsets = sequence_subsets.difference(ss_with_structure)
+#         structure_index += 1
+#     return subset_category_dict
+
 def sequence_subset_structure_category():
     subset_category_dict = {}
-    sequence_subsets = set(basepaired_subsets())
+    sequence_subsets = basepaired_subsets()
 
     structure_index = 0
     while len(sequence_subsets) > 0:
-        ss_with_structure = sequence_subset_with_comparable_structure(next(iter(sequence_subsets)))
+        ss_with_structure = sequence_subset_with_comparable_structure(sequence_subsets[0])
         for ss in ss_with_structure:
             subset_category_dict[ss] = structure_index
-        sequence_subsets = sequence_subsets.difference(ss_with_structure)
+            sequence_subsets.remove(ss)
         structure_index += 1
     return subset_category_dict
 
@@ -77,7 +91,7 @@ def plot_basepairing(basepairing, title='', ax=None, save_path=None, max_linewid
         ax.plot(*coordinates[[i,j]].T, c='k', linewidth=data[i,j]*max_linewidth)
     ax.scatter(*coordinates.T, s=400, c='k')
     for i, c in enumerate(coordinates):
-        ax.annotate(i+1, c, ha='center', va='center', c='white')
+        ax.annotate(i, c, ha='center', va='center', c='white')
         # ax.text(*c, i + 1, size=15, ha='center', va='center', c='white',
         #         bbox=dict(boxstyle="circle,pad=0.3", fc="cyan", ec="b", lw=2))
     ax.set_title(title)
