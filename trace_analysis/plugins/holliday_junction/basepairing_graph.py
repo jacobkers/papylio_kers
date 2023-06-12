@@ -2,60 +2,8 @@ import itertools
 import numpy as np
 import matplotlib.pyplot as plt
 import xarray as xr
-
-from trace_analysis.plugins.holliday_junction.holliday_junction import basepaired_subsets
-
-def sequence_subset_with_comparable_structure(sequence_subset):
-    # sequence_subset = sequence_subset[7] + sequence_subset[:7]
-    sequence_subsets = []
-    for i in range(4):
-        sequence_subsets.append(sequence_subset[i*2:] + sequence_subset[:i*2])
-    for ss in sequence_subsets.copy():
-        change_base_within_basepair = str.maketrans('CG', 'GC')
-        sequence_subsets.append(ss.translate(change_base_within_basepair))
-    for ss in sequence_subsets.copy():
-        change_base_within_basepair = str.maketrans('AT', 'TA')
-        sequence_subsets.append(ss.translate(change_base_within_basepair))
-    for ss in sequence_subsets.copy():
-        switch_base_pairs = str.maketrans('ATCG', 'GCAT')
-        sequence_subsets.append(ss.translate(switch_base_pairs))
-    return set(sequence_subsets)
-
-
-# Old
-# def sequence_subset_structure_category():
-#     subset_category_dict = {}
-#     sequence_subsets = set(basepaired_subsets())
-#
-#     structure_index = 0
-#     while len(sequence_subsets) > 0:
-#         ss_with_structure = sequence_subset_with_comparable_structure(next(iter(sequence_subsets)))
-#         for ss in ss_with_structure:
-#             subset_category_dict[ss] = structure_index
-#         sequence_subsets = sequence_subsets.difference(ss_with_structure)
-#         structure_index += 1
-#     return subset_category_dict
-
-def sequence_subset_structure_category():
-    subset_category_dict = {}
-    sequence_subsets = basepaired_subsets()
-
-    structure_index = 0
-    while len(sequence_subsets) > 0:
-        ss_with_structure = sequence_subset_with_comparable_structure(sequence_subsets[0])
-        for ss in ss_with_structure:
-            subset_category_dict[ss] = structure_index
-            sequence_subsets.remove(ss)
-        structure_index += 1
-    return subset_category_dict
-
-def unique_subset_structures():
-    unique_subset_category_dict = {}
-    for key, value in sequence_subset_structure_category().items():
-        if value not in unique_subset_category_dict.values():
-            unique_subset_category_dict[key] = value
-    return unique_subset_category_dict
-
+import seaborn as sns
+sns.stripplot
 def basepairing(sequences):
     s = sequences.astype('U').view('U1').reshape(-1, 8)
     s1 = xr.DataArray(s, coords=[('sequence', sequences), ('nucleotide_1', range(8))])

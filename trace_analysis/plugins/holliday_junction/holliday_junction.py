@@ -6,16 +6,6 @@ import itertools
 import tqdm
 from matplotlib import patches
 
-def basepaired_subsets():
-    basepairs = ['AT', 'TA', 'CG', 'GC']
-    basepaired_subsets = []
-    for i0, bp0 in enumerate(basepairs):
-        for i1, bp1 in enumerate(basepairs):
-            for i2, bp2 in enumerate(basepairs):
-                for i3, bp3 in enumerate(basepairs):
-                    bpc = bp0 + bp1 + bp2 + bp3
-                    basepaired_subsets.append(''.join(bpc)[1:] + ''.join(bpc)[0])
-    return basepaired_subsets
 
 def basepair_count_per_position(basepair_count, save_path):
     title = (basepair_count.name.replace('basepair_count','basepair_count_per_position'))
@@ -50,14 +40,6 @@ def basepair_count_per_position(basepair_count, save_path):
     savefile_path = save_path / title
     figure.savefig(savefile_path.with_suffix('.png'))
     figure.savefig(savefile_path.with_suffix('.pdf'))
-
-def all_sequence_subsets():
-    bases = ['A', 'T', 'C', 'G']
-    return np.array([''.join(bpc) for bpc in itertools.product(*[bases]*8)])
-
-def all_basepaired_subsets():
-    basepairs = ['AT', 'TA', 'CG', 'GC']
-    return np.array([''.join(bpc)[1:] + ''.join(bpc)[0] for bpc in itertools.product(*[basepairs]*4)])
 
 def basepaired_sequence_subset_count(sequence_subset_count, save_path):
     title = (sequence_subset_count.name.replace('sequence_count', 'basepaired_sequence_count'))
