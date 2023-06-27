@@ -13,6 +13,9 @@ def hidden_markov_modelling(traces, classification, selection):
 
     ds = xr.Dataset()
     if models_per_molecule is None:
+        ds['selection_complex_rates'] = xr.ones_like(selection, dtype=bool)
+        ds['selection_lower_rate_limit'] = xr.ones_like(selection, dtype=bool)
+        ds['classification_hmm'] = -xr.ones_like(classification)
         return ds
 
     models_per_molecule.use_parallel_processing = False
@@ -215,13 +218,15 @@ def determine_transition_rates_from_probabilities(number_of_states, transition_p
     return xr.DataArray(transition_rates, dims=dims)
 
 def complex_transition_rates_to_nan(transition_rates):
-    is_complex = xr.DataArray(np.iscomplex(transition_rates).any(axis=2).any(axis=1), dims=('molecule'))
+    is_complex = xr.DataArray((np.iscomplex(transition_rates) & ~np.isnan(transition_rates)).any(axis=2).any(axis=1), dims=('molecule'))
     transition_rates[is_complex, :, :] = np.nan
     return np.real(transition_rates), ~is_complex
 
 def transition_rates_outside_measurement_resolution_to_nan(transition_rates, number_of_frames, frame_rate):
     # For more than two states we likely only have to take the off diagonal components
-    has_too_low_rate = (np.abs(transition_rates) < frame_rate/number_of_frames).any(axis=2).any(axis=1)
+    off_diagonal_terms = transition_rates.values[:, ~np.eye(*transition_rates.shape[1:], dtype=bool)]
+    has_too_low_rate = xr.DataArray((np.abs(off_diagonal_terms) < frame_rate/number_of_frames).any(axis=1), dims='molecule')
+    # has_too_low_rate = xr.DataArray(np.diagonal(np.abs(transition_rates), axis1=1, axis2=2).any(axis=1), dims='molecule')
     # has_too_high_rate = (np.abs(ds.transition_rate) > frame_rate).any(axis=2).any(axis=1)
     # transition_rates[has_too_low_rate | has_too_high_rate, :, :] = np.nan
     transition_rates[has_too_low_rate, :, :] = np.nan
