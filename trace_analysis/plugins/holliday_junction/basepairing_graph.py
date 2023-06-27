@@ -66,3 +66,41 @@ def plot_basepairing_individual(sequences, name='', rows=5, columns=10, titles=N
         fig.savefig(save_path.joinpath(f'Basepairing - {name} - individual.png'))
 
 
+def basepairing_possible(sequences):
+    bp = basepairing(sequences)
+    return basepairing
+
+
+
+def plot_basepairing(basepairing, title='', ax=None, save_path=None, max_linewidth=10):
+    data = basepairing.mean('sequence')
+
+    n = 8
+    phi = 9/8*np.pi
+    angle = np.linspace(0,2*np.pi,n+1)[:n]
+    coordinates = np.vstack([np.sin(angle+phi), np.cos(angle+phi)]).T
+
+    if ax is None:
+        fig, ax = plt.subplots(tight_layout=True)
+    else:
+        fig = ax.figure
+    ax.set_aspect(1)
+    ax.axes.set_axis_off()
+    ax.set_xlim(-1.1, 1.1)
+    ax.set_ylim(-1.1, 1.1)
+    for i,j in itertools.combinations(range(n),2):
+        # ax.annotate("",
+        #             xy=coordinates[i], xycoords='data',
+        #             xytext=coordinates[j], textcoords='data',
+        #             arrowprops=dict(arrowstyle="-"),
+        #             )
+        ax.plot(*coordinates[[i,j]].T, c='k', linewidth=data[i,j]*max_linewidth)
+    ax.scatter(*coordinates.T, s=400, c='k')
+    for i, c in enumerate(coordinates):
+        ax.annotate(i, c, ha='center', va='center', c='white')
+        # ax.text(*c, i + 1, size=15, ha='center', va='center', c='white',
+        #         bbox=dict(boxstyle="circle,pad=0.3", fc="cyan", ec="b", lw=2))
+    ax.set_title(title)
+
+    if save_path is not None:
+        fig.savefig(save_path.joinpath(f'Basepairing - '+ title +'.png'))
