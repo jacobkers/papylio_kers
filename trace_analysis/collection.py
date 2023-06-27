@@ -7,6 +7,7 @@ import joblib.parallel
 import multiprocessing
 from tqdm import tqdm
 from collections import UserList
+from trace_analysis.decorators import return_none_when_executed_by_pycharm
 # from collections.abc import MutableSequence
 
 class HiddenPrints:
@@ -70,6 +71,7 @@ class Collection(UserList):
         # super(Collection, self).__setattr__('data_type', list(data_types)[0])
 
     @property
+    @return_none_when_executed_by_pycharm
     def dict_without_data(self):
         d = self.__dict__.copy()
         d.pop('data')
@@ -77,11 +79,13 @@ class Collection(UserList):
         return d
 
     @property
+    @return_none_when_executed_by_pycharm
     def parallel(self):
         self.use_parallel_processing = True
         return self
 
     @property
+    @return_none_when_executed_by_pycharm
     def serial(self):
         self.use_parallel_processing = False
         return self
@@ -210,6 +214,7 @@ class Collection(UserList):
         self.data.insert(index, object)
 
     @property
+    @return_none_when_executed_by_pycharm
     def str(self):
         return Collection([str(datum) for datum in self.data], **self.dict_without_data)
 
