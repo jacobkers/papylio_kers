@@ -3,8 +3,11 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-def plot_sequence_density(sequences, expected_seq=None, start=None, end=None, row_length=None, figure=None, save=False, title=''):
+def plot_sequence_density(sequences, expected_seq=None, start=None, end=None, is_circular=False,
+                          row_length=None, figure=None, save=False, title=''):
     sequences = sequences.view('U1').reshape(-1, len(sequences[0]))
+    if is_circular:
+        sequences = np.hstack([sequences, sequences[:,0:1]])
     sequence = sequences[~np.any(sequences == 'N', axis=1)]
     # sequence_int = sequence.view('uint8')
     # sequence_df = pd.DataFrame(sequence_int).iloc[:, slice(start, end)]
@@ -19,7 +22,7 @@ def plot_sequence_density(sequences, expected_seq=None, start=None, end=None, ro
 
     n_rows = total_length // row_length
     if figure is None:
-        figure = plt.figure(figsize=(np.max([row_length / 5, 2]), 2 * n_rows), layout='constrained')
+        figure = plt.figure(figsize=(np.max([row_length / 4, 6]), 3 * n_rows), layout='constrained')
 
     figure.subplots(n_rows, 1, sharey=False)
     axes = figure.axes
@@ -29,7 +32,7 @@ def plot_sequence_density(sequences, expected_seq=None, start=None, end=None, ro
     # out = pd.DataFrame(index=index)
     for r in np.arange(n_rows):
         for i in np.arange((r * row_length), ((r + 1) * row_length) - 1):
-            print(i)
+            # print(i)
             # out[i] = (test.iloc[:,i:(i+2)].value_counts(normalize=True))
             base_transition_count = (sequence_df.iloc[:, i:(i + 2)].value_counts(normalize=True)).reindex(index)
             ys = base_transition_count.index.to_list()
@@ -56,13 +59,18 @@ def plot_sequence_density(sequences, expected_seq=None, start=None, end=None, ro
 
     axes[0].set_title(title)
     axes[-1].set_xlabel('Position')
+    if is_circular:
+        xticklabels = np.arange(sequences.shape[1])
+        xticklabels[-1] = 0
+        axes[-1].set_xticks(np.arange(len(xticklabels)))
+        axes[-1].set_xticklabels(xticklabels)
 
     # for axis in axes:
     #     bases = list('ATGC')
     #     axis.set_yticks(np.array(bases, dtype='S1').view('uint8'))
     #     axis.set_yticklabels(bases)
 
-    figure.tight_layout(pad=1)
+    # figure.tight_layout(pad=1)
     if save:
         title = title.replace('>', 'gt').replace('<', 'st')
         figure.savefig(f'{title}_seqdensity.png')
