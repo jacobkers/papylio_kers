@@ -28,6 +28,8 @@ from kernel_correlation import kernel_correlation, compute_kernel_correlation
 from cross_correlation import cross_correlate
 from geometric_hashing import GeometricHashTable
 
+from trace_analysis.decorators import return_none_when_executed_by_pycharm
+
 class Mapping2:
     """Mapping class to find, improve, store and use a mapping between a source point set and a destination point set.
 
@@ -291,10 +293,12 @@ class Mapping2:
     #     return self.transformation[0:2,2]
     #
     # @property
+    # @return_none_when_executed_by_pycharm
     # def magnification(self):
     #     return np.linalg.norm(self.transformation[:,0:2],axis=0)
     #
     # @property
+    # @return_none_when_executed_by_pycharm
     # def rotation(self):
     #     # rotation_matrix = self.transformation[0:2, 0:2]/self.magnification[0]
     #     # return np.arctan2(rotation_matrix[0,1]-rotation_matrix[1,0],rotation_matrix[0,0]+rotation_matrix[1,1])/(2*np.pi)*360
@@ -305,6 +309,7 @@ class Mapping2:
     #     return np.array([np.sign(self.transformation[0, 0]), np.sign(self.transformation[1, 1])])
 
     @property
+    @return_none_when_executed_by_pycharm
     def file_path(self):
         """
         pathlib2.Path : Path where the mapping file is (to be) saved.
@@ -313,18 +318,21 @@ class Mapping2:
         return self.save_path.joinpath(self.name).with_suffix('.mapping')
 
     @property
+    @return_none_when_executed_by_pycharm
     def source_to_destination(self):
         """Nx2 numpy.ndarray : Source coordinates transformed to destination space"""
 
         return self.transform_coordinates(self.source)
 
     @property
+    @return_none_when_executed_by_pycharm
     def destination_to_source(self):
         """Nx2 numpy.ndarray : Destination coordinates transformed to source space"""
 
         return self.transform_coordinates(self.destination, inverse=True)
 
     @property
+    @return_none_when_executed_by_pycharm
     def source_vertices(self):
         """Nx2 numpy.ndarray : Vertices of source
 
@@ -340,6 +348,7 @@ class Mapping2:
         self._source_vertices = vertices
 
     @property
+    @return_none_when_executed_by_pycharm
     def destination_vertices(self):
         """Nx2 numpy.ndarray : Vertices of destination
 
@@ -355,23 +364,27 @@ class Mapping2:
         self._destination_vertices = vertices
 
     @property
+    @return_none_when_executed_by_pycharm
     def source_cropped_vertices(self): # or crop_vertices_in_source
         """Nx2 numpy.ndaarray : Vertices of the overlapping area (intersection) of the source and destination areas
         in source space"""
         return overlap_vertices(self.source_vertices, self.transform_coordinates(self.destination_vertices, inverse=True))
 
     @property
+    @return_none_when_executed_by_pycharm
     def source_cropped(self):
         """Nx2 numpy.ndaarray : Source points that overlap with the destination in source space"""
         return crop_coordinates(self.source, self.source_cropped_vertices)
 
     @property
+    @return_none_when_executed_by_pycharm
     def destination_cropped_vertices(self): # or crop_vertices_in_destination
         """Nx2 numpy.ndaarray : Vertices of the overlapping area (intersection) of the source and destination areas
         in destination space"""
         return overlap_vertices(self.transform_coordinates(self.source_vertices), self.destination_vertices)
 
     @property
+    @return_none_when_executed_by_pycharm
     def destination_cropped(self):
         """Nx2 numpy.ndaarray : Destination points that overlap with the source in destination space"""
         return crop_coordinates(self.destination, self.destination_cropped_vertices)
@@ -511,6 +524,7 @@ class Mapping2:
         return overlap_vertices(self.get_source_vertices(space=space), self.get_destination_vertices(space=space))
 
     @property
+    @return_none_when_executed_by_pycharm
     def source_distance_threshold(self):
         """float : Distance threshold in source space.
 
@@ -530,6 +544,7 @@ class Mapping2:
         self._destination_distance_threshold = None
 
     @property
+    @return_none_when_executed_by_pycharm
     def destination_distance_threshold(self):
         """float : Distance threshold in source space.
 
@@ -728,18 +743,21 @@ class Mapping2:
         return pair_distances
 
     @property
+    @return_none_when_executed_by_pycharm
     def number_of_source_points(self):
         """int : Number of points in the source point set.
         """
         return self.source.shape[0]
 
     @property
+    @return_none_when_executed_by_pycharm
     def number_of_destination_points(self):
         """int : Number of points in the destination point set.
         """
         return self.destination.shape[0]
 
     @property
+    @return_none_when_executed_by_pycharm
     def number_of_matched_points(self):
         """int : Number of matched pairs between the source and destination point set
         """
@@ -802,26 +820,31 @@ class Mapping2:
         # Other method would be using voronoi diagrams, and calculating area of inner points
 
     @property
+    @return_none_when_executed_by_pycharm
     def source_area(self):
         """float : Area of the source point set."""
         return area(self.source_vertices)
 
     @property
+    @return_none_when_executed_by_pycharm
     def source_in_destination_area(self):
         """float : Area of the source point set when transformed to destination space."""
         return area(self.transformation(self.source_vertices))
 
     @property
+    @return_none_when_executed_by_pycharm
     def source_cropped_area(self):
         """float : Area of the source point set cropped to the destination point set."""
         return area(self.source_cropped_vertices)
 
     @property
+    @return_none_when_executed_by_pycharm
     def destination_area(self):
         """float : Area of the destination point set."""
         return area(self.destination_vertices)
 
     @property
+    @return_none_when_executed_by_pycharm
     def destination_cropped_area(self):
         """float : Area of the destination point set cropped to the source point set."""
         return area(self.destination_cropped_vertices)
@@ -867,6 +890,7 @@ class Mapping2:
         return area(self.get_destination_vertices(crop=crop, space=space))
 
     @property
+    @return_none_when_executed_by_pycharm
     def transformation_type(self):
         """str : Transformation type used for mapping.
 
