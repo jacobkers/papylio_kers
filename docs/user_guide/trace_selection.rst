@@ -8,8 +8,8 @@ For example you can perform a selection based on the 5-frame rolling average of 
 this can eliminate molecules with multiple fluorescent labels.
 To this end first calculate the 5-frame average of the rolling intensity using xarray.
 Then determine the selection by finding the traces that are lower than a threshold for all frames.
-Add this selection to the file dataset using the `set_variable` attribute of the `File` class.
-Any name can be used that starts with `selection_`.
+Add this selection to the file dataset using the ``set_variable`` attribute of the ``File`` class.
+Any name can be used that starts with ``selection_``.
 
 .. code-block::
 
@@ -27,7 +27,7 @@ Another selection criterion may be requiring that there is acceptor signal at th
     selection = intensity_red_threshold < intensity_red_end
     file.set_variable(selection, name='selection_intensity_red_end')
 
-The selections in a file can be obtained using the `file.selections` property.
+The selections in a file can be obtained using the ``file.selections`` property.
 
 Now an overall selection can be made using
 
@@ -37,7 +37,7 @@ Now an overall selection can be made using
 
 This will combine all selections variables, where a molecule will be selected if all of the selections are True.
 If you want to set the selection based on one or multiple selection variables, the names of the selection variables can
-be passed to `apply_selections`:
+be passed to ``apply_selections``:
 
 .. code-block::
 

@@ -20,7 +20,7 @@ There are no changes here compared to a regular single-molecule analysis (See: :
 
 2. Generate tile mappings
 --------------------------
-Import the sam file with all sequences aligned to your reference sequence(s) (See: :doc:`/examples/sequence_alignment` on how to generate the sam file) as shown below. With ``sequence_subset``
+Import the sam file with all sequences aligned to your reference sequence(s) (See: :doc:`/sequencing/sequence_alignment` on how to generate the sam file) as shown below. With ``sequence_subset``
 you can indicate the indices of the nucleotides of interest.
 
 .. code-block:: python

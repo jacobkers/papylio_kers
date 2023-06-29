@@ -27,7 +27,9 @@ Getting started
 
    Installation
    Getting started
+   User guide <user_guide/index>
    Examples <examples/index>
+   Sequencing <sequencing/index>
    GUI
    API reference
    Contributing
