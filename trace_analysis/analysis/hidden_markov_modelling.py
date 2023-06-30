@@ -56,10 +56,16 @@ def BIC(model, xis):
         state_count = (model.state_count() - 2)
         k = state_count * (state_count - 1) + state_count * 2
         # likelihood = model.predict_proba(xi).max(axis=1).prod()
-        likelihood = np.prod([model.probability(xii) for xii in xis])
+        log_likelihood = np.sum([model.log_probability(xii) for xii in xis])
 
     n = len(np.concatenate(xis))
-    return -2*np.log(likelihood) + k * np.log(n)
+    bic_value = -2 * log_likelihood + k * np.log(n)
+    return bic_value
+
+    #     likelihood = np.prod([model.probability(xii) for xii in xis])
+    #
+    # n = len(np.concatenate(xis))
+    # bic_value_old = -2*np.log(likelihood) + k * np.log(n)
 
 
 def split_by_classification(xi, classification):
