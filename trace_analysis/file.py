@@ -15,6 +15,7 @@ import warnings
 import sys
 import re
 import tifffile
+import netCDF4
 # from trace_analysis.molecule import Molecule
 from trace_analysis.movie.movie import Movie
 from trace_analysis.movie.tif import TifMovie
@@ -78,7 +79,7 @@ class File:
 
 
         self.dataset_variables = ['molecule', 'frame', 'time', 'coordinates', 'background', 'intensity', 'FRET', 'selected',
-                                  'molecule_in_file', 'illumination_correction']
+                                  'molecule_in_file', 'illumination_correction', 'number_of_states', 'transition_rate', 'state_mean']
 
 
         # I think it will be easier if we have import functions for specific data instead of specific files.
@@ -129,8 +130,10 @@ class File:
         # return len(self.dataset.molecule)
         # if self.absoluteFilePath.with_suffix('.nc').exists():
         try:
-            with xr.open_dataset(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf') as dataset:
-                return len(dataset.molecule)
+            # with xr.open_dataset(self.absoluteFilePath.with_suffix('.nc'), engine='netcdf4') as dataset:
+            #     return len(dataset.molecule)
+            with netCDF4.Dataset(self.absoluteFilePath.with_suffix('.nc')) as dataset:
+                return dataset.dimensions['molecule'].size
         except FileNotFoundError:
             return 0
 
@@ -141,7 +144,7 @@ class File:
 
     # @property
     # def molecule(self):
-    #     with xr.open_dataset(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf') as dataset:
+    #     with xr.open_dataset(self.absoluteFilePath.with_suffix('.nc'), engine='netcdf4') as dataset:
     #         return dataset['molecule'].load()
     # @number_of_molecules.setter
     # def number_of_molecules(self, number_of_molecules):
@@ -204,7 +207,7 @@ class File:
 
     # @property
     # def coordinates(self):
-    #     with xr.open_dataset(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf') as dataset:
+    #     with xr.open_dataset(self.absoluteFilePath.with_suffix('.nc'), engine='netcdf4') as dataset:
     #         #.set_index({'molecule': ('molecule_in_file','file')})
     #         return dataset['coordinates'].load()
     #
@@ -265,21 +268,21 @@ class File:
         if item == 'dataset_variables':
             return
         if item in self.dataset_variables or item.startswith('selection') or item.startswith('classification') or item.startswith('intensity'):
-            with xr.open_dataset(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf') as dataset:
+            with xr.open_dataset(self.absoluteFilePath.with_suffix('.nc'), engine='netcdf4') as dataset:
                 return dataset[item].load()
         # else:
         #     super().__getattribute__(item)
         raise AttributeError(f'Attribute {item} not found')
 
     def get_data(self, key):
-        with xr.open_dataset(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf') as dataset:
+        with xr.open_dataset(self.absoluteFilePath.with_suffix('.nc'), engine='netcdf4') as dataset:
             return dataset[key].load()
 
     @property
     @return_none_when_executed_by_pycharm
     def dataset(self):
         if self.absoluteFilePath.with_suffix('.nc').exists():
-            with xr.open_dataset(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf') as dataset:
+            with xr.open_dataset(self.absoluteFilePath.with_suffix('.nc'), engine='netcdf4') as dataset:
                 return dataset.load()
         else:
             return None
@@ -293,7 +296,7 @@ class File:
     @property
     @return_none_when_executed_by_pycharm
     def data_vars(self):
-        with xr.open_dataset(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf') as dataset:
+        with xr.open_dataset(self.absoluteFilePath.with_suffix('.nc'), engine='netcdf4') as dataset:
             return dataset.data_vars
     # def get_coordinates(self, selected=False):
     #     if selected:
@@ -327,7 +330,7 @@ class File:
         dataset = dataset.reset_index('molecule', drop=True)
         dataset = dataset.assign_coords({'file': ('molecule', [str(self.relativeFilePath).encode()] * number_of_molecules)})
         encoding = {'file': {'dtype': '|S'}, 'selected': {'dtype': bool}}
-        dataset.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='w', encoding=encoding)
+        dataset.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='netcdf4', mode='w', encoding=encoding)
         self.extensions.add('.nc')
 
         # # pd.MultiIndex.from_tuples([], names=['molecule_in_file', 'file'])),
@@ -630,7 +633,7 @@ class File:
                 # This actually creates an empty dataset.
                 coordinates = xr.DataArray(np.empty((0, 2, 2)), dims=('molecule', 'channel', 'dimension'),
                                     coords={'channel': [0, 1], 'dimension': [b'x', b'y']}, name='coordinates')
-                coordinates.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
+                coordinates.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='netcdf4', mode='a')
                 print('no peaks found')
                 return
 
@@ -791,7 +794,7 @@ class File:
         # Reset current .nc file
         self._init_dataset(len(coordinates.molecule))
 
-        coordinates.drop('file', errors='ignore').to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
+        coordinates.drop('file', errors='ignore').to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='netcdf4', mode='a')
         # self.extract_background()
 
         # self.molecules.export_pks_file(self.absoluteFilePath.with_suffix('.pks'))
@@ -851,7 +854,7 @@ class File:
         background = xr.DataArray(background_list, dims=['illumination', 'molecule', 'channel'], name='background')
         # END modified
 
-        background.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
+        background.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='netcdf4', mode='a')
         sys.stdout.write(f'\r   background calculated {self}\n')
 
     def import_excel_file(self, filename=None):
@@ -934,7 +937,7 @@ class File:
         # if self.movie.illumination is not None:
         intensity = intensity.assign_coords(illumination=self.movie.illumination_index_per_frame)
 
-        intensity.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
+        intensity.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='netcdf4', mode='a')
 
         if background_correction is not None or alpha_correction is not None or gamma_correction is not None:
             self.apply_trace_corrections(background_correction, alpha_correction, gamma_correction)
@@ -951,17 +954,17 @@ class File:
         else:
             intensity_raw = self.intensity
             intensity_raw.name = 'intensity_raw'
-            intensity_raw.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
+            intensity_raw.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='netcdf4', mode='a')
 
         intensity = trace_correction(intensity_raw, background_correction, alpha_correction, gamma_correction)
-        intensity.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
+        intensity.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='netcdf4', mode='a')
 
         if 'FRET' in self.data_vars:
             self.calculate_FRET()
 
     def calculate_FRET(self):
         FRET = calculate_FRET(self.intensity)
-        FRET.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
+        FRET.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='netcdf4', mode='a')
 
     def get_traces(self, selected=False):
         dataset = self.dataset
@@ -980,7 +983,7 @@ class File:
 
     # def classify_traces(self):
     #     ds = hmm_traces(self.FRET, n_components=2, covariance_type="full", n_iter=100)
-    #     ds.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
+    #     ds.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='netcdf4', mode='a')
 
     def classify_hmm(self, variable, seed=0):#, use_selection=True, use_classification=True):
         np.random.seed(seed)
@@ -988,11 +991,11 @@ class File:
             variable = getattr(self, variable)
 
         ds = hidden_markov_modelling(variable, self.classification, self.selected)
-        ds.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
+        ds.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='netcdf4', mode='a')
 
     def save_dataset_selected(self):
         encoding = {'file': {'dtype': '|S'}, 'selected': {'dtype': bool}}
-        self.dataset_selected.to_netcdf(self.absoluteFilePath.parent / (self.name + '_selected.nc'), engine='h5netcdf', mode='w', encoding=encoding)
+        self.dataset_selected.to_netcdf(self.absoluteFilePath.parent / (self.name + '_selected.nc'), engine='netcdf4', mode='w', encoding=encoding)
 
     def import_pks_file(self, extension):
         peaks = import_pks_file(self.absoluteFilePath.with_suffix('.pks'))
@@ -1006,7 +1009,7 @@ class File:
         background = peaks.sel(parameter='background', drop=True)
 
         xr.Dataset({'coordinates': coordinates, 'background': background})\
-            .to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
+            .to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='netcdf4', mode='a')
 
     def export_pks_file(self):
         peaks = xr.merge([self.coordinates.to_dataset('dimension'), self.background.to_dataset()])\
@@ -1022,7 +1025,7 @@ class File:
         if not self.absoluteFilePath.with_suffix('.nc').is_file():
             self._init_dataset(len(intensity.molecule))
 
-        xr.Dataset({'intensity': intensity}).to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
+        xr.Dataset({'intensity': intensity}).to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='netcdf4', mode='a')
 
     def export_traces_file(self):
         traces = self.intensity.stack(trace=('molecule', 'channel')).T
@@ -1191,7 +1194,7 @@ class File:
         for file in self.experiment.selectedFiles:
             if file is not self:
                 file._init_dataset(len(self.molecule))
-                self.coordinates.to_netcdf(file.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf')
+                self.coordinates.to_netcdf(file.absoluteFilePath.with_suffix('.nc'), engine='netcdf4')
 
     def use_mapping_for_all_files(self):
         print(f"\n{self} used as mapping")
@@ -1206,10 +1209,30 @@ class File:
     #     if variable in ['intensity','FRET','intensity_total']:
     #         da = getattr(self, 'get_'+variable)
     #     else:
-    #         with xr.open_dataset(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf') as dataset:
+    #         with xr.open_dataset(self.absoluteFilePath.with_suffix('.nc'), engine='netcdf4') as dataset:
     #             da = dataset[variable].load()
     #
-    def get_variable(self, variable, selected=False, frame_range=None, average=False):
+    def get_variable(self, variable, selected=False, frame_range=None, average=False, return_none_if_nonexistent=False):
+        """
+        Get a variable.
+
+        Parameters:
+            variable (str): The name of the variable to retrieve.
+            selected (bool, optional): Whether to return only selected molecules. Default is False.
+            frame_range (tuple, optional): In case the returned variable has dimension 'frame', frame_range can be used
+                to select the desired frames. Default is None.
+            average (bool or str, optional): Whether to calculate the average of the variable over a specific dimension.
+                If a string is provided, it represents the dimension to average over. Default is False.
+            return_none_if_nonexistent (bool, optional): Whether to return None if the variable does not exist in the object.
+                Default is False.
+
+        Returns:
+            xarray.DataArray: The requested variable.
+
+        """
+        if return_none_if_nonexistent and not hasattr(self, variable):
+            return None
+
         da = getattr(self, variable)
 
         if selected:
@@ -1219,7 +1242,9 @@ class File:
             da = da.sel(frame=slice(*frame_range))
 
         if average:
-            da = da.mean(dim='frame')
+            da = da.mean(dim=average)
+            if average == 'molecule':
+                da = da.expand_dims({'name': [self.name]}, 0)
 
         return da
 
@@ -1235,7 +1260,7 @@ class File:
     @property
     @return_none_when_executed_by_pycharm
     def selections(self):
-        with xr.open_dataset(self.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf') as dataset:
+        with xr.open_dataset(self.absoluteFilePath.with_suffix('.nc'), engine='netcdf4') as dataset:
             return xr.Dataset({value.name: value for key, value in dataset.data_vars.items()
                                if key.startswith('selection')}).to_array(dim='selection')
         # return xr.concat([value for key, value in self.dataset.data_vars.items() if key.startswith('filter')], dim='filter')
@@ -1293,9 +1318,17 @@ class File:
     def frame_rate(self):
         return 1 / self.cycle_time
 
-    def determine_dwells_from_classification(self, variable='FRET'):
+    def determine_dwells_from_classification(self, variable='FRET', selected=False):
         # TODO: Make it possible to pass multiple traces.
-        dwells = dwell_times_from_classification(self.classification, traces=getattr(self, variable), cycle_time=self.cycle_time)
+        classification = self.classification
+        traces = getattr(self, variable)
+
+        if selected:
+            classification = classification.sel(molecule=self.selected)
+            traces = traces.sel(molecule=self.selected)
+
+        dwells = dwell_times_from_classification(classification, traces=traces, cycle_time=self.cycle_time)
+        dwells.attrs['selected'] = str(selected)
         dwells.to_netcdf(self.absoluteFilePath.with_name(self.name + '_dwells').with_suffix('.nc'), engine='netcdf4', mode='w')
 
     @property
@@ -1304,6 +1337,7 @@ class File:
         return xr.load_dataset(self.absoluteFilePath.with_name(self.name + '_dwells').with_suffix('.nc'), engine='netcdf4')
 
     def analyze_dwells(self, plot=False, axes=None, state_names={0: 'Low FRET state', 1: 'High FRET state'}, logy=False):
+        dwells = self.dwells
         fit_values, axes = analyze_dwells(self.dwells, cycle_time=self.cycle_time, plot=plot, axes=axes, state_names=state_names, logy=logy)
         if axes is not None:
             axes[0].set_title(self.name)
@@ -1323,6 +1357,21 @@ class File:
     def dwell_analysis(self, dataset):
         dataset.to_netcdf(self.absoluteFilePath.with_name(self.name + '_dwell_analysis').with_suffix('.nc'),
                           engine='netcdf4', mode='w')
+
+    def state_count(self, selected=True, states=None):
+        n, c = np.unique(self.get_variable('number_of_states', selected=selected), return_counts=True)
+        if states is None:
+            states = n
+        state_count = xr.DataArray(0, dims=('name','number_of_states'), coords={'name': [self.name], 'number_of_states': states})
+        state_count.loc[dict(number_of_states=n)] = c
+        state_count.name = 'state_count'
+        return state_count
+
+    def state_fraction(self, **state_count_kwargs):
+        state_count = self.state_count(**state_count_kwargs)
+        state_fraction = state_count / state_count.sum('number_of_states')
+        state_fraction.name = 'state_fraction'
+        return state_fraction
 
     #
     # def get_FRET(self, **kwargs):
