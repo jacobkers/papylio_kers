@@ -14,13 +14,17 @@ class FileCollection(Collection):
             def f2(*args, **kwargs):
                 output = attrs(*args, **kwargs)
                 if output is not None and isinstance(output[0], xr.DataArray):
-                    output = xr.concat(output, dim='molecule')
+                    output = xr.concat(output, dim=output[0].dims[0])
                 return output
             return f2
 
-        elif isinstance(attrs[0], xr.DataArray) or isinstance(attrs[0], xr.Dataset):
-            attrs = xr.concat(attrs, dim='molecule')
+        elif isinstance(attrs[0], xr.DataArray):
+            xr.concat(attrs, dim=attrs[0].dims[0])
+        elif isinstance(attrs[0], xr.Dataset):
+            if 'molecule' in attrs[0].dims:
+                attrs = xr.concat(attrs, dim='molecule')
         elif item == 'dwells':
+            #TODO is this still necessary or is this done by the xr.DataArray elif?
             attrs = xr.concat(attrs, dim='dwell')
         return attrs
 
@@ -54,7 +58,7 @@ class FileCollection(Collection):
     def cycle_time(self):
         return self[0].cycle_time
 
-    def analyze_dwells(self,  *args, **kwargs):
+    def analyze_dwells_combined(self, *args, **kwargs):
         return File.analyze_dwells(self.serial, *args, **kwargs)
 
     def print(self):
