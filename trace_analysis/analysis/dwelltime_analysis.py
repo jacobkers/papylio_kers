@@ -89,16 +89,24 @@ def dwell_times_from_classification(classification, traces=None, cycle_time=None
     return ds
 
 
-def single_decaying_exponential(t, A, tau):
-    return A * np.exp(-t/tau)
+# def single_decaying_exponential(t, A, tau):
+#     return A * np.exp(-t/tau)
+# single_decaying_exponential.bounds = ((0,0),(np.inf,np.inf))
+# def p0(t, y):
+#     return y.max(), t.mean()
+# single_decaying_exponential.p0 = p0
+
+def single_decaying_exponential(t, A, k):
+    return A * np.exp(-k*t)
 single_decaying_exponential.bounds = ((0,0),(np.inf,np.inf))
 def p0(t, y):
-    return y.max(), t.mean()
+    return y.max(), 1/t.mean()
 single_decaying_exponential.p0 = p0
 
 def analyze_dwells(dwells, fit_function=single_decaying_exponential, cycle_time=1, plot=False,
-                   axes=None, state_names={1: 'Low FRET state', 2: 'High FRET state'}, logy=False):
-    states = np.unique(dwells.state)
+                   axes=None, state_names={0: 'Low FRET state', 1: 'High FRET state'}, logy=False):
+    # states = np.unique(dwells.state)
+    states = np.array(list(state_names.keys()))
     positive_states = states[states>=0]
 
     bins=50
@@ -122,7 +130,8 @@ def analyze_dwells(dwells, fit_function=single_decaying_exponential, cycle_time=
         c, t_edges = np.histogram(dwells_with_state.duration, bins=bins+1, range=[-cycle_time/2, (bins+1/2)*cycle_time])
         t = (t_edges[:-1]+t_edges[1:])/2
         try:
-            popt, pcov = scipy.optimize.curve_fit(fit_function, t[1:], c[1:], p0=fit_function.p0(t[1:], c[1:]), bounds=fit_function.bounds)
+            popt, pcov = scipy.optimize.curve_fit(fit_function, t[2:], c[2:], p0=fit_function.p0(t[2:], c[2:]),
+                                                  bounds=fit_function.bounds, absolute_sigma=True)
             perr = np.sqrt(np.diag(pcov))
             fit_values['optimal_value'][dict(state=state)] = popt
             fit_values['covariance'][dict(state=state)] = pcov
@@ -132,9 +141,7 @@ def analyze_dwells(dwells, fit_function=single_decaying_exponential, cycle_time=
             #                      zip(fit_parameters, popt, perr)}
 
         except RuntimeError:
-            popt, pcov, perr = None
-            fit_values[state] = None
-
+            popt = pcov = perr = None
 
         if plot:
             axes[i].bar(t, c, width=cycle_time)
@@ -142,6 +149,7 @@ def analyze_dwells(dwells, fit_function=single_decaying_exponential, cycle_time=
             if popt is not None:
                 axes[i].plot(t, fit_function(t, *popt), c='r', label=r'$count = Ae^{-\frac{t}{\tau}}$')
                 text_string = f'A={popt[0]:.5}\nτ={popt[-1]:.5}\n1/τ={1/popt[-1]:.5}' #\nmean={dwells_with_state["mean"].mean().item():.5}'
+                text_string = f'A={popt[0]:.0f}±{perr[0]:.0f}\nk={popt[-1]:.2f}±{perr[-1]:.2f}\nτ={1 / popt[-1]:.1f}'  # \nmean={dwells_with_state["mean"].mean().item():.5}'
             else:
                 text_string = 'No fit found'
 
