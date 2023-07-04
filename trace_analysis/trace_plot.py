@@ -29,7 +29,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from pathlib2 import Path
 
-from PySide2.QtWidgets import QMainWindow, QPushButton, QWidget, QVBoxLayout
+from PySide2.QtWidgets import QMainWindow, QPushButton, QWidget, QVBoxLayout, QHBoxLayout, QLineEdit
 from PySide2.QtGui import QKeySequence
 from PySide2.QtCore import Qt
 
@@ -79,7 +79,19 @@ class TracePlotWindow(QWidget):
         toolbar = NavigationToolbar(self.canvas, self)
 
         layout = QVBoxLayout()
-        layout.addWidget(toolbar)
+
+        layout_bar = QHBoxLayout()
+        layout_bar.addWidget(toolbar)
+
+        self.molecule_index_field = QLineEdit()
+
+        layout_bar.addWidget(self.molecule_index_field)
+
+        self.molecule_index_field.returnPressed.connect(self.set_molecule_index_from_molecule_index_field)
+        self.molecule_index_field.returnPressed.connect(self.deactivate_line_edit)
+
+
+        layout.addLayout(layout_bar)
         layout.addWidget(self.canvas)
 
         self.setLayout(layout)
@@ -94,6 +106,9 @@ class TracePlotWindow(QWidget):
             self.show()
 
             app.exec_()
+
+    def deactivate_line_edit(self):
+        self.molecule_index_field.clearFocus()  # Clear the focus from the line edit
 
     @property
     def dataset(self):
@@ -120,6 +135,11 @@ class TracePlotWindow(QWidget):
             self.molecule = self.dataset.isel(molecule=self._molecule_index)
         else:
             self.molecule = None
+        self.molecule_index_field.setText(str(molecule_index))
+        self.molecule_index_field.setFocusPolicy(Qt.ClickFocus)
+
+    def set_molecule_index_from_molecule_index_field(self):
+        self.molecule_index = int(self.molecule_index_field.text())
 
     def next_molecule(self):
         if (self.molecule_index+1) < len(self.dataset.molecule):
