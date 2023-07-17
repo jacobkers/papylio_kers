@@ -957,6 +957,7 @@ class File:
             intensity_raw.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='netcdf4', mode='a')
 
         intensity = trace_correction(intensity_raw, background_correction, alpha_correction, gamma_correction)
+        intensity.name = 'intensity'
         intensity.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='netcdf4', mode='a')
 
         if 'FRET' in self.data_vars:
