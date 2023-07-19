@@ -19,7 +19,7 @@ class FileCollection(Collection):
             return f2
 
         elif isinstance(attrs[0], xr.DataArray):
-            xr.concat(attrs, dim=attrs[0].dims[0])
+            attrs = xr.concat(attrs, dim=attrs[0].dims[0])
         elif isinstance(attrs[0], xr.Dataset):
             if 'molecule' in attrs[0].dims:
                 attrs = xr.concat(attrs, dim='molecule')
