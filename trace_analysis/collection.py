@@ -47,7 +47,8 @@ def fun2(fun, obj, *args, **kwargs):
     return (obj, fun_result)
 
 class Collection(UserList):
-    def __init__(self, data=None, use_parallel_processing=True, number_of_cores=None, parallel_processing_kwargs=dict(verbose=0)):
+    def __init__(self, data=None, use_parallel_processing=True, number_of_cores=None,
+                 parallel_processing_kwargs=dict(verbose=0), return_none_if_all_none=True):
         # self.data = data
 
         if number_of_cores is None:
@@ -63,6 +64,7 @@ class Collection(UserList):
         super(Collection, self).__setattr__('use_parallel_processing', use_parallel_processing)
         super(Collection, self).__setattr__('number_of_cores', number_of_cores)
         super(Collection, self).__setattr__('parallel_processing_kwargs', parallel_processing_kwargs)
+        super(Collection, self).__setattr__('return_none_if_all_none', return_none_if_all_none)
 
         # data_types = {type(datum) for datum in self.data}
         # data_types.discard(type(None))
@@ -100,9 +102,12 @@ class Collection(UserList):
                     #           for datum in tqdm(self.data, position=0, leave=True)]
                     output = [fun(datum, *args, **kwargs) if datum is not None else None
                               for datum in tqdm(self.data, position=0, leave=True)]
-                for o in output:
-                    if o is not None:
-                        return Collection(output, **self.dict_without_data)
+                if self.return_none_if_all_none:
+                    for o in output:
+                        if o is not None:
+                            return Collection(output, **self.dict_without_data)
+                else:
+                    return Collection(output, **self.dict_without_data)
 
             return f
         else:
@@ -140,9 +145,12 @@ class Collection(UserList):
                             datum.__dict__.update(obj.__dict__)
                     output.append(out)
 
-                for o in output:
-                    if o is not None:
-                        return Collection(output, **self.dict_without_data)
+                if self.return_none_if_all_none:
+                    for o in output:
+                        if o is not None:
+                            return Collection(output, **self.dict_without_data)
+                else:
+                    return Collection(output, **self.dict_without_data)
 
             return f
 
