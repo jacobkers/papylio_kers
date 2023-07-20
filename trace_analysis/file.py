@@ -999,6 +999,40 @@ class File:
         ds = hidden_markov_modelling(variable, self.classification, self.selected)
         ds.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='netcdf4', mode='a')
 
+    def plot_hmm_rates(self):
+        title = self.name + '_hmm_rates'
+        figure, axis = plt.subplots(figsize=(4, 2.5), layout='constrained')
+        # axis = axes[i]
+        ds_2_state = self.dataset.sel(molecule=(self.dataset.number_of_states == 2) & self.dataset.selected)
+        save_path = self.experiment.analysis_path / 'hmm rate histograms'
+        save_path.mkdir(exist_ok=True)
+        file_path = save_path / (title + '.png')
+        if len(ds_2_state.molecule) == 0:
+            if file_path.exists():
+                file_path.unlink()
+            return None
+        unit_string = '$s^{-1}$'
+        rate_1_to_0 = ds_2_state.transition_rate.sel(from_state=1, to_state=0)
+        label_1_to_0 = '$\\overline{k_{1\\rightarrow0}}$ = ' +\
+                       f'{rate_1_to_0.mean().item():.1f}±{rate_1_to_0.std().item():.1f} {unit_string}'
+        rate_1_to_0.plot.hist(bins=50, label=label_1_to_0, ax=axis, range=(0, 15), alpha=0.5)
+        rate_0_to_1 = ds_2_state.transition_rate.sel(from_state=0, to_state=1)
+        label_0_to_1 = '$\\overline{k_{0\\rightarrow1}}$ = ' +\
+                       f'{rate_0_to_1.mean().item():.1f}±{rate_0_to_1.std().item():.1f} {unit_string}'
+        rate_0_to_1.plot.hist(bins=50, label=label_0_to_1, ax=axis, range=(0, 15), alpha=0.5)
+        axis.legend()
+        axis.set_xlabel('Transition rate ($s^{-1}$)')
+        axis.set_ylabel('Count')
+
+        axis.set_title(title)
+        #
+        # unit_string = '$s^{-1}$'
+        # rate_string = f'Mean rates:\n' \
+        #               '$\\overline{k_{0\\rightarrow1}}$ = ' + f'{rate_0_to_1.mean().item():.1f}±{rate_0_to_1.std().item():.1f} {unit_string}\n' \
+        #               '$\\overline{k_{1\\rightarrow0}}$ = ' + f'{rate_1_to_0.mean().item():.1f}±{rate_1_to_0.std().item():.1f} {unit_string}'
+        # axis.text(0.95,0.05, rate_string, ha='right', transform=axis.transAxes)
+        figure.savefig(file_path)
+
     def save_dataset_selected(self):
         encoding = {'file': {'dtype': '|S'}, 'selected': {'dtype': bool}}
         self.dataset_selected.to_netcdf(self.absoluteFilePath.parent / (self.name + '_selected.nc'), engine='netcdf4', mode='w', encoding=encoding)
@@ -1345,14 +1379,15 @@ class File:
         return xr.load_dataset(self.absoluteFilePath.with_name(self.name + '_dwells').with_suffix('.nc'), engine='netcdf4')
 
     def analyze_dwells(self, plot=False, axes=None, state_names={0: 'Low FRET state', 1: 'High FRET state'}, logy=False):
-        dwells = self.dwells
         fit_values, axes = analyze_dwells(self.dwells, cycle_time=self.cycle_time, plot=plot, axes=axes, state_names=state_names, logy=logy)
         if axes is not None:
             axes[0].set_title(self.name)
+            save_path = self.experiment.analysis_path / 'Dwell time histograms and fits'
+            save_path.mkdir(exist_ok=True)
             if logy:
-                axes[0].figure.savefig(self.absoluteFilePath.with_name(self.name + '_dwelltime_analysis_logy.png'))
+                axes[0].figure.savefig(save_path / (self.name + '_dwelltime_analysis_logy.png'))
             else:
-                axes[0].figure.savefig(self.absoluteFilePath.with_name(self.name + '_dwelltime_analysis.png'))
+                axes[0].figure.savefig(save_path / (self.name + '_dwelltime_analysis.png'))
         self.dwell_analysis = fit_values
         return fit_values
 
