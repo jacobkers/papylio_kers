@@ -260,6 +260,8 @@ class FastqData:
         return logo_object
 
     def sequence_density(self, expected_seq=None, start=None, end=None, row_length=None, figure=None, save=False, title=''):
+        # TODO: Replace with function in plotting_sequences.py
+
         sequence = self.sequence[~np.any(self.sequence == b'N', axis=1)]
         # sequence_int = sequence.view('uint8')
         # sequence_df = pd.DataFrame(sequence_int).iloc[:, slice(start, end)]
