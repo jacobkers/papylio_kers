@@ -13,10 +13,12 @@ def hidden_markov_modelling(traces, classification, selection):
 
     ds = xr.Dataset()
     if models_per_molecule is None:
-        ds['selection_complex_rates'] = xr.ones_like(selection, dtype=bool)
-        ds['selection_lower_rate_limit'] = xr.ones_like(selection, dtype=bool)
-        ds['classification_hmm'] = -xr.ones_like(classification)
-        return ds
+        # TODO: Is this if statement still necessary, now that we set the return_none_if_all_none to False
+        # ds['selection_complex_rates'] = xr.ones_like(selection, dtype=bool)
+        # ds['selection_lower_rate_limit'] = xr.ones_like(selection, dtype=bool)
+        # ds['classification_hmm'] = -xr.ones_like(classification)
+        # return ds
+        raise RuntimeError('If you see this error please let Ivo know.')
 
     models_per_molecule.use_parallel_processing = False
     ds['number_of_states'] = number_of_states_from_models(models_per_molecule)
@@ -121,7 +123,7 @@ def hmm1and2(input):
 
 
 def fit_hmm_to_individual_traces(traces, classification, selected, parallel=False):
-    cf = Collection(list(zip(traces.values, classification.values, selected.values)))
+    cf = Collection(list(zip(traces.values, classification.values, selected.values)), return_none_if_all_none=False)
     cf.use_parallel_processing = parallel
     models_per_molecule = cf.map(hmm1and2)()  # New taking sections into account 5540 traces: 5:02
         # Old not taking sections into account: 5092 traces 4:00 minutes (2:37 on server)
