@@ -269,7 +269,12 @@ class File:
             return
         if item in self.dataset_variables or item.startswith('selection') or item.startswith('classification') or item.startswith('intensity'):
             with xr.open_dataset(self.absoluteFilePath.with_suffix('.nc'), engine='netcdf4') as dataset:
-                return dataset[item].load()
+                try:
+                    return dataset[item].load()
+                except KeyError:
+                    # It is desirable to raise an AttributeError instead of a KeyError,
+                    # as this is used by hasattr for example. Hence the try except.
+                    pass
         # else:
         #     super().__getattribute__(item)
         raise AttributeError(f'Attribute {item} not found')
@@ -1236,8 +1241,10 @@ class File:
 
         da = getattr(self, variable)
 
-        if selected:
-            da = da.sel(molecule=self.selected)
+        if selected is not False:
+            if selected is True:
+                selected = self.selected
+            da = da.sel(molecule=selected)
 
         if frame_range is not None:
             da = da.sel(frame=slice(*frame_range))
@@ -1360,9 +1367,16 @@ class File:
                           engine='netcdf4', mode='w')
 
     def state_count(self, selected=True, states=None):
+        # if hasattr(self, 'number_of_states'):
         n, c = np.unique(self.get_variable('number_of_states', selected=selected), return_counts=True)
         if states is None:
             states = n
+        # else:
+        #     if states is None:
+        #         states = np.array([0])
+        #     n = states
+        #     c = np.array([0] * len(states))
+
         state_count = xr.DataArray(0, dims=('name','number_of_states'), coords={'name': [self.name], 'number_of_states': states})
         state_count.loc[dict(number_of_states=n)] = c
         state_count.name = 'state_count'
@@ -1402,7 +1416,7 @@ class File:
     def show_histogram(self, variable, selected=False, frame_range=None, average=False, axis=None, **hist_kwargs):
         # TODO: add save
         da = self.get_variable(variable, selected=selected, frame_range=frame_range, average=average)
-        figure, axis = histogram(da, axis=None, **hist_kwargs)
+        figure, axis = histogram(da, axis=axis, **hist_kwargs)
         axis.set_title(str(self.relativeFilePath))
         return figure, axis
 
