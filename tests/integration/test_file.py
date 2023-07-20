@@ -80,3 +80,11 @@ def test_save_dataset_selected(file_output_with_selected):
     import xarray as xr
     ds = xr.load_dataset(file_output_with_selected.absoluteFilePath.parent / (file_output_with_selected.name + '_selected.nc'))
     assert (ds.molecule_in_file == np.array([0,5,33])).all().item()
+
+def test_classify_hmm(file_output):
+    selection = file_output.selected
+    selection[0:20] = True
+    file_output.set_variable(selection, name='selected')
+    file_output.apply_classifications()
+    file_output.classify_hmm('FRET')
+    file_output.classify_hmm(file_output.intensity.sel(channel=0, drop=True))
