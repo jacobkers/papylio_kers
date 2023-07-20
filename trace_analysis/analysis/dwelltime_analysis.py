@@ -144,6 +144,7 @@ def analyze_dwells(dwells, fit_function=single_decaying_exponential, cycle_time=
             popt = pcov = perr = None
 
         if plot:
+            # TODO: make this a separate function
             axes[i].bar(t, c, width=cycle_time)
             # axes[i].set_title(+ ',' + str())
             if popt is not None:
