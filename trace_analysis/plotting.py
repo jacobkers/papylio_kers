@@ -12,7 +12,7 @@ def histogram(da, axis=None, **hist_kwargs):
     if axis is None:
         figure, axis = plt.subplots()
     else:
-        figure = axis.figure()
+        figure = axis.figure
 
     if 'channel' in da.dims:
         das = [da.sel(channel=channel) for channel in da.channel]
