@@ -53,6 +53,8 @@ def reorder_datasets_using_sequence_subset(files_in, folder_out, concat_dim):
         with netCDF4.Dataset(file_in) as ds_in:
             # selection = np.squeeze(ds['sequence_subset'][:].view('S8') != b'--------')
             sequence_subsets = ds_in['sequence_subset'][:]
+            sequence_subsets.set_fill_value(b'-')
+            sequence_subsets = sequence_subsets.filled()
             selection = (sequence_subsets != b'-').all(axis=1)
             indices = np.where(selection)[0]
 
