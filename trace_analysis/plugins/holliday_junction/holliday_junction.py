@@ -5,6 +5,7 @@ import numpy as np
 import itertools
 import tqdm
 from matplotlib import patches
+from trace_analysis.plugins.holliday_junction.sequence_generation import all_basepaired_subsets
 
 
 def basepair_count_per_position(basepair_count, save_path):
@@ -229,6 +230,7 @@ def basepaired_sequence_subset_count(sequence_subset_count, save_path):
 
 def plot_basepaired_holliday_junction(data, size=1, name=None, s2max=None, geometry='square',
                                       axis_facecolor="lightgrey", save_path=None, vmin=None, vmax=None):
+
     if name is None:
         name = data.name
 
@@ -255,6 +257,7 @@ def plot_basepaired_holliday_junction(data, size=1, name=None, s2max=None, geome
         data['geometry'] = geometry
 
     data = data.reindex(**{'sequence_subset': all_basepaired_subsets(), 'fill_value': np.nan})
+    data['sequence_subset'] = data['sequence_subset'].astype('U')
 
     # bases = ['A', 'T', 'C', 'G']
     basepairs = ['AT', 'TA', 'CG', 'GC']
