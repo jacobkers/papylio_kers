@@ -15,7 +15,7 @@ def determine_temporal_background_correction(frames, method, flatfield=None, dar
         raise NotImplementedError('')
     else:
         correction = np.array([determine_single_value_background_correction(frame, method, flatfield, darkfield)
-                               for frame in frames])
+                               for frame in tqdm.tqdm(frames)])
 
     return correction
 
