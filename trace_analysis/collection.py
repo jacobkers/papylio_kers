@@ -174,6 +174,7 @@ class Collection(UserList):
             fun = getattr(type(self.data[0]), item)
             return self.map(fun)
         else:
+            # TODO: Make this pass getattr to map? So that we can change FileCollection.__getattr__ FileCollection.map
             return Collection([getattr(datum, item) if datum is not None else None for datum in tqdm(self.data, delay=5)], **self.dict_without_data)
 
     def __setattr__(self, key, value):

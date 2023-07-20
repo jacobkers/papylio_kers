@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 # TODO: Make sure that the collection can only contain File objects
 class FileCollection(Collection):
     def __getattr__(self, item):
+        # TODO: Replace this method by map?
         attrs = super(FileCollection, self).__getattr__(item)
         if callable(attrs):  # Test if attrs is a function, if this is the case add another function to concatenate possible xarray objects.
             def f2(*args, **kwargs):
