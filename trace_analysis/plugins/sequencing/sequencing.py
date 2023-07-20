@@ -309,7 +309,7 @@ class Experiment:
             files = self.files
         from trace_analysis.collection import Collection
         return Collection([file for file in files
-                           if file.absoluteFilePath.with_name(file.name + '_sequencing_match.mapping').is_file()])
+                           if file.absoluteFilePath.with_name(file.name + '_sequencing_match.nc').is_file()])
 
     def sequencing_matches(self, files=None):
         if files is None:
@@ -323,18 +323,22 @@ class Experiment:
                                    save=True)
 
     # TODO: Check this method
-    def sequencing_match_info_per_file(self, distance_threshold=25):
+    def sequencing_match_info_per_file(self):
         columns = pd.MultiIndex.from_product([['File coordinates', 'Sequencing coordinates'],
                                               ['Matched', 'Total', 'Fraction']])
         df = pd.DataFrame(columns=columns)
 
-        for file in self.files_with_sequencing_match:
+        for file in self.files_with_sequencing_match():
             df.loc[file.name, ('File coordinates', 'Total')] = file.sequencing_match.source_cropped.shape[0]
             df.loc[file.name, ('Sequencing coordinates', 'Total')] = file.sequencing_match.destination_cropped.shape[0]
             df.loc[file.name, (['File coordinates','Sequencing coordinates'], 'Matched')] = \
-                file.sequencing_match.number_of_matched_points(distance_threshold)
-            df.loc[file.name, (['File coordinates','Sequencing coordinates'], 'Fraction')] = \
-                file.sequencing_match.fraction_of_points_matched(distance_threshold)
+                file.sequencing_match.number_of_matched_points
+            df.loc[file.name, ('File coordinates', 'Fraction')] = \
+                df.loc[file.name, ('File coordinates', 'Matched')] / \
+                df.loc[file.name, ('File coordinates', 'Total')]
+            df.loc[file.name, ('Sequencing coordinates', 'Fraction')] = \
+                df.loc[file.name, ('Sequencing coordinates', 'Matched')] / \
+                df.loc[file.name, ('Sequencing coordinates', 'Total')]
 
         return df
 
@@ -585,7 +589,7 @@ class File:
             sequencing_dataset['sequence_coordinates'][single_molecule_indices] = selected_sequencing_data.coordinates
         # sequencing_dataset['dimension'] = [b'x', b'y']
 
-        sequencing_dataset.to_netcdf(self.relativeFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
+        sequencing_dataset.to_netcdf(self.relativeFilePath.with_suffix('.nc'), engine='netcdf4', mode='a')
 
     # @property
     # def sequences(self):
