@@ -1372,7 +1372,8 @@ class File:
 
         dwells = dwell_times_from_classification(classification, traces=traces, cycle_time=self.cycle_time)
 
-        dwells['number_of_states'] = self.number_of_states_from_classification.sel(molecule=self.dwells.molecule)\
+
+        dwells['number_of_states'] = self.number_of_states_from_classification.sel(molecule=dwells.molecule)\
             .reset_coords(drop=True)
 
         dwells.attrs['selected'] = str(selected)
@@ -1381,11 +1382,9 @@ class File:
     @property
     @return_none_when_executed_by_pycharm
     def number_of_states_from_classification(self):
-        states_in_file = np.unique(self.classification)
+        states_in_file = xr.DataArray(np.unique(self.classification), dims='state')
         positive_states_in_file = states_in_file[states_in_file >= 0]
-        molecule_has_state = xr.concat(
-            [(self.classification == state).any(axis=1) for state in positive_states_in_file], dim='state') \
-            .assign_coords({'state': positive_states_in_file})
+        molecule_has_state = (self.classification == positive_states_in_file).any(dim='frame')
         number_of_states = molecule_has_state.sum(dim='state')
         return number_of_states
 
@@ -1395,7 +1394,14 @@ class File:
         return xr.load_dataset(self.absoluteFilePath.with_name(self.name + '_dwells').with_suffix('.nc'), engine='netcdf4')
 
     def analyze_dwells(self, plot=False, axes=None, state_names={0: 'Low FRET state', 1: 'High FRET state'}, logy=False):
-        fit_values, axes = analyze_dwells(self.dwells, cycle_time=self.cycle_time, plot=plot, axes=axes, state_names=state_names, logy=logy)
+        dwells = self.dwells
+
+        # At the moment single-state states are already set at -128 so they don't need to be separated.
+        # For >2 states we will need to do this.
+        # for n in np.arange(dwells.number_of_states.max().item())+1:
+        #     dwells['state'][dict(dwell=(dwells['number_of_states'] == n) & dwells['state'] >= 0)] += n-1
+
+        fit_values, axes = analyze_dwells(dwells, cycle_time=self.cycle_time, plot=plot, axes=axes, state_names=state_names, logy=logy)
         if axes is not None:
             axes[0].set_title(self.name)
             save_path = self.experiment.analysis_path / 'Dwell time histograms and fits'
