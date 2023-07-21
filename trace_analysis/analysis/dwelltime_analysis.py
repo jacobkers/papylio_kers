@@ -57,6 +57,7 @@ def dwell_times_from_classification(classification, traces=None, cycle_time=None
     dwell_molecules, dwell_states, dwell_frames = dwell_frames_from_classification(classification)
     if inactivate_start_and_end_states:
         dwell_states = set_states(dwell_molecules, dwell_states, to_state=-128)
+        # Probably better to indicate for each dwell whether it is at a trace edge or around a negative state
 
     ds = xr.Dataset()
     if molecule_coords is not None:

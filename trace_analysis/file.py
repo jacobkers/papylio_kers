@@ -1363,6 +1363,7 @@ class File:
     def determine_dwells_from_classification(self, variable='FRET', selected=False):
         # TODO: Make it possible to pass multiple traces.
         classification = self.classification
+        classification = classification.assign_coords(molecule=self.molecule)
         traces = getattr(self, variable)
 
         if selected:
@@ -1370,8 +1371,23 @@ class File:
             traces = traces.sel(molecule=self.selected)
 
         dwells = dwell_times_from_classification(classification, traces=traces, cycle_time=self.cycle_time)
+
+        dwells['number_of_states'] = self.number_of_states_from_classification.sel(molecule=self.dwells.molecule)\
+            .reset_coords(drop=True)
+
         dwells.attrs['selected'] = str(selected)
         dwells.to_netcdf(self.absoluteFilePath.with_name(self.name + '_dwells').with_suffix('.nc'), engine='netcdf4', mode='w')
+
+    @property
+    @return_none_when_executed_by_pycharm
+    def number_of_states_from_classification(self):
+        states_in_file = np.unique(self.classification)
+        positive_states_in_file = states_in_file[states_in_file >= 0]
+        molecule_has_state = xr.concat(
+            [(self.classification == state).any(axis=1) for state in positive_states_in_file], dim='state') \
+            .assign_coords({'state': positive_states_in_file})
+        number_of_states = molecule_has_state.sum(dim='state')
+        return number_of_states
 
     @property
     @return_none_when_executed_by_pycharm
