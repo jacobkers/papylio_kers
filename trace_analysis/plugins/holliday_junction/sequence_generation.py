@@ -26,8 +26,7 @@ def basepaired_subsets():
 def rotationally_symmetric_subsets(sequence_subset):
     return list(set([sequence_subset[i*2:] + sequence_subset[:i*2] for i in range(4)]))
 
-def rotationally_symmetric_subset_categories():
-    sequence_subsets = all_basepaired_subsets()
+def rotationally_symmetric_subset_categories(sequence_subsets):
     sequence_subsets = list(sequence_subsets)
     index = 0
     subset_category_dict = {}
@@ -35,7 +34,8 @@ def rotationally_symmetric_subset_categories():
         sss = rotationally_symmetric_subsets(sequence_subsets[0])
         for ss in sss:
             subset_category_dict[ss] = index
-            sequence_subsets.remove(ss)
+            if ss in sequence_subsets:
+                sequence_subsets.remove(ss)
         index += 1
     return subset_category_dict
 
