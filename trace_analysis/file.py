@@ -1379,12 +1379,19 @@ class File:
         dwells.attrs['selected'] = str(selected)
         dwells.to_netcdf(self.absoluteFilePath.with_name(self.name + '_dwells').with_suffix('.nc'), engine='netcdf4', mode='w')
 
+    def classification_binary(self, positive_states_only=False, selected=False):
+        states_in_file = xr.DataArray(np.unique(self.classification), dims='state')
+        if positive_states_only:
+            states_in_file = states_in_file[states_in_file >= 0]
+        classification_binary = (self.classification == states_in_file).assign_coords(state=states_in_file)
+        if selected:
+            classification_binary = classification_binary.sel(molecule=self.selected)
+        return classification_binary.transpose(..., 'frame')
+
     @property
     @return_none_when_executed_by_pycharm
     def number_of_states_from_classification(self):
-        states_in_file = xr.DataArray(np.unique(self.classification), dims='state')
-        positive_states_in_file = states_in_file[states_in_file >= 0]
-        molecule_has_state = (self.classification == positive_states_in_file).any(dim='frame')
+        molecule_has_state = self.classification_binary(positive_states_only=True).any(dim='frame')
         number_of_states = molecule_has_state.sum(dim='state')
         return number_of_states
 
