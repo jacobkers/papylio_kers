@@ -162,9 +162,14 @@ def transition_matrices_from_models(models):
     for i, model in enumerate(models):
         if model is not None:
             tm = model.dense_transition_matrix()
-            start_index = max_number_of_states+2-tm.shape[0]
-            transition_matrix[i,start_index:,start_index:] = tm
-    transition_matrix = transition_matrix[:, [1,0,2,3],:][:,:,[1,0,2,3]]
+            number_of_states = tm.shape[0]-2
+            transition_matrix[i, :number_of_states, :number_of_states] = tm[:number_of_states, :number_of_states]
+            transition_matrix[i, -2:, :number_of_states] = tm[-2:, :number_of_states]
+            transition_matrix[i, :number_of_states, -2:] = tm[:number_of_states, -2:,]
+            transition_matrix[i, -2:, -2:] = tm[-2:, -2:]
+    #         start_index = max_number_of_states+2-tm.shape[0]
+    #         transition_matrix[i,start_index:,start_index:] = tm
+    # transition_matrix = transition_matrix[:, [1,0,2,3],:][:,:,[1,0,2,3]] # In case of a single state this put the state at index 0.
     return xr.DataArray(transition_matrix, dims=('molecule','from_state','to_state'))
 
 def sort_states_in_data(state_parameters, transition_matrices, classification_hmm):
