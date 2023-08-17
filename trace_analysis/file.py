@@ -1543,8 +1543,8 @@ class File:
 
         return figure, axis
 
-    def show_average_image(self, figure=None):
-        self.show_image(projection_type='average', figure=figure)
+    def show_average_image(self, figure=None, **kwargs):
+        self.show_image(projection_type='average', figure=figure, **kwargs)
 
     def show_coordinates(self, figure=None, annotate=None, unit='pixel', **kwargs):
         if not figure:
