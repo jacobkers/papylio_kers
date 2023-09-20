@@ -999,11 +999,14 @@ class File:
         ds = hidden_markov_modelling(variable, self.classification, self.selected)
         ds.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='netcdf4', mode='a')
 
-    def plot_hmm_rates(self):
-        title = self.name + '_hmm_rates'
+    def plot_hmm_rates(self, name=None):
+        if name is None:
+            name = self.name
+        dataset = self.dataset
+        title = name + '_hmm_rates'
         figure, axis = plt.subplots(figsize=(4, 2.5), layout='constrained')
         # axis = axes[i]
-        ds_2_state = self.dataset.sel(molecule=(self.dataset.number_of_states == 2) & self.dataset.selected)
+        ds_2_state = dataset.sel(molecule=(dataset.number_of_states == 2) & dataset.selected)
         save_path = self.experiment.analysis_path / 'hmm rate histograms'
         save_path.mkdir(exist_ok=True)
         file_path = save_path / (title + '.png')
@@ -1400,23 +1403,25 @@ class File:
     def dwells(self):
         return xr.load_dataset(self.absoluteFilePath.with_name(self.name + '_dwells').with_suffix('.nc'), engine='netcdf4')
 
-    def analyze_dwells(self, plot=False, axes=None, state_names={0: 'Low FRET state', 1: 'High FRET state'}, logy=False):
+    def analyze_dwells(self, plot=False, axes=None, name=None, state_names={0: 'Low FRET state', 1: 'High FRET state'}, logy=False):
         dwells = self.dwells
 
         # At the moment single-state states are already set at -128 so they don't need to be separated.
         # For >2 states we will need to do this.
         # for n in np.arange(dwells.number_of_states.max().item())+1:
         #     dwells['state'][dict(dwell=(dwells['number_of_states'] == n) & dwells['state'] >= 0)] += n-1
+        if name is None:
+            name = self.name
 
         fit_values, axes = analyze_dwells(dwells, cycle_time=self.cycle_time, plot=plot, axes=axes, state_names=state_names, logy=logy)
         if axes is not None:
-            axes[0].set_title(self.name)
+            axes[0].set_title(name)
             save_path = self.experiment.analysis_path / 'Dwell time histograms and fits'
             save_path.mkdir(exist_ok=True)
             if logy:
-                axes[0].figure.savefig(save_path / (self.name + '_dwelltime_analysis_logy.png'))
+                axes[0].figure.savefig(save_path / (name + '_dwelltime_analysis_logy.png'))
             else:
-                axes[0].figure.savefig(save_path / (self.name + '_dwelltime_analysis.png'))
+                axes[0].figure.savefig(save_path / (name + '_dwelltime_analysis.png'))
         self.dwell_analysis = fit_values
         return fit_values
 
