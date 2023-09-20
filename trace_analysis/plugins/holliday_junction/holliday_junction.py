@@ -229,7 +229,7 @@ def basepaired_sequence_subset_count(sequence_subset_count, save_path):
 
 
 def plot_basepaired_holliday_junction(data, size=1, name=None, s2max=None, geometry='square',
-                                      axis_facecolor="lightgrey", save_path=None, vmin=None, vmax=None):
+                                      axis_facecolor="lightgrey", save_path=None, vmin=None, vmax=None, axis=None):
 
     if name is None:
         name = data.name
@@ -277,8 +277,10 @@ def plot_basepaired_holliday_junction(data, size=1, name=None, s2max=None, geome
     # for bpc in tqdm.tqdm(itertools.product(basepairs, basepairs, basepairs, basepairs)):
     #     data_bp.loc[dict(bp0=bpc[0], bp1=bpc[1], bp2=bpc[2], bp3=bpc[3])] = \
     #         data.sel(**{'sequence_subset': (''.join(bpc)[1:] + ''.join(bpc)[0])})
-
-    figure, axis = plt.subplots(figsize=(7.9, 6.5), layout='constrained')
+    if axis is None:
+        figure, axis = plt.subplots(figsize=(7.9, 6.5), layout='constrained')
+    else:
+        figure = axis.figure
     # axis = axes[0]
     axis.cla()
     data_bp_stacked = data_bp.stack(bp13=('bp1', 'bp3')).stack(bp02=('bp0', 'bp2'))
@@ -297,7 +299,7 @@ def plot_basepaired_holliday_junction(data, size=1, name=None, s2max=None, geome
     if vmin is None:
         vmin = 0
     if vmax is None:
-        vmax = 1
+        vmax = data_bp_stacked2.data.max().item()
     norm = Normalize(vmin=vmin, vmax=vmax)
     cmap = 'coolwarm'
     from matplotlib.cm import ScalarMappable
@@ -346,7 +348,8 @@ def plot_basepaired_holliday_junction(data, size=1, name=None, s2max=None, geome
     # axis.images[0].set_data(data.values)
 
     for x, bp in zip(np.arange(0, 16, 4) + 1.5, basepairs):
-        axis.annotate(bp[::-1], xy=(x, 16), xycoords=('data', 'data'), ha='center', va='center')
+        # axis.annotate(bp[::-1], xy=(x, 16), xycoords=('data', 'data'), ha='center', va='center')
+        axis.annotate(bp, xy=(x, 16), xycoords=('data', 'data'), ha='center', va='center')
     for y, bp in zip(np.arange(0, 16, 4) + 1.5, basepairs):
         axis.annotate(bp, xy=(-1, y), xycoords=('data', 'data'), ha='center', va='center')
     for x, bp in zip(np.arange(0, 16), basepairs * 4):
@@ -371,12 +374,12 @@ def plot_basepaired_holliday_junction(data, size=1, name=None, s2max=None, geome
         spine.set_visible(False)
         spine.set_lw(2)
 
-    axis.annotate('Basepair 1-8', xy=(7.5, 17), xycoords=('data', 'data'), ha='center', va='center')
-    axis.annotate('Basepair 2-3', xy=(-2, 7.5), xycoords=('data', 'data'), ha='center', va='center',
+    axis.annotate('Basepair 7-8', xy=(7.5, 17), xycoords=('data', 'data'), ha='center', va='center')
+    axis.annotate('Basepair 1-2', xy=(-2, 7.5), xycoords=('data', 'data'), ha='center', va='center',
                   rotation='vertical')
-    axis.annotate('Basepair 4-5', xy=(7.5, -2), xycoords=('data', 'data'), ha='center', va='center')
-    axis.annotate('Basepair 6-7', xy=(17, 7.5), xycoords=('data', 'data'), ha='center', va='center',
-                  rotation='vertical')
+    axis.annotate('Basepair 3-4', xy=(7.5, -2), xycoords=('data', 'data'), ha='center', va='center')
+    axis.annotate('Basepair 5-6', xy=(17, 7.5), xycoords=('data', 'data'), ha='center', va='center',
+                  rotation=270)
 
     axis.set_facecolor(axis_facecolor)
     axis.invert_yaxis()
@@ -456,3 +459,106 @@ def char_add(strings):
         else:
             final = np.char.add(final, s)
     return final
+
+
+def shorthand_notation(sequences):
+    return [s[0::2] for s in sequences]
+
+
+def purine_pyrimidine_sequence(sequences):
+    translation_table = str.maketrans('AGCT', 'RRYY')
+    return [s.translate(translation_table) for s in sequences]
+
+
+def roll(sequences, n):
+    for i in range(n):
+        sequences = [s[1:] + s[0] for s in sequences]
+    return sequences
+
+
+def roll_multiple(sequences, n):
+    ss = [sequences]
+    for i in range(n):
+        sequences = roll(sequences, 1)
+        ss.append(sequences)
+    return ss
+
+
+def purine_pyrimidine_classes():
+    return {1: 'RRRR', 2: 'YRRR', 3: 'YYRR', 4: 'YRYR', 5: 'YYYR', 6: 'YYYY'}
+
+
+def purine_pyrimidine_classification(sequence_subsets, xarray=False):
+    shorthand_purine_pyrimidine = shorthand_notation(purine_pyrimidine_sequence(sequence_subsets))
+    shorthand_purine_pyrimidine_roll = np.array(roll_multiple(shorthand_purine_pyrimidine, 3)).T
+
+    purine_pyrimidine_classification = np.zeros(len(shorthand_purine_pyrimidine_roll)).astype('int8')
+
+    for index, pp_sequence in purine_pyrimidine_classes().items():
+        purine_pyrimidine_classification[(shorthand_purine_pyrimidine_roll == pp_sequence).any(axis=1)] = index
+
+    if xarray:
+        purine_pyrimidine_classification = xr.DataArray(purine_pyrimidine_classification,
+                                                        coords=dict(sequence_subset=sequence_subsets))
+
+    return purine_pyrimidine_classification
+
+
+def variant_score(variant):
+    score = 0
+    #     for i, l in enumerate(variant):
+    #         if l == 'C':
+    #             score += (i+1) * 1000
+    #         elif l == 'T':
+    #             score += (i+1) * 100
+    #         elif l == 'G':
+    #             score += (i+1) * 10
+    #         elif l == 'A':
+    #             score += (i+1) * 1
+    order = {'C': 0, 'T': 1, 'A': 10, 'G': 11}
+    for i, base in enumerate(variant):
+        #         if i == 0 and base in ['T', 'C']:
+        #             score -= 1
+        if i == 0:
+            score += order[base]
+        #         elif i==3:
+        #             score += order[::-1].index(base)
+        elif i > 0:
+            score += (order[previous_base] - order[base]) ** 3
+        #         print(score)
+        previous_base = base
+
+    return score
+
+
+def shorthand_sequence_rotationally_symmetric(sequence_subsets, xarray=False):
+    invariant_shorthand = []
+    for sequence_subset in sequence_subsets:
+        variants = roll_multiple(shorthand_notation([sequence_subset]), 3)
+        variant_scores = []
+        for v in variants:
+            #             print('test', variant_score(v[0]))
+            variant_scores.append(variant_score(v[0]))
+        selected_variant = variants[np.argmin(variant_scores)][0]
+        invariant_shorthand.append(selected_variant)
+
+    if xarray:
+        invariant_shorthand = xr.DataArray(invariant_shorthand, coords=dict(sequence_subset=sequence_subsets))
+    return invariant_shorthand
+
+# def shorthand_sequence_rotationally_symmetric(sequence_subsets, xarray=False):
+    # shorthand_purine_pyrimidine = shorthand_notation(purine_pyrimidine_sequence(sequence_subsets))
+    # shorthand_purine_pyrimidine_roll = np.array(roll_multiple(shorthand_purine_pyrimidine, 3)).T
+    # shorthand_purine_pyrimidine_roll
+
+    # pps = np.array(list(purine_pyrimidine_classes().values()))
+
+    # roll_indices = (shorthand_purine_pyrimidine_roll[:,:,None] == pps[None,None,:]).argmax(axis=-1).argmax(axis=-1)
+    # shorthand_sequence_rotationally_symmetric = \
+    #     np.array(roll_multiple(shorthand_notation(sequence_subsets), 3)).T[np.arange(len(roll_indices)),roll_indices]
+
+    # if xarray:
+    #     shorthand_sequence_rotationally_symmetric = xr.DataArray(shorthand_sequence_rotationally_symmetric,
+    #                                                         coords=dict(sequence_subset=sequence_subsets))
+
+    #     return shorthand_sequence_rotationally_symmetric

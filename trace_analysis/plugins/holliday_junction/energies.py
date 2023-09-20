@@ -57,6 +57,10 @@ energy_dict = {'AA': -2.38, 'TT': -1.52, 'AT': -2.17, 'TA': -1.52, 'GG': -1.62, 
                 'TG': -1.42, 'CA': -1.45, 'AG': -1.74, 'CT': -1.19, 'TC': -2.19, 'GA': -2.16, 'GT': -2.06, 'AC': -3.57}
 stacking_energies_flat['Banerjee2022'] = energy_dict_to_dataarray(energy_dict)
 
+energy_dict = {'AA': -2.30, 'TT': -1.31, 'AT': -1.96, 'TA': -1.37, 'GG': -1.62, 'CC': -1.60, 'GC': -2.61, 'CG': -1.24,
+                'TG': -1.26, 'CA': -1.29, 'AG': -1.71, 'CT': -0.95, 'TC': -1.92, 'GA': -2.00, 'GT': -1.80, 'AC': -3.22}
+stacking_energies_flat['Banerjee2023'] = energy_dict_to_dataarray(energy_dict)
+
 stacking_energies_flat = stacking_energies_flat.to_array('reference')
 
 sequence_subsets = np.array(['TTAGCCGA', 'AATCGGCT', 'GGCGCCGC'])
@@ -113,9 +117,9 @@ def base_combination_count(sequence_subsets, penultimate_bases=None):
 
 
 
-def calculate_total_stacking_energy(sequence_subsets):
-    return (base_combination_count(sequence_subsets).sum('stack_position').diff('state').squeeze(drop=True) *
-            stacking_energies_flat).sum('base_combination')
+def calculate_total_stacking_energy(sequence_subsets, penultimate_bases=None):
+    return (base_combination_count(sequence_subsets, penultimate_bases=penultimate_bases)
+            .sum('stack_position').diff('state').squeeze(drop=True) * stacking_energies_flat).sum('base_combination')
 
 
 # sequence_subsets = np.array(['TTAGCCGA', 'AATCGGCT', 'GGCGCCGC'])
