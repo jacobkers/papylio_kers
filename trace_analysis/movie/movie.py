@@ -987,12 +987,19 @@ class Movie:
     #         #     self.__setattr__(key, correction)
     #     return corrections
 
-    def save_corrections(self, **kwargs):
+    @property
+    def corrections_filepath(self):
         if hasattr(self, 'fov_index') and self.fov_index is not None:
             corrections_filepath = self.filepath.with_name(self.name + f'_fov{self.fov_index:03d}' + '_corrections.nc')
         else:
             corrections_filepath = self.filepath.with_name(self.name + '_corrections.nc')
+        return corrections_filepath
 
+    def reset_corrections(self):
+        self.corrections_filepath.unlink(missing_ok=True)
+
+    def save_corrections(self, **kwargs):
+        corrections_filepath = self.corrections_filepath
         if corrections_filepath.exists():
             corrections = xr.load_dataset(corrections_filepath, engine='h5netcdf')
         else:
