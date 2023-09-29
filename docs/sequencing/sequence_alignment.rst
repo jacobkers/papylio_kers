@@ -27,7 +27,7 @@ In short, these are the steps for sequence alignment:
     # zcat *I1_001.fastq.gz > Index1.fastq # In case the index is sequenced.
 
     bowtie2-build Reference.fasta Reference
-    bowtie2 -x Reference -U Read1.fastq -S Alignment.sam --local --np 0 --very-sensitive-local --n-ceil L,0,1 --threads 4 --score-min G,20,4 --norc
+    bowtie2 -x Reference -U Read1.fastq -S Alignment.sam --local --np 0 --very-sensitive-local --n-ceil L,0,1 --threads 4 --score-min G,20,4 --norc --reorder
 
 Some of the Bowtie 2 options:
 
@@ -39,6 +39,6 @@ Some of the Bowtie 2 options:
 --score-min  Sets a function governing the minimum alignment score needed for an alignment to be considered "valid" (i.e. good enough to report). Here G,20,8 gives f(x) = 20 + 8 * log(x), where x is the read length.
 --norc  With this setting, Bowtie 2 will not attempt to align unpaired reads against the reverse-complement (Crick) reference strand.
 -L  Sets the length of the seed substrings to align during multiseed alignment. Smaller values make alignment slower but more sensitive. Default 20 in --very-sensitive-local mode. For very short reads with a stretch of N's in the middle, lower this setting.
-
+--reorder   Makes the order of sequences in the sam file similar to the original fastq file. This is important when using multiple threads and indexes need to be added later on.
 
 Check the manual of Bowtie2 for an explanation of all the options: https://bowtie-bio.sourceforge.net/bowtie2/manual.shtml
