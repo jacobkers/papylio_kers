@@ -8,8 +8,8 @@ from trace_analysis.collection import Collection
 import trace_analysis as ta
 
 # file.FRET, file.classification, file.selected
-def hidden_markov_modelling(traces, classification, selection):
-    models_per_molecule = fit_hmm_to_individual_traces(traces, classification, selection, parallel=False)
+def hidden_markov_modelling(traces, classification, selection, n_states=2):
+    models_per_molecule = fit_hmm_to_individual_traces(traces, classification, selection, parallel=False, n_states=n_states)
 
     ds = xr.Dataset()
     if models_per_molecule is None:
@@ -22,8 +22,8 @@ def hidden_markov_modelling(traces, classification, selection):
 
     models_per_molecule.use_parallel_processing = False
     ds['number_of_states'] = number_of_states_from_models(models_per_molecule)
-    state_parameters = state_parameters_from_models(models_per_molecule)
-    transition_matrices = transition_matrices_from_models(models_per_molecule)
+    state_parameters = state_parameters_from_models(models_per_molecule, n_states=n_states)
+    transition_matrices = transition_matrices_from_models(models_per_molecule, n_states=n_states)
     classification_hmm = trace_classification_models(traces, classification, models_per_molecule).astype('int8')
     # ds['state_parameters'], ds['transition_matrix'] = \
     state_parameters, transition_matrices, classification_hmm = \
@@ -32,9 +32,9 @@ def hidden_markov_modelling(traces, classification, selection):
 
     ds['state_mean'] = state_parameters.sel(parameter=0)
     ds['state_standard_deviation'] = state_parameters.sel(parameter=1)
-    ds['transition_probability'] = transition_matrices[:, :2, :2]
-    ds['start_probability'] = transition_matrices[:, 2, :2]
-    ds['end_probability'] = transition_matrices[:, :2, 3]
+    ds['transition_probability'] = transition_matrices[:, :n_states, :n_states]
+    ds['start_probability'] = transition_matrices[:, -2, :n_states]
+    ds['end_probability'] = transition_matrices[:, :n_states, -1]
 
 
     number_of_frames = len(traces.frame)
@@ -120,12 +120,52 @@ def hmm1and2(input):
 
     # return parameters, transition_matrix
 
+def hmm_n_states(input, n_states=2):
+    xi, classification, selected = input
+
+    if not selected:
+        return None
+
+    classification_st_0 = classification < 0
+    if classification_st_0.all():
+        return None
+    if (~classification_st_0).sum() < 2:
+        return None
+
+    included_frame_selection = classification >= 0
+    xis, cis = split_by_classification(xi, included_frame_selection)
+
+    xis = [xii for cii, xii in zip(cis, xis) if cii[0]]
+
+    best_model = None
+    best_bic = np.inf
+
+    for state in range(1, n_states + 1):
+        if state == 1:
+            dist1 = pg.NormalDistribution.from_samples(np.concatenate(xis))
+            model = pg.HiddenMarkovModel.from_matrix([[1]], [dist1], [1])
+        else:
+            try:
+                model = pg.HiddenMarkovModel.from_samples(pg.NormalDistribution, n_components=state, X=xis)
+            except ValueError:
+                continue
+
+        bic = BIC(model, xis)
+
+        if bic < best_bic:
+            best_bic = bic
+            best_model = model
+
+    if best_model is not None:
+        return model
+    else:
+        return None
 
 
-def fit_hmm_to_individual_traces(traces, classification, selected, parallel=False):
+def fit_hmm_to_individual_traces(traces, classification, selected, parallel=False, n_states=2):
     cf = Collection(list(zip(traces.values, classification.values, selected.values)), return_none_if_all_none=False)
     cf.use_parallel_processing = parallel
-    models_per_molecule = cf.map(hmm1and2)()  # New taking sections into account 5540 traces: 5:02
+    models_per_molecule = cf.map(hmm_n_states)(n_states=n_states)  # New taking sections into account 5540 traces: 5:02
         # Old not taking sections into account: 5092 traces 4:00 minutes (2:37 on server)
     return models_per_molecule
 
@@ -145,19 +185,19 @@ def number_of_states_from_models(models):
 
 
 
-def state_parameters_from_models(models):
-    max_number_of_states = 2
+def state_parameters_from_models(models, n_states=2):
+    max_number_of_states = n_states
     number_of_parameters = 2
 
     state_parameters = np.full((len(models), max_number_of_states, number_of_parameters), np.nan)
     for i, model in enumerate(models):
         if model is not None:
             sp = np.vstack([state.distribution.parameters for state in model.states[:-2]])
-            state_parameters[i,:sp.shape[0],:] = sp
-    return xr.DataArray(state_parameters, dims=('molecule','state','parameter'))
+            state_parameters[i, :sp.shape[0], :] = sp
+    return xr.DataArray(state_parameters, dims=('molecule', 'state', 'parameter'))
 
-def transition_matrices_from_models(models):
-    max_number_of_states = 2
+def transition_matrices_from_models(models, n_states=2):
+    max_number_of_states = n_states
     transition_matrix = np.full((len(models), max_number_of_states+2, max_number_of_states+2), np.nan)
     for i, model in enumerate(models):
         if model is not None:
