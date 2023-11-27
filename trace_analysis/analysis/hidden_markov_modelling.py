@@ -159,7 +159,7 @@ def hmm_n_states(input, n_states=2, threshold_state_mean=None):
                     if isinstance(state.distribution, pg.NormalDistribution):
                         state_means.append(state.distribution.parameters[0])
 
-            def check_difference(state_means, threshold=0.5):
+            def check_difference(state_means, threshold=threshold_state_mean):
                 for i in range(len(state_means)):
                     for j in range(i + 1, len(state_means)):
                         if abs(state_means[i] - state_means[j]) < threshold:
