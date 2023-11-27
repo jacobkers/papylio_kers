@@ -991,12 +991,12 @@ class File:
     #     ds = hmm_traces(self.FRET, n_components=2, covariance_type="full", n_iter=100)
     #     ds.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='netcdf4', mode='a')
 
-    def classify_hmm(self, variable, seed=0, n_states=2):#, use_selection=True, use_classification=True):
+    def classify_hmm(self, variable, seed=0, n_states=2, threshold_state_mean=None):#, use_selection=True, use_classification=True):
         np.random.seed(seed)
         if isinstance(variable, str):
             variable = getattr(self, variable)
 
-        ds = hidden_markov_modelling(variable, self.classification, self.selected, n_states=n_states)
+        ds = hidden_markov_modelling(variable, self.classification, self.selected, n_states=n_states, threshold_state_mean=threshold_state_mean)
         ds.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='netcdf4', mode='a')
 
     def plot_hmm_rates(self, name=None):

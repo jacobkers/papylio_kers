@@ -8,8 +8,8 @@ from trace_analysis.collection import Collection
 import trace_analysis as ta
 
 # file.FRET, file.classification, file.selected
-def hidden_markov_modelling(traces, classification, selection, n_states=2):
-    models_per_molecule = fit_hmm_to_individual_traces(traces, classification, selection, parallel=False, n_states=n_states)
+def hidden_markov_modelling(traces, classification, selection, n_states=2, threshold_state_mean=None):
+    models_per_molecule = fit_hmm_to_individual_traces(traces, classification, selection, parallel=False, n_states=n_states, threshold_state_mean=threshold_state_mean)
 
     ds = xr.Dataset()
     if models_per_molecule is None:
@@ -120,7 +120,7 @@ def hmm1and2(input):
 
     # return parameters, transition_matrix
 
-def hmm_n_states(input, n_states=2):
+def hmm_n_states(input, n_states=2, threshold_state_mean=None):
     xi, classification, selected = input
 
     if not selected:
@@ -152,20 +152,40 @@ def hmm_n_states(input, n_states=2):
 
         bic = BIC(model, xis)
 
-        if bic < best_bic:
-            best_bic = bic
-            best_model = model
+        if threshold_state_mean:
+            state_means = []
+            for state in model.states:
+                if state.distribution:
+                    if isinstance(state.distribution, pg.NormalDistribution):
+                        state_means.append(state.distribution.parameters[0])
+
+            def check_difference(state_means, threshold=0.5):
+                for i in range(len(state_means)):
+                    for j in range(i + 1, len(state_means)):
+                        if abs(state_means[i] - state_means[j]) < threshold:
+                            return False
+                return True
+
+            result = check_difference(state_means)
+
+            if bic < best_bic and result:
+                best_bic = bic
+                best_model = model
+        else:
+            if bic < best_bic:
+                best_bic = bic
+                best_model = model
 
     if best_model is not None:
-        return model
+        return best_model
     else:
         return None
 
 
-def fit_hmm_to_individual_traces(traces, classification, selected, parallel=False, n_states=2):
+def fit_hmm_to_individual_traces(traces, classification, selected, parallel=False, n_states=2, threshold_state_mean=None):
     cf = Collection(list(zip(traces.values, classification.values, selected.values)), return_none_if_all_none=False)
     cf.use_parallel_processing = parallel
-    models_per_molecule = cf.map(hmm_n_states)(n_states=n_states)  # New taking sections into account 5540 traces: 5:02
+    models_per_molecule = cf.map(hmm_n_states)(n_states=n_states, threshold_state_mean=threshold_state_mean)  # New taking sections into account 5540 traces: 5:02
         # Old not taking sections into account: 5092 traces 4:00 minutes (2:37 on server)
     return models_per_molecule
 
