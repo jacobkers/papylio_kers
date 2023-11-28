@@ -121,6 +121,7 @@ def hmm1and2(input):
     # return parameters, transition_matrix
 
 def hmm_n_states(input, n_states=2, threshold_state_mean=None):
+
     xi, classification, selected = input
 
     if not selected:
@@ -166,7 +167,7 @@ def hmm_n_states(input, n_states=2, threshold_state_mean=None):
                             return False
                 return True
 
-            result = check_difference(state_means)
+            result = check_difference(state_means, threshold_state_mean)
 
             if bic < best_bic and result:
                 best_bic = bic
@@ -242,8 +243,11 @@ def sort_states_in_data(state_parameters, transition_matrices, classification_hm
     transition_matrices = transition_matrices.sel(from_state=sort_indices_transition_matrix.rename(state='from_state'),
                                               to_state=sort_indices_transition_matrix.rename(state='to_state'))
 
-    classification_hmm_sorted = np.take_along_axis(sort_indices.values, classification_hmm.values, axis=1)
-    classification_hmm_sorted[(classification_hmm < 0).values] = -1
+    classification_hmm_sorted = xr.DataArray(np.zeros_like(classification_hmm), dims=('molecule', 'frame'))
+    for molecule in range(len(sort_indices.molecule)):
+        mapping = {val: i for i, val in enumerate(sort_indices[molecule].values)}
+        mapping.update({val: -1 for val in classification_hmm[molecule, :].values if val < 0})
+        classification_hmm_sorted[molecule, :] = np.vectorize(mapping.get)(classification_hmm[molecule, :].values)
     classification_hmm[:] = classification_hmm_sorted[:]
 
     return state_parameters, transition_matrices, classification_hmm
