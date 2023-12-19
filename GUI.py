@@ -242,7 +242,6 @@ class MainWindow(QMainWindow):
         self.tree.header().setDefaultSectionSize(180)
         self.tree.setModel(self.model)
         self.addExperiment(self.experiment)
-        self.tree.expandAll()
         self.tree.setFocusPolicy(Qt.NoFocus)
         self.tree.setFixedWidth(256)
         self.update = True
@@ -305,8 +304,16 @@ class MainWindow(QMainWindow):
         tabs.addTab(self.traces, 'Traces')
         tabs.currentChanged.connect(self.setTabFocus)
 
+        experiment_layout = QVBoxLayout()
+
+        refresh_button = QPushButton('Refresh')
+        refresh_button.clicked.connect(self.refresh)
+        experiment_layout.addWidget(refresh_button)
+
+        experiment_layout.addWidget(self.tree)
+
         layout = QHBoxLayout()
-        layout.addWidget(self.tree)
+        layout.addLayout(experiment_layout)
         layout.addWidget(tabs)
 
         widget = QWidget()
@@ -386,6 +393,8 @@ class MainWindow(QMainWindow):
             print('addfile'+file.name)
             self.addFile(file, experimentNode)
 
+        self.tree.expandAll()
+
         print('add')
 
     def addFile(self, file, experimentNode):
@@ -428,6 +437,10 @@ class MainWindow(QMainWindow):
 
         return item
 
+    def refresh(self):
+        self.root.removeRows(0, 1)
+        self.experiment = Experiment(self.experiment.main_path)
+        self.addExperiment(self.experiment)
 
 
 class ImageCanvas(FigureCanvas):
