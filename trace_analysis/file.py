@@ -944,6 +944,11 @@ class File:
 
         intensity.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='netcdf4', mode='a')
 
+        if 'intensity_raw' in self.data_vars:
+            intensity_raw = self.intensity
+            intensity_raw.name = 'intensity_raw'
+            intensity_raw.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='netcdf4', mode='a')
+
         if background_correction is not None or alpha_correction is not None or gamma_correction is not None:
             self.apply_trace_corrections(background_correction, alpha_correction, gamma_correction)
 
