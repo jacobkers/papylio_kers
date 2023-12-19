@@ -158,7 +158,10 @@ class SequencingData:
     # def classify_sequences(self, variable=''):
 
     def reference_distribution(self, save=True, report=True):
-        reference_names, counts = np.unique(self.dataset.reference_name, return_counts=True)
+        da_reference_name = self.dataset.reference_name.load()
+        da_sequence_subset = self.dataset.sequence_subset.load()
+
+        reference_names, counts = np.unique(da_reference_name, return_counts=True)
 
         analysis_reference = xr.Dataset(coords={'reference_name': reference_names})
         analysis_reference['reference_count'] = xr.DataArray(counts, dims='reference_name')
@@ -166,8 +169,8 @@ class SequencingData:
 
         full_subset_counts = np.zeros(len(reference_names), dtype='int64')
         for i, reference_name in enumerate(reference_names):
-            ds_sel = self.dataset.sel(sequence=self.dataset.reference_name == reference_name)
-            full_subset_counts[i] = (~ds_sel.sequence_subset.str.contains('-')).sum().item()
+            da_sequence_subset_sel = da_sequence_subset.sel(sequence=da_reference_name == reference_name)
+            full_subset_counts[i] = (~da_sequence_subset_sel.str.contains('-')).sum().item()
         analysis_reference['full_subset_count'] = xr.DataArray(full_subset_counts, dims='reference_name')
         analysis_reference['full_subset_fraction'] = analysis_reference['full_subset_count'] / analysis_reference[
             'reference_count']
@@ -210,8 +213,16 @@ class SequencingData:
             fig.savefig(self.save_path / 'reference_distribution.png')
             fig.savefig(self.save_path / 'reference_distribution.pdf')
 
-    def distribution(self, variable='reference_name', save=True, report=True):
-        names, counts = np.unique(self.dataset[variable], return_counts=True)
+    def distribution(self, variable='reference_name', save=True, report=True, remove_empty_strings=False):
+        da_variable = self.dataset[variable].load()
+        da_sequence_subset = self.dataset.sequence_subset.load()
+
+        if remove_empty_strings:
+            selection = da_variable != ''
+            da_variable = da_variable[selection]
+            da_sequence_subset = da_sequence_subset[selection]
+
+        names, counts = np.unique(da_variable, return_counts=True)
 
         ds = xr.Dataset(coords={variable: names})
         ds['count'] = xr.DataArray(counts, dims=variable)
@@ -219,8 +230,8 @@ class SequencingData:
 
         full_subset_counts = np.zeros(len(names), dtype='int64')
         for i, name in enumerate(names):
-            ds_sel = self.dataset.sel(sequence=self.dataset[variable] == name)
-            full_subset_counts[i] = (~ds_sel.sequence_subset.str.contains('-')).sum().item()
+            da_sequence_subset_sel = da_sequence_subset.sel(sequence=da_variable == name)
+            full_subset_counts[i] = (~da_sequence_subset_sel.str.contains('-')).sum().item()
         ds['full_subset_count'] = xr.DataArray(full_subset_counts, dims=variable)
         ds['full_subset_fraction'] = ds['full_subset_count'] / ds['count']
 
@@ -921,13 +932,14 @@ def determine_read_end_position(cigar_string, reference_start_postion, reference
             return read_index-(reference_index-reference_length)+1
     return reference_length
 
-def determine_read_end_positions(sequencing_data, reference_length):
-    cigar_strings = sequencing_data.dataset.cigar_string.load()
-    reference_start_positions = sequencing_data.dataset.position.load()
-
-    end_positions = np.zeros(len(cigar_strings)).astype('int16')
-    for i, (cigar_string, reference_start_position) in tqdm.tqdm(enumerate(zip(cigar_strings, reference_start_positions))):
-        end_positions[i] = determine_read_end_position(cigar_string.item(), reference_start_position.item(), reference_length)
+def determine_read_end_positions(sequencing_data, reference_length, chunk_size=10000):
+    end_positions = np.zeros(len(sequencing_data)).astype('int16')
+    for j in tqdm.tqdm(list(range(0,len(sequencing_data),chunk_size))):
+        ds = sequencing_data.dataset.isel(sequence=slice(j, j+chunk_size))
+        cigar_strings = ds.cigar_string.load()
+        reference_start_positions = ds.position.load()
+        for i, (cigar_string, reference_start_position) in enumerate(zip(cigar_strings, reference_start_positions)):
+            end_positions[j+i] = determine_read_end_position(cigar_string.item(), reference_start_position.item(), reference_length)
     return end_positions
 
 
