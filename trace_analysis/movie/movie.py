@@ -825,7 +825,9 @@ class Movie:
         return MoviePlotter(self)
 
     # Do we really need this?
-    def determine_general_background_correction(self, method='median', frame_range=(0, 20)):
+    def determine_general_background_correction(self, method='median', frame_range=(0, 20), use_existing=False):
+        if use_existing and 'general_background_correction' in self.corrections:
+            return
         # self.temporal_background_correction = self.spatial_background_correction = None
         self.save_corrections(general_background_correction=None)
 
@@ -873,7 +875,10 @@ class Movie:
         #                       temporal_background_correction=None, spatial_background_correction=None)
         self.save_corrections(general_background_correction=general_background_correction)
 
-    def determine_temporal_background_correction(self, method='median'):
+    def determine_temporal_background_correction(self, method='median', use_existing=False):
+        if use_existing and 'temporal_background_correction' in self.corrections:
+            return
+
         # self.spatial_background_correction = None
         self.save_corrections(temporal_illumination_correction=None,
                               temporal_background_correction=None,
@@ -921,7 +926,11 @@ class Movie:
                               # spatial_background_correction=None,
                               # general_background_correction=None)
 
-    def determine_spatial_background_correction(self, method='median_filter', frame_range=(0, 20), **kwargs):
+    def determine_spatial_background_correction(self, method='median_filter', frame_range=(0, 20), use_existing=False,
+                                                **kwargs):
+        if use_existing and 'spatial_background_correction' in self.corrections:
+            return
+
         self.save_corrections(spatial_background_correction=None, general_background_correction=None)
 
         frame_indices = self.frame_indices[slice(*frame_range)].values
