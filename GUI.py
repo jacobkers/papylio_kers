@@ -300,7 +300,8 @@ class MainWindow(QMainWindow):
         tab1 = QWidget(self)
         tab1.setLayout(extraction_layout)
         tabs.addTab(tab1, 'Movie')
-        self.traces = TracePlotWindow(parent=self, width=4, height=3, show=False)
+        self.traces = TracePlotWindow(parent=self, width=4, height=3, show=False,
+                                      save_path=self.experiment.analysis_path.joinpath('Trace_plots'))
         tabs.addTab(self.traces, 'Traces')
         tabs.currentChanged.connect(self.setTabFocus)
 

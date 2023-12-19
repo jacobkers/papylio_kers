@@ -403,9 +403,11 @@ class TracePlotCanvas(FigureCanvasQTAgg):
         # self.SetSizer(self.sizer)
 
     def save(self):
-        if self.parent_window.save_path is not None:
+        save_path = self.parent_window.save_path
+        if save_path is not None:
+            save_path.mkdir(parents=True, exist_ok=True)
             file_name = self.molecule.file.item().replace('\\' ,' - ')+f' - mol {self.molecule.molecule_in_file.item()}.png'
-            file_path = self.parent_window.save_path.joinpath(file_name)
+            file_path = save_path.joinpath(file_name)
             self.figure.savefig(file_path, bbox_inches='tight')
         else:
             raise ValueError('No save_path set')
