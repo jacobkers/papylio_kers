@@ -49,6 +49,19 @@ energy_dict = {'AA': -1.11, 'AT': -1.34, 'AG': -1.06, 'AC': -1.81,
                'CA': -0.55, 'CT': -1.06, 'CG': -0.91, 'CC': -1.44}
 stacking_energies_flat['Protozanova2004'] = energy_dict_to_dataarray(energy_dict)
 
+energy_dict = {'AA': -1.49, 'AT': -1.72, 'AG': -1.44, 'AC': -2.19,
+               'TA': -0.57, 'TT': -1.49, 'TG': -0.93, 'TC': -1.81,
+               'GA': -1.81, 'GT': -2.19, 'GG': -1.82, 'GC': -2.55,
+               'CA': -0.93, 'CT': -1.44, 'CG': -1.29, 'CC': -1.82}
+stacking_energies_flat['Krueger2006'] = energy_dict_to_dataarray(energy_dict)
+
+energy_dict = {'AA': -1.36, 'AC': -2.03, 'AG': -1.60, 'AT': -2.35,
+               'CA': -0.81, 'CC': -1.64, 'CG': -2.06, 'CT': -1.60,
+               'GA': -1.39, 'GC': -3.42, 'GG': -1.64, 'GT': -2.03,
+               'TA': -1.01, 'TC': -1.39, 'TG': -0.81, 'TT': -1.36}
+stacking_energies_flat['Kilchherr2016'] = energy_dict_to_dataarray(energy_dict)
+
+
 energy_dict = {'GA': -2.3, 'AG': -2.3, 'AA': -2.3, 'GG': -1.8, 'GC': -2.1, 'CG': -2.1, 'AC': -1.9, 'CA': -1.9,
                'GT': -1.7, 'TG': -1.7, 'AT': -1.5, 'TA': -1.5, 'TT': -0.8, 'CC': -0.6, 'CT': -0.5, 'TC': -0.5}
 stacking_energies_flat['Punnoose2023'] = energy_dict_to_dataarray(energy_dict)
@@ -69,8 +82,41 @@ from_to_positions_per_state = {0: ((0, 1), (2, 7), (6, 3), (4, 5)), 1: ((2, 3), 
 states = [0,1]
 
 
+def migrate_junction(sequence_subset, penultimate_bases='CCGCGGCG', step=-1):
+    if step == -1: #Horizontal
+        return penultimate_bases[0] + sequence_subset[0] + sequence_subset[3] + penultimate_bases[3] + \
+               penultimate_bases[4] + sequence_subset[4] + sequence_subset[7] + penultimate_bases[7]
+    elif step == 0:
+        return sequence_subset
+    elif step == 1: # Vertical
+        return sequence_subset[1] + penultimate_bases[1] + penultimate_bases[2] + sequence_subset[2] + \
+               sequence_subset[5] + penultimate_bases[5] + penultimate_bases[6] + sequence_subset[6]
+
+base_pairs = ['AT','TA','CG','GC']
+def check_basepairing(sequence_subset):
+    if (sequence_subset[1:3] in base_pairs) and (sequence_subset[3:5] in base_pairs) and \
+        (sequence_subset[5:7] in base_pairs) and ((sequence_subset[7] + sequence_subset[0]) in base_pairs):
+        return True
+    else:
+        return False
 
 
+def migration_options(sequence_subset, penultimate_bases='CCGCGGCG', return_all=False):
+    migration_option_list = []
+    for step in [-1, 0, 1]:
+       sequence_subset_migrated = migrate_junction(sequence_subset, penultimate_bases=penultimate_bases, step=step)
+       if check_basepairing(sequence_subset_migrated):
+           migration_option_list.append(sequence_subset_migrated)
+       elif return_all:
+           migration_option_list.append(None)
+    return migration_option_list
+
+def migration_sequence_subsets(sequence_subsets, penultimate_bases='CCGCGGCGC'):
+    migration_sequences = np.array([migration_options(sequence_subset, penultimate_bases=penultimate_bases, return_all=True)
+                                    for sequence_subset in sequence_subsets])
+    migration_sequences[migration_sequences == None] = ''
+    migration_sequences = migration_sequences.astype('U')
+    return migration_sequences
 
 import itertools
 bases = 'ATCG'
@@ -126,19 +172,17 @@ def calculate_total_stacking_energy(sequence_subsets, penultimate_bases=None):
 # penultimate_bases = 'CCGCGGCGC'
 
 
-def stacking_energies(sequence_subsets,penultimate_bases = 'CCGCGGCGC'):
+def stacking_energies(sequence_subsets,penultimate_bases = 'CCGCGGCG'):
     return (base_combination_count(sequence_subsets, penultimate_bases=penultimate_bases)*stacking_energies_flat)
 
-def total_stacking_energies(sequence_subsets, penultimate_bases = 'CCGCGGCGC'):
+def total_stacking_energies(sequence_subsets, penultimate_bases = 'CCGCGGCG'):
     return stacking_energies(sequence_subsets, penultimate_bases).sum('base_combination').sum('stack_position')
 
-def inner_stacking_energies(sequence_subsets, penultimate_bases = 'CCGCGGCGC'):
+def inner_stacking_energies(sequence_subsets, penultimate_bases = 'CCGCGGCG'):
     return stacking_energies(sequence_subsets, penultimate_bases).sel(stack_position=[1,2]).sum('base_combination').sum('stack_position')
 
-
-
-
-
+def inner_stacking_energies_minimum(sequence_subsets, penultimate_bases='CCGCGGCG'):
+    return stacking_energies(sequence_subsets, penultimate_bases).sel(stack_position=[1, 2]).sum('base_combination').min('stack_position')
 
     #
     #
