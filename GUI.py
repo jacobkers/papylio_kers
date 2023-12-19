@@ -225,13 +225,13 @@ class MainWindow(QMainWindow):
     #
     #     self.setCentralWidget(self.tree)
 
-    def __init__(self):
+    def __init__(self, main_path=None):
         super().__init__()
 
         from trace_analysis import Experiment
         # self.experiment = Experiment(
         #     r'D:\SURFdrive\Promotie\Code\Python\traceAnalysis\twoColourExampleData\20141017 - Holliday junction - Copy')
-        self.experiment = Experiment()
+        self.experiment = Experiment(main_path)
 
         self.tree = QTreeView(self)
         layout = QVBoxLayout()
@@ -338,6 +338,7 @@ class MainWindow(QMainWindow):
     def find_coordinates(self):
         selected_files = self.experiment.selectedFiles
         if selected_files:
+            selected_files.movie.determine_spatial_background_correction(use_existing=True)
             selected_files.find_coordinates()
             self.image_canvas.refresh()
             self.update_plots()
