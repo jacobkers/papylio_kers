@@ -1656,7 +1656,7 @@ class File:
                         plot_variables.pop(plot_variable_index)
 
         # dataset = self.dataset
-        save_path = self.experiment.main_path.joinpath('Trace_plots')
+        save_path = self.experiment.main_path.joinpath('Trace plots')
         if not save_path.is_dir():
             save_path.mkdir()
 
