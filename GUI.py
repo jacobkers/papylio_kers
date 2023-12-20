@@ -470,6 +470,7 @@ class ImageCanvas(FigureCanvas):
 
     def refresh(self):
         self.figure.clf()
+        self._file.movie.determine_spatial_background_correction(use_existing=True)
         self._file.show_coordinates_in_image(figure=self.figure)
         self.draw()
 
