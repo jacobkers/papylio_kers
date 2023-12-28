@@ -1101,7 +1101,7 @@ class Channel:
 
     @property
     def names(self):
-        return [self.index, self.name, self.short_name] + self.other_names
+        return [self.index, str(self.index), self.name, self.short_name] + self.other_names
 
     @property
     def index(self):
