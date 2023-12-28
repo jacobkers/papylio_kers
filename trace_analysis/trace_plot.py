@@ -29,7 +29,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from pathlib2 import Path
 
-from PySide2.QtWidgets import QMainWindow, QPushButton, QWidget, QVBoxLayout, QHBoxLayout, QLineEdit
+from PySide2.QtWidgets import QMainWindow, QPushButton, QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QCheckBox, QLabel
 from PySide2.QtGui import QKeySequence
 from PySide2.QtCore import Qt
 
@@ -73,6 +73,7 @@ class TracePlotWindow(QWidget):
             self.save_path = Path(save_path)
 
         self._dataset = dataset
+
         self.canvas = TracePlotCanvas(self, width=width, height=height, dpi=100)
 
         # Create toolbar, passing canvas as first parament, parent (self, the MainWindow) as second.
@@ -81,11 +82,26 @@ class TracePlotWindow(QWidget):
         layout = QVBoxLayout()
 
         layout_bar = QHBoxLayout()
-        layout_bar.addWidget(toolbar)
+        layout_bar.addWidget(toolbar, 0.5)
 
         self.molecule_index_field = QLineEdit()
+        self.molecule_index_field.setFixedWidth(70)
 
-        layout_bar.addWidget(self.molecule_index_field)
+        layout_bar.addWidget(self.molecule_index_field, 0.05)
+        layout_bar.addWidget(QLabel(' out of '), 0.05)
+        self.number_of_molecules_label = QLabel('0')
+        self.number_of_molecules_label.setFixedWidth(70)
+        layout_bar.addWidget(self.number_of_molecules_label, 0.15)
+        self._selection_state = 1
+        self.selected_molecules_checkbox = QCheckBox()
+        self.selected_molecules_checkbox.setTristate(True)
+        self.selected_molecules_checkbox.setCheckState(Qt.PartiallyChecked)
+        self.selected_molecules_checkbox.stateChanged.connect(self.on_selected_molecules_checkbox_state_change)
+
+
+
+        layout_bar.addWidget(QLabel('Selected'),0.1)
+        layout_bar.addWidget(self.selected_molecules_checkbox, 0.15)
 
         self.molecule_index_field.returnPressed.connect(self.set_molecule_index_from_molecule_index_field)
         self.molecule_index_field.returnPressed.connect(self.deactivate_line_edit)
@@ -119,10 +135,35 @@ class TracePlotWindow(QWidget):
         if value is not None and (hasattr(value, 'frame') or hasattr(value, 'time')):
             self._dataset = value
             self.canvas.init_plot_artists()
+            self.set_selection()
+            self.setDisabled(False)
         else:
             self._dataset = None
+            self.setDisabled(True)
         self.molecule_index = 0
 
+    @property
+    def selection_state(self):
+        return self._selection_state
+
+    @selection_state.setter
+    def selection_state(self, selection_state):
+        self._selection_state = selection_state
+        self.set_selection()
+
+    def on_selected_molecules_checkbox_state_change(self, selection_state):
+        self.selection_state = selection_state
+        self.selected_molecules_checkbox.clearFocus()
+
+    def set_selection(self):
+        if self.selection_state == 0:
+            self.dataset_molecule_indices_to_show = self.dataset.molecule.sel(molecule=~self.dataset.selected).values
+        elif self.selection_state == 1:
+            self.dataset_molecule_indices_to_show = self.dataset.molecule.values
+        elif self.selection_state == 2:
+            self.dataset_molecule_indices_to_show = self.dataset.molecule.sel(molecule=self.dataset.selected).values
+        else:
+            raise ValueError(f'Unknown selection_state {self.selection_state}')
 
     @property
     def molecule_index(self):
@@ -131,18 +172,36 @@ class TracePlotWindow(QWidget):
     @molecule_index.setter
     def molecule_index(self, molecule_index):
         self._molecule_index = molecule_index
-        if self.dataset is not None:
-            self.molecule = self.dataset.isel(molecule=self._molecule_index)
+        if self.dataset is not None and self.number_of_molecules_to_show > 0:
+            self.molecule = self.dataset.isel(molecule=self.dataset_molecule_index)
         else:
             self.molecule = None
         self.molecule_index_field.setText(str(molecule_index))
         self.molecule_index_field.setFocusPolicy(Qt.ClickFocus)
 
+    @property
+    def dataset_molecule_index(self):
+        return self.dataset_molecule_indices_to_show[self._molecule_index]
+
+    @property
+    def dataset_molecule_indices_to_show(self):
+        return self._dataset_molecule_indices_to_show
+
+    @dataset_molecule_indices_to_show.setter
+    def dataset_molecule_indices_to_show(self, dataset_molecule_indices_to_show):
+        self._dataset_molecule_indices_to_show = dataset_molecule_indices_to_show
+        self.number_of_molecules_label.setText(f'{self.number_of_molecules_to_show}')
+        self.molecule_index = 0
+
+    @property
+    def number_of_molecules_to_show(self):
+        return len(self.dataset_molecule_indices_to_show)
+
     def set_molecule_index_from_molecule_index_field(self):
         self.molecule_index = int(self.molecule_index_field.text())
 
     def next_molecule(self):
-        if (self.molecule_index+1) < len(self.dataset.molecule):
+        if (self.molecule_index+1) < self.number_of_molecules_to_show:
             self.molecule_index += 1
 
     def previous_molecule(self):
@@ -167,10 +226,16 @@ class TracePlotWindow(QWidget):
         elif key == Qt.Key_Left: # Left arrow
             self.previous_molecule()
         elif key == Qt.Key_Space: # Spacebar
-            self.dataset.selected[dict(molecule=self.molecule_index)] = ~self.dataset.selected[dict(molecule=self.molecule_index)]
+            self.dataset.selected[dict(molecule=self.dataset_molecule_index)] = ~self.dataset.selected[dict(molecule=self.dataset_molecule_index)]
             self.update_current_molecule()
         elif key == Qt.Key_S: # S
             self.canvas.save()
+
+    # def selected_molecules_checkbox_state_changed(self, state):
+    #     show_selected_mapping = {0: False, 1: None, 2: True}
+    #     self.show_selected = show_selected_mapping[state]
+    #     self.canvas.init_plot_artists()
+    #     print('test')
 
 
 class TracePlotCanvas(FigureCanvasQTAgg):
@@ -333,6 +398,9 @@ class TracePlotCanvas(FigureCanvasQTAgg):
                 selection_string = ''
 
             self.title_artist.set_text(f'# {self.parent_window.molecule_index} of {len(self.parent_window.dataset.molecule)} | File: {molecule.file.values} | Molecule: {molecule.molecule_in_file.values}' + selection_string)#| Sequence: {molecule.sequence_name.values}')
+            self.title_artist.set_text(
+                f'File: {molecule.file.values} | Molecule: {molecule.molecule_in_file.values}' + selection_string)  # | Sequence: {molecule.sequence_name.values}')
+
             for j in range(len(data)):
                 self.plot_artists[plot_variable][j].set_ydata(data[j])
                 # TODO: When you shift the view, change the y positions of the bars to the new view, if possible. use set_y
