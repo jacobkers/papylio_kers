@@ -944,6 +944,11 @@ class File:
 
         intensity.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='netcdf4', mode='a')
 
+        if 'intensity_raw' in self.data_vars:
+            intensity_raw = self.intensity
+            intensity_raw.name = 'intensity_raw'
+            intensity_raw.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='netcdf4', mode='a')
+
         if background_correction is not None or alpha_correction is not None or gamma_correction is not None:
             self.apply_trace_corrections(background_correction, alpha_correction, gamma_correction)
 
@@ -1310,6 +1315,60 @@ class File:
                                if key.startswith('selection')}).to_array(dim='selection')
         # return xr.concat([value for key, value in self.dataset.data_vars.items() if key.startswith('filter')], dim='filter')
 
+    @property
+    @return_none_when_executed_by_pycharm
+    def selections_dataset(self):
+        with xr.open_dataset(self.absoluteFilePath.with_suffix('.nc'), engine='netcdf4') as dataset:
+            return xr.Dataset({value.name: value for key, value in dataset.data_vars.items()
+                               if key.startswith('selection')})
+        # return xr.concat([value for key, value in self.dataset.data_vars.items() if key.startswith('filter')], dim='filter')
+
+    def add_selection(self, variable, channel, aggregator, operator, threshold):
+        data_array = getattr(self, variable)
+
+        if 'channel' in data_array.dims:
+            channel_index = self.movie.get_channel_from_name(channel).index
+            data_array = data_array.sel(channel=channel_index, drop=True)
+            channel_str = 'c' + str(channel_index)
+        else:
+            channel_str = ''
+
+        data_array = getattr(data_array, aggregator)('frame')
+
+        if operator == '<':
+            selection = data_array < threshold
+        elif operator == '>':
+            selection = data_array > threshold
+        else:
+            raise ValueError('Unknown operator')
+
+        selection.attrs = {'variable': variable, 'channel': channel, 'aggregator': aggregator,
+                            'operator': operator, 'threshold': threshold}
+
+        threshold_str = str(threshold).replace('.','p')
+
+        selection_name = f'selection_{variable}_{channel_str}_{aggregator}_{operator}_{threshold_str}'
+
+        self.set_variable(selection, name=selection_name)
+
+    def copy_selections_to_selected_files(self):
+        name_and_selection_parameters = [(name, dataarray.attrs) for name, dataarray in
+                                         self.selections_dataset.data_vars.items()]
+        for file in self.experiment.selectedFiles:
+            if file is not self:
+                for name, selection_parameters in name_and_selection_parameters:
+                    file.add_selection(**selection_parameters)
+                file.apply_selections(selection_names=self.selection_names)
+
+    @property
+    def selection_names(self):
+        return self.selected.attrs['selection_names']
+
+    def clear_selections(self):
+        dataset = self.dataset
+        dataset = dataset.drop_vars([name for name in dataset.data_vars.keys() if name.startswith('selection_')])
+        dataset.to_netcdf(self.absoluteFilePath.with_suffix('.nc'))
+
     def apply_selections(self, selection_names='all'):
         invert = np.zeros(len(selection_names), bool)
         for i, selection_name in enumerate(selection_names):
@@ -1318,13 +1377,15 @@ class File:
                 selection_names[i] = selection_name[1:]
 
         if selection_names in ['all', None]:
-            selections = self.selections
-        else:
-            selections = self.selections.sel(selection=selection_names)
+            selection_names = self.selections.selection.values.tolist()
+        #     selections = self.selections
+        # else:
+        selections = self.selections.sel(selection=selection_names)
 
         selections[invert] = ~selections[invert]
-
-        self.set_variable(selections.all(dim='selection'), name='selected')
+        selected = selections.all(dim='selection')
+        selected.attrs['selection_names'] = selection_names
+        self.set_variable(selected, name='selected')
 
     def apply_classifications(self, **kwargs):
         classification_combined = np.zeros((len(self.molecule), len(self.frame)),'int8')
@@ -1651,7 +1712,7 @@ class File:
                         plot_variables.pop(plot_variable_index)
 
         # dataset = self.dataset
-        save_path = self.experiment.main_path.joinpath('Trace_plots')
+        save_path = self.experiment.main_path.joinpath('Trace plots')
         if not save_path.is_dir():
             save_path.mkdir()
 

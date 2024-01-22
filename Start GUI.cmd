@@ -1,4 +1,4 @@
 call conda activate trace_analysis
-python gui.py
+python "Start GUI.py"
 call conda deactivate
 pause

@@ -3,7 +3,7 @@ import PySide2
 
 import sys
 from PySide2.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QGridLayout, QTreeView, QApplication, QMainWindow, \
-    QPushButton, QTabWidget
+    QPushButton, QTabWidget, QTableWidget, QComboBox, QLineEdit
 from PySide2.QtGui import QStandardItem, QStandardItemModel
 from PySide2.QtCore import Qt
 
@@ -11,9 +11,11 @@ import matplotlib as mpl
 from matplotlib.backends.backend_qtagg import (
     FigureCanvas, NavigationToolbar2QT as NavigationToolbar)
 import matplotlib.pyplot as plt
+import numpy as np
 
 from trace_analysis import Experiment, File
 from trace_analysis.trace_plot import TracePlotWindow
+from trace_analysis.gui.selection_widget import SelectionWidget
 
 # class TreeNode:
 #     def __init__(self, node_object, parent=None):
@@ -225,13 +227,13 @@ class MainWindow(QMainWindow):
     #
     #     self.setCentralWidget(self.tree)
 
-    def __init__(self):
+    def __init__(self, main_path=None):
         super().__init__()
 
         from trace_analysis import Experiment
         # self.experiment = Experiment(
         #     r'D:\SURFdrive\Promotie\Code\Python\traceAnalysis\twoColourExampleData\20141017 - Holliday junction - Copy')
-        self.experiment = Experiment()
+        self.experiment = Experiment(main_path)
 
         self.tree = QTreeView(self)
         layout = QVBoxLayout()
@@ -242,7 +244,6 @@ class MainWindow(QMainWindow):
         self.tree.header().setDefaultSectionSize(180)
         self.tree.setModel(self.model)
         self.addExperiment(self.experiment)
-        self.tree.expandAll()
         self.tree.setFocusPolicy(Qt.NoFocus)
         self.tree.setFixedWidth(256)
         self.update = True
@@ -292,21 +293,39 @@ class MainWindow(QMainWindow):
         extraction_layout.addWidget(self.image)
         extraction_layout.addWidget(self.controls)
 
+
+
+
+        # self.selection = QTableWidget()
+        # self.selection.setRowCount(5)
+        # self.selection.setColumnCount(4)
+
+
         tabs = QTabWidget()
         tabs.setTabPosition(QTabWidget.North)
         tabs.setMovable(False)
         tabs.setDocumentMode(True)
 
-
         tab1 = QWidget(self)
         tab1.setLayout(extraction_layout)
         tabs.addTab(tab1, 'Movie')
-        self.traces = TracePlotWindow(parent=self, width=4, height=3, show=False)
+        self.traces = TracePlotWindow(parent=self, width=4, height=3, show=False,
+                                      save_path=self.experiment.analysis_path.joinpath('Trace_plots'))
         tabs.addTab(self.traces, 'Traces')
+        self.selection = SelectionWidget()
+        tabs.addTab(self.selection, 'Selection (beta)')
         tabs.currentChanged.connect(self.setTabFocus)
 
+        experiment_layout = QVBoxLayout()
+
+        refresh_button = QPushButton('Refresh')
+        refresh_button.clicked.connect(self.refresh)
+        experiment_layout.addWidget(refresh_button)
+
+        experiment_layout.addWidget(self.tree)
+
         layout = QHBoxLayout()
-        layout.addWidget(self.tree)
+        layout.addLayout(experiment_layout)
         layout.addWidget(tabs)
 
         widget = QWidget()
@@ -338,6 +357,7 @@ class MainWindow(QMainWindow):
     def find_coordinates(self):
         selected_files = self.experiment.selectedFiles
         if selected_files:
+            selected_files.movie.determine_spatial_background_correction(use_existing=True)
             selected_files.find_coordinates()
             self.image_canvas.refresh()
             self.update_plots()
@@ -369,8 +389,10 @@ class MainWindow(QMainWindow):
         self.image_canvas.file = selected_files[0]
         if selected_files[0] is not None:
             self.traces.dataset = selected_files[0].dataset
+            self.selection.file = selected_files[0]
         else:
             self.traces.dataset = None
+            self.selection.file = None
 
     def addExperiment(self, experiment):
 
@@ -384,6 +406,8 @@ class MainWindow(QMainWindow):
         for file in experiment.files:
             print('addfile'+file.name)
             self.addFile(file, experimentNode)
+
+        self.tree.expandAll()
 
         print('add')
 
@@ -427,6 +451,10 @@ class MainWindow(QMainWindow):
 
         return item
 
+    def refresh(self):
+        self.root.removeRows(0, 1)
+        self.experiment = Experiment(self.experiment.main_path)
+        self.addExperiment(self.experiment)
 
 
 class ImageCanvas(FigureCanvas):
@@ -455,6 +483,7 @@ class ImageCanvas(FigureCanvas):
 
     def refresh(self):
         self.figure.clf()
+        self._file.movie.determine_spatial_background_correction(use_existing=True)
         self._file.show_coordinates_in_image(figure=self.figure)
         self.draw()
 
