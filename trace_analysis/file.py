@@ -79,7 +79,7 @@ class File:
 
 
         self.dataset_variables = ['molecule', 'frame', 'time', 'coordinates', 'background', 'intensity', 'FRET', 'selected',
-                                  'molecule_in_file', 'illumination_correction', 'number_of_states', 'transition_rate', 'state_mean']
+                                  'molecule_in_file', 'illumination_correction', 'number_of_states', 'transition_rate', 'state_mean', 'classification']
 
 
         # I think it will be easier if we have import functions for specific data instead of specific files.
@@ -991,12 +991,12 @@ class File:
     #     ds = hmm_traces(self.FRET, n_components=2, covariance_type="full", n_iter=100)
     #     ds.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='netcdf4', mode='a')
 
-    def classify_hmm(self, variable, seed=0, n_states=2, threshold_state_mean=None):#, use_selection=True, use_classification=True):
+    def classify_hmm(self, variable, seed=0, n_states=2, threshold_state_mean=None, level='molecule'):#, use_selection=True, use_classification=True):
         np.random.seed(seed)
         if isinstance(variable, str):
             variable = getattr(self, variable)
 
-        ds = hidden_markov_modelling(variable, self.classification, self.selected, n_states=n_states, threshold_state_mean=threshold_state_mean)
+        ds = hidden_markov_modelling(variable, self.classification, self.selected, n_states=n_states, threshold_state_mean=threshold_state_mean, level=level)
         ds.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='netcdf4', mode='a')
 
     def plot_hmm_rates(self, name=None):
@@ -1677,6 +1677,7 @@ def calculate_FRET(intensity):
     donor = intensity.sel(channel=0, drop=True)
     acceptor = intensity.sel(channel=1, drop=True)
     FRET = acceptor / (donor + acceptor)
+    FRET = FRET.where(FRET >= 0, 0)
     FRET.name = 'FRET'
     return FRET
 

@@ -5,11 +5,19 @@ from hmmlearn import hmm
 import pomegranate as pg
 import tqdm
 from trace_analysis.collection import Collection
-import trace_analysis as ta
+from copy import deepcopy
+import scipy.linalg
 
 # file.FRET, file.classification, file.selected
-def hidden_markov_modelling(traces, classification, selection, n_states=2, threshold_state_mean=None):
-    models_per_molecule = fit_hmm_to_individual_traces(traces, classification, selection, parallel=False, n_states=n_states, threshold_state_mean=threshold_state_mean)
+def hidden_markov_modelling(traces, classification, selection, n_states=2, threshold_state_mean=None, level='molecule'):
+    if level == 'molecule':
+        models_per_molecule = fit_hmm_to_individual_traces(traces, classification, selection, parallel=False, n_states=n_states, threshold_state_mean=threshold_state_mean)
+    elif level == 'file':
+        model = fit_hmm_to_file(traces, classification, selection, n_states=n_states, threshold_state_mean=threshold_state_mean)
+        number_of_molecules = np.shape(traces)[0]
+        models_per_molecule = [deepcopy(model) for _ in range(number_of_molecules)]
+    else:
+        raise RuntimeError('Hidden markov modelling can be performed on the molecule of file level. Indicate this with level=\'molecule\' or level=\'file\'')
 
     ds = xr.Dataset()
     if models_per_molecule is None:
@@ -20,7 +28,6 @@ def hidden_markov_modelling(traces, classification, selection, n_states=2, thres
         # return ds
         raise RuntimeError('If you see this error please let Ivo know.')
 
-    models_per_molecule.use_parallel_processing = False
     ds['number_of_states'] = number_of_states_from_models(models_per_molecule)
     state_parameters = state_parameters_from_models(models_per_molecule, n_states=n_states)
     transition_matrices = transition_matrices_from_models(models_per_molecule, n_states=n_states)
@@ -120,11 +127,11 @@ def hmm1and2(input):
 
     # return parameters, transition_matrix
 
-def hmm_n_states(input, n_states=2, threshold_state_mean=None):
+def hmm_n_states(input, n_states=2, threshold_state_mean=None, level='molecule'):
 
     xi, classification, selected = input
 
-    if not selected:
+    if np.sum(selected) == 0:
         return None
 
     classification_st_0 = classification < 0
@@ -136,7 +143,16 @@ def hmm_n_states(input, n_states=2, threshold_state_mean=None):
     included_frame_selection = classification >= 0
     xis, cis = split_by_classification(xi, included_frame_selection)
 
-    xis = [xii for cii, xii in zip(cis, xis) if cii[0]]
+    if level == 'molecule':
+        xis = [xii for cii, xii in zip(cis, xis) if cii[0]]
+    elif level == 'file':
+        xis_new = []
+        for xii, cii in zip(xis, cis):
+            if len(xii[cii]) > 0:
+                xis_new.append(xii[cii])
+        xis = xis_new
+    else:
+        raise RuntimeError('Hidden markov modelling can be performed on the molecule of file level. Indicate this with level=\'molecule\' or level=\'file\'')
 
     best_model = None
     best_bic = np.inf
@@ -182,7 +198,6 @@ def hmm_n_states(input, n_states=2, threshold_state_mean=None):
     else:
         return None
 
-
 def fit_hmm_to_individual_traces(traces, classification, selected, parallel=False, n_states=2, threshold_state_mean=None):
     cf = Collection(list(zip(traces.values, classification.values, selected.values)), return_none_if_all_none=False)
     cf.use_parallel_processing = parallel
@@ -190,6 +205,10 @@ def fit_hmm_to_individual_traces(traces, classification, selected, parallel=Fals
         # Old not taking sections into account: 5092 traces 4:00 minutes (2:37 on server)
     return models_per_molecule
 
+def fit_hmm_to_file(traces, classification, selected, n_states=2, threshold_state_mean=None):
+    input_values = [traces.values, classification.values, selected.values]
+    models = hmm_n_states(input_values, n_states=n_states, threshold_state_mean=threshold_state_mean, level='file')
+    return models
 
 def number_of_states_from_models(models):
 
@@ -202,9 +221,6 @@ def number_of_states_from_models(models):
     #         state_count.append(model.state_count()-2)
 
     return xr.DataArray(number_of_states, dims='molecule')
-
-
-
 
 def state_parameters_from_models(models, n_states=2):
     max_number_of_states = n_states
@@ -277,7 +293,6 @@ def trace_classification_models(traces, classifications, models):
             new_classifications.append(-np.ones_like(xi))
     return xr.DataArray(np.vstack(new_classifications), dims=('molecule','frame'))
 
-import scipy.linalg
 def determine_transition_rates_from_probabilities(number_of_states, transition_probabilities, frame_rate):
     # transition_rates = np.full_like(transition_probabilities, np.nan)
     dims = transition_probabilities.dims
