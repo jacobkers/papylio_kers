@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import tqdm
 from scipy.signal import fftconvolve
 from skimage.transform import AffineTransform
 from scipy.signal import correlate
@@ -13,6 +14,39 @@ def gaussian_kernel(size, center=None, sigma=1.291):
         center = [size / 2, size / 2]
 
     return np.exp(-((x - center[0]) ** 2 + (y - center[1]) ** 2) / (2 * sigma ** 2))
+
+def correlate_normalized(in1, in2, normalize=True, zero_outer_pixels=3):
+    # As adapted from equation 2 in Fast Normalized Cross-Correlation by J. P. Lewis
+    shape_full = np.array(in1.shape)+np.array(in2.shape)-1
+    out_full = np.zeros(shape_full)
+
+    for v in tqdm.tqdm(range(shape_full[0])):
+        for u in range(shape_full[1]):
+            in1_overlap = in1[max(in1.shape[0]-v-1,0):min(shape_full[0]-v,in1.shape[0]),
+                              max(in1.shape[1]-u-1,0):min(shape_full[1]-u,in1.shape[1])]
+            in2_overlap = in2[max(0, v+1-in1.shape[0]):min(v+1, in2.shape[0]),
+                              max(0, u+1-in1.shape[1]):min(u+1, in2.shape[1])]
+
+            if normalize:
+                in1_overlap = in1_overlap - in1_overlap.mean()
+                in2_overlap = in2_overlap - in2_overlap.mean()
+                nominator = np.sum(in1_overlap * in2_overlap)
+                denominator = np.sqrt(np.sum(in1_overlap**2) * np.sum(in2_overlap**2))
+                out_full[v, u] = nominator / denominator
+
+            else:
+                out_full[v,u] = np.sum(in1_overlap*in2_overlap)
+
+    out_full = out_full[::-1, ::-1]
+    out_full = np.nan_to_num(out_full)
+
+    if zero_outer_pixels:
+        out_full[:zero_outer_pixels, :] = 0
+        out_full[-zero_outer_pixels:, :] = 0
+        out_full[:, :zero_outer_pixels] = 0
+        out_full[:, -zero_outer_pixels:] = 0
+
+    return out_full
 
 
 def coordinates_to_image(coordinates, kernel_size=7, gaussian_sigma=1, divider=5):
@@ -39,21 +73,38 @@ def coordinates_to_image(coordinates, kernel_size=7, gaussian_sigma=1, divider=5
 
     return image_with_gaussians, transformation
 
-
-def cross_correlate(source, destination, kernel_size=7, gaussian_sigma=1, divider=5, subtract_background=True, plot=False, axes=None):
+def cross_correlate(source, destination, kernel_size=7, gaussian_sigma=1, divider=5, subtract_background=True,
+                    normalize=False, plot=False, axes=None):
     pseudo_image_source, transformation_source = \
         coordinates_to_image(source, kernel_size=kernel_size, gaussian_sigma=gaussian_sigma, divider=divider)
     pseudo_image_destination, transformation_destination = \
         coordinates_to_image(destination, kernel_size=kernel_size, gaussian_sigma=gaussian_sigma, divider=divider)
 
-    correlation_raw = correlate(pseudo_image_destination, pseudo_image_source, mode='full')
+    if normalize:
+        correlation_raw = correlate_normalized(pseudo_image_destination, pseudo_image_source)
+    else:
+        correlation_raw = correlate(pseudo_image_destination, pseudo_image_source, mode='full')
 
-    if subtract_background:
+    if subtract_background == 'minimum_filter':
         import scipy.ndimage.filters as filters
         correlation = correlation_raw - filters.minimum_filter(correlation_raw, 2 * kernel_size)
+    elif subtract_background == 'median_filter':
+        import scipy.ndimage.filters as filters
+        correlation = correlation_raw - filters.median_filter(correlation_raw, 2 * kernel_size)
+    elif (subtract_background == 'expected_signal') or (subtract_background == True):
+        ones_source = np.ones_like(pseudo_image_source)
+        ones_destination = np.ones_like(pseudo_image_destination)
+        normalize_source = correlate(pseudo_image_source, ones_destination, mode='full')
+        normalize_destination = correlate(ones_source, pseudo_image_destination, mode='full')
+        correlate_ones = correlate(ones_source, ones_destination, mode='full')
+        correlation = correlation_raw - (normalize_source*normalize_destination/correlate_ones)
+    elif subtract_background == 'expected_signal_rough':
+        ones_source = np.ones_like(pseudo_image_source)
+        ones_destination = np.ones_like(pseudo_image_destination)
+        correlate_ones = correlate(ones_source, ones_destination, mode='full')
+        correlation = correlation_raw - correlate_ones * pseudo_image_source.mean() * pseudo_image_destination.mean()
     else:
         correlation = correlation_raw
-    # np.min(correlation.shape) / 200)
 
     if plot:
         if axes is None:

@@ -1129,7 +1129,7 @@ class Mapping2:
                                           sigma=sigma, per_point_pair=per_point_pair)
 
     def cross_correlation(self, peak_detection='auto', kernel_size=7, gaussian_sigma=1, divider=5, crop=False, space='destination',
-                          plot=False, axes=None):
+                          normalize=False, subtract_background=True, plot=False, axes=None):
         """Perform cross correlation on synthesized images of the two datasets.
 
         The current transformation is used as a starting point. Because cross-correlation only varies translation,
@@ -1158,6 +1158,20 @@ class Mapping2:
             If False: no cropping is applied.
         space : str, optional
             In which coordinate space to perform the correlation. Either 'source' or 'destination'.
+        normalize : bool, optional
+            If True, then calculate the zero-normalized cross correlation. As it this is not done in Fourier space it is
+            (likely) slower than regular cross correlation.
+            If False: no normalization is performed.
+        subtract_background : bool or str , optional
+            If True or 'expected_signal': the expected signal based on the intensity at each location is calculated and
+            subtracted.
+            If 'minimum_filter': a minimum filter of two times the kernel size is applied and the resulting image is
+            subtracted.
+            If 'median_filter': a median filter of two times the kernel size is applied and the resulting image is
+            subtracted.
+            If 'expected_signal_rough': the expected signal is estimated based on the overlap of the images and their
+            average values, the resulting image is subtracted.
+            If False: no background subtraction is performed.
         plot : bool
             If True: plots of the synthetic images and the cross-correlation image are shown.
         axes : list of matplotlib.axis.Axis
@@ -1165,9 +1179,9 @@ class Mapping2:
 
         Note
         ----
-        Automatic background subtraction of the cross-correlation image is performed by subtracting a minimum filtered
-        version of the cross-correlation image. This reduces the difference in intensity between the edges and the center
-        that naturally occur when doing cross-correlation, and it thus helps to find the correct peak.
+        Automatic background subtraction is performed on the cross-correlation image. This reduces the difference in
+        intensity between the edges and the center that naturally occur when doing cross-correlation, and it thus helps
+        to find the correct peak.
         """
         #TODO: Make Gaussian without multiplying mask.
         #TODO: Add standard deviation as a parameter. (And change gaussian_width name to kernal_width?)
@@ -1183,7 +1197,7 @@ class Mapping2:
 
         correlation, self.correlation_conversion_function = cross_correlate(self.get_source(crop, space), self.get_destination(crop, space),
                                                                             kernel_size=kernel_size, gaussian_sigma=gaussian_sigma, divider=divider,
-                                                                            subtract_background=True, plot=plot, axes=axes)
+                                                                            normalize=normalize, subtract_background=subtract_background, plot=plot, axes=axes)
 
         self.correlation_space = space
 

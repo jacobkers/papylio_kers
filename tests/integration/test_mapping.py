@@ -45,15 +45,44 @@ def test_iterative_closest_point_polynomial():
     mapping.iterative_closest_point(5)
     #TODO add comparison for polynomial transforms, or based on point distances
 
+@pytest.fixture()
+def cross_correlation_mapping():
+    transformation = SimilarityTransform(translation=[50, 50],  rotation=1 / 360 * 2 * np.pi, scale=[1, 1])
+    mapping = Mapping2.simulate(number_of_points=200, transformation=transformation,
+                 bounds=[[0, 0], [256, 512]], crop_bounds=([[50,50], [150,150]], None), fraction_missing=(0.1, 0.1),
+                 error_sigma=(0.5, 0.5), shuffle=True, seed=10532, show_correct=True)
+    return mapping
 
-def test_cross_correlation():
-    mapping = Mapping2.simulate()
-    mapping.transformation = AffineTransform()
-    mapping.calculate_inverse_transformation()
+
+def test_cross_correlation_space(cross_correlation_mapping):
+    mapping = cross_correlation_mapping
     mapping.cross_correlation(space='source')
     assert mapping.transformation_is_similar_to_correct_transformation(translation_error=5, rotation_error=0.02, scale_error=0.03)
     mapping.cross_correlation(space='destination')
     assert mapping.transformation_is_similar_to_correct_transformation(translation_error=5, rotation_error=0.02, scale_error=0.03)
+
+
+def test_cross_correlation_normalized(cross_correlation_mapping):
+    mapping = cross_correlation_mapping
+    mapping.cross_correlation(normalize=True, subtract_background=False)
+    assert mapping.transformation_is_similar_to_correct_transformation(translation_error=5, rotation_error=0.02, scale_error=0.03)
+
+
+def test_cross_correlation_subtract_background(cross_correlation_mapping):
+    mapping = cross_correlation_mapping
+    mapping.cross_correlation(subtract_background='minimum_filter')
+    assert mapping.transformation_is_similar_to_correct_transformation(translation_error=5, rotation_error=0.02, scale_error=0.03)
+    mapping.cross_correlation(subtract_background='median_filter')
+    assert mapping.transformation_is_similar_to_correct_transformation(translation_error=5, rotation_error=0.02, scale_error=0.03)
+    mapping.cross_correlation(subtract_background='expected_signal')
+    assert mapping.transformation_is_similar_to_correct_transformation(translation_error=5, rotation_error=0.02,
+                                                                       scale_error=0.03)
+    mapping.cross_correlation(subtract_background='expected_signal_rough')
+    assert mapping.transformation_is_similar_to_correct_transformation(translation_error=5, rotation_error=0.02,
+                                                                       scale_error=0.03)
+    mapping.cross_correlation(subtract_background=True)
+    assert mapping.transformation_is_similar_to_correct_transformation(translation_error=5, rotation_error=0.02,
+                                                                       scale_error=0.03)
 
 
 def test_geometric_hash_table():
