@@ -1424,7 +1424,7 @@ class File:
     def frame_rate(self):
         return 1 / self.cycle_time
 
-    def determine_dwells_from_classification(self, variable='FRET', selected=False):
+    def determine_dwells_from_classification(self, variable='FRET', selected=False, inactivate_start_and_end_states=True):
         # TODO: Make it possible to pass multiple traces.
         classification = self.classification
         classification = classification.assign_coords(molecule=self.molecule)
@@ -1434,8 +1434,8 @@ class File:
             classification = classification.sel(molecule=self.selected)
             traces = traces.sel(molecule=self.selected)
 
-        dwells = dwell_times_from_classification(classification, traces=traces, cycle_time=self.cycle_time)
-
+        dwells = dwell_times_from_classification(classification, traces=traces, cycle_time=self.cycle_time,
+                                                 inactivate_start_and_end_states=inactivate_start_and_end_states)
 
         dwells['number_of_states'] = self.number_of_states_from_classification.sel(molecule=dwells.molecule)\
             .reset_coords(drop=True)
