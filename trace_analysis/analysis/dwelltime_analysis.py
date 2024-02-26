@@ -105,7 +105,7 @@ def p0(t, y):
 single_decaying_exponential.p0 = p0
 
 def analyze_dwells(dwells, fit_function=single_decaying_exponential, cycle_time=1, plot=False,
-                   axes=None, state_names={0: 'Low FRET state', 1: 'High FRET state'}, logy=False):
+                   axes=None, state_names={0: 'Low FRET state', 1: 'High FRET state'}, logy=False, sharey=True):
     # states = np.unique(dwells.state)
     states = np.array(list(state_names.keys()))
     positive_states = states[states>=0]
@@ -113,7 +113,7 @@ def analyze_dwells(dwells, fit_function=single_decaying_exponential, cycle_time=
     bins=50
 
     if plot and axes is None:
-        fig, axes = plt.subplots(1,len(positive_states), figsize=(len(positive_states)*3, 2), layout='constrained', sharey=True)
+        fig, axes = plt.subplots(1,len(positive_states), figsize=(len(positive_states)*3, 2), layout='constrained', sharey=sharey)
     else:
         axes = None
 

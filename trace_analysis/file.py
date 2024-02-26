@@ -1464,7 +1464,8 @@ class File:
     def dwells(self):
         return xr.load_dataset(self.absoluteFilePath.with_name(self.name + '_dwells').with_suffix('.nc'), engine='netcdf4')
 
-    def analyze_dwells(self, plot=False, axes=None, name=None, state_names={0: 'Low FRET state', 1: 'High FRET state'}, logy=False):
+    def analyze_dwells(self, plot=False, axes=None, name=None, state_names={0: 'Low FRET state', 1: 'High FRET state'},
+                       logy=False, sharey=True):
         dwells = self.dwells
 
         # At the moment single-state states are already set at -128 so they don't need to be separated.
@@ -1474,7 +1475,8 @@ class File:
         if name is None:
             name = self.name
 
-        fit_values, axes = analyze_dwells(dwells, cycle_time=self.cycle_time, plot=plot, axes=axes, state_names=state_names, logy=logy)
+        fit_values, axes = analyze_dwells(dwells, cycle_time=self.cycle_time, plot=plot, axes=axes,
+                                          state_names=state_names, logy=logy, sharey=sharey)
         if axes is not None:
             axes[0].set_title(name)
             save_path = self.experiment.analysis_path / 'Dwell time histograms and fits'
