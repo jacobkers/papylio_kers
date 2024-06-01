@@ -7,7 +7,7 @@ import tqdm
 from scipy.spatial import cKDTree
 import random
 from matchpoint.point_set import crop_coordinates
-from coordinate_transformations import translate, rotate, magnify, reflect, transform, parameters_from_transformation_matrices
+from matchpoint.coordinate_transformations import translate, rotate, magnify, reflect, transform, parameters_from_transformation_matrices
 # from trace_analysis.plotting import scatter_coordinates
 from skimage.transform import AffineTransform, SimilarityTransform
 import time
