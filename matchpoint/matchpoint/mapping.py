@@ -19,16 +19,16 @@ from skimage.transform import AffineTransform, PolynomialTransform, SimilarityTr
 from tqdm import tqdm
 from scipy.spatial import distance_matrix, cKDTree
 
-from point_set import overlap_vertices, area, crop_coordinates, determine_vertices, vertices_with_margin
-from icp import icp, nearest_neighbor_pair, nearest_neighbour_match, direct_match
-from polywarp import PolywarpTransform
-from polynomial import PolynomialTransform
-from point_set_simulation import simulate_mapping_test_point_set
-from kernel_correlation import kernel_correlation, compute_kernel_correlation
-from cross_correlation import cross_correlate
-from geometric_hashing import GeometricHashTable
+from matchpoint.point_set import overlap_vertices, area, crop_coordinates, determine_vertices, vertices_with_margin
+from matchpoint.icp import icp, nearest_neighbor_pair, nearest_neighbour_match, direct_match
+from matchpoint.polywarp import PolywarpTransform
+from matchpoint.polynomial import PolynomialTransform
+from matchpoint.point_set_simulation import simulate_mapping_test_point_set
+from matchpoint.kernel_correlation import kernel_correlation, compute_kernel_correlation
+from matchpoint.cross_correlation import cross_correlate
+from matchpoint.geometric_hashing import GeometricHashTable
 
-from trace_analysis.decorators import return_none_when_executed_by_pycharm
+from matchpoint.decorators import return_none_when_executed_by_pycharm
 
 class Mapping2:
     """Mapping class to find, improve, store and use a mapping between a source point set and a destination point set.

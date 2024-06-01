@@ -5,7 +5,7 @@ from sklearn.neighbors import NearestNeighbors
 from skimage.transform import AffineTransform, PolynomialTransform
 from matplotlib.collections import LineCollection
 
-from polywarp import PolywarpTransform
+from matchpoint.polywarp import PolywarpTransform
 
 def best_fit_transform(A, B):
     '''
