@@ -9,4 +9,4 @@ Main classes
 .. autosummary::
     :toctree: _generated/
 
-    matchpoint.mapping.MatchPoint
+    matchpoint.core.MatchPoint
