@@ -179,7 +179,7 @@ def simulate_mapping_test_point_set(number_of_points, transformation, bounds=([0
 
 
 if __name__ == "__main__":
-    from mapping import Mapping2
+    from matchpoint.core import MatchPoint
 
     number_of_points = 100
     transformation = AffineTransform(scale=[0.75, 0.75], rotation=4 / 360 * 2 * np.pi, translation=[100, 0])
@@ -192,6 +192,6 @@ if __name__ == "__main__":
     destination, source = simulate_mapping_test_point_set(number_of_points, transformation.inverse,
                                                           bounds, crop_bounds, fraction_missing, error_sigma, shuffle)
 
-    m = Mapping2(source, destination)
+    m = MatchPoint(source, destination)
     m.transformation = transformation
     m.show_mapping_transformation(show_source=True)

@@ -1,7 +1,7 @@
 import numpy as np #scientific computing with Python
 import matplotlib.pyplot as plt
 
-# from trace_analysis.mapping.coordinate_transformations import transform
+# from matchpoint.coordinate_transformations import transform
 import matplotlib.patches as patches
 from matplotlib.collections import PatchCollection
 from mpl_toolkits.axes_grid1 import make_axes_locatable

@@ -12,14 +12,14 @@ import os.path
 # from trace_analysis.experiment import Experiment
 # from trace_analysis.file import File
 # from trace_analysis.mapping.geometricHashing import SequencingDataMapping
-from trace_analysis.mapping.mapping import Mapping2
+from matchpoint import MatchPoint
 from trace_analysis.decorators import return_none_when_executed_by_pycharm
-from trace_analysis.mapping.polynomial import PolynomialTransform
+from matchpoint.polynomial import PolynomialTransform
 from .fastqAnalysis import FastqData
 from .geometricHashing2 import geometric_hash, find_match_after_hashing
 from .geometricHashing3 import GeometricHashTable
 from .plotting import plot_sequencing_match, plot_matched_files_in_tile
-from trace_analysis.mapping.icp import icp, nearest_neighbor_pair
+from matchpoint.icp import icp, nearest_neighbor_pair
 from .sequencing_data import SequencingData, make_sequencing_dataset
 from .mapping_collection import MappingCollection
 
@@ -45,7 +45,7 @@ class Experiment:
     def tile_mappings(self):
         if self._tile_mappings is None:
             tile_mappings_path = self.main_path.joinpath('Analysis').joinpath('Tile mappings')
-            self._tile_mappings = MappingCollection([Mapping2.load(filepath) for filepath in
+            self._tile_mappings = MappingCollection([MatchPoint.load(filepath) for filepath in
                                                      tile_mappings_path.glob('*.nc')])
 
         return self._tile_mappings
@@ -125,7 +125,7 @@ class Experiment:
 
         tile_mappings = []
         for tile in tqdm.tqdm(sequencing_data.tile_numbers, 'Make tile mappings'):
-            mapping = Mapping2(source=coordinates_sm, destination=coordinates_seq.sel(sequence=tiles_seq==tile))
+            mapping = MatchPoint(source=coordinates_sm, destination=coordinates_seq.sel(sequence=tiles_seq==tile))
             mapping.transformation_type = 'linear'
             mapping.name = f'Tile {tile}'
             mapping.label = tile
@@ -278,7 +278,7 @@ class Experiment:
     #             [file.sequencing_match.transform_coordinates(np.array([[0, 0]])) for file in matched_files_in_tile])
     #
     #         stage_to_tile_mapping = \
-    #             Mapping2(stage_coordinates, sequencing_coordinates, transformation_type='linear',
+    #             MatchPoint(stage_coordinates, sequencing_coordinates, transformation_type='linear',
     #                      source_name='Stage coordinates', destination_name='Sequencing_coordinates',
     #                      source_unit='μm', destination_unit='FASTQ',
     #                      name=f'Stage to sequencing coordinates - tile {tile.number}')
@@ -436,7 +436,7 @@ class File:
     @return_none_when_executed_by_pycharm
     def has_sequencing_match(self):
         filepath = self.absoluteFilePath.with_name(self.name + '_sequencing_match')
-        # TODO: Link this to the possible file formats of Mapping2
+        # TODO: Link this to the possible file formats of MatchPoint
         for suffix in ['.nc', '.mapping']:
             filepath = filepath.with_suffix(suffix)
             if filepath.is_file():
@@ -513,7 +513,7 @@ class File:
             self.sequencing_match = None
             return
 
-        mapping = Mapping2(source, destination, transformation_type='similarity')
+        mapping = MatchPoint(source, destination, transformation_type='similarity')
         mapping.transformation = SimilarityTransform()
         mapping.source_name = 'Single-molecule coordinates'
         mapping.destination_name = 'Sequencing coordinates'
@@ -642,11 +642,11 @@ class File:
 
     def import_sequencing_match(self):
         filepath = self.absoluteFilePath.with_name(self.name + '_sequencing_match')
-        # TODO: Link this to the possible file formats of Mapping2
+        # TODO: Link this to the possible file formats of MatchPoint
         for suffix in ['.nc', '.mapping']:
             filepath = filepath.with_suffix(suffix)
             if filepath.is_file():
-                self._sequencing_match = Mapping2.load(filepath)
+                self._sequencing_match = MatchPoint.load(filepath)
                 break
         else:
             self._sequencing_match = None
@@ -654,7 +654,7 @@ class File:
     def export_sequencing_match(self):
         filepath = self.absoluteFilePath.with_name(self.name+'_sequencing_match.nc')
         if self._sequencing_match is None:
-            # TODO: Link this to the possible file formats of Mapping2
+            # TODO: Link this to the possible file formats of MatchPoint
             for suffix in ['.nc', '.mapping']:
                 filepath = filepath.with_suffix(suffix)
                 filepath.unlink(missing_ok=True)
@@ -748,7 +748,7 @@ class File:
             self.experiment.stage_to_sequencing_mappings[tile_index]\
                 .transform_coordinates(source_vertices_in_stage_coordinates)
 
-        match = Mapping2(source_vertices, source_vertices_in_sequencing_coordinates, transformation_type='linear')
+        match = MatchPoint(source_vertices, source_vertices_in_sequencing_coordinates, transformation_type='linear')
         match.direct_match()
         match.source_vertices = source_vertices
         match.destination_vertices = np.array([[1720, 1330], [29720, 1330], [29720, 29330], [1720, 29330]]) # Tile coordinate bounds MiSeq
@@ -874,7 +874,7 @@ class File:
         plot_sequencing_match(self.sequencing_match, self.absoluteFilePath.parent, title, filename,
                               'um', MiSeq_pixels_to_um, Fluo_pixels_to_um)
 
-    # from trace_analysis.mapping.icp import show_point_connections
+    # from matchpoint.icp import show_point_connections
     # show_point_connections(self.coordinates[molecule_indices], sequence_coordinates_in_file[sequence_indices])
 
 
@@ -908,7 +908,7 @@ class File:
     #
     #     plt.figure()
     #     scatter_coordinates([tile_coordinates, self.sequence_match.destination, image_coordinates])
-    #     from trace_analysis.mapping.icp import show_point_connections
+    #     from matchpoint.icp import show_point_connections
     #     show_point_connections(image_coordinates[image_indices], tile_coordinates[tile_indices])
     #
     #     for molecule in self.molecules: molecule.sequence = np.array([], dtype=bytes)

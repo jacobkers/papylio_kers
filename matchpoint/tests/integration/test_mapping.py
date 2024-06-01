@@ -3,7 +3,7 @@ import tifffile
 import pytest
 import numpy as np
 from skimage.transform import SimilarityTransform, AffineTransform
-from matchpoint.mapping import Mapping2
+from matchpoint import MatchPoint
 
 
 @pytest.fixture
@@ -12,7 +12,7 @@ def mapping():
     rotation = 1 / 360 * 2 * np.pi
     scale = [0.98, 0.98]
     transformation = SimilarityTransform(translation=translation, rotation=rotation, scale=scale)
-    mapping = Mapping2.simulate(number_of_points=200, transformation=transformation,
+    mapping = MatchPoint.simulate(number_of_points=200, transformation=transformation,
                                 bounds=([0, 0], [256, 512]), crop_bounds=((50, 200), None), fraction_missing=(0.1, 0.1),
                                 error_sigma=(0.5, 0.5), shuffle=True, seed=10252)
     return mapping
@@ -32,14 +32,14 @@ def test_vertices(mapping):
 
 
 def test_iterative_closest_point():
-    mapping = Mapping2.simulate()
+    mapping = MatchPoint.simulate()
     mapping.transformation = AffineTransform(translation=(256,0))
     mapping.iterative_closest_point(5)
     assert mapping.transformation_is_similar_to_correct_transformation(translation_error=1, rotation_error=0.001, scale_error=0.01)
 
 
 def test_iterative_closest_point_polynomial():
-    mapping = Mapping2.simulate()
+    mapping = MatchPoint.simulate()
     mapping.transformation = AffineTransform(translation=(256,0))
     mapping.transformation_type = 'polynomial'
     mapping.iterative_closest_point(5)
@@ -48,7 +48,7 @@ def test_iterative_closest_point_polynomial():
 @pytest.fixture()
 def cross_correlation_mapping():
     transformation = SimilarityTransform(translation=[50, 50],  rotation=1 / 360 * 2 * np.pi, scale=[1, 1])
-    mapping = Mapping2.simulate(number_of_points=200, transformation=transformation,
+    mapping = MatchPoint.simulate(number_of_points=200, transformation=transformation,
                  bounds=[[0, 0], [256, 512]], crop_bounds=([[50,50], [150,150]], None), fraction_missing=(0.1, 0.1),
                  error_sigma=(0.5, 0.5), shuffle=True, seed=10532, show_correct=True)
     return mapping
@@ -90,7 +90,7 @@ def test_geometric_hash_table():
     rotation = 125 / 360 * 2 * np.pi
     scale = np.array([10, 10])
     transformation = SimilarityTransform(translation=translation, rotation=rotation, scale=scale)
-    mapping = Mapping2.simulate(number_of_points=200, transformation=transformation,
+    mapping = MatchPoint.simulate(number_of_points=200, transformation=transformation,
                                 bounds=([0, 0], [256, 512]), crop_bounds=((50, 200), None), fraction_missing=(0.1, 0.1),
                                 error_sigma=(0.5, 0.5), shuffle=True, seed=10252)
     mapping.geometric_hashing(method='one_by_one', tuple_size=4, maximum_distance_source=100, maximum_distance_destination=1000,
@@ -114,7 +114,7 @@ def test_kernel_correlations():
     rotation = 1 / 360 * 2 * np.pi
     scale = [0.98, 0.98]
     transformation = AffineTransform(translation=translation, rotation=rotation, scale=scale)
-    mapping = Mapping2.simulate(number_of_points=10000, transformation=transformation,
+    mapping = MatchPoint.simulate(number_of_points=10000, transformation=transformation,
                                 bounds=([0, 0], [256, 512]), crop_bounds=(None, None), fraction_missing=(0.95, 0.6),
                                 error_sigma=(0.5, 0.5), shuffle=True, seed=10252)
 
@@ -128,14 +128,14 @@ def test_kernel_correlations():
 
 
 def test_save(shared_datadir):
-    mapping = Mapping2.simulate()
+    mapping = MatchPoint.simulate()
     mapping.save(shared_datadir / 'mapping' / 'test_mapping.nc')
-    # mapping = Mapping2.load(r'C:\Users\ivoseverins\Scan 123 - HJ general - Tile 1101.mapping')
+    # mapping = MatchPoint.load(r'C:\Users\ivoseverins\Scan 123 - HJ general - Tile 1101.mapping')
     # mapping.save(r'C:\Users\ivoseverins\test.nc.mapping', filetype='nc')
     return mapping
 
 
 def test_load(shared_datadir):
     mapping_saved = test_save(shared_datadir)
-    mapping_loaded = Mapping2.load(shared_datadir / 'mapping' / 'test_mapping.nc')
+    mapping_loaded = MatchPoint.load(shared_datadir / 'mapping' / 'test_mapping.nc')
     assert mapping_loaded == mapping_saved

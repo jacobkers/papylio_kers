@@ -20,7 +20,7 @@ import netCDF4
 from trace_analysis.movie.movie import Movie
 from trace_analysis.movie.tif import TifMovie
 from trace_analysis.plotting import histogram
-from trace_analysis.mapping.mapping import Mapping2
+from matchpoint import MatchPoint
 from trace_analysis.peak_finding import find_peaks
 from trace_analysis.coordinate_optimization import  coordinates_within_margin, \
                                                     coordinates_after_gaussian_fit, \
@@ -29,7 +29,7 @@ from trace_analysis.coordinate_optimization import  coordinates_within_margin, \
                                                     set_of_tuples_from_array, array_from_set_of_tuples, \
                                                     coordinates_within_margin_selection
 from trace_analysis.trace_extraction import extract_traces
-from trace_analysis.mapping.coordinate_transformations import translate, transform # MD: we don't want to use this anymore I think, it is only linear
+from matchpoint.coordinate_transformations import translate, transform # MD: we don't want to use this anymore I think, it is only linear
                                                                            # IS: We do! But we just need to make them usable with the nonlinear mapping
 from trace_analysis.background_subtraction import extract_background
 from trace_analysis.analysis.hidden_markov_modelling import hmm_traces, hidden_markov_modelling
@@ -400,7 +400,7 @@ class File:
             else:
                 raise TypeError('Error in importing coeff file, wrong number of lines')
 
-            self.mapping = Mapping2(transformation_type='linear')
+            self.mapping = MatchPoint(transformation_type='linear')
 
             transformation = np.zeros((3,3))
             transformation[2,2] = 1
@@ -428,8 +428,8 @@ class File:
         self.mapping.save(self.absoluteFilePath, filetype)
 
     def import_map_file(self, extension):
-        # TODO: Move this to the Mapping2 class
-        from trace_analysis.mapping.polywarp import PolywarpTransform
+        # TODO: Move this to the MatchPoint class
+        from matchpoint.polywarp import PolywarpTransform
         #coefficients = np.genfromtxt(self.absoluteFilePath.with_suffix('.map'))
         file_content=np.genfromtxt(self.absoluteFilePath.with_suffix('.map'))
         if len(file_content) == 64:
@@ -443,7 +443,7 @@ class File:
         P = coefficients[:len(coefficients) // 2].reshape((degree + 1, degree + 1))
         Q = coefficients[len(coefficients) // 2 : len(coefficients)].reshape((degree + 1, degree + 1))
 
-        self.mapping = Mapping2(transformation_type='nonlinear')
+        self.mapping = MatchPoint(transformation_type='nonlinear')
         self.mapping.transformation = PolywarpTransform(params=(P,Q)) #{'P': P, 'Q': Q}
         #self.mapping.file = self
 
@@ -457,7 +457,7 @@ class File:
 
             # Can't we make this independent of the image?
             grid_coordinates = np.array([(a,b) for a in np.arange(0, grid_range//2, 5) for b in np.arange(0, grid_range, 5)])
-            from trace_analysis.mapping.polywarp import polywarp, polywarp_apply
+            from matchpoint.polywarp import polywarp, polywarp_apply
             transformed_grid_coordinates = polywarp_apply(P, Q, grid_coordinates)
             # plt.scatter(grid_coordinates[:, 0], grid_coordinates[:, 1], marker='.')
             # plt.scatter(transformed_grid_coordinates[:,0], transformed_grid_coordinates[:,1], marker='.')
@@ -465,7 +465,7 @@ class File:
             # transformed_grid_coordinates2 = polywarp_apply(Pi, Qi, transformed_grid_coordinates)
             # plt.scatter(transformed_grid_coordinates2[:, 0], transformed_grid_coordinates2[:, 1], marker='.')
             # plt.scatter(grid_coordinates[:, 0], grid_coordinates[:, 1], marker='.', facecolors='none', edgecolors='r')
-       # self.mapping = Mapping2(transformation_type='nonlinear')
+       # self.mapping = MatchPoint(transformation_type='nonlinear')
         self.mapping.transformation_inverse = PolywarpTransform(params=(Pi,Qi)) # {'P': Pi, 'Q': Qi}
         self.mapping.file = self
         self.mapping.source_name = 'Donor'
@@ -476,7 +476,7 @@ class File:
         self.export_mapping(filetype='classic')
 
     def import_mapping_file(self, extension):
-        self.mapping = Mapping2.load(self.absoluteFilePath.with_suffix(extension))
+        self.mapping = MatchPoint.load(self.absoluteFilePath.with_suffix(extension))
 
     def use_for_darkfield_correction(self):
         image = self.get_projection_image(projection_type='average', frame_range=(0, None), apply_corrections=False)
@@ -1210,13 +1210,13 @@ class File:
         additional_mapping_parameters = {key: configuration[key]
                                          for key in (configuration.keys() and {'distance_threshold'})}
 
-        self.mapping = Mapping2(source_name='Donor',
-                                source=donor_coordinates,
-                                destination_name='Acceptor',
-                                destination=acceptor_coordinates,
-                                method=method,
-                                transformation_type=transformation_type,
-                                initial_transformation=initial_transformation)
+        self.mapping = MatchPoint(source_name='Donor',
+                                  source=donor_coordinates,
+                                  destination_name='Acceptor',
+                                  destination=acceptor_coordinates,
+                                  method=method,
+                                  transformation_type=transformation_type,
+                                  initial_transformation=initial_transformation)
         self.mapping.perform_mapping(**additional_mapping_parameters)
         self.mapping.file = self
 
@@ -1550,6 +1550,7 @@ class File:
 
     def determine_trace_correction(self):
         from trace_analysis.trace_correction import TraceCorrectionWindow
+        # TODO: Should work on intensity raw if intensity raw is there else on intensity.
         TraceCorrectionWindow(self.intensity)
 
     def show_histogram(self, variable, selected=False, frame_range=None, average=False, axis=None, **hist_kwargs):

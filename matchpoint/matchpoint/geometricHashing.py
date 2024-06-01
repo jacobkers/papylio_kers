@@ -12,8 +12,8 @@ from pathlib2 import Path
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.pyplot import cm
 import scipy.stats
-from mapping import Mapping2
-from coordinate_transformations import translate, rotate, magnify, reflect, transform
+from matchpoint import MatchPoint
+from matchpoint.coordinate_transformations import translate, rotate, magnify, reflect, transform
 # from trace_analysis.plugins.sequencing.plotting import plot_sequencing_match
 
 
@@ -525,7 +525,7 @@ class SequencingDataMapping:
 
             transformation_matrix = transformation_matrix @ initial_transformation
 
-            match = Mapping2(file.coordinates.copy(), self.tile.coordinates.copy(),
+            match = MatchPoint(file.coordinates.copy(), self.tile.coordinates.copy(),
                                   method='geometric-hashing',
                                   transformation_type='linear')
 

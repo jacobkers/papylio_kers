@@ -286,7 +286,7 @@ def find_match_after_hashing(source, maximum_distance_source, tuple_size, source
                                 alpha=alpha, sigma=sigma, K_threshold=K_threshold):
                 return found_transformation
 
-            #     match = Mapping2(source=source, destination=destination_KDTree.data, method='Geometric hashing',
+            #     match = MatchPoint(source=source, destination=destination_KDTree.data, method='Geometric hashing',
             #                      transformation_type='linear', initial_transformation=None)
             #     match.transformation = found_transformation
             #     match.destination_index = destination_index

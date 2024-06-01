@@ -5,10 +5,10 @@ from pathlib import Path
 import itertools
 from scipy.spatial import cKDTree
 import random
-from trace_analysis.mapping.geometricHashing import mapToPoint
+from matchpoint.geometricHashing import mapToPoint
 from trace_analysis.plugins.sequencing.geometricHashing2 import crop_coordinates, polygon_area
-from trace_analysis.mapping.mapping import Mapping2
-# from trace_analysis.mapping.icp import scatter_coordinates
+from matchpoint import MatchPoint
+# from matchpoint.icp import scatter_coordinates
 from skimage.transform import AffineTransform
 import time
 
@@ -212,7 +212,7 @@ class GeometricHashTable:
 
             if self.test_transformation(source, self.destination_KDTrees[destination_index], found_transformation,
                                         alpha, sigma, K_threshold):
-                match = Mapping2(source=source, destination=self.destinations[destination_index], method='Geometric hashing',
+                match = MatchPoint(source=source, destination=self.destinations[destination_index], method='Geometric hashing',
                                  transformation_type='linear', initial_transformation=None)
                 match.transformation = found_transformation
                 match.transformation_inverse = AffineTransform(matrix=found_transformation._inv_matrix)
@@ -281,7 +281,7 @@ if __name__ == '__main__':
     #
     # match = ht.query(source, 15)
 
-    from trace_analysis.mapping.point_set_simulation import simulate_mapping_test_point_set
+    from matchpoint.point_set_simulation import simulate_mapping_test_point_set
 
     # Simulate source and destination point sets
     number_of_source_points = 4000
@@ -300,7 +300,7 @@ if __name__ == '__main__':
                                                           maximum_error_source, maximum_error_destination, shuffle)
     destinations = [destination]
 
-    perfect = Mapping2(source, destination)
+    perfect = MatchPoint(source, destination)
     perfect.transformation = AffineTransform(matrix=transformation._inv_matrix)
     perfect.show_mapping_transformation()
 

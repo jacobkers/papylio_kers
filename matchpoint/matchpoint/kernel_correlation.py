@@ -239,8 +239,8 @@ if __name__ == '__main__':
                                                           (fraction_missing_source, fraction_missing_destination),
                                                           (maximum_error_source, maximum_error_destination), shuffle)
 
-    from mapping import Mapping2
-    im = Mapping2(source, destination)
+    from matchpoint.core import MatchPoint
+    im = MatchPoint(source, destination)
     im.transformation = transformation
     im.show_mapping_transformation()
 
@@ -270,7 +270,7 @@ if __name__ == '__main__':
                                  polish=True, init='sobol', atol=0, updating='immediate', workers=1,
                                  constraints=()
                                  )
-    fm = Mapping2(source, destination)
+    fm = MatchPoint(source, destination)
     fm.transformation = found_transformation
     fm.show_mapping_transformation()
     # # Perform icp on the simulated point sets

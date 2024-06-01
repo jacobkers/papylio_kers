@@ -4,9 +4,9 @@ import matplotlib.pyplot as plt
 import itertools
 from scipy.spatial import cKDTree
 import random
-from trace_analysis.mapping.geometricHashing import mapToPoint
-from trace_analysis.mapping.mapping import Mapping2
-from trace_analysis.mapping.point_set import crop_coordinates
+from matchpoint.geometricHashing import mapToPoint
+from matchpoint import MatchPoint
+from matchpoint.point_set import crop_coordinates
 # from trace_analysis.plotting import scatter_coordinates
 from skimage.transform import AffineTransform
 import time
@@ -218,7 +218,7 @@ def compare_tuple_transformations(source_hash_table_KDTree, source_transformatio
 
 #
 # t0 = time.time()
-# from trace_analysis.mapping.geometricHashing import pointHash, findMatch
+# from matchpoint.geometricHashing import pointHash, findMatch
 # ht = pointHash(destination, bases='all', magnificationRange=[0,10], rotationRange=[-np.pi,np.pi])
 # matched_bases = findMatch(source, ht, bases='all', magnificationRange=[0,1], rotationRange=[-np.pi,np.pi])
 # source_coordinate_tuple = source[matched_bases['testBasis']]
@@ -474,7 +474,7 @@ def find_match_after_hashing(source, maximum_distance_source, tuple_size, source
             found_transformation = tuple_match(source, destination_KDTree, source_vertices, source_tuple, destination_tuple,
                                 alpha, test_radius, K_threshold, magnification_range, rotation_range)
             if found_transformation:
-                match = Mapping2(source=source, destination=destination_KDTree.data, method='Geometric hashing',
+                match = MatchPoint(source=source, destination=destination_KDTree.data, method='Geometric hashing',
                                  transformation_type='linear', initial_transformation=None)
                 match.transformation = found_transformation
                 match.destination_index = destination_index
@@ -605,7 +605,7 @@ if __name__ == '__main__':
                                                           maximum_error_source, maximum_error_destination, shuffle)
     destinations = [destination]
 
-    perfect = Mapping2(source, destination)
+    perfect = MatchPoint(source, destination)
     perfect.transformation = AffineTransform(matrix=transformation._inv_matrix)
     perfect.show_mapping_transformation(show_source=True)
 

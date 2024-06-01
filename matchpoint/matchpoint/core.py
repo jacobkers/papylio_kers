@@ -30,7 +30,7 @@ from matchpoint.geometric_hashing import GeometricHashTable
 
 from matchpoint.decorators import return_none_when_executed_by_pycharm
 
-class Mapping2:
+class MatchPoint:
     """Mapping class to find, improve, store and use a mapping between a source point set and a destination point set.
 
     Attributes
@@ -69,7 +69,7 @@ class Mapping2:
     matched_pairs : Nx2 numpy.ndarray
         Array with the indices of source points and destination points that are matched.
     save_path : pathlib2.Path
-        Path to the folder where the Mapping2 objects is or should be saved.
+        Path to the folder where the MatchPoint objects is or should be saved.
 
 
     """
@@ -79,7 +79,7 @@ class Mapping2:
                  bounds=[[0, 0], [256, 512]], crop_bounds=(None, None), fraction_missing=(0.1, 0.1),
                  error_sigma=(0.5, 0.5), shuffle=True, seed=10532, show_correct=True):
         """
-        Simulate a point set with a specific transformation and return as a Mapping2 object. It generates an original
+        Simulate a point set with a specific transformation and return as a MatchPoint object. It generates an original
         point set of which the source and destination point sets are subsets.
 
         Parameters
@@ -109,8 +109,8 @@ class Mapping2:
 
         Returns
         -------
-        mapping : Mapping2
-            Mapping2 object with the simulated source and destination point sets.
+        mapping : MatchPoint
+            MatchPoint object with the simulated source and destination point sets.
             While the "transformation" attribute is set with a unit transformation, mapping has an additional
             attribute "transformation_correct" containing the correct transformation. The returned mapping also has a
             "show_correct_mapping_transformation" method, to visualize the correct transformation.
@@ -125,14 +125,14 @@ class Mapping2:
                                                               error_sigma,
                                                               shuffle, seed=seed)
 
-        class SimulatedMapping2(cls):
+        class SimulatedMatchPoint(cls):
             def show_correct_mapping_transformation(self, *args, **kwargs):
                 transformation_temp = self.transformation
                 self.transformation = self.transformation_correct
                 self.show_mapping_transformation(*args, **kwargs)
                 self.transformation = transformation_temp
 
-        mapping = SimulatedMapping2(source, destination)
+        mapping = SimulatedMatchPoint(source, destination)
         mapping.transformation_correct = transformation
 
         if show_correct:
@@ -143,7 +143,7 @@ class Mapping2:
     @classmethod
     def load(cls, filepath):
         """
-        Load a saved Mapping2 object
+        Load a saved MatchPoint object
 
         Parameters
         ----------
@@ -152,8 +152,8 @@ class Mapping2:
 
         Returns
         -------
-        mapping : Mapping2
-            Saved Mapping2 object.
+        mapping : MatchPoint
+            Saved MatchPoint object.
         """
 
         mapping = cls()
@@ -205,7 +205,7 @@ class Mapping2:
                  source_name='source', destination_name='destination',
                  source_unit=None, destination_unit=None, destination_distance_threshold=0,
                  name=None):
-        """Initialize a Mapping2 object
+        """Initialize a MatchPoint object
 
         Parameters
         ----------
@@ -278,7 +278,7 @@ class Mapping2:
                 self.transformation_inverse = transformation_inverse
 
 
-    # Function to make attributes from transformation available from the Mapping2 class
+    # Function to make attributes from transformation available from the MatchPoint class
     def __getattr__(self, item):
         if ('transformation' in self.__dict__) and hasattr(self.transformation, item):
             return getattr(self.transformation, item)
@@ -573,7 +573,7 @@ class Mapping2:
                 -   'single_match_optimization': Optimizes the number of singly-matched pairs,
                     i.e. the source point having only a single destination point within the distance threshold and the
                     destination point having only a single source point within the distance threshold.
-                    See the Mapping2.single_match_optimization method.
+                    See the MatchPoint.single_match_optimization method.
         kwargs
             Keyword arguments to pass to method.
         """
@@ -900,7 +900,7 @@ class Mapping2:
         - 'nonlinear': polynomial transform corresponding to the IDL polywarp transform
         - 'polynomial': polynomial transform using skimage.transform.PolynomialTransform
 
-        Available transformation types are stored in the Mapping2.transformation_types class attribute.
+        Available transformation types are stored in the MatchPoint.transformation_types class attribute.
 
         If set, then the transform attribute is set to the transformation class corresponding to the set value.
         """
@@ -1010,7 +1010,7 @@ class Mapping2:
             Distance threshold for nearest neighbour match in destination space. Only nearest neighbours with a
             distance smaller than the distance threshold are used.
         transformation_type : str
-            Type of transformation used. For options see Mapping2.transformation_type.
+            Type of transformation used. For options see MatchPoint.transformation_type.
             If not specified the object transformation_type is used.
         kwargs
             Keyword arguments passed to the nearest-neighbour match function.
@@ -1362,7 +1362,7 @@ class Mapping2:
         return self.show(show_source=False, show_destination=True, show_transformed_coordinates=False, **kwargs)
 
     def show_mapping_transformation(self, *args, **kwargs):
-        """Show the mapping. Identical to `Mapping2.show()`.
+        """Show the mapping. Identical to `MatchPoint.show()`.
         """
         return self.show(*args, **kwargs)
 
@@ -1971,8 +1971,8 @@ if __name__ == "__main__":
     error_sigma = (0.5, 0.5)
     shuffle = True
 
-    mapping = Mapping2.simulate(number_of_points, transformation, bounds, crop_bounds, fraction_missing,
-                                error_sigma, shuffle)
+    mapping = MatchPoint.simulate(number_of_points, transformation, bounds, crop_bounds, fraction_missing,
+                                  error_sigma, shuffle)
 
     # mapping.transformation = AffineTransform(rotation=1/360*2*np.pi, scale=1.01, translation=[5,5])
     mapping.show_mapping_transformation()
