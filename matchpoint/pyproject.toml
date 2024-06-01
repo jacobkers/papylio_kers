@@ -1,0 +1,8 @@
+# pyproject.toml
+
+[tool.pytest.ini_options]
+pythonpath = ["matchpoint/matchpoint"]
+testpaths = [
+    "tests",
+    "integration",
+]

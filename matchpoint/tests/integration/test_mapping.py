@@ -3,7 +3,7 @@ import tifffile
 import pytest
 import numpy as np
 from skimage.transform import SimilarityTransform, AffineTransform
-from trace_analysis.mapping.mapping import Mapping2
+from matchpoint.mapping import Mapping2
 
 
 @pytest.fixture
