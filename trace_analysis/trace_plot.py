@@ -97,7 +97,7 @@ class TracePlotWindow(QWidget):
         self.selected_molecules_checkbox.setTristate(True)
         self.selected_molecules_checkbox.setCheckState(Qt.PartiallyChecked)
         self.selected_molecules_checkbox.stateChanged.connect(self.on_selected_molecules_checkbox_state_change)
-
+        self.selected_molecules_checkbox.setFocusPolicy(Qt.NoFocus)
 
 
         layout_bar.addWidget(QLabel('Selected'),0.1)
