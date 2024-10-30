@@ -1,7 +1,7 @@
 files:
   excluded_extensions: [pdf, dat, db, py, yml, png, pdf, xlsx]
   excluded_names: [_ave, _max, _corrections, _dwells, _dwell_analysis, darkfield, flatfield, _sequencing_data, _sequencing_match]
-  excluded_paths: [Analysis]
+  excluded_paths: [Analysis, Sequencing data]
 movie:
     rot90: 0 # Needs to be set before loading the experiment
     # For TIR-T, V and ObjTIR, check the image orientation setting of the measurement software (Solis or MetaMorph).
