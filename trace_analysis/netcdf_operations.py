@@ -49,6 +49,7 @@ def merge_datasets(files_in, file_out, concat_dim, init_file=None, with_selected
 
 def reorder_datasets_using_sequence_subset(files_in, folder_out, concat_dim):
     folder_out = Path(folder_out)
+    folder_out.mkdir(exist_ok=False)
     for file_in in tqdm.tqdm(files_in):
         with netCDF4.Dataset(file_in) as ds_in:
             # selection = np.squeeze(ds['sequence_subset'][:].view('S8') != b'--------')
