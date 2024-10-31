@@ -38,6 +38,7 @@ dependencies:
 - numba=0.56
 - pomegranate=0.14
 - git
+- perl
 #- bioconda::logomaker=0.8
 # Logomaker has a matplotlib dependency, which installs PyQt
 # So please install manually if needed using
