@@ -1,7 +1,7 @@
 files:
-  excluded_extensions: [pdf, dat, db, py, yml, png, pdf, xlsx]
+  excluded_extensions: [pdf, dat, db, py, yml, png, pdf, xlsx, md]
   excluded_names: [_ave, _max, _corrections, _dwells, _dwell_analysis, darkfield, flatfield, _sequencing_data, _sequencing_match]
-  excluded_paths: [Analysis, Sequencing data]
+  excluded_paths: [Analysis, Sequencing data, Results]
 movie:
     rot90: 0 # Needs to be set before loading the experiment
     # For TIR-T, V and ObjTIR, check the image orientation setting of the measurement software (Solis or MetaMorph).
@@ -57,12 +57,12 @@ mapping:
             method: local-maximum
             minimum_intensity_difference: 100
             filter_neighbourhood_size_min: 10  # Optional
-            filter_neighbourhood_size_max: 10  # Optional
+            filter_neighbourhood_size_max: 5  # Optional
         acceptor:
             method: local-maximum
             minimum_intensity_difference: 100
-            filter_neighbourhood_size_min: 5  # Optional
-            filter_neighbourhood_size_max: 10  # Optional
+            filter_neighbourhood_size_min: 10  # Optional
+            filter_neighbourhood_size_max: 5  # Optional
     coordinate_optimization:
         coordinates_after_gaussian_fit:  # Optional
             gaussian_width: 5
