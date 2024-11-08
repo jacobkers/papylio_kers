@@ -1193,12 +1193,24 @@ class Mapping2:
             self.transformation_inverse = AffineTransform()
 
         if plot and axes is None:
-            figure, axes = plt.subplots(1, 4)
+            figure, axes = plt.subplots(1, 4, figsize=(8,5), layout='constrained')
+
+        if axes is not None:
+            for axis in axes.flatten():
+                axis.axes.ticklabel_format(style='scientific', scilimits=(0,0), axis='both')
+
+            axes[0].set_title('Pseudo image\n' + self.source_name + '\n')
+            axes[1].set_title('Pseudo image\n' + self.destination_name + '\n')
+            axes[2].set_title('Cross-correlation' + '\n')
+            axes[3].set_title('Cross-correlation\nBackground subtracted' + '\n')
 
         correlation, self.correlation_conversion_function = cross_correlate(self.get_source(crop, space), self.get_destination(crop, space),
                                                                             kernel_size=kernel_size, gaussian_sigma=gaussian_sigma, divider=divider,
                                                                             normalize=normalize, subtract_background=subtract_background, plot=plot, axes=axes)
 
+
+
+        self.correlation = correlation
         self.correlation_space = space
 
         if peak_detection == 'auto':
@@ -1211,6 +1223,7 @@ class Mapping2:
                 peak_coordinates_in_image = origin + correlation_peak_coordinates * divider
                 axes[2].plot(*peak_coordinates_in_image.T, marker='o', markerfacecolor='none', markeredgecolor='r')
                 axes[3].plot(*peak_coordinates_in_image.T, marker='o', markerfacecolor='none', markeredgecolor='r')
+
             self.set_correlation_peak_coordinates(correlation_peak_coordinates)
         elif peak_detection == 'manual':
             pass
