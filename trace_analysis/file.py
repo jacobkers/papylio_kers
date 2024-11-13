@@ -191,7 +191,7 @@ class File:
         configuration.update(kwargs)
         # TODO: Make this independent of Movie, probably we want to copy all Movie metadata to the nc file.
         if configuration['frame_range'][1] > self.movie.number_of_frames:
-            configuration['frame_range'][1] = self.movie.number_of_frames
+            configuration['frame_range'] = (configuration['frame_range'][0], self.movie.number_of_frames)
             warnings.warn(f'Frame range exceeds available frames, used frame range {configuration["frame_range"]} instead')
         image_filename = Movie.image_info_to_filename(self.name, **configuration)
         image_file_path = self.absoluteFilePath.with_name(image_filename).with_suffix('.tif')
