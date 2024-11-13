@@ -476,6 +476,11 @@ class File:
     def import_mapping_file(self, extension):
         self.mapping = Mapping2.load(self.absoluteFilePath.with_suffix(extension))
 
+    def use_for_darkfield_correction(self):
+        image = self.get_projection_image(projection_type='average', frame_range=(0, 20)) # TODO: Change to all frames
+        tifffile.imwrite(self.experiment.main_path / 'darkfield.tif', image, imagej=True)
+        self.experiment.load_darkfield_correction()
+
     def find_coordinates(self, **configuration):
         '''
         This function finds and sets the locations of all molecules within the movie's images.

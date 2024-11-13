@@ -517,10 +517,11 @@ class Experiment:
                                                 dims=('illumination', 'channel', 'y', 'x'),
                                                 coords={'illumination': movie.illumination_indices,
                                                         'channel': movie.channel_indices})
-            for file_path in file_paths:
-                darkfield = tifffile.imread(file_path)
-                image_info = Movie.image_info_from_filename(file_path.name)
-                illumination_index = image_info['illumination_index']
+            # for file_path in file_paths:
+            darkfield = tifffile.imread(file_paths[0])
+            for illumination_index in darkfield_correction.illumination.values:
+                # image_info = Movie.image_info_from_filename(file_path.name)
+                # illumination_index = image_info['illumination_index']
                 channel_indices = movie.channel_indices
                 darkfield_correction[dict(illumination=illumination_index, channel=channel_indices)] = \
                     movie.separate_channels(darkfield)
