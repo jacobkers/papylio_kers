@@ -150,11 +150,17 @@ class Movie:
         #     fov_index = int(fov_index)
         #     image_info['fov_index'] = fov_index
 
+        illumination_result = re.search('_raw', filename)
+        if illumination_result is None:
+            image_info['apply_corrections'] = True
+        else:
+            image_info['apply_corrections'] = False
+
         return image_info
 
     @classmethod
     def image_info_to_filename(cls, filename, fov_index=None, projection_type=None, frame_range=None,
-                               illumination=None):
+                               illumination=None, apply_corrections=None):
         # if 'fov_info' in self.__dict__.keys() and self.fov_info: # Or hasattr(self, 'fov_info')
         if fov_index is not None:
             # filename += f'_fov{self.fov_info["fov_chosen"]:03d}'
@@ -173,6 +179,9 @@ class Movie:
         # if channel is not None:  # and self.number_of_illuminations_in_movie > 1:
         #     channel_index = cls.get_channel_from_name(channel).index
         #     filename += f'_i{channel_index}'
+
+        if apply_corrections is False:
+            filename += '_raw'
 
         return filename
 
@@ -718,7 +727,8 @@ class Movie:
                     frames = self.read_frames(frame_indices_subset, apply_corrections=apply_corrections,
                                               xarray=False, flatten_channels=False)
                     image = image + frames.sum(axis=0)
-            image = (image / number_of_frames)
+                #TODO: Check whether this is a good way to average, i.e. do the values not get too big.
+            image = (image / number_of_frames).astype('float32')
         elif projection_type == 'maximum':
             # print(f'\n Making maximum projection image of {self.name}')
             with self:
@@ -732,7 +742,7 @@ class Movie:
 
         if write:
             filename = Movie.image_info_to_filename(self.name, fov_index=self.fov_index, projection_type=projection_type,
-                                                    frame_range=frame_range, illumination=illumination_index)
+                                                    frame_range=frame_range, illumination=illumination_index, apply_corrections=apply_corrections)
             filepath = self.writepath.joinpath(filename)
             write_image = self.flatten_channels(image)
             if write in [True, 'tif']:
