@@ -478,9 +478,9 @@ class Experiment:
                                                           frame_index=frame_index,
                                                           estimate_darkfield=estimate_darkfield, **kwargs)
         if estimate_darkfield:
-            tifffile.imwrite(self.main_path / f'darkfield_i{illumination_index}.tif', darkfield)
+            tifffile.imwrite(self.main_path / f'darkfield_i{illumination_index}.tif', darkfield.astype('float32'), imagej=True)
             self.load_darkfield_correction()
-        tifffile.imwrite(self.main_path / f'flatfield_i{illumination_index}.tif', flatfield)
+        tifffile.imwrite(self.main_path / f'flatfield_i{illumination_index}.tif', flatfield.astype('float32'), imagej=True)
         self.load_flatfield_correction()
 
     def load_flatfield_correction(self):
