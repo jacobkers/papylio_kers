@@ -1085,6 +1085,9 @@ class Movie:
         cax = axes[-1]
         figure.colorbar(image, aspect=50, cax=cax)
         cax.set_ylabel('Intensity (a.u.)')
+        if correction_name == 'flatfield_correction':
+            cax.set_ylabel('Correction factor')
+
         # cax.axes.ticklabel_format(scilimits=(0, 0))
         for spine in cax.spines.values():
             spine.set_visible(False)
