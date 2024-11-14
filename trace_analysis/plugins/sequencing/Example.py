@@ -88,7 +88,7 @@ def add_coordinates_to_files(file_green, file_red_before, file_red_after):
 
 # TODO: Make this internal somehow
 import joblib
-from trace_analysis.collection import tqdm_joblib
+from objectlist.base import tqdm_joblib
 # for file_green, file_red_before, file_red_after in
 with tqdm_joblib(tqdm.tqdm(total=len(files_green_laser))):
     joblib.parallel.Parallel(6)(joblib.parallel.delayed(add_coordinates_to_files)(*datum) for datum in
@@ -511,7 +511,7 @@ def change_type(file):
     ds.to_netcdf(file.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='w', encoding=encoding)
 
 import joblib
-from trace_analysis.collection import tqdm_joblib
+from objectlist.base import tqdm_joblib
 # for file_green, file_red_before, file_red_after in
 with tqdm_joblib(tqdm.tqdm(total=len(files_green_laser[400:]))):
     joblib.parallel.Parallel(6)(joblib.parallel.delayed(change_type)(file) for file in files_green_laser[400:])

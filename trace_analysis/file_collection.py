@@ -1,4 +1,5 @@
-from trace_analysis.collection import Collection
+from objectlist import ObjectList
+
 from trace_analysis.file import File
 from trace_analysis.netcdf_operations import merge_datasets, reorder_datasets_using_sequence_subset
 
@@ -7,7 +8,7 @@ import xarray as xr
 import matplotlib.pyplot as plt
 
 # TODO: Make sure that the collection can only contain File objects
-class FileCollection(Collection):
+class FileCollection(ObjectList):
     def __getattr__(self, item):
         # TODO: Replace this method by map?
         attrs = super(FileCollection, self).__getattr__(item)
