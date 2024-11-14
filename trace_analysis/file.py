@@ -190,7 +190,9 @@ class File:
         configuration = self.experiment.configuration['projection_image'].copy()
         configuration.update(kwargs)
         # TODO: Make this independent of Movie, probably we want to copy all Movie metadata to the nc file.
-        if configuration['frame_range'][1] > self.movie.number_of_frames:
+        if configuration['frame_range'][1] is None:
+            configuration['frame_range'] = (configuration['frame_range'][0], self.movie.number_of_frames)
+        elif configuration['frame_range'][1] > self.movie.number_of_frames:
             configuration['frame_range'] = (configuration['frame_range'][0], self.movie.number_of_frames)
             warnings.warn(f'Frame range exceeds available frames, used frame range {configuration["frame_range"]} instead')
         image_filename = Movie.image_info_to_filename(self.name, **configuration)
@@ -477,7 +479,7 @@ class File:
         self.mapping = Mapping2.load(self.absoluteFilePath.with_suffix(extension))
 
     def use_for_darkfield_correction(self):
-        image = self.get_projection_image(projection_type='average', frame_range=(0, 20)) # TODO: Change to all frames
+        image = self.get_projection_image(projection_type='average', frame_range=(0, None), apply_corrections=False)
         tifffile.imwrite(self.experiment.main_path / 'darkfield.tif', image, imagej=True)
         self.experiment.load_darkfield_correction()
 
