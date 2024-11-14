@@ -50,6 +50,12 @@ def test_maximum_projection_image(file, shared_datadir):
     image_loaded = file.maximum_projection_image()
     assert (image_loaded == image_from_original_file).all()
 
+def test_perform_mapping(experiment, shared_datadir):
+    import matchpoint as mp
+    experiment.files[0].perform_mapping()
+    mapping_control = mp.MatchPoint.load(shared_datadir / 'BN_TIRF_output_test_file' / 'beads.mapping')
+    assert ((experiment.files[0].mapping.transformation.params - mapping_control.transformation.params) < 1e-2).all()
+
 def test_find_molecules(file):
     file.find_coordinates()
 
