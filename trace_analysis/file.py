@@ -20,7 +20,7 @@ import netCDF4
 from trace_analysis.movie.movie import Movie
 from trace_analysis.movie.tif import TifMovie
 from trace_analysis.plotting import histogram
-from matchpoint import MatchPoint
+import matchpoint as mp
 from trace_analysis.peak_finding import find_peaks
 from trace_analysis.coordinate_optimization import  coordinates_within_margin, \
                                                     coordinates_after_gaussian_fit, \
@@ -29,7 +29,7 @@ from trace_analysis.coordinate_optimization import  coordinates_within_margin, \
                                                     set_of_tuples_from_array, array_from_set_of_tuples, \
                                                     coordinates_within_margin_selection
 from trace_analysis.trace_extraction import extract_traces
-from matchpoint.coordinate_transformations import translate, transform # MD: we don't want to use this anymore I think, it is only linear
+# from matchpoint.coordinate_transformations import translate, transform # MD: we don't want to use this anymore I think, it is only linear
                                                                            # IS: We do! But we just need to make them usable with the nonlinear mapping
 from trace_analysis.background_subtraction import extract_background
 from trace_analysis.analysis.hidden_markov_modelling import hmm_traces, hidden_markov_modelling
@@ -400,7 +400,7 @@ class File:
             else:
                 raise TypeError('Error in importing coeff file, wrong number of lines')
 
-            self.mapping = MatchPoint(transformation_type='linear')
+            self.mapping = mp.MatchPoint(transformation_type='linear')
 
             transformation = np.zeros((3,3))
             transformation[2,2] = 1
@@ -429,7 +429,6 @@ class File:
 
     def import_map_file(self, extension):
         # TODO: Move this to the MatchPoint class
-        from matchpoint.polywarp import PolywarpTransform
         #coefficients = np.genfromtxt(self.absoluteFilePath.with_suffix('.map'))
         file_content=np.genfromtxt(self.absoluteFilePath.with_suffix('.map'))
         if len(file_content) == 64:
@@ -443,8 +442,8 @@ class File:
         P = coefficients[:len(coefficients) // 2].reshape((degree + 1, degree + 1))
         Q = coefficients[len(coefficients) // 2 : len(coefficients)].reshape((degree + 1, degree + 1))
 
-        self.mapping = MatchPoint(transformation_type='nonlinear')
-        self.mapping.transformation = PolywarpTransform(params=(P,Q)) #{'P': P, 'Q': Q}
+        self.mapping = mp.MatchPoint(transformation_type='nonlinear')
+        self.mapping.transformation = mp.polywarp.PolywarpTransform(params=(P,Q)) #{'P': P, 'Q': Q}
         #self.mapping.file = self
 
         if len(file_content)==64:
@@ -457,16 +456,15 @@ class File:
 
             # Can't we make this independent of the image?
             grid_coordinates = np.array([(a,b) for a in np.arange(0, grid_range//2, 5) for b in np.arange(0, grid_range, 5)])
-            from matchpoint.polywarp import polywarp, polywarp_apply
-            transformed_grid_coordinates = polywarp_apply(P, Q, grid_coordinates)
+            transformed_grid_coordinates = mp.polywarp.polywarp_apply(P, Q, grid_coordinates)
             # plt.scatter(grid_coordinates[:, 0], grid_coordinates[:, 1], marker='.')
             # plt.scatter(transformed_grid_coordinates[:,0], transformed_grid_coordinates[:,1], marker='.')
-            Pi, Qi = polywarp(grid_coordinates, transformed_grid_coordinates)
+            Pi, Qi = mp.polywarp.polywarp(grid_coordinates, transformed_grid_coordinates)
             # transformed_grid_coordinates2 = polywarp_apply(Pi, Qi, transformed_grid_coordinates)
             # plt.scatter(transformed_grid_coordinates2[:, 0], transformed_grid_coordinates2[:, 1], marker='.')
             # plt.scatter(grid_coordinates[:, 0], grid_coordinates[:, 1], marker='.', facecolors='none', edgecolors='r')
-       # self.mapping = MatchPoint(transformation_type='nonlinear')
-        self.mapping.transformation_inverse = PolywarpTransform(params=(Pi,Qi)) # {'P': Pi, 'Q': Qi}
+       # self.mapping = mp.MatchPoint(transformation_type='nonlinear')
+        self.mapping.transformation_inverse = mp.polywarp.PolywarpTransform(params=(Pi,Qi)) # {'P': Pi, 'Q': Qi}
         self.mapping.file = self
         self.mapping.source_name = 'Donor'
         self.mapping.destination_name = 'Acceptor'
@@ -476,7 +474,7 @@ class File:
         self.export_mapping(filetype='classic')
 
     def import_mapping_file(self, extension):
-        self.mapping = MatchPoint.load(self.absoluteFilePath.with_suffix(extension))
+        self.mapping = mp.MatchPoint.load(self.absoluteFilePath.with_suffix(extension))
 
     def use_for_darkfield_correction(self):
         image = self.get_projection_image(projection_type='average', frame_range=(0, None), apply_corrections=False)
@@ -1157,7 +1155,7 @@ class File:
                                           **configuration['peak_finding']['acceptor'])
         if acceptor_coordinates.size == 0: #should throw a error message to warm no acceptor molecules found
             print('No acceptor molecules found')
-        acceptor_coordinates = transform(acceptor_coordinates, translation=[image.shape[1]//2, 0])
+        acceptor_coordinates = mp.coordinate_transformations.transform(acceptor_coordinates, translation=[image.shape[1]//2, 0])
         # print(acceptor_coordinates.shape, donor_coordinates.shape)
         print(f'Donor: {donor_coordinates.shape[0]}, Acceptor: {acceptor_coordinates.shape[0]}')
         coordinates = np.append(donor_coordinates, acceptor_coordinates, axis=0)
@@ -1210,13 +1208,13 @@ class File:
         additional_mapping_parameters = {key: configuration[key]
                                          for key in (configuration.keys() and {'distance_threshold'})}
 
-        self.mapping = MatchPoint(source_name='Donor',
-                                  source=donor_coordinates,
-                                  destination_name='Acceptor',
-                                  destination=acceptor_coordinates,
-                                  method=method,
-                                  transformation_type=transformation_type,
-                                  initial_transformation=initial_transformation)
+        self.mapping = mp.MatchPoint(source_name='Donor',
+                                     source=donor_coordinates,
+                                     destination_name='Acceptor',
+                                     destination=acceptor_coordinates,
+                                     method=method,
+                                     transformation_type=transformation_type,
+                                     initial_transformation=initial_transformation)
         self.mapping.perform_mapping(**additional_mapping_parameters)
         self.mapping.file = self
 

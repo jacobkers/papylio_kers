@@ -9,7 +9,7 @@ import xarray as xr
 from skimage.transform import AffineTransform
 
 from trace_analysis.plugins.sequencing.fastqAnalysis import FastqData
-from matchpoint import MatchPoint
+import matchpoint as mp
 
 # This part makes an analysis.txt file in the same directory as the this .py file. (please do not commit this)
 # This file contains the git commit used and all differences to this commit.
@@ -265,7 +265,7 @@ matched_pairs_lenghts = sequencing_matches.number_of_matched_points
 
 source_transformed_combined = np.vstack([sequencing_match.transformation(sequencing_match.source) for sequencing_match in sequencing_matches])
 destination_combined = np.unique(np.vstack([sequencing_match.destination for sequencing_match in sequencing_matches]), axis=0)
-test = MatchPoint(source=source_transformed_combined, destination=destination_combined)
+test = mp.MatchPoint(source=source_transformed_combined, destination=destination_combined)
 test.destination_distance_threshold = 0.2
 test.determine_pairs()
 

@@ -12,14 +12,12 @@ import os.path
 # from trace_analysis.experiment import Experiment
 # from trace_analysis.file import File
 # from trace_analysis.mapping.geometricHashing import SequencingDataMapping
-from matchpoint import MatchPoint
+import matchpoint as mp
 from trace_analysis.decorators import return_none_when_executed_by_pycharm
-from matchpoint.polynomial import PolynomialTransform
 from .fastqAnalysis import FastqData
 from .geometricHashing2 import geometric_hash, find_match_after_hashing
 from .geometricHashing3 import GeometricHashTable
 from .plotting import plot_sequencing_match, plot_matched_files_in_tile
-from matchpoint.icp import icp, nearest_neighbor_pair
 from .sequencing_data import SequencingData, make_sequencing_dataset
 from .mapping_collection import MappingCollection
 
@@ -45,7 +43,7 @@ class Experiment:
     def tile_mappings(self):
         if self._tile_mappings is None:
             tile_mappings_path = self.main_path.joinpath('Analysis').joinpath('Tile mappings')
-            self._tile_mappings = MappingCollection([MatchPoint.load(filepath) for filepath in
+            self._tile_mappings = MappingCollection([mp.MatchPoint.load(filepath) for filepath in
                                                      tile_mappings_path.glob('*.nc')])
 
         return self._tile_mappings
@@ -125,7 +123,7 @@ class Experiment:
 
         tile_mappings = []
         for tile in tqdm.tqdm(sequencing_data.tile_numbers, 'Make tile mappings'):
-            mapping = MatchPoint(source=coordinates_sm, destination=coordinates_seq.sel(sequence=tiles_seq==tile))
+            mapping = mp.MatchPoint(source=coordinates_sm, destination=coordinates_seq.sel(sequence=tiles_seq==tile))
             mapping.transformation_type = 'linear'
             mapping.name = f'Tile {tile}'
             mapping.label = tile
@@ -278,7 +276,7 @@ class Experiment:
     #             [file.sequencing_match.transform_coordinates(np.array([[0, 0]])) for file in matched_files_in_tile])
     #
     #         stage_to_tile_mapping = \
-    #             MatchPoint(stage_coordinates, sequencing_coordinates, transformation_type='linear',
+    #             mp.MatchPoint(stage_coordinates, sequencing_coordinates, transformation_type='linear',
     #                      source_name='Stage coordinates', destination_name='Sequencing_coordinates',
     #                      source_unit='μm', destination_unit='FASTQ',
     #                      name=f'Stage to sequencing coordinates - tile {tile.number}')
@@ -513,7 +511,7 @@ class File:
             self.sequencing_match = None
             return
 
-        mapping = MatchPoint(source, destination, transformation_type='similarity')
+        mapping = mp.MatchPoint(source, destination, transformation_type='similarity')
         mapping.transformation = SimilarityTransform()
         mapping.source_name = 'Single-molecule coordinates'
         mapping.destination_name = 'Sequencing coordinates'
@@ -646,7 +644,7 @@ class File:
         for suffix in ['.nc', '.mapping']:
             filepath = filepath.with_suffix(suffix)
             if filepath.is_file():
-                self._sequencing_match = MatchPoint.load(filepath)
+                self._sequencing_match = mp.MatchPoint.load(filepath)
                 break
         else:
             self._sequencing_match = None
@@ -748,7 +746,7 @@ class File:
             self.experiment.stage_to_sequencing_mappings[tile_index]\
                 .transform_coordinates(source_vertices_in_stage_coordinates)
 
-        match = MatchPoint(source_vertices, source_vertices_in_sequencing_coordinates, transformation_type='linear')
+        match = mp.MatchPoint(source_vertices, source_vertices_in_sequencing_coordinates, transformation_type='linear')
         match.direct_match()
         match.source_vertices = source_vertices
         match.destination_vertices = np.array([[1720, 1330], [29720, 1330], [29720, 29330], [1720, 29330]]) # Tile coordinate bounds MiSeq
@@ -810,7 +808,7 @@ class File:
             self.sequencing_match.transform_coordinates(self.sequencing_data.coordinates[selection], inverse=True)
 
         distances, molecule_indices, sequence_indices = \
-            nearest_neighbor_pair(self.coordinates_from_channel(self.sequencing_match.channel),
+            mp.icp.nearest_neighbor_pair(self.coordinates_from_channel(self.sequencing_match.channel),
                                   sequence_coordinates_in_file,
                                   distance_threshold=distance_threshold)
 
@@ -874,8 +872,8 @@ class File:
         plot_sequencing_match(self.sequencing_match, self.absoluteFilePath.parent, title, filename,
                               'um', MiSeq_pixels_to_um, Fluo_pixels_to_um)
 
-    # from matchpoint.icp import show_point_connections
-    # show_point_connections(self.coordinates[molecule_indices], sequence_coordinates_in_file[sequence_indices])
+
+    # mp.icp.show_point_connections(self.coordinates[molecule_indices], sequence_coordinates_in_file[sequence_indices])
 
 
     # This is probably not the way to go
@@ -898,7 +896,7 @@ class File:
     #     scatter_coordinates([tile_coordinates, image_coordinates])
     #
     #
-    #     distances, image_indices, tile_indices = nearest_neighbor_pair(image_coordinates, tile_coordinates)
+    #     distances, image_indices, tile_indices = mp.icp.nearest_neighbor_pair(image_coordinates, tile_coordinates)
     #
     #     distance_threshold = 25
     #     image_indices = image_indices[distances < distance_threshold]
@@ -908,8 +906,7 @@ class File:
     #
     #     plt.figure()
     #     scatter_coordinates([tile_coordinates, self.sequence_match.destination, image_coordinates])
-    #     from matchpoint.icp import show_point_connections
-    #     show_point_connections(image_coordinates[image_indices], tile_coordinates[tile_indices])
+    #     mp.icp.show_point_connections(image_coordinates[image_indices], tile_coordinates[tile_indices])
     #
     #     for molecule in self.molecules: molecule.sequence = np.array([], dtype=bytes)
     #     for i in np.arange(len(image_indices)):
