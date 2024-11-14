@@ -1,7 +1,7 @@
 # pyproject.toml
 
 [tool.pytest.ini_options]
-pythonpath = ["trace_analysis", "matchpoint/matchpoint"]
+pythonpath = ["trace_analysis"]
 testpaths = [
     "tests",
     "integration",
