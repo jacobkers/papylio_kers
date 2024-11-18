@@ -1,8 +1,0 @@
-name: sequence_analysis
-channels:
-- bioconda
-- conda-forge
-dependencies:
-- bowtie2
-- bwa
-- samtools
