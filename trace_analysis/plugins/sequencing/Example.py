@@ -3,7 +3,7 @@ from pathlib import Path # For efficient path manipulation
 import trace_analysis as ta
 import matplotlib.pyplot as plt
 import tqdm
-from git import Repo
+# from git import Repo
 import time
 import xarray as xr
 from skimage.transform import AffineTransform
