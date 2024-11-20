@@ -11,3 +11,12 @@ from trace_analysis.analysis.interactiveAnalysis import InteractivePlot
 # import trace_analysis.sequencing.sequencing
 #
 # Experiment = type(Experiment.__name__, (Experiment,) + tuple(Experiment.plugins), {})
+
+try:
+    from ._version import version as __version__
+except ImportError:
+    try:
+        import setuptools_scm
+        __version__ = setuptools_scm.get_version(version_scheme="post-release")
+    except ImportError:
+        __version__ = '0.0.0'
