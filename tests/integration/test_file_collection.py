@@ -6,7 +6,7 @@ import numpy as np
 
 @pytest.fixture
 def experiment_output(shared_datadir):
-    from trace_analysis import Experiment
+    from papilio import Experiment
     return Experiment(shared_datadir / 'BN_TIRF_output_test_file')
 
 @pytest.fixture

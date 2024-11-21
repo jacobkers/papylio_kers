@@ -7,7 +7,7 @@ First import the library and create an :class:`.Experiment`.
 
 .. code-block:: python
 
-    import trace_analysis as ta
+    import papilio as pp
     exp = ta.Experiment()
     exp.print_files()
 

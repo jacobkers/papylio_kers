@@ -1,7 +1,7 @@
-import trace_analysis as ta
+import papilio as pp
 
 # Experiment import
-exp = ta.Experiment()
+exp = pp.Experiment()
 exp.print_files()
 
 

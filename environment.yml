@@ -1,4 +1,4 @@
-name: trace_analysis
+name: papilio
 channels:
 - conda-forge
 dependencies:

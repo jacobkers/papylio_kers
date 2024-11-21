@@ -71,8 +71,8 @@ python GUI.py
 Or start python and import the `Experiment` and `InteractivePlot` classes from the `trace_analysis` library located in the `traceanalysis` folder:
 
 ```python
-from trace_analysis import Experiment
-from trace_analysis import InteractivePlot
+from papilio import Experiment
+from papilio import InteractivePlot
 ```
 
 An example script using these classes can be found in the `Example.py` file. 

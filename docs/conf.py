@@ -16,7 +16,7 @@ sys.path.insert(0, os.path.abspath('..'))
 
 # -- Project information -----------------------------------------------------
 
-project = 'traceAnalysis'
+project = 'papilio'
 copyright = '2024 - Chirlmin Joo lab'
 author = 'Sung Hyun Kim, Carolien Bastiaanssen, Iason Katechis, Margreet Docter, Roy Simons, Pim America, Ivo Severins'
 

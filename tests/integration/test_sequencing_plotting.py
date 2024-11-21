@@ -1,6 +1,6 @@
 import numpy as np
 import xarray as xr
-from trace_analysis.plugins.sequencing.plotting import double_mutations, plot_double_mutations
+from papilio.plugins.sequencing.plotting import double_mutations, plot_double_mutations
 import pytest
 
 @pytest.fixture
