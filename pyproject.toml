@@ -18,7 +18,7 @@ classifiers = [
     "Programming Language :: Python :: 3",
 	"License :: OSI Approved :: GNU General Public License v3 (GPLv3)"
 ]
-keywords = ["point set", "registration", "iterative closest point", "kernel correlation", "cross-correlation", "geometric hashing"]
+keywords = ["single", "molecule", "trace", "analysis", "fluorescence", "FRET"]
 dependencies = [
 	"python == 3.9",
     "numpy == 1.22",
