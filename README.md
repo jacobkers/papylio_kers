@@ -1,4 +1,4 @@
-# TraceAnalysis
+# Papilio
 
 Software for single-molecule trace analysis
 
@@ -20,17 +20,10 @@ Download and install GitHub Desktop from https://desktop.github.com.
 
 ## Installation
 
-*Advanced installation instructions can be found below*
-
-### Get the repository URL
-- Go to the GitLab project page https://gitlab.tudelft.nl/ivoseverins/traceanalysis and login with your TU Delft netid and password
-- Find the clone button in the top right
-- Click the button and copy the HTTPS URL
-
 ### Clone the repository to your computer
 - Open GitHub Desktop (Skip any login screens)
 - Click File > Clone repository
-- Go to the URL tab, paste the HTTPS URL and select the local path where you want the code to be located.
+- Go to the URL tab, paste the HTTPS URL of the repository and select the local path where you want the code to be located.
 - Click clone
 
 ### Add a Conda environment
@@ -40,9 +33,6 @@ Download and install GitHub Desktop from https://desktop.github.com.
 
 ## Using the GUI
 Start the user interface by double clicking the file `Start GUI.cmd` for Windows or `Start GUI.command` for Mac
-
-## Updating
-Double click on the file `Update.cmd` for Windows or `Update.command` for Mac
 
 ---
 
@@ -54,35 +44,11 @@ Clone the git repository:
 clone https://gitlab.tudelft.nl/ivoseverins/traceanalysis.git
 ```
 
-Create a conda environment named `trace_analysis` based on the `environment.yml` file. (Make sure you are in the main folder)
+Create a conda environment named `papilio` based on the `environment.yml` file. (Make sure you are in the main folder)
 
 ```batch
 conda env create --file environment.yml
 ```
 
-## Using the software - advanced
-
-Either start the GUI by
-
-```batch
-python GUI.py
-```
-
-Or start python and import the `Experiment` and `InteractivePlot` classes from the `trace_analysis` library located in the `traceanalysis` folder:
-
-```python
-from papilio import Experiment
-from papilio import InteractivePlot
-```
-
-An example script using these classes can be found in the `Example.py` file. 
-
-## Updating - advanced
-
-Pull the latest version from the git repository and update the `trace_analysis` environment if necessary:
-
-``` batch
-conda env update --file environment.yml --prune
-```
 
 
