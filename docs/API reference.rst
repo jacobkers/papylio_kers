@@ -1,7 +1,7 @@
 API reference
 =============
 
-.. currentmodule:: trace_analysis
+.. currentmodule:: papilio
 
 Main classes
 ================
@@ -9,9 +9,9 @@ Main classes
 .. autosummary::
     :toctree: _generated/
 
-    trace_analysis.Experiment
-    trace_analysis.File
-    trace_analysis.Movie
+    papilio.Experiment
+    papilio.File
+    papilio.Movie
 
 Peak finding
 ============
@@ -19,4 +19,4 @@ Peak finding
 .. autosummary::
     :toctree: _generated/
 
-    trace_analysis.peak_finding.find_peaks_local_maximum
+    papilio.peak_finding.find_peaks_local_maximum

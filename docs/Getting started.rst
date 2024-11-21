@@ -8,8 +8,8 @@ First import the library and create an :class:`.Experiment`.
 .. code-block:: python
 
     import papilio as pp
-    exp = ta.Experiment()
-    exp.print_files()
+    exp = pp.Experiment()
+    exp.files.print()
 
 Calling :py:class:`.Experiment` without any arguments will open a dialog box where you can select the main folder containing
 the single-molecule movies.

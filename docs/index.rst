@@ -4,10 +4,10 @@
    contain the root `toctree` directive.
 
 
-traceAnalysis documentation
+Papilio documentation
 ===========================
 
-traceAnalysis is a package for single-molecule data analysis.
+papilio is a package for single-molecule data analysis.
 
 Current functionality
 ---------------------
@@ -15,10 +15,11 @@ Current functionality
 Data extraction from single-molecule fluorescence images:
 
  - Peak localization
- - Mapping between fluorescence channels
- - Extraction time traces of intensity and FRET
+ - Emission channel alignment
+ - Fluorescence intensity and FRET trace extraction
  - Trace selection
- - Parameter estimations
+ - Trace classification
+ - Kinetic parameter extraction
 
 Getting started
 ---------------
@@ -35,7 +36,7 @@ Getting started
    Contributing
 
 
-:class:`trace_analysis.experiment.Experiment`
+:class:`papilio.experiment.Experiment`
 
 Indices and tables
 ------------------

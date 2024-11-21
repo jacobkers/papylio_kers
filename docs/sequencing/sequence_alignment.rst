@@ -10,25 +10,6 @@ We suggest using Bowtie 2 for the sequence alignment. All files needed for seque
 If this is the first time, run the Sequencing_setup file to create the right environment. More detailed instructions on
 for example how to run Linux on Windows can be found in the Analysis.sh file in the sequence_analysis folder.
 
-In short, these are the steps for sequence alignment:
-
-#. Copy everything from the sequence_analysis folder to the folder with your sequencing data (not on a network location)
-#. Adjust the sequences in the reference file
-#. Open a Linux terminal
-#. Navigate to the folder with your sequencing data
-#. Run the lines below:
-
-.. code-block::
-
-    source ~/miniconda3/etc/profile.d/conda.sh
-    conda activate sequence_analysis
-
-    zcat *R1_001.fastq.gz > Read1.fastq
-    # zcat *I1_001.fastq.gz > Index1.fastq # In case the index is sequenced.
-
-    bowtie2-build Reference.fasta Reference
-    bowtie2 -x Reference -U Read1.fastq -S Alignment.sam --local --np 0 --very-sensitive-local --n-ceil L,0,1 --threads 4 --score-min G,20,4 --norc --reorder
-
 Some of the Bowtie 2 options:
 
 --local  In this mode, Bowtie 2 does not require that the entire read aligns from one end to the other. Rather, some characters may be omitted ("soft clipped") from the ends in order to achieve the greatest possible alignment score.
