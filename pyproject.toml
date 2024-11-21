@@ -10,7 +10,7 @@ version_file = "papilio/_version.py"
 [project]
 name = "papilio"
 dynamic = ["version"]
-description = "Package for performing point set registration."
+description = "Single-molecule fluorescence data extraction and analysis."
 readme = "README.md"
 authors = [{ name = "Ivo Severins", email = "i.w.h.severins@tudelft.nl" }]
 classifiers = [
