@@ -44,17 +44,8 @@ class FileCollection(ObjectList):
         axis.set_title('')
         return figure, axis
 
-    def histogram_FRET_intensity_total(self, selected=False, frame_range=None, average=True, axis=None, **hist2d_kwargs):
-        FRET_values = self.get_FRET(selected=selected, frame_range=frame_range, average=average).values.flatten()
-        total_intensity_values = self.get_intensity_total(selected=selected, frame_range=frame_range, average=average).values.flatten()
-
-        if axis is None:
-            figure, axis = plt.subplots()
-        axis.hist2d(FRET_values, total_intensity_values, range=((-0.05, 1.05), None), **hist2d_kwargs)
-        axis.set_xlabel('FRET')
-        axis.set_ylabel('Total intensity (a.u.)')
-
-        return axis
+    def histogram_FRET_intensity_total(self, **kwargs):
+        File.histogram_FRET_intensity_total(self, **kwargs)
 
     @property
     def cycle_time(self):
