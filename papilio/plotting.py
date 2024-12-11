@@ -17,34 +17,34 @@ def marginal_hist2d(x, y, bins=10, range=(0, 1), xlabel=None, ylabel=None, count
     Parameters:
     -----------
     x : array-like or xarray.DataArray
-       The data for the x-axis. If an xarray.DataArray is provided, its name will be used as the x-axis label.
+        The data for the x-axis. If an xarray.DataArray is provided, its name will be used as the x-axis label.
     y : array-like or xarray.DataArray
-       The data for the y-axis. If an xarray.DataArray is provided, its name will be used as the y-axis label.
+        The data for the y-axis. If an xarray.DataArray is provided, its name will be used as the y-axis label.
     bins : int or tuple of int, optional (default=100)
-       Number of bins for the 2D histogram. If an integer is provided, it will be used for both x and y axes.
+        Number of bins for the 2D histogram. If an integer is provided, it will be used for both x and y axes.
     range : tuple or tuple of two tuples, optional (default=((0, 1), (0, 5000)))
-       The range of the data for the histogram in the form (min, max) or ((xmin, xmax), (ymin, ymax)).
+        The range of the data for the histogram in the form (min, max) or ((xmin, xmax), (ymin, ymax)).
     ax : matplotlib.axes.Axes, optional (default=None)
-       The axes object to plot on. If None, a new figure and axes will be created.
+        The axes object to plot on. If None, a new figure and axes will be created.
     xlabel : str, optional (default=None)
-       Label for the x-axis. If not provided, the name of the `x` data will be used (if available).
+        Label for the x-axis. If not provided, the name of the `x` data will be used (if available).
     ylabel : str, optional (default=None)
-       Label for the y-axis. If not provided, the name of the `y` data will be used (if available).
+        Label for the y-axis. If not provided, the name of the `y` data will be used (if available).
     show_marginal : bool, optional (default=True)
-       Whether to show the marginal histograms along the x and y axes.
+        Whether to show the marginal histograms along the x and y axes.
     show_colorbar : bool, optional (default=True)
-       Whether to display a colorbar next to the 2D histogram.
+        Whether to display a colorbar next to the 2D histogram.
     hist2d_kwargs : dict, optional (default=None)
-       Additional keyword arguments passed to `matplotlib.pyplot.hist2d` for customizing the 2D histogram.
+        Additional keyword arguments passed to `matplotlib.pyplot.hist2d` for customizing the 2D histogram.
     count_label : str, optional (default='Counts')
-       Label for the count axis (used in the marginal histograms and colorbar).
+        Label for the count axis (used in the marginal histograms and colorbar).
 
     Returns:
     --------
     fig : matplotlib.figure.Figure
-       The figure object containing the plot.
+        The figure object containing the plot.
     axs : list of matplotlib.axes.Axes
-       A list containing the axes objects for the main plot, marginal histograms (if shown), and colorbar (if shown).
+        A list containing the axes objects for the main plot, marginal histograms (if shown), and colorbar (if shown).
 
     """
 
