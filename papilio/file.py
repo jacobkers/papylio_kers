@@ -1559,20 +1559,48 @@ class File:
         return figure, axis
 
     def histogram_FRET_intensity_total(self, selected=False, frame_range=None, average=False, axis=None,
-                                       **hist2d_kwargs):
-        FRET_values = self.get_variable('FRET', selected=selected, frame_range=frame_range, average=average).values.flatten()
-        total_intensity_values = self.get_variable('intensity_total', selected=selected, frame_range=frame_range, average=average).values.flatten()
+                                       **marginal_hist2d_kwargs):
+        """
+        Generates a 2D histogram plot of FRET vs. total intensity with optional marginal histograms.
 
-        hist2d_kwargs_default = dict(range=((-0.05, 1.05), None))
-        hist2d_kwargs = {**hist2d_kwargs_default, **hist2d_kwargs}
+        This function retrieves the 'FRET' and 'intensity_total' variables from the File object, then plots their
+        relationship in a 2D histogram, with optional marginal histograms along the axes.
 
-        if axis is None:
-            figure, axis = plt.subplots()
-        axis.hist2d(FRET_values, total_intensity_values, **hist2d_kwargs)
-        axis.set_xlabel('FRET')
-        axis.set_ylabel('Total intensity (a.u.)')
+        Parameters:
+        -----------
+        selected : bool, optional (default=False)
+            If True, only selected molecules will be used for plotting.
+        frame_range : tuple of two ints, optional (default=None)
+            The range of frames to use. If None, all frames are used.
+        average : bool, optional (default=False)
+            If True, the function averages the data over the specified frame range.
+        axis : matplotlib.axes.Axes, optional (default=None)
+            The axes object to plot on. If None, a new plot will be created.
+        **marginal_hist2d_kwargs : dict, optional
+            Additional keyword arguments passed to the `marginal_hist2d` function for customizing the plot.
+            Default arguments are used for the 2D histogram's range.
 
-        return axis
+        Returns:
+        --------
+        axes : list of matplotlib.axes.Axes
+            A list of axes objects corresponding to the 2D histogram plot and optional marginal histograms.
+
+        Notes:
+        ------
+        The function utilizes the `marginal_hist2d` function from the `papilio.plotting` module to create the plot.
+        The default range for the FRET values is (-0.05, 1.05) for the x-axis and no limit for the y-axis.
+        """
+
+        FRET = self.get_variable('FRET', selected=selected, frame_range=frame_range, average=average)
+        intensity_total = self.get_variable('intensity_total', selected=selected, frame_range=frame_range, average=average)
+
+        marginal_hist2d_kwargs_default = dict(range=((-0.05, 1.05), None))
+        marginal_hist2d_kwargs = {**marginal_hist2d_kwargs_default, **marginal_hist2d_kwargs}
+
+        from papilio.plotting import marginal_hist2d
+        figure, axes = marginal_hist2d(FRET, intensity_total, **marginal_hist2d_kwargs)
+
+        return axes
 
     def show_image(self, projection_type='default', figure=None, unit='pixel', **kwargs):
         # TODO: Show two channels separately and connect axes
