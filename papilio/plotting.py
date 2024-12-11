@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 def marginal_hist2d(x, y, bins=10, range=(0, 1), xlabel=None, ylabel=None, count_label='Count', show_marginal=True,
                     show_colorbar=False, ax=None, **hist2d_kwargs):
     if ax is None:
-        fig, ax_main = plt.subplots(figsize=(5, 5), sharex='col', sharey='row')
+        fig, ax_main = plt.subplots(figsize=(5, 5))
     else:
         fig = ax.figure
         ax_main = ax
