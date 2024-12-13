@@ -1266,6 +1266,7 @@ class File:
     #             da = dataset[variable].load()
     #
     def get_variable(self, variable, selected=False, frame_range=None, average=False, return_none_if_nonexistent=False):
+        # TODO: make it possible to also select the channel (or perform other selections), e.g. by passing 'intensity_c0'.
         """
         Get a variable.
 
@@ -1558,7 +1559,7 @@ class File:
         axis.set_title(str(self.relativeFilePath))
         return figure, axis
 
-    def histogram_FRET_intensity_total(self, selected=False, frame_range=None, average=False, axis=None,
+    def histogram_2D_FRET_intensity_total(self, selected=False, frame_range=None, average=False,
                                        **marginal_hist2d_kwargs):
         """
         Generates a 2D histogram plot of FRET vs. total intensity with optional marginal histograms.
@@ -1601,6 +1602,56 @@ class File:
         figure, axes = marginal_hist2d(FRET, intensity_total, **marginal_hist2d_kwargs)
 
         return axes
+
+
+    def histogram_2D_intensity_per_channel(self, selected=False, frame_range=None, average=False,
+                                           channel_x=0, channel_y=1, **marginal_hist2d_kwargs):
+        """
+        Generates a 2D histogram plot of intensity between two specified channels, with optional marginal histograms.
+
+        This function retrieves intensity data for the specified channels from the File object and generates a 2D histogram
+        to visualize the relationship between intensities in the selected channels. Marginal histograms along the axes can
+        optionally be included for additional insight.
+
+        Parameters:
+        -----------
+        selected : bool, optional (default=False)
+            If True, only selected molecules are used for the plot.
+        frame_range : tuple of two ints, optional (default=None)
+            Specifies the range of frames to use. If None, all frames are included.
+        average : bool, optional (default=False)
+            If True, averages the intensity data over the specified frame range.
+        channel_x : int, optional (default=0)
+            The index of the channel for the x-axis data.
+        channel_y : int, optional (default=1)
+            The index of the channel for the y-axis data.
+        **marginal_hist2d_kwargs : dict, optional
+            Additional keyword arguments passed to the `marginal_hist2d` function to customize the plot.
+            Defaults include no specific range for the histogram axes.
+
+        Returns:
+        --------
+        axes : list of matplotlib.axes.Axes
+            A list of axes objects corresponding to the 2D histogram plot and optional marginal histograms.
+
+        Notes:
+        ------
+        - The function uses the `marginal_hist2d` function from the `papilio.plotting` module for visualization.
+        """
+
+        intensity_x = self.get_variable('intensity', selected=selected, frame_range=frame_range, average=average).sel(channel=channel_x)
+        intensity_x.name = intensity_x.name + f'_c{channel_x}'
+        intensity_y = self.get_variable('intensity', selected=selected, frame_range=frame_range, average=average).sel(channel=channel_y)
+        intensity_y.name = intensity_y.name + f'_c{channel_y}'
+
+        marginal_hist2d_kwargs_default = dict(range=(None, None))
+        marginal_hist2d_kwargs = {**marginal_hist2d_kwargs_default, **marginal_hist2d_kwargs}
+
+        from papilio.plotting import marginal_hist2d
+        figure, axes = marginal_hist2d(intensity_x, intensity_y, **marginal_hist2d_kwargs)
+
+        return axes
+
 
     def show_image(self, projection_type='default', figure=None, unit='pixel', **kwargs):
         # TODO: Show two channels separately and connect axes
