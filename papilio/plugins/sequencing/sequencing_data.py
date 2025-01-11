@@ -47,8 +47,14 @@ from papilio.plugins.sequencing.plotting import plot_cluster_locations_per_tile
 #             value = xr.DataArray(value)
 #             value.name = key
 #             value.to_netcdf(self.file_path, mode='a', engine='h5netcdf')
-
-
+# For testing
+# import pytest
+# from trace_analysis.plugins.sequencing.sequencing_data import DatasetPointer
+#
+#
+# def test_DatasetPointer(shared_datadir):
+#     ds = DatasetPointer(shared_datadir / 'BN_TIRF_sequencing/HJ_scan TIRF 561 0300_sequencing_data.nc')
+#     ds.tile
 
 
 
