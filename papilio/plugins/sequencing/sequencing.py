@@ -528,6 +528,7 @@ class File:
     def insert_sequencing_data_into_file_dataset(self, include_raw_sequences=False, include_aligned_sequences=True,
                                                  include_sequence_subset=True, determine_matched_pairs=True,
                                                  include_aligned_position=False):
+        #TODO: Extend the dataset independent of whether sequencing data is present or not???
         sequencing_data = self.sequencing_data # Load sequencing data
         if self.sequencing_match is None:
             #selected_sequencing_data = None
