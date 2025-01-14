@@ -16,11 +16,11 @@ sys.path.insert(0, os.path.abspath('..'))
 
 # -- Project information -----------------------------------------------------
 
-project = 'traceAnalysis'
+project = 'papilio'
 copyright = '2024 - Chirlmin Joo lab'
 author = 'Sung Hyun Kim, Carolien Bastiaanssen, Iason Katechis, Margreet Docter, Roy Simons, Pim America, Ivo Severins'
 
-from git import Repo
+# from git import Repo
 from pathlib2 import Path
 # raise ValueError(Path(__file__).parent.parent)
 repo = Repo(Path(__file__).parent.parent)

@@ -5,7 +5,7 @@ import numpy as np
 
 @pytest.fixture
 def experiment(shared_datadir):
-    from trace_analysis import Experiment
+    from papilio import Experiment
     return Experiment(shared_datadir / 'BN_TIRF_sequencing')
 
 @pytest.fixture

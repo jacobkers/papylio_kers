@@ -5,7 +5,7 @@ import numpy as np
 
 @pytest.fixture
 def experiment(shared_datadir):
-    from trace_analysis import Experiment
+    from papilio import Experiment
     return Experiment(shared_datadir / 'BN_TIRF')
 
 @pytest.fixture
@@ -14,12 +14,12 @@ def file(experiment):
 
 @pytest.fixture
 def experiment_output(shared_datadir):
-    from trace_analysis import Experiment
+    from papilio import Experiment
     return Experiment(shared_datadir / 'BN_TIRF_output_test_file')
 
 @pytest.fixture
 def file_output(experiment_output):
-    return experiment_output.files[0]
+    return experiment_output.files[1]
 
 @pytest.fixture
 def file_output_with_selected(file_output):
@@ -85,7 +85,8 @@ def test_save_dataset_selected(file_output_with_selected):
     file_output_with_selected.save_dataset_selected()
     import xarray as xr
     ds = xr.load_dataset(file_output_with_selected.absoluteFilePath.parent / (file_output_with_selected.name + '_selected.nc'))
-    assert (ds.molecule_in_file == np.array([0,5,33])).all().item()
+    indices_selected = np.nonzero(ds.molecule_in_file.values)[0]
+    assert (indices_selected == np.array([0,5,33])).all().item()
 
 def test_classify_hmm(file_output):
     selection = file_output.selected
@@ -94,3 +95,6 @@ def test_classify_hmm(file_output):
     file_output.apply_classifications()
     file_output.classify_hmm('FRET')
     file_output.classify_hmm(file_output.intensity.sel(channel=0, drop=True))
+
+def test_use_for_darkfield_correction(file):
+    file.use_for_darkfield_correction()

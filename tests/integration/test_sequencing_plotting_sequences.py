@@ -1,6 +1,6 @@
 import pytest
-from trace_analysis.plugins.sequencing.sequence_generation import generate_sequences
-from trace_analysis.plugins.sequencing.sequence_plotting import plot_sequence_density
+from papilio.plugins.sequencing.sequence_generation import generate_sequences
+from papilio.plugins.sequencing.sequence_plotting import plot_sequence_density
 
 @pytest.fixture
 def sequences():

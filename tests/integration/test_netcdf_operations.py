@@ -1,6 +1,6 @@
 import pytest
 import numpy as np
-from trace_analysis.netcdf_operations import merge_datasets, reorder_datasets_using_sequence_subset
+from papilio.netcdf_operations import merge_datasets, reorder_datasets_using_sequence_subset
 import netCDF4
 
 @pytest.fixture

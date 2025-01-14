@@ -6,9 +6,9 @@ You can do that easily do this by setting the coordinates of one file to the coo
 
 .. code-block:: python
 
-    import trace_analysis as ta
+    import papilio as pp
 
-    exp = ta.Experiment(r'path_to_data')
+    exp = pp.Experiment(r'path_to_data')
 
     exp.files[1].find_coordinates()
     exp.files[0].coordinates = exp.files[1].coordinates

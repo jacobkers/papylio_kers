@@ -1,4 +1,4 @@
-from trace_analysis.movie.movie import Movie
+from papilio.movie.movie import Movie
 
 
 def test_image_info_from_filename():

@@ -1,0 +1,76 @@
+files:
+  excluded_extensions: [pdf, dat, db, py, yml, png, pdf, xlsx, md]
+  excluded_names: [_ave, _max, _corrections, _dwells, _dwell_analysis, darkfield, flatfield, _sequencing_data, _sequencing_match]
+  excluded_paths: [Analysis, Sequencing data, Results]
+movie:
+    rot90: 0 # Needs to be set before loading the experiment
+    # For TIR-T, V and ObjTIR, check the image orientation setting of the measurement software (Solis or MetaMorph).
+# compute_image:  # no longer used. See show_movie>>frames_for_show_movie
+#  number_of_frames: all
+show_movie:
+  annotate: False
+projection_image:
+  projection_type: average # Choose average or maximum
+  frame_range: [0, 20] # This is similar syntax as used in the python range function, so [0, 10] represents the first 10 frames.
+  illumination: 0 # Null in yaml represents python None
+find_coordinates:
+  channels:
+      - donor
+  illumination: 0
+  projection_type: average
+  method: by_channel # Choose by_channel, average_channels or sum_channels
+  projection_image:
+    projection_type: average # Choose average or maximum
+    frame_range: [ 0, 20 ]
+    illumination: 0 # Integer number to specify which illumination config will be used. The same order that the illuminations were used during the measurement.
+  sliding_window:
+    use_sliding_window: false
+    frame_increment: 20
+    minimal_point_separation: 2
+  peak_finding:
+      method: local-maximum-auto
+      filter_neighbourhood_size_min: 10  # Optional
+      filter_neighbourhood_size_max: 5  # Optional
+  coordinate_optimization:
+      coordinates_within_margin:  # Optional
+          margin: 10
+      coordinates_after_gaussian_fit:  # Optional
+          gaussian_width: 3
+      #coordinates_without_intensity_at_radius:  # Optional
+      #    radius: 4
+      #    cutoff: image_median
+      #    fraction_of_peak_max: 0.25
+background:
+  method: ROI_minimum
+  frames_for_background: # 'last frame' can be set as 'last' to indicate the last frame of the movie
+    first_frame: 0
+    last_frame: 9
+mapping:
+    method: icp # Choose icp and nn
+    distance_threshold: 3 # Only relevant for nn or icp
+    transformation_type: polynomial # Choose linear, nonlinear or polynomial
+    initial_translation: 'width/2' # 'width/2' or e.g. [1024,0]
+    peak_finding:
+        donor:
+            method: local-maximum-auto
+            filter_neighbourhood_size_min: 10  # Optional
+            filter_neighbourhood_size_max: 5  # Optional
+        acceptor:
+            method: local-maximum-auto
+            filter_neighbourhood_size_min: 10  # Optional
+            filter_neighbourhood_size_max: 5  # Optional
+    coordinate_optimization:
+        coordinates_after_gaussian_fit:  # Optional
+            gaussian_width: 5
+        coordinates_within_margin:  # Optional
+            margin: 10
+        #coordinates_without_intensity_at_radius: # Optional
+        #  radius: 4
+        #  cutoff: image_median
+        #  fraction_of_peak_max: 0.35
+trace_extraction:
+    channel: 'all'
+    mask_size: TIR-T # float number, Presets: "TIR-T", "TIR-V", "TIR-S 1.5x 2x2", "TIR-S 1x 2x2", "BN-TIRF"
+    neighbourhood_size: 11
+    subtract_background: False
+    correct_illumination: False

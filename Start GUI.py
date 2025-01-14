@@ -1,6 +1,6 @@
 from PySide2.QtWidgets import QApplication
 
-from trace_analysis.gui.main import MainWindow
+from papilio.gui.main import MainWindow
 import sys
 
 from multiprocessing import Process, freeze_support
