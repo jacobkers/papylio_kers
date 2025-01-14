@@ -1,15 +1,16 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from objectlist import ObjectList
 from scipy import stats
 from tqdm import tqdm
 from matplotlib.ticker import MaxNLocator
 
-from trace_analysis.collection import Collection
-from trace_analysis.mapping.mapping import distance_threshold_from_number_of_matches
+from objectlist import ObjectList
+from matchpoint.core import distance_threshold_from_number_of_matches
 
 
-# TODO: Make sure that the collection can only contain Mapping2 objects
-class MappingCollection(Collection):
+# TODO: Make sure that the collection can only contain MatchPoint objects
+class MappingCollection(ObjectList):
     dimension_number = {0: 0, 1: 1, 'x': 0, 'y': 1}
     dimension_string = {0: 'x', 1: 'y', 'x': 'x', 'y': 'y'}
 

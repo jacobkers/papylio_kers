@@ -4,7 +4,7 @@ from itertools import accumulate, groupby
 from hmmlearn import hmm
 import pomegranate as pg
 import tqdm
-from trace_analysis.collection import Collection
+from objectlist import ObjectList
 from copy import deepcopy
 import scipy.linalg
 
@@ -199,7 +199,7 @@ def hmm_n_states(input, n_states=2, threshold_state_mean=None, level='molecule')
         return None
 
 def fit_hmm_to_individual_traces(traces, classification, selected, parallel=False, n_states=2, threshold_state_mean=None):
-    cf = Collection(list(zip(traces.values, classification.values, selected.values)), return_none_if_all_none=False)
+    cf = ObjectList(list(zip(traces.values, classification.values, selected.values)), return_none_if_all_none=False)
     cf.use_parallel_processing = parallel
     models_per_molecule = cf.map(hmm_n_states)(n_states=n_states, threshold_state_mean=threshold_state_mean)  # New taking sections into account 5540 traces: 5:02
         # Old not taking sections into account: 5092 traces 4:00 minutes (2:37 on server)

@@ -37,6 +37,8 @@ dependencies:
 - pytest-datadir
 - numba=0.56
 - pomegranate=0.14
+- matchpoint
+- objectlist
 - git
 - perl
 #- bioconda::logomaker=0.8

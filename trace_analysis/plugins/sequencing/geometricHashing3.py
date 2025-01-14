@@ -5,10 +5,9 @@ from pathlib import Path
 import itertools
 from scipy.spatial import cKDTree
 import random
-from trace_analysis.mapping.geometricHashing import mapToPoint
-from trace_analysis.plugins.sequencing.geometricHashing2 import crop_coordinates, polygon_area
-from trace_analysis.mapping.mapping import Mapping2
-# from trace_analysis.mapping.icp import scatter_coordinates
+import matchpoint as mp
+from trace_analysis.plugins.sequencing.geometricHashing2 import polygon_area
+import matchpoint as mp
 from skimage.transform import AffineTransform
 import time
 
@@ -123,7 +122,7 @@ class GeometricHashTable:
                 center = np.mean(self.source_vertices, axis=0)
                 crop_vertices_in_source = (self.source_vertices - center) * 2 + center
                 crop_vertices_in_destination = self.initial_source_transformation(crop_vertices_in_source)
-                hashtable_entries_per_basis = [crop_coordinates(entries, crop_vertices_in_destination) for entries in hashtable_entries_per_basis]
+                hashtable_entries_per_basis = [mp.point_set.crop_coordinates(entries, crop_vertices_in_destination) for entries in hashtable_entries_per_basis]
 
             self.number_of_hashtable_entries_per_basis.append([len(entries) for entries in hashtable_entries_per_basis])
 
@@ -208,11 +207,11 @@ class GeometricHashTable:
             found_transformation = self.initial_source_transformation + AffineTransform(translation=translation)
 
             # plt.figure()
-            # scatter_coordinates([self.destination, found_transformation(source)])
+            # mp.icp.scatter_coordinates([self.destination, found_transformation(source)])
 
             if self.test_transformation(source, self.destination_KDTrees[destination_index], found_transformation,
                                         alpha, sigma, K_threshold):
-                match = Mapping2(source=source, destination=self.destinations[destination_index], method='Geometric hashing',
+                match = mp.MatchPoint(source=source, destination=self.destinations[destination_index], method='Geometric hashing',
                                  transformation_type='linear', initial_transformation=None)
                 match.transformation = found_transformation
                 match.transformation_inverse = AffineTransform(matrix=found_transformation._inv_matrix)
@@ -237,7 +236,7 @@ class GeometricHashTable:
             destination_KDTree = destination
 
         source_vertices_transformed = found_transformation(self.source_vertices)
-        destination_cropped = crop_coordinates(destination_KDTree.data, source_vertices_transformed)
+        destination_cropped = mp.point_set.crop_coordinates(destination_KDTree.data, source_vertices_transformed)
 
         source_transformed_area = polygon_area(source_vertices_transformed)
 
@@ -281,7 +280,7 @@ if __name__ == '__main__':
     #
     # match = ht.query(source, 15)
 
-    from trace_analysis.mapping.point_set_simulation import simulate_mapping_test_point_set
+    from matchpoint.point_set_simulation import simulate_mapping_test_point_set
 
     # Simulate source and destination point sets
     number_of_source_points = 4000
@@ -300,11 +299,11 @@ if __name__ == '__main__':
                                                           maximum_error_source, maximum_error_destination, shuffle)
     destinations = [destination]
 
-    perfect = Mapping2(source, destination)
+    perfect = mp.MatchPoint(source, destination)
     perfect.transformation = AffineTransform(matrix=transformation._inv_matrix)
     perfect.show_mapping_transformation()
 
-    # scatter_coordinates([source, destination])
+    # mp.icp.scatter_coordinates([source, destination])
 
     source_vertices = np.array([source_crop_bounds[0], source_crop_bounds.T[0],
                                 source_crop_bounds[1], np.flip(source_crop_bounds.T[1])])

@@ -9,7 +9,7 @@ import xarray as xr
 from skimage.transform import AffineTransform
 
 from trace_analysis.plugins.sequencing.fastqAnalysis import FastqData
-from trace_analysis.mapping.mapping import Mapping2
+import matchpoint as mp
 
 # This part makes an analysis.txt file in the same directory as the this .py file. (please do not commit this)
 # This file contains the git commit used and all differences to this commit.
@@ -88,7 +88,7 @@ def add_coordinates_to_files(file_green, file_red_before, file_red_after):
 
 # TODO: Make this internal somehow
 import joblib
-from trace_analysis.collection import tqdm_joblib
+from objectlist.base import tqdm_joblib
 # for file_green, file_red_before, file_red_after in
 with tqdm_joblib(tqdm.tqdm(total=len(files_green_laser))):
     joblib.parallel.Parallel(6)(joblib.parallel.delayed(add_coordinates_to_files)(*datum) for datum in
@@ -151,7 +151,7 @@ exp.generate_tile_mappings(files_green_laser, mapping_sequence_name=mapping_sequ
 # -----------------------------------
 
 # TODO: Geometric hashing example here
-# TODO: Put geometric hashing in Mapping2
+# TODO: Put geometric hashing in MatchPoint
 
 
 
@@ -265,7 +265,7 @@ matched_pairs_lenghts = sequencing_matches.number_of_matched_points
 
 source_transformed_combined = np.vstack([sequencing_match.transformation(sequencing_match.source) for sequencing_match in sequencing_matches])
 destination_combined = np.unique(np.vstack([sequencing_match.destination for sequencing_match in sequencing_matches]), axis=0)
-test = Mapping2(source=source_transformed_combined, destination=destination_combined)
+test = mp.MatchPoint(source=source_transformed_combined, destination=destination_combined)
 test.destination_distance_threshold = 0.2
 test.determine_pairs()
 
@@ -511,7 +511,7 @@ def change_type(file):
     ds.to_netcdf(file.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='w', encoding=encoding)
 
 import joblib
-from trace_analysis.collection import tqdm_joblib
+from objectlist.base import tqdm_joblib
 # for file_green, file_red_before, file_red_after in
 with tqdm_joblib(tqdm.tqdm(total=len(files_green_laser[400:]))):
     joblib.parallel.Parallel(6)(joblib.parallel.delayed(change_type)(file) for file in files_green_laser[400:])

@@ -4,14 +4,11 @@ import matplotlib.pyplot as plt
 import itertools
 from scipy.spatial import cKDTree
 import random
-from trace_analysis.mapping.geometricHashing import mapToPoint
-from trace_analysis.mapping.mapping import Mapping2
-from trace_analysis.mapping.point_set import crop_coordinates
-# from trace_analysis.plotting import scatter_coordinates
+import matchpoint as mp
 from skimage.transform import AffineTransform
 import time
 
-#
+
 class GeometricHashTable:
     def __init__(self, destinations, source_vertices=None, initial_source_transformation=AffineTransform(),
                  number_of_source_bases=20, number_of_destination_bases='all',
@@ -140,6 +137,48 @@ class GeometricHashTable:
         parameter_values = [np.array([getattr(t, parameter) for t in transformations]).T for parameter in parameters]
 
 
+def mapToPoint(pointSet, startPoints, endPoints, returnTransformationMatrix=False, tr=None, di=None, ro=None):
+    startPoints = np.atleast_2d(startPoints)
+    endPoints = np.atleast_2d(endPoints)
+    if len(startPoints) == 1 & len(endPoints) == 1:
+        tr = True;
+        ro = False;
+        di = False
+
+    elif len(startPoints) == 2 & len(endPoints) == 2:
+        if tr is None: tr = True
+        if di is None: di = True
+        if ro is None: ro = True
+
+    transformationMatrix = np.identity(3)
+
+    if tr:
+        translationMatrix = mp.coordinate_transformations.translate(endPoints[0] - startPoints[0])
+        transformationMatrix = translationMatrix @ transformationMatrix
+
+    if di or ro:
+        diffs = np.array([startPoints[0] - startPoints[1], endPoints[0] - endPoints[1]])
+        diffLengths = np.linalg.norm(diffs, axis=1, keepdims=True)
+        unitDiffs = diffs / diffLengths
+
+        if di:
+            dilationMatrix = mp.coordinate_transformations.magnify(diffLengths[1] / diffLengths[0], endPoints[0])
+            transformationMatrix = dilationMatrix @ transformationMatrix
+
+        if ro:
+            angle = -np.arctan2(np.linalg.det(unitDiffs), np.dot(unitDiffs[0], unitDiffs[1]))
+            # angle = np.arccos(np.dot(diffs[0]/endLength,diffs[1]/startLength))
+            rotationMatrix = mp.coordinate_transformations.rotate(angle, endPoints[0])
+            transformationMatrix = rotationMatrix @ transformationMatrix
+
+    pointSet = np.append(pointSet, np.ones((pointSet.shape[0], 1)), axis=1)
+    transformedPointSet = (transformationMatrix @ pointSet.T)[0:2, :].T
+
+    if returnTransformationMatrix:
+        return transformedPointSet, transformationMatrix
+    else:
+        return transformedPointSet
+
 
 def compare_tuple_transformations(source_hash_table_KDTree, source_transformation_matrices, destination_hash_table_KDTree,
                                   destination_transformation_matrices, hash_table_distance_threshold=0.01,
@@ -218,7 +257,7 @@ def compare_tuple_transformations(source_hash_table_KDTree, source_transformatio
 
 #
 # t0 = time.time()
-# from trace_analysis.mapping.geometricHashing import pointHash, findMatch
+# from matchpoint.geometricHashing import pointHash, findMatch
 # ht = pointHash(destination, bases='all', magnificationRange=[0,10], rotationRange=[-np.pi,np.pi])
 # matched_bases = findMatch(source, ht, bases='all', magnificationRange=[0,1], rotationRange=[-np.pi,np.pi])
 # source_coordinate_tuple = source[matched_bases['testBasis']]
@@ -474,7 +513,7 @@ def find_match_after_hashing(source, maximum_distance_source, tuple_size, source
             found_transformation = tuple_match(source, destination_KDTree, source_vertices, source_tuple, destination_tuple,
                                 alpha, test_radius, K_threshold, magnification_range, rotation_range)
             if found_transformation:
-                match = Mapping2(source=source, destination=destination_KDTree.data, method='Geometric hashing',
+                match = mp.MatchPoint(source=source, destination=destination_KDTree.data, method='Geometric hashing',
                                  transformation_type='linear', initial_transformation=None)
                 match.transformation = found_transformation
                 match.destination_index = destination_index
@@ -498,7 +537,7 @@ def tuple_match(source, destination_KDTree, source_vertices, source_tuple, desti
     source = source[source_indices_without_tuple]
 
     source_transformed, transformation_matrix = mapToPoint(source, source_coordinate_tuple[:2], destination_coordinate_tuple[:2], returnTransformationMatrix=True)
-    # scatter_coordinates([source_transformed])
+    # mp.icp.scatter_coordinates([source_transformed])
 
     found_transformation = AffineTransform(transformation_matrix)
 
@@ -515,10 +554,10 @@ def tuple_match(source, destination_KDTree, source_vertices, source_tuple, desti
     #     return
     # if (-1 < rot < 1) & (3.3 < sca < 3.4):
     #     print('found')
-    # scatter_coordinates([destination_KDTree.data, source_transformed])
+    # mp.icp.scatter_coordinates([destination_KDTree.data, source_transformed])
 
     source_vertices_transformed = found_transformation(source_vertices)
-    destination_cropped = crop_coordinates(destination_KDTree.data, source_vertices_transformed)
+    destination_cropped = mp.point_set.crop_coordinates(destination_KDTree.data, source_vertices_transformed)
 
     #source_transformed_area = np.linalg.norm(source_vertices_transformed[0] - source_vertices_transformed[1])
     # source_transformed_area = np.abs(np.cross(source_vertices_transformed[1] - source_vertices_transformed[0],
@@ -605,11 +644,11 @@ if __name__ == '__main__':
                                                           maximum_error_source, maximum_error_destination, shuffle)
     destinations = [destination]
 
-    perfect = Mapping2(source, destination)
+    perfect = mp.MatchPoint(source, destination)
     perfect.transformation = AffineTransform(matrix=transformation._inv_matrix)
     perfect.show_mapping_transformation(show_source=True)
 
-    # scatter_coordinates([source, destination])
+    # mp.icp.scatter_coordinates([source, destination])
 
     source_vertices = np.array([source_crop_bounds[0], source_crop_bounds.T[0],
                                 source_crop_bounds[1], np.flip(source_crop_bounds.T[1])])
@@ -794,7 +833,7 @@ if __name__ == '__main__':
 
     match = find_match(source, destination, source_vertices)
     if match:
-        scatter_coordinates([source, destination, match(source), source_vertices, match(source_vertices)])
+        mp.icp.scatter_coordinates([source, destination, match(source), source_vertices, match(source_vertices)])
 
 
 
@@ -909,12 +948,12 @@ if __name__ == '__main__':
     #
     #
     # transformation = AffineTransform(scale=(0.1, 0.1), rotation=np.pi, shear=None, translation=(-100,350))
-    # source = transformation(crop_coordinates(destination, source_vertices_in_destination))
+    # source = transformation(mp.point_set.crop_coordinates(destination, source_vertices_in_destination))
     # source_vertices = transformation(source_vertices_in_destination)
     # plt.figure()
     # plt.scatter(destination[:,0],destination[:,1])
     # plt.scatter(source[:,0],source[:,1])
-    # scatter_coordinates([source,destination,crop_coordinates(destination, source_vertices_in_destination)])
+    # mp.icp.scatter_coordinates([source,destination,mp.point_set.crop_coordinates(destination, source_vertices_in_destination)])
     #
     # # destination_KDTree, destination_tuples, destination_hash_table_KDTree = geometric_hash(destination, 40, 4)
     # # source_KDTree, source_tuples, source_hash_table_KDTree = geometric_hash(source, 4, 4)
@@ -924,7 +963,7 @@ if __name__ == '__main__':
     #                    hash_table_distance_threshold = 0.01,
     #                    alpha = 0.1, test_radius = 10, K_threshold = 10e9)
     # plt.figure()
-    # scatter_coordinates([source, destination, match(source), source_vertices,source_vertices_in_destination])
+    # mp.icp.scatter_coordinates([source, destination, match(source), source_vertices,source_vertices_in_destination])
 
 
 
@@ -970,7 +1009,7 @@ if __name__ == '__main__':
     #
     # #match = find_match(source, destination, source_vertices)
     # if match:
-    #     scatter_coordinates([source, destination, match(source), source_vertices, match(source_vertices)])
+    #     mp.icp.scatter_coordinates([source, destination, match(source), source_vertices, match(source_vertices)])
 
     #
     #
@@ -1066,7 +1105,7 @@ if __name__ == '__main__':
 
 
 #
-# scatter_coordinates([source_coordinate_tuple, destination_coordinate_tuple])
+# mp.icp.scatter_coordinates([source_coordinate_tuple, destination_coordinate_tuple])
 #
 # def connect_pairs(pairs):
 #     for pair in pairs:
@@ -1079,7 +1118,7 @@ if __name__ == '__main__':
 #     center = (pair_coordinates[0] + pair_coordinates[1]) / 2
 #     distance = np.linalg.norm(pair_coordinates[0] - pair_coordinates[1])
 #     connect_pairs([pair_coordinates])
-#     scatter_coordinates([pair_coordinates, np.atleast_2d(center), internal_coordinates])
+#     mp.icp.([pair_coordinates, np.atleast_2d(center), internal_coordinates])
 #     plt.gca().set_aspect('equal')
 #     circle = plt.Circle(center, distance / 2, fill=False)
 #     plt.gcf().gca().add_artist(circle)
