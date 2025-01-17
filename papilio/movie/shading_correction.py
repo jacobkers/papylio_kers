@@ -10,6 +10,10 @@ from scipy.fftpack import dctn, idctn
 import tqdm
 from numba import njit
 
+# From:
+# linum-uqam/PyBaSiC: v1.0.0
+# Joël Lefebvre
+# 10.5281/zenodo.7305570
 # https://github.com/linum-uqam/PyBaSiC
 
 class BaSiC(object):
@@ -437,6 +441,30 @@ def get_photobleach(imgflt_stack, flatfield, darkfield=None, size=(128,128)):
     return _get_photobleach(imgflt_stack, imgflt_stack_svd, flatfield_small, darkfield_small)
 
 # From https://github.com/PolusAI/polus-plugins/tree/dev/regression/polus-basic-flatfield-correction-plugin
+# ------------------------------------------------------------------------------
+# MIT License
+#
+# Copyright (c) 2019 LabShare
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+# ------------------------------------------------------------------------------
+
 @njit
 def _get_photobleach(imgflt_stack, imgflt_stack_svd, flatfield, darkfield=None):
     """Calculate the global effect of photobleaching for each image
