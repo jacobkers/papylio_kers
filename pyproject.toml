@@ -9,7 +9,8 @@ version_file = "papilio/_version.py"
 
 [project]
 name = "papilio"
-dynamic = ["version"]
+#dynamic = ["version"]
+dynamic = 0.7
 description = "Single-molecule fluorescence data extraction and analysis."
 readme = "README.md"
 authors = [{ name = "Ivo Severins", email = "i.w.h.severins@tudelft.nl" }]
