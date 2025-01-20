@@ -20,7 +20,6 @@ classifiers = [
 ]
 keywords = ["single", "molecule", "trace", "analysis", "fluorescence", "FRET"]
 dependencies = [
-	"python == 3.9",
     "numpy == 1.22",
 	"matplotlib-base == 3.5",
 	"pathlib2 >= 2.3",
@@ -49,7 +48,7 @@ dependencies = [
 	"matchpoint == 1.0",
 	"objectlist == 1.0",
 ]
-requires-python = "==3.9"
+requires-python = ">=3.9, <3.10"
 
 [project.urls]
 Documentation = "https://papilio.readthedocs.io/"
