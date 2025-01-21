@@ -17,19 +17,20 @@ sys.path.insert(0, os.path.abspath('..'))
 # -- Project information -----------------------------------------------------
 
 project = 'papilio'
-copyright = '2024 - Chirlmin Joo lab'
+copyright = '2025 - Chirlmin Joo lab'
 author = 'Sung Hyun Kim, Carolien Bastiaanssen, Iason Katechis, Margreet Docter, Roy Simons, Pim America, Ivo Severins'
 
 # from git import Repo
 from pathlib2 import Path
 # raise ValueError(Path(__file__).parent.parent)
-repo = Repo(Path(__file__).parent.parent)
+# repo = Repo(Path(__file__).parent.parent)
 
-sha = repo.head.object.hexsha
+# sha = repo.head.object.hexsha
 
 # The full version, including alpha/beta/rc tags
-release = f'develop-{sha[0:7]}'
-
+# release = f'develop-{sha[0:7]}'
+import papilio
+release = papilio.__version__
 
 # -- General configuration ---------------------------------------------------
 
