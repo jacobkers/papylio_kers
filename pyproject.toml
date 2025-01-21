@@ -1,7 +1,7 @@
 # pyproject.toml
 
 [build-system]
-requires      = ["setuptools>=61.0.0", "setuptools-scm>=8", "wheel", "cython==0.22.1"]
+requires      = ["setuptools>=61.0.0", "setuptools-scm>=8", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools_scm]
@@ -44,7 +44,7 @@ dependencies = [
 	"hmmlearn >= 0.2.7, <0.2.8",
 	"pyside2 >= 5.13, <5.16",
 	"numba >= 0.56, <0.57",
-	"pomegranate >= 0.14.8, <0.14.9",
+	"pomegranate >= 0.15, <0.16",
 	"matchpoint >= 1.0, <1.1",
 	"objectlist >= 1.0, <1.1",
 ]
