@@ -4,10 +4,10 @@
    contain the root `toctree` directive.
 
 
-Papilio documentation
+Papylio documentation
 ===========================
 
-papilio is a package for single-molecule data analysis.
+papylio is a package for single-molecule data analysis.
 
 Current functionality
 ---------------------
@@ -36,7 +36,7 @@ Getting started
    Contributing
 
 
-:class:`papilio.experiment.Experiment`
+:class:`papylio.experiment.Experiment`
 
 Indices and tables
 ------------------

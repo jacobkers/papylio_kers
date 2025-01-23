@@ -1,4 +1,4 @@
-name: papilio
+name: papylio
 channels:
 - conda-forge
 dependencies:

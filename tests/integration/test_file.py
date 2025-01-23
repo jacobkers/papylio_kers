@@ -5,7 +5,7 @@ import numpy as np
 
 @pytest.fixture
 def experiment(shared_datadir):
-    from papilio import Experiment
+    from papylio import Experiment
     return Experiment(shared_datadir / 'BN_TIRF')
 
 @pytest.fixture
@@ -14,7 +14,7 @@ def file(experiment):
 
 @pytest.fixture
 def experiment_output(shared_datadir):
-    from papilio import Experiment
+    from papylio import Experiment
     return Experiment(shared_datadir / 'BN_TIRF_output_test_file')
 
 @pytest.fixture

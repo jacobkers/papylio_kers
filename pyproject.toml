@@ -5,10 +5,10 @@ requires      = ["setuptools>=61.0.0", "setuptools-scm>=8", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools_scm]
-version_file = "papilio/_version.py"
+version_file = "papylio/_version.py"
 
 [project]
-name = "papilio"
+name = "papylio"
 dynamic = ["version"]
 description = "Single-molecule fluorescence data extraction and analysis."
 readme = "README.md"
@@ -51,8 +51,8 @@ dependencies = [
 requires-python = ">=3.9, <3.10"
 
 [project.urls]
-Documentation = "https://papilio.readthedocs.io/"
-Repository = "https://github.com/Chirlmin-Joo-lab/papilio"
+Documentation = "https://papylio.readthedocs.io/"
+Repository = "https://github.com/Chirlmin-Joo-lab/papylio"
 
 [project.optional-dependencies]
 sparxs = ["matplotlib-venn == 0.11", "perl"]
@@ -60,7 +60,7 @@ gui = []
 dev = ["pytest","pytest-datadir","build","twine","sphinx","sphinx-book-theme","setuptools_scm>=8"]
 
 [tool.pytest.ini_options]
-pythonpath = ["papilio"]
+pythonpath = ["papylio"]
 testpaths = [
     "tests",
     "integration",

@@ -57,7 +57,7 @@ jobs:
 
     environment:
       name: testpypi
-      url: https://test.pypi.org/p/papilio  # Replace <package-name> with your PyPI project name
+      url: https://test.pypi.org/p/papylio  # Replace <package-name> with your PyPI project name
 
     permissions:
       id-token: write  # IMPORTANT: mandatory for trusted publishing

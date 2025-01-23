@@ -1,7 +1,7 @@
 API reference
 =============
 
-.. currentmodule:: papilio
+.. currentmodule:: papylio
 
 Main classes
 ================
@@ -9,9 +9,9 @@ Main classes
 .. autosummary::
     :toctree: _generated/
 
-    papilio.Experiment
-    papilio.File
-    papilio.Movie
+    papylio.Experiment
+    papylio.File
+    papylio.Movie
 
 Peak finding
 ============
@@ -19,4 +19,4 @@ Peak finding
 .. autosummary::
     :toctree: _generated/
 
-    papilio.peak_finding.find_peaks_local_maximum
+    papylio.peak_finding.find_peaks_local_maximum

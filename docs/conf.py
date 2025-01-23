@@ -16,7 +16,7 @@ sys.path.insert(0, os.path.abspath('..'))
 
 # -- Project information -----------------------------------------------------
 
-project = 'papilio'
+project = 'papylio'
 copyright = '2025 - Chirlmin Joo lab'
 author = 'Sung Hyun Kim, Carolien Bastiaanssen, Iason Katechis, Margreet Docter, Roy Simons, Pim America, Ivo Severins'
 
@@ -29,8 +29,8 @@ from pathlib2 import Path
 
 # The full version, including alpha/beta/rc tags
 # release = f'develop-{sha[0:7]}'
-import papilio
-release = papilio.__version__
+import papylio
+release = papylio.__version__
 
 # -- General configuration ---------------------------------------------------
 
