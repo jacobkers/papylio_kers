@@ -29,8 +29,11 @@ from pathlib2 import Path
 
 # The full version, including alpha/beta/rc tags
 # release = f'develop-{sha[0:7]}'
-import papylio
-release = papylio.__version__
+# import papylio
+# release = papylio.__version__
+
+import setuptools_scm
+release = setuptools_scm.get_version(version_scheme="post-release")
 
 # -- General configuration ---------------------------------------------------
 
