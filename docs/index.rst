@@ -30,7 +30,7 @@ Getting started
    Getting started
    User guide <user_guide/index>
    Examples <examples/index>
-   Sequencing <sequencing/index>
+   SPARXS <SPARXS/index>
    GUI
    API reference
    Contributing
