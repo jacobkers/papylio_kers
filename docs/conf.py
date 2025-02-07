@@ -49,7 +49,7 @@ extensions = [
     # "sphinx.ext.todo",
     # "sphinx.ext.autosectionlabel",
     # "sphinx.ext.githubpages",
-    # "nbsphinx",
+    "nbsphinx",
     # "IPython.sphinxext.ipython_directive",
     # "IPython.sphinxext.ipython_console_highlighting",
 ]
