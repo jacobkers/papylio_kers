@@ -19,3 +19,17 @@ Current functionality
 - Trace classification
 - Kinetic parameter extraction
 - SPARXS analysis
+
+
+.. toctree::
+    :maxdepth: 2
+    :hidden:
+
+    Installation
+    Getting started
+    User guide <user_guide/index>
+    Examples <examples/index>
+    SPARXS <SPARXS/index>
+    GUI
+    API reference
+    Contributing
