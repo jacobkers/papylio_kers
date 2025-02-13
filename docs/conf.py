@@ -18,7 +18,7 @@ sys.path.insert(0, os.path.abspath('..'))
 
 project = 'papylio'
 copyright = '2025 - Chirlmin Joo lab'
-author = 'Sung Hyun Kim, Carolien Bastiaanssen, Iason Katechis, Margreet Docter, Roy Simons, Pim America, Ivo Severins'
+# author = 'Ivo Severins, Sung Hyun Kim, Carolien Bastiaanssen, Iason Katechis, Margreet Docter, Roy Simons, Pim America, '
 
 # from git import Repo
 from pathlib2 import Path
@@ -49,7 +49,7 @@ extensions = [
     # "sphinx.ext.todo",
     # "sphinx.ext.autosectionlabel",
     # "sphinx.ext.githubpages",
-    # "nbsphinx",
+    "nbsphinx",
     # "IPython.sphinxext.ipython_directive",
     # "IPython.sphinxext.ipython_console_highlighting",
 ]

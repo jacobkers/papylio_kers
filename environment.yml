@@ -34,8 +34,10 @@ dependencies:
 - pytest-datadir
 - numba=0.56
 - pomegranate=0.14
-- matchpoint
-- objectlist
+- nbsphinx=0.9
+- notebook=7.3
+- matchpoint=1.0
+- objectlist=1.0
 - git
 - perl
 #- bioconda::logomaker=0.8

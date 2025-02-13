@@ -7,40 +7,29 @@
 Papylio documentation
 ===========================
 
-papylio is a package for single-molecule data analysis.
+Papylio is a python package for single-molecule fluorescence data analysis.
 
 Current functionality
 ---------------------
 
-Data extraction from single-molecule fluorescence images:
+- Molecule localization
+- Emission channel alignment
+- Fluorescence intensity and FRET trace extraction
+- Trace selection
+- Trace classification
+- Kinetic parameter extraction
+- SPARXS analysis
 
- - Peak localization
- - Emission channel alignment
- - Fluorescence intensity and FRET trace extraction
- - Trace selection
- - Trace classification
- - Kinetic parameter extraction
 
-Getting started
----------------
 .. toctree::
-   :maxdepth: 2
+    :maxdepth: 2
+    :hidden:
 
-   Installation
-   Getting started
-   User guide <user_guide/index>
-   Examples <examples/index>
-   Sequencing <sequencing/index>
-   GUI
-   API reference
-   Contributing
-
-
-:class:`papylio.experiment.Experiment`
-
-Indices and tables
-------------------
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
+    Installation
+    Getting started
+    User guide <user_guide/index>
+    Examples <examples/index>
+    SPARXS <SPARXS/index>
+    GUI
+    API reference
+    Contributing
