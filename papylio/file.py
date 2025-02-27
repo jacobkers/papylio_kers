@@ -37,7 +37,7 @@ from papylio.analysis.hidden_markov_modelling import hmm_traces, hidden_markov_m
 # from papylio.plugin_manager import PluginMetaClass
 from papylio.plugin_manager import plugins
 # from papylio.trace_plot import TraceAnalysisFrame
-from papylio.analysis.dwelltime_analysis import dwell_times_from_classification, analyze_dwells
+from papylio.analysis.dwelltime_extraction import dwell_times_from_classification, analyze_dwells
 from papylio.decorators import return_none_when_executed_by_pycharm
 
 @plugins
