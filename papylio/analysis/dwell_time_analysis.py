@@ -1,12 +1,7 @@
-from joblib.testing import param
-
-import papylio as pp
 import numpy as np
 import scipy.optimize
-import matplotlib
 import matplotlib.pyplot as plt
 import pandas as pd
-
 
 class ExponentialDistribution:
     def __init__(self, number_of_exponentials):
@@ -174,8 +169,6 @@ def plot_fit_results(dwell_times, fit_results, bins='auto', plot_range=None, log
     legend = ax.legend(prop={"family": "monospace"}, labelcolor='linecolor', frameon=False)
     ax.set_xlabel('Dwell time (s)')
     ax.set_ylabel('Normalized counts')
-
-
 
 def analyze_dwells(dwells, method='maximum_likelihood_estimation', number_of_exponentials=[1,2,3], state_names=None,
                    plot=False, axes=None, log=False, sharey=True):
