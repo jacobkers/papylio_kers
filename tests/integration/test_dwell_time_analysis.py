@@ -3,7 +3,7 @@ import tifffile
 import numpy as np
 
 
-from papylio.analysis.dwelltime_analysis import ExponentialDistribution, fit_dwell_times, plot_fit_results, analyze_dwells
+from papylio.analysis.dwell_time_analysis import ExponentialDistribution, fit_dwell_times, plot_fit_results, analyze_dwells
 from tests.integration.test_dwell_time_extraction import dwells
 
 @pytest.fixture

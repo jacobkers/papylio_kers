@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from papylio.analysis.dwelltime_extraction import dwell_times_from_classification
+from papylio.analysis.dwell_time_extraction import dwell_times_from_classification
 
 @pytest.fixture
 def dwells():
