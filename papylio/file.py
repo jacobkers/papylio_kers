@@ -38,7 +38,7 @@ from papylio.analysis.hidden_markov_modelling import hmm_traces, hidden_markov_m
 from papylio.plugin_manager import plugins
 # from papylio.trace_plot import TraceAnalysisFrame
 from papylio.analysis.dwell_time_extraction import dwell_times_from_classification
-from papylio.analysis.dwell_time_analysis import analyze_dwells
+from papylio.analysis.dwell_time_analysis import analyze_dwells, plot_dwell_time_histogram, plot_dwell_analysis
 from papylio.decorators import return_none_when_executed_by_pycharm
 
 @plugins
@@ -1472,40 +1472,56 @@ class File:
         return xr.load_dataset(self.absoluteFilePath.with_name(self.name + '_dwells').with_suffix('.nc'), engine='netcdf4')
 
     def analyze_dwells(self, method='maximum_likelihood_estimation', number_of_exponentials=[1,2,3], state_names=None,
-                       name=None, plot=False, axes=None, log=False, sharey=False):
+                       plot=False, analyze_dwells_kwargs={}, plot_dwell_analysis_kwargs={}):
+
         dwells = self.dwells
 
         # At the moment single-state states are already set at -128 so they don't need to be separated.
         # For >2 states we will need to do this.
         # for n in np.arange(dwells.number_of_states.max().item())+1:
         #     dwells['state'][dict(dwell=(dwells['number_of_states'] == n) & dwells['state'] >= 0)] += n-1
+
+        dwell_analysis = analyze_dwells(dwells, method=method, number_of_exponentials=number_of_exponentials,
+                                        state_names=state_names, **analyze_dwells_kwargs)
+
+        self.dwell_analysis = dwell_analysis
+
+        if plot:
+            self.plot_dwell_analysis(**plot_dwell_analysis_kwargs)
+
+        return dwell_analysis
+
+    def plot_dwell_analysis(self, name=None, plot_type='pdf', plot_range=None, axes=None, bins='auto_discrete', log=False, sharey=False):
+        dwell_analysis = self.dwell_analysis
+        dwells = self.dwells
+
+        fig, axes = plot_dwell_analysis(dwell_analysis, dwells, plot_type=plot_type, plot_range=plot_range, axes=axes, bins=bins, log=log, sharey=sharey)
+
         if name is None:
             name = self.name
 
-        fit_results, axes = analyze_dwells(dwells, method=method, number_of_exponentials=number_of_exponentials, state_names=state_names,
-                                           plot=plot, axes=axes, log=log, sharey=sharey)
-        if axes is not None:
-            axes[0].set_title(name)
-            save_path = self.experiment.analysis_path / 'Dwell time analysis'
-            save_path.mkdir(exist_ok=True)
-            if log:
-                axes[0].figure.savefig(save_path / (name + '_dwell_time_analysis_log.png'))
-            else:
-                axes[0].figure.savefig(save_path / (name + '_dwell_time_analysis.png'))
-        self.dwell_analysis = fit_results
-        return fit_results
+        # axes[0].set_title(name)
+        save_path = self.experiment.analysis_path / 'Dwell time analysis'
+        save_path.mkdir(exist_ok=True)
+        if log:
+            axes[0].figure.savefig(save_path / (name + '_dwell_time_analysis_log.png'))
+        else:
+            axes[0].figure.savefig(save_path / (name + '_dwell_time_analysis.png'))
+
+        return axes[0].figure, axes
 
     @property
     @return_none_when_executed_by_pycharm
     def dwell_analysis(self):
-        return pd.read_excel(self.absoluteFilePath.with_name(self.name + '_dwell_analysis').with_suffix('.xlsx'))
-        # return xr.load_dataset(self.absoluteFilePath.with_name(self.name + '_dwell_analysis').with_suffix('.nc'), engine='netcdf4')
+        # return pd.read_excel(self.absoluteFilePath.with_name(self.name + '_dwell_analysis').with_suffix('.xlsx'))
+        return xr.load_dataset(self.absoluteFilePath.with_name(self.name + '_dwell_analysis').with_suffix('.nc'), engine='netcdf4')
 
     @dwell_analysis.setter
-    def dwell_analysis(self, fit_results):
-        fit_results.to_excel(self.absoluteFilePath.with_name(self.name + '_dwell_analysis').with_suffix('.xlsx'))
-        # dataset.to_netcdf(self.absoluteFilePath.with_name(self.name + '_dwell_analysis').with_suffix('.nc'),
-        #                   engine='netcdf4', mode='w')
+    def dwell_analysis(self, dwell_analysis):
+        # dwell_analysis.to_excel(self.absoluteFilePath.with_name(self.name + '_dwell_analysis').with_suffix('.xlsx'))
+        # dataset = xr.DataArray(dataset, dims=('exponential', ' variable'))
+        dwell_analysis.to_netcdf(self.absoluteFilePath.with_name(self.name + '_dwell_analysis').with_suffix('.nc'),
+                                 engine='netcdf4', mode='w')
 
     def state_count(self, selected=True, states=None):
         # if hasattr(self, 'number_of_states'):

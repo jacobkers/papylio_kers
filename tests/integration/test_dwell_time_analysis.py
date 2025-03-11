@@ -3,7 +3,8 @@ import tifffile
 import numpy as np
 
 
-from papylio.analysis.dwell_time_analysis import ExponentialDistribution, fit_dwell_times, plot_fit_results, analyze_dwells
+from papylio.analysis.dwell_time_analysis import (ExponentialDistribution, fit_dwell_times, plot_dwell_analysis,
+                                                  plot_dwell_analysis_state, analyze_dwells)
 from tests.integration.test_dwell_time_extraction import dwells
 
 @pytest.fixture
@@ -28,12 +29,21 @@ def test_cdf_fitting(dwell_times_double_exponential):
     optimal_parameters, _ = ExponentialDistribution(2).cdf_fitting(dwell_times_double_exponential)
 
 def test_fit_dwell_times(dwell_times_double_exponential):
-    fit_results = fit_dwell_times(dwell_times_double_exponential, 'maximum_likelihood_estimation', number_of_exponentials=[1,2,3])
+    dwell_analysis = fit_dwell_times(dwell_times_double_exponential, 'maximum_likelihood_estimation', number_of_exponentials=[1,2,3])
 
-def test_plot_fit_results(dwell_times_double_exponential):
-    fit_results = fit_dwell_times(dwell_times_double_exponential, 'maximum_likelihood_estimation',
-                                  number_of_exponentials=[1,2,3])
-    plot_fit_results(dwell_times_double_exponential, fit_results, log=True)
+def test_plot_dwell_analysis_state(dwell_times_double_exponential):
+    dwell_analysis = fit_dwell_times(dwell_times_double_exponential, 'maximum_likelihood_estimation',
+                                     number_of_exponentials=[1,2,3])
+    plot_dwell_analysis_state(dwell_analysis, dwell_times_double_exponential, log=True)
 
 def test_analyze_dwells(dwells):
-    fit_results, axis = analyze_dwells(dwells, plot=True, axes=None, state_names=None, log=False, sharey=False)
+    dwell_analysis = analyze_dwells(dwells, state_names=None)
+
+def test_plot_dwell_analysis(dwells):
+    dwell_analysis = analyze_dwells(dwells, method='maximum_likelihood_estimation', number_of_exponentials=[1,2,3], state_names=None)
+    plot_dwell_analysis(dwell_analysis, dwells, plot_range=None, axes=None, log=False, sharey=True)
+
+
+def test_parameters_to_dataset(dwell_times_double_exponential):
+    optimal_parameters, _ = ExponentialDistribution(2).histogram_fitting(dwell_times_double_exponential)
+    ExponentialDistribution(2).parameters_to_dataset(optimal_parameters, dwell_times=dwell_times_double_exponential)
