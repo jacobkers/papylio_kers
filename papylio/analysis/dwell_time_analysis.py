@@ -8,10 +8,10 @@ import numbers
 import papylio
 
 class ExponentialDistribution:
-    def __init__(self, number_of_exponentials):
+    def __init__(self, number_of_exponentials, P_bounds=(0,1), k_bounds=(1e-9,np.inf)):
         self.number_of_exponentials = number_of_exponentials
         # self.bounds = np.array([(0, np.inf)] * (2 * self.number_of_exponentials - 1))
-        self.bounds = np.array([(0, 1)] * (self.number_of_exponentials - 1) + [(0, np.inf)] * self.number_of_exponentials)
+        self.bounds = np.array([P_bounds] * (self.number_of_exponentials - 1) + [k_bounds] * self.number_of_exponentials)
 
     def __call__(self, t, *parameters):
         return self.pdf(t, *parameters)
@@ -26,11 +26,16 @@ class ExponentialDistribution:
         return ([f'P{i}' for i in range(self.number_of_exponentials)] +
                 [f'k{i}' for i in range(self.number_of_exponentials)])
 
+    def normalize_P(self, P):
+        P = np.abs(P)
+        return P / np.sum(P)
+
     def pdf(self, t, *parameters):
         # Parameters given as P1, P2, k1, k2, k3
         result = np.zeros_like(t).astype(float)
         P = parameters[0:(self.number_of_exponentials-1)]
         P += (1-np.sum(P),)
+        P = self.normalize_P(P)
         k = parameters[(self.number_of_exponentials-1):]
         for i in range(self.number_of_exponentials):
             result += P[i] * k[i] * np.exp(-k[i] * t)
@@ -40,6 +45,7 @@ class ExponentialDistribution:
         result = np.ones_like(t).astype(float)
         P = parameters[0:(self.number_of_exponentials-1)]
         P += (1-np.sum(P),)
+        P = self.normalize_P(P)
         k = parameters[(self.number_of_exponentials-1):]
         for i in range(self.number_of_exponentials):
             result -= P[i] * np.exp(-k[i] * t)
@@ -49,36 +55,61 @@ class ExponentialDistribution:
         return np.prod(self.pdf(t, *parameters))
 
     def loglikelihood(self, parameters, t):
-        return np.sum(np.log(self.pdf(t, *parameters)))
+        return np.sum(np.log(self.pdf(t, *parameters) + 1e-10))
 
     def negative_loglikelihood(self, parameters, t):
         return -self.loglikelihood(parameters, t)
 
-    def maximum_likelihood_estimation(self, t):
-        optimal_parameters = scipy.optimize.minimize(fun=self.negative_loglikelihood, x0=self.parameter_guess(t),
-                                                     args=t, bounds=self.bounds).x
-        return optimal_parameters, None
+    def maximum_likelihood_estimation(self, t, scipy_optimization_method='minimize', **kwargs):
+        # constraint = scipy.optimize.LinearConstraint(
+        #     np.hstack([np.ones(self.number_of_exponentials - 1), np.zeros(self.number_of_exponentials)]),
+        #     0, 1)
+        # print(self.number_of_exponentials)
 
-    def histogram_fitting(self, t, bins='auto_discrete'):
+        # def const(parameters):
+        #     print(parameters, sum(parameters[0:(self.number_of_exponentials-1)]))
+        #     return sum(parameters[0:(self.number_of_exponentials-1)])
+        # constraint = scipy.optimize.NonlinearConstraint(const, 0, 1)
+
+        scipy_optimize_kwargs = dict(x0 = self.parameter_guess(t),
+                                     bounds = self.bounds)
+
+        scipy_optimize_kwargs.update(kwargs)
+
+        optimal_parameters = getattr(scipy.optimize, scipy_optimization_method)(self.negative_loglikelihood,
+                                     args = (t,), **scipy_optimize_kwargs).x
+        bic = self.BIC(t, *optimal_parameters)
+        return optimal_parameters, None, bic
+
+    def histogram_fitting(self, t, bins='auto_discrete', remove_first_bins=None, **kwargs):
         if bins == 'auto_discrete':
             bins = auto_bin_size_for_discrete_data(t)
+        else:
+            bins = np.histogram_bin_edges(t, bins=bins)
 
-        counts, bin_edges = np.histogram(t, bins=bins, density=True)
+        if remove_first_bins is not None:
+            bins = bins[remove_first_bins:]
+
+        weights = (1 / len(t) / np.diff(bins)[0],) * len(t)  # Assuming evenly spaced bins
+
+        counts, bin_edges = np.histogram(t, bins=bins, density=False, weights=weights)
         bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
         optimal_parameters, parameter_covariances = scipy.optimize.curve_fit(self.pdf, bin_centers, counts,
                                                                             p0=self.parameter_guess(t),
                                                                             bounds=self.bounds.T, absolute_sigma=True,
-                                                                            max_nfev=1e9)
+                                                                            max_nfev=1e9, **kwargs)
         parameter_errors = np.sqrt(np.diag(parameter_covariances))
-        return optimal_parameters, parameter_errors
+        bic = self.BIC_histogram(bin_centers, counts, *optimal_parameters)
+        return optimal_parameters, parameter_errors, bic
 
-    def cdf_fitting(self, t):
+    def cdf_fitting(self, t, **kwargs):
         t, ecdf = empirical_cdf(t)
         optimal_parameters, parameter_covariances = scipy.optimize.curve_fit(self.cdf, t, ecdf,
                                                                             p0=self.parameter_guess(t),
-                                                                            bounds=self.bounds.T, absolute_sigma=True)
+                                                                            bounds=self.bounds.T, absolute_sigma=True, **kwargs)
         parameter_errors = np.sqrt(np.diag(parameter_covariances))
-        return optimal_parameters, parameter_errors
+        bic = self.BIC(t, *optimal_parameters)
+        return optimal_parameters, parameter_errors, bic
 
     def parameter_guess(self, t):
         guess_P = [1 / (i + 1) for i in range(1, self.number_of_exponentials)]
@@ -94,6 +125,12 @@ class ExponentialDistribution:
 
     def BIC(self, t, *optimal_parameters):
         return len(optimal_parameters) * np.log(len(t)) - 2 * self.loglikelihood(optimal_parameters, t)
+
+    def BIC_histogram(self, bin_centers, counts, *optimal_parameters):
+        bic = len(optimal_parameters) * np.log(len(bin_centers))
+        for bin_center, count in zip(bin_centers, counts):
+            bic = bic - 2 * self.loglikelihood(optimal_parameters, bin_center) * count
+        return bic
 
     # def parameters_to_dataframe(self, parameters, bic=True, dwell_times=None):
     #     dwell_analysis = {}
@@ -117,7 +154,7 @@ class ExponentialDistribution:
     #     parameters.pop(self.number_of_exponentials-1)
     #     return parameters
 
-    def parameters_to_dataset(self, parameters, dwell_times, method):
+    def parameters_to_dataset(self, parameters, dwell_times, method, bic=None):
         # coords = dict(parameter=pd.MultiIndex.from_product((['P','k'], np.arange(self.number_of_exponentials)), names=['name', 'component']))
         # coords = dict(parameter=('parameter', np.repeat(['P','k'],2)),
         #               component=('parameter', list(range(self.number_of_exponentials))*2))
@@ -137,8 +174,9 @@ class ExponentialDistribution:
         data_vars['k'] = xr.DataArray(k, dims=('component')).expand_dims('fit')
         data_vars['k'].attrs['units'] = 's⁻¹'
 
-        data_vars['BIC'] = xr.DataArray([self.BIC(dwell_times, *parameters)], dims=('fit'))
-        data_vars['BIC'].attrs['units'] = ''
+        if bic is not None:
+            data_vars['BIC'] = xr.DataArray([bic], dims=('fit'))
+            data_vars['BIC'].attrs['units'] = ''
 
         data_vars['fit_function'] = xr.DataArray(['exponential'], dims='fit')
         data_vars['fit_method'] =  xr.DataArray([method], dims='fit')
@@ -157,7 +195,7 @@ class ExponentialDistribution:
         parameters.pop(self.number_of_exponentials-1)
         return parameters
 
-def auto_bin_size_for_discrete_data(dwell_times, plot_range=None):
+def auto_bin_size_for_discrete_data(dwell_times):
     dwell_times.sort()
     d = np.diff(dwell_times)
     bin_width_min = d[d > 0][1]
@@ -169,22 +207,27 @@ def auto_bin_size_for_discrete_data(dwell_times, plot_range=None):
 
     bin_width = np.ceil(bin_width / bin_width_min) * bin_width_min
 
-    if plot_range is None:
-        plot_range = (bin_width / 2, np.percentile(dwell_times, 99))
-        # plot_range = (np.min(dwell_times) / 2, np.max(dwell_times))
+    # plot_range = (bin_width / 2, np.percentile(dwell_times, 99))
+    # plot_range = (np.min(dwell_times) / 2, np.max(dwell_times))
+    plot_range = (np.min(dwell_times) / 2, np.max(dwell_times))
 
     bin_edges = np.arange(plot_range[0], plot_range[1], bin_width)
 
     return bin_edges
 
-def plot_dwell_time_histogram(dwell_times, bins='auto_discrete', plot_range=None, ax=None, **hist_kwargs):
+def plot_dwell_time_histogram(dwell_times, bins='auto_discrete', range=None, ax=None, **hist_kwargs):
     if ax is None:
         fig, ax = plt.subplots()
 
     if bins == 'auto_discrete':
-        bins = auto_bin_size_for_discrete_data(dwell_times, plot_range=plot_range)
+        bins = auto_bin_size_for_discrete_data(dwell_times)
+        bins = bins[(bins>range[0])&(bins<range[1])]
+    else:
+        bins = np.histogram_bin_edges(dwell_times, bins=bins, range=range)
 
-    counts, bin_edges, _ = ax.hist(dwell_times, bins=bins, density=True, **hist_kwargs)
+    weights = (1/len(dwell_times)/np.diff(bins)[0],) * len(dwell_times) # Assuming evenly spaced bins
+    counts, bin_edges, _ = ax.hist(dwell_times, bins=bins, range=range, weights=weights, density=False, **hist_kwargs)
+    # relative_counts = counts/(len(dwell_times) * np.diff(bin_edges))
     bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
     ax.set_ylim(0,counts.max()*1.03)
     return counts, bin_centers
@@ -202,16 +245,20 @@ def plot_empirical_cdf(dwell_times, ax=None, **plot_kwargs):
 
     ax.plot(t, ecdf, **plot_kwargs)
 
-def fit_dwell_times(dwell_times, method='maximum_likelihood_estimation', number_of_exponentials=[1,2], **fit_kwargs):
+def fit_dwell_times(dwell_times, method='maximum_likelihood_estimation', number_of_exponentials=[1,2],
+                    P_bounds=(0,1), k_bounds=(0,np.inf), analyze_dwells_kwargs={}):
     if isinstance(number_of_exponentials, numbers.Number):
         number_of_exponentials = [number_of_exponentials]
 
+
+
     dwell_analysis = []
     for e in number_of_exponentials:
-        distribution = ExponentialDistribution(e)
-        optimal_parameters, parameter_errors = getattr(distribution, method)(dwell_times, **fit_kwargs)
+        distribution = ExponentialDistribution(e, P_bounds, k_bounds)
+        # self.bounds[self.bounds[:, 1] > bounds_max, 1] = bounds_max
+        optimal_parameters, parameter_errors, bic = getattr(distribution, method)(dwell_times, **analyze_dwells_kwargs)
         # dwell_analysis.append(distribution.parameters_to_dataframe(optimal_parameters, bic=True, dwell_times=dwell_times))
-        dwell_analysis.append(distribution.parameters_to_dataset(optimal_parameters, dwell_times=dwell_times, method=method))
+        dwell_analysis.append(distribution.parameters_to_dataset(optimal_parameters, dwell_times=dwell_times, method=method, bic=bic))
 
     # dwell_analysis[e] = {'parameters': optimal_parameters,
     #                   'parameter_errors': parameter_errors,
@@ -236,7 +283,7 @@ def plot_dwell_analysis_state(dwell_analysis, dwell_times, plot_type='pdf', plot
         if log:
             ax.set_yscale('log')
 
-    dwell_analysis_formatted = dwell_analysis[['P','k','BIC','number_of_components']].to_dataframe().dropna() #dwell_analysis.copy()
+    dwell_analysis_formatted = dwell_analysis[['P','k','BIC','number_of_components']].to_dataframe().dropna(subset=['P','k']) #dwell_analysis.copy()
     dwell_analysis_formatted['P'] = [f'{float(x):.2f}' if pd.notna(x) else '' for x in dwell_analysis_formatted['P']]
     dwell_analysis_formatted['k'] = [f'{float(x):.4f} /s' if pd.notna(x) else '' for x in dwell_analysis_formatted['k']]
     dwell_analysis_formatted['BIC'] = [f'{float(x):.0f}' if pd.notna(x) else '' for x in dwell_analysis_formatted['BIC']]
@@ -291,7 +338,7 @@ def plot_dwell_analysis_state(dwell_analysis, dwell_times, plot_type='pdf', plot
 
     return ax.figure, ax
 
-def analyze_dwells(dwells, method='maximum_likelihood_estimation', number_of_exponentials=[1,2,3], state_names=None, **kwargs):
+def analyze_dwells(dwells, method='maximum_likelihood_estimation', number_of_exponentials=[1,2,3], state_names=None, analyze_dwells_kwargs={}):
     # number_of_exponentials can be given per state as {0: [1,2,3], 1: [1,2]}
     if state_names is None:
         states = np.unique(dwells.state)
@@ -338,7 +385,7 @@ def analyze_dwells(dwells, method='maximum_likelihood_estimation', number_of_exp
         dwells_with_state = dwells.sel(dwell=dwells.state==state)
 
         dwell_times = dwells_with_state.duration.values
-        dwell_analysis_state = fit_dwell_times(dwell_times, method=method, number_of_exponentials=number_of_exponentials[state], **kwargs)
+        dwell_analysis_state = fit_dwell_times(dwell_times, method=method, number_of_exponentials=number_of_exponentials[state], analyze_dwells_kwargs=analyze_dwells_kwargs)
         dwell_analysis.append(dwell_analysis_state.expand_dims({'state': [state]}))
 
     dwell_analysis = xr.concat(dwell_analysis, dim='state')
