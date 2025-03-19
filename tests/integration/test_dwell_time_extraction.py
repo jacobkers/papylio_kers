@@ -1,13 +1,10 @@
 import numpy as np
 import pytest
+import xarray as xr
+from pytest_datadir.plugin import shared_datadir
 
 from papylio.analysis.dwell_time_extraction import dwell_times_from_classification
 
 @pytest.fixture
-def dwells():
-    classification = np.array([-1, -1, 2, 2, 2, 2, 1, 1, 2, 2, 2, 1, 1, 1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 0, 0, 0, 0, 0]*10)
-    classification = np.repeat(classification[None, :], 5, axis=0)
-    traces = np.random.random(classification.shape)
-
-    return dwell_times_from_classification(classification, traces=traces, cycle_time=0.1)
-
+def dwells(shared_datadir):
+    return xr.load_dataset(shared_datadir / 'Papylio example dataset - analyzed' / 'ssHJ1' / 'ssHJ1 TIRF 561 0001_dwells.nc')
