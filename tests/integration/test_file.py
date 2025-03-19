@@ -19,7 +19,7 @@ def experiment_hj(shared_datadir):
 
 @pytest.fixture
 def file_hj(experiment_hj):
-    return experiment_hj.files[1]
+    return experiment_hj.files.select('HJ')[0]
 
 @pytest.fixture
 def experiment_output(shared_datadir):
@@ -113,6 +113,6 @@ def test_analyze_dwells(file_hj):
                            plot=False)
 
 def test_plot_dwell_analysis(file_hj):
-    file_hj.analyze_dwells(method='maximum_likelihood_estimation', number_of_exponentials=[1, 2, 3], state_names=None,
-                           plot=False)
-    file_hj.plot_dwell_analysis(plot_type='pdf', log=False)
+    file_hj.analyze_dwells(method='maximum_likelihood_estimation', number_of_exponentials=[1,2,3], state_names=None,
+                           plot=False, analyze_dwells_kwargs=dict())
+    file_hj.plot_dwell_analysis(plot_type='pdf', log=False, plot_range=(0,3))
