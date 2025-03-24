@@ -550,7 +550,8 @@ def analyze_dwells(dwells, method='maximum_likelihood_estimation', number_of_exp
 
 
 # [['P','k']].to_dataframe().dropna()
-def plot_dwell_analysis(dwell_analysis, dwells, plot_type='pdf_binned', plot_range=None, axes=None, bins='auto_discrete', log=False, sharey=True):
+def plot_dwell_analysis(dwell_analysis, dwells, plot_type='pdf_binned', plot_range=None, axes=None, bins='auto_discrete',
+                        log=False, sharey=True):
 
     # states = dwell_analysis.index.get_level_values('State').unique().values
     states = dwell_analysis.state.values
@@ -566,6 +567,10 @@ def plot_dwell_analysis(dwell_analysis, dwells, plot_type='pdf_binned', plot_ran
 
     if axes is None:
         fig, axes = plt.subplots(1,len(states), figsize=(len(states)*4.5, 4), layout='constrained', sharey=sharey)
+
+    from collections.abc import Iterable
+    if isinstance(axes, Iterable):
+        axes = [axes]
 
     for i, (state, dwell_analysis_state) in enumerate(dwell_analysis.groupby('state')):
 
