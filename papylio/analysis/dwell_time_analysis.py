@@ -8,7 +8,7 @@ import numbers
 import papylio
 
 class ExponentialDistribution:
-    def __init__(self, number_of_exponentials, P_bounds=(-np.inf,np.inf), k_bounds=(1e-9,np.inf), truncation=None,
+    def __init__(self, number_of_exponentials, P_bounds=(-1,1), k_bounds=(1e-9,np.inf), truncation=None,
                  sampling_interval=None):
         self.number_of_exponentials = number_of_exponentials
         self.P_bounds = P_bounds
@@ -122,7 +122,7 @@ class ExponentialDistribution:
         return -self.loglikelihood_binned(parameters, bin_centers, counts)
 
     def mle(self, *args, **kwargs):
-        return self.maximum_likelihood_estimation(self, *args, **kwargs)
+        return self.maximum_likelihood_estimation(*args, **kwargs)
 
     def maximum_likelihood_estimation(self, dwell_times, scipy_optimize_method='minimize', **kwargs):
         scipy_optimize_kwargs = dict(bounds = self.bounds)
@@ -151,6 +151,8 @@ class ExponentialDistribution:
         for key, item in scipy_optimize_kwargs.items():
             if isinstance(item, np.ndarray):
                 item = item.tolist()
+            elif isinstance(item, bool):
+                item = str(item)
             dwell_analysis.attrs['scipy_optimize_'+key] = item
         # dwell_analysis.attrs['scipy_optimize_kwargs'] = scipy_optimize_kwargs
 
@@ -159,14 +161,13 @@ class ExponentialDistribution:
     def hist_fit(self, *args, **kwargs):
         return self.histogram_fit(*args, **kwargs)
 
-    def histogram_fit(self, dwell_times, bins='auto_discrete', remove_first_bins=None, **kwargs):
+    def histogram_fit(self, dwell_times, bins='auto_discrete', remove_first_bins=0, **kwargs):
         if bins == 'auto_discrete':
             bin_edges = auto_bin_size_for_discrete_data(dwell_times)
         else:
             bin_edges = np.histogram_bin_edges(dwell_times, bins=bins)
 
-        if remove_first_bins is not None:
-            bins = bins[remove_first_bins:]
+        bin_edges = bin_edges[remove_first_bins:]
 
         self.bin_width = bin_edges[1] - bin_edges[0]
         weights = (1 / len(dwell_times) / self.bin_width,) * len(dwell_times)  # Assuming evenly spaced bins
@@ -190,6 +191,8 @@ class ExponentialDistribution:
         for key, item in scipy_curve_fit_kwargs.items():
             if isinstance(item, np.ndarray):
                 item = item.tolist()
+            elif isinstance(item, bool):
+                item = str(item)
             dwell_analysis.attrs['scipy_curve_fit_'+key] = item
 
         return dwell_analysis
@@ -221,6 +224,8 @@ class ExponentialDistribution:
         for key, item in scipy_curve_fit_kwargs.items():
             if isinstance(item, np.ndarray):
                 item = item.tolist()
+            elif isinstance(item, bool):
+                item = str(item)
             dwell_analysis.attrs['scipy_curve_fit_'+key] = item
 
         return dwell_analysis
@@ -380,7 +385,7 @@ def plot_empirical_cdf(dwell_times, sampling_interval, ax=None, **plot_kwargs):
     ax.plot(t, ecdf, **plot_kwargs)
 
 def fit_dwell_times(dwell_times, method='maximum_likelihood_estimation', number_of_exponentials=[1,2],
-                    P_bounds=(-np.inf,np.inf), k_bounds=(0,np.inf), sampling_interval=None, fit_dwell_times_kwargs={}):
+                    P_bounds=(-1,1), k_bounds=(0,np.inf), sampling_interval=None, fit_dwell_times_kwargs={}):
     if isinstance(number_of_exponentials, numbers.Number):
         number_of_exponentials = [number_of_exponentials]
 
@@ -490,7 +495,7 @@ def plot_dwell_analysis_state(dwell_analysis, dwell_times, plot_type='pdf_binned
     return ax.figure, ax
 
 def analyze_dwells(dwells, method='maximum_likelihood_estimation', number_of_exponentials=[1,2,3], state_names=None,
-                   P_bounds=(-np.inf,np.inf), k_bounds=(1e-9,np.inf), sampling_interval=None, fit_dwell_times_kwargs={}):
+                   P_bounds=(-1,1), k_bounds=(1e-9,np.inf), sampling_interval=None, fit_dwell_times_kwargs={}):
     # number_of_exponentials can be given per state as {0: [1,2,3], 1: [1,2]}
     if state_names is None:
         states = np.unique(dwells.state)
