@@ -153,7 +153,11 @@ class ExponentialDistribution:
                 item = item.tolist()
             elif isinstance(item, bool):
                 item = str(item)
-            dwell_analysis.attrs['scipy_optimize_'+key] = item
+            if key == 'bounds':
+                dwell_analysis.attrs['scipy_optimize_bounds_min'] = [b[0] for b in item]
+                dwell_analysis.attrs['scipy_optimize_bounds_max'] = [b[1] for b in item]
+            else:
+                dwell_analysis.attrs['scipy_optimize_'+key] = item
         # dwell_analysis.attrs['scipy_optimize_kwargs'] = scipy_optimize_kwargs
 
         return dwell_analysis
@@ -193,7 +197,11 @@ class ExponentialDistribution:
                 item = item.tolist()
             elif isinstance(item, bool):
                 item = str(item)
-            dwell_analysis.attrs['scipy_curve_fit_'+key] = item
+            if key == 'bounds':
+                dwell_analysis.attrs['scipy_curve_fit_bounds_min'] = [b[0] for b in item]
+                dwell_analysis.attrs['scipy_curve_fit_bounds_max'] = [b[1] for b in item]
+            else:
+                dwell_analysis.attrs['scipy_curve_fit_'+key] = item
 
         return dwell_analysis
         #
@@ -226,7 +234,11 @@ class ExponentialDistribution:
                 item = item.tolist()
             elif isinstance(item, bool):
                 item = str(item)
-            dwell_analysis.attrs['scipy_curve_fit_'+key] = item
+            if key == 'bounds':
+                dwell_analysis.attrs['scipy_curve_fit_bounds_min'] = [b[0] for b in item]
+                dwell_analysis.attrs['scipy_curve_fit_bounds_max'] = [b[1] for b in item]
+            else:
+                dwell_analysis.attrs['scipy_curve_fit_' + key] = item
 
         return dwell_analysis
 
@@ -385,16 +397,19 @@ def plot_empirical_cdf(dwell_times, sampling_interval, ax=None, **plot_kwargs):
     ax.plot(t, ecdf, **plot_kwargs)
 
 def fit_dwell_times(dwell_times, method='maximum_likelihood_estimation', number_of_exponentials=[1,2],
-                    P_bounds=(-1,1), k_bounds=(0,np.inf), sampling_interval=None, fit_dwell_times_kwargs={}):
+                    P_bounds=(-1,1), k_bounds=(0,np.inf), sampling_interval=None, truncation=None, fit_dwell_times_kwargs={}):
     if isinstance(number_of_exponentials, numbers.Number):
         number_of_exponentials = [number_of_exponentials]
 
     if sampling_interval is None:
         sampling_interval = np.min(dwell_times)
 
+    if truncation is None:
+        truncation = (sampling_interval / 2, np.inf)
+
     dwell_analysis = []
     for i in number_of_exponentials:
-        distribution = ExponentialDistribution(i, P_bounds, k_bounds, truncation=(sampling_interval/2, np.inf),
+        distribution = ExponentialDistribution(i, P_bounds, k_bounds, truncation=truncation,
                                                sampling_interval=sampling_interval)
         # self.bounds[self.bounds[:, 1] > bounds_max, 1] = bounds_max
         dwell_analysis_i = getattr(distribution, method)(dwell_times, **fit_dwell_times_kwargs)
@@ -495,7 +510,7 @@ def plot_dwell_analysis_state(dwell_analysis, dwell_times, plot_type='pdf_binned
     return ax.figure, ax
 
 def analyze_dwells(dwells, method='maximum_likelihood_estimation', number_of_exponentials=[1,2,3], state_names=None,
-                   P_bounds=(-1,1), k_bounds=(1e-9,np.inf), sampling_interval=None, fit_dwell_times_kwargs={}):
+                   P_bounds=(-1,1), k_bounds=(1e-9,np.inf), sampling_interval=None, truncation=None, fit_dwell_times_kwargs={}):
     # number_of_exponentials can be given per state as {0: [1,2,3], 1: [1,2]}
     if state_names is None:
         states = np.unique(dwells.state)
@@ -544,7 +559,7 @@ def analyze_dwells(dwells, method='maximum_likelihood_estimation', number_of_exp
         dwell_times = dwells_with_state.duration.values
         dwell_analysis_state = fit_dwell_times(dwell_times, method=method, number_of_exponentials=number_of_exponentials[state],
                                                P_bounds=P_bounds, k_bounds=k_bounds, sampling_interval=sampling_interval,
-                                               fit_dwell_times_kwargs=fit_dwell_times_kwargs)
+                                               truncation=truncation, fit_dwell_times_kwargs=fit_dwell_times_kwargs)
         dwell_analysis.append(dwell_analysis_state.expand_dims({'state': [state]}))
 
     dwell_analysis = xr.concat(dwell_analysis, dim='state')
