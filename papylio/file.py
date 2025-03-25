@@ -1471,8 +1471,8 @@ class File:
     def dwells(self):
         return xr.load_dataset(self.absoluteFilePath.with_name(self.name + '_dwells').with_suffix('.nc'), engine='netcdf4')
 
-    def analyze_dwells(self, method='maximum_likelihood_estimation', number_of_exponentials=[1,2,3], state_names=None,
-                       plot=False, analyze_dwells_kwargs={}, plot_dwell_analysis_kwargs={}):
+    def analyze_dwells(self, method='maximum_likelihood_estimation', number_of_exponentials=[1,2], state_names=None,
+                       truncation=None, plot=False, fit_dwell_times_kwargs={}, plot_dwell_analysis_kwargs={}, save_file_path=None):
 
         dwells = self.dwells
 
@@ -1481,32 +1481,36 @@ class File:
         # for n in np.arange(dwells.number_of_states.max().item())+1:
         #     dwells['state'][dict(dwell=(dwells['number_of_states'] == n) & dwells['state'] >= 0)] += n-1
 
+        #TODO: Add sampling interval to File and refer to it here?
         dwell_analysis = analyze_dwells(dwells, method=method, number_of_exponentials=number_of_exponentials,
-                                        state_names=state_names, **analyze_dwells_kwargs)
+                                        state_names=state_names, P_bounds=(-1, 1), k_bounds=(1e-9, np.inf),
+                                        sampling_interval=None, truncation=truncation, fit_dwell_times_kwargs=fit_dwell_times_kwargs)
 
-        self.dwell_analysis = dwell_analysis
+        if save_file_path is None:
+            self.dwell_analysis = dwell_analysis
+        else:
+            dwell_analysis.to_netcdf(self.absoluteFilePath.with_name(save_file_path).with_suffix('.nc'),
+                                     engine='netcdf4', mode='w')
 
         if plot:
             self.plot_dwell_analysis(**plot_dwell_analysis_kwargs)
 
         return dwell_analysis
 
-    def plot_dwell_analysis(self, name=None, plot_type='pdf', plot_range=None, axes=None, bins='auto_discrete', log=False, sharey=False):
+    def plot_dwell_analysis(self, name=None, plot_type='pdf', plot_range=None, axes=None, bins='auto_discrete',
+                            log=False, sharey=False, save_path='None'):
         dwell_analysis = self.dwell_analysis
         dwells = self.dwells
-
-        fig, axes = plot_dwell_analysis(dwell_analysis, dwells, plot_type=plot_type, plot_range=plot_range, axes=axes, bins=bins, log=log, sharey=sharey)
 
         if name is None:
             name = self.name
 
         # axes[0].set_title(name)
-        save_path = self.experiment.analysis_path / 'Dwell time analysis'
-        save_path.mkdir(exist_ok=True)
-        if log:
-            axes[0].figure.savefig(save_path / (name + '_dwell_time_analysis_log.png'))
-        else:
-            axes[0].figure.savefig(save_path / (name + '_dwell_time_analysis.png'))
+        if save_path is None:
+            save_path = self.experiment.analysis_path / 'Dwell time analysis'
+
+        fig, axes = plot_dwell_analysis(dwell_analysis, dwells, plot_type=plot_type, plot_range=plot_range, axes=axes,
+                                        bins=bins, log=log, sharey=sharey, name=name, save_path=save_path)
 
         return axes[0].figure, axes
 
@@ -1786,6 +1790,7 @@ class File:
             plt.show()
 
     def show_coordinates_in_image(self, figure=None, **kwargs):
+        #TODO: change figure to axis
         if not figure:
             figure = plt.figure()
 
