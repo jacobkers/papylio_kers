@@ -433,6 +433,7 @@ def plot_dwell_analysis_state(dwell_analysis, dwell_times, plot_type='pdf_binned
         plot_range = (0, np.max(dwell_times)) #np.quantile(dwell_times, 0.99))
 
     sampling_interval = dwell_analysis.sampling_interval
+    truncation = dwell_analysis.truncation
 
     if plot_type in ['pdf', 'pdf_binned']:
         counts, bin_centers = plot_dwell_time_histogram(dwell_times, bins=bins, range=plot_range, log=log, ax=ax)
@@ -483,7 +484,7 @@ def plot_dwell_analysis_state(dwell_analysis, dwell_times, plot_type='pdf_binned
     #             label=label)
 
     for i, number_of_exponentials in enumerate(np.unique(number_of_components)):
-        distribution = ExponentialDistribution(number_of_exponentials, truncation=(sampling_interval/2, np.inf),
+        distribution = ExponentialDistribution(number_of_exponentials, truncation=truncation,
                                                sampling_interval=sampling_interval)
         distribution.bin_width = bin_width
         label = '\n'.join(labels[dwell_analysis_formatted.reset_index().number_of_components == number_of_exponentials])
@@ -596,10 +597,10 @@ def plot_dwell_analysis(dwell_analysis, dwells, plot_type='pdf_binned', plot_ran
 
         dwell_times = dwells.sel(dwell=dwells.state==state).duration.values
         plot_dwell_analysis_state(dwell_analysis_state, dwell_times, plot_type=plot_type[i], plot_range=plot_range[i], bins=bins[i], log=log, ax=axes[i])
-        if 'state_name' in dwell_analysis_state.data_vars:
-            axes[i].set_title(dwell_analysis_state.state_name[0])
+        if 'state_name' in dwell_analysis_state.coords:
+            axes[i].set_title(f'State {state}: {dwell_analysis_state.state_name.item()}')
         else:
-            axes[i].set_title(state)
+            axes[i].set_title(f'State {state}')
 
         if i > 0:
             axes[i].set_ylabel('')
