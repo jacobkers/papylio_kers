@@ -198,8 +198,8 @@ class ExponentialDistribution:
             elif isinstance(item, bool):
                 item = str(item)
             if key == 'bounds':
-                dwell_analysis.attrs['scipy_curve_fit_bounds_min'] = [b[0] for b in item]
-                dwell_analysis.attrs['scipy_curve_fit_bounds_max'] = [b[1] for b in item]
+                dwell_analysis.attrs['scipy_curve_fit_bounds_min'] = item[0]
+                dwell_analysis.attrs['scipy_curve_fit_bounds_max'] = item[1]
             else:
                 dwell_analysis.attrs['scipy_curve_fit_'+key] = item
 
@@ -235,8 +235,8 @@ class ExponentialDistribution:
             elif isinstance(item, bool):
                 item = str(item)
             if key == 'bounds':
-                dwell_analysis.attrs['scipy_curve_fit_bounds_min'] = [b[0] for b in item]
-                dwell_analysis.attrs['scipy_curve_fit_bounds_max'] = [b[1] for b in item]
+                dwell_analysis.attrs['scipy_curve_fit_bounds_min'] = item[0]
+                dwell_analysis.attrs['scipy_curve_fit_bounds_max'] = item[1]
             else:
                 dwell_analysis.attrs['scipy_curve_fit_' + key] = item
 
