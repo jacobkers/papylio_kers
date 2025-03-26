@@ -34,7 +34,7 @@ class ExponentialDistribution:
         self.k_bounds = k_bounds
         # self.bounds = np.array([(0, np.inf)] * (2 * self.number_of_exponentials - 1))
         self.bounds = np.array([P_bounds] * (self.number_of_exponentials - 1) + [k_bounds] * self.number_of_exponentials)
-        self.truncation = truncation
+        self.truncation = list(truncation)
         self.sampling_interval = sampling_interval
 
     def __call__(self, t, *parameters):
@@ -106,7 +106,7 @@ class ExponentialDistribution:
         parameters = np.array(parameters)
         P = parameters[0:(self.number_of_exponentials-1)]
         P = np.hstack([P, [1-np.sum(P)]])
-        k = parameters[(self.number_of_exponentials - 1):]
+        k = parameters[(self.number_of_exponentials - 1):(self.number_of_exponentials*2 - 1)]
         return P, k
 
     def pdf(self, t, *parameters):
@@ -180,6 +180,14 @@ class ExponentialDistribution:
         array
             Computed CDF values.
         """
+        if len(parameters) == self.number_of_exponentials * 2 - 1 + 1:
+            self.truncation[0] = parameters[-1]
+            parameters = parameters[:-1]
+        # elif self.truncation is not None:
+        #     truncation = self.truncation
+        # else:
+        #     truncation = None
+
         cdf = self.cdf_untruncated(t, *parameters)
 
         if self.truncation is not None:
@@ -252,6 +260,10 @@ class ExponentialDistribution:
         float
             Computed log-likelihood value.
         """
+        if len(parameters) == self.number_of_exponentials * 2 - 1 + 1:
+            self.truncation[0] = parameters[-1]
+            parameters = parameters[:-1]
+
         if self.truncation is not None:
             t = t[(t > self.truncation[0]) | (t < self.truncation[1])]
 
@@ -299,7 +311,9 @@ class ExponentialDistribution:
             The log-likelihood value.
         """
         if self.truncation is not None:
-            bin_centers = bin_centers[(bin_centers > self.truncation[0]) | (bin_centers < self.truncation[1])]
+            selection = (bin_centers > self.truncation[0]) | (bin_centers < self.truncation[1])
+            bin_centers = bin_centers[selection]
+            counts = counts[selection]
 
         probability_density = self.pdf_binned(bin_centers, *parameters) + 1e-10
         loglikelihood = np.sum(counts * np.log(probability_density * self.bin_width))
@@ -347,7 +361,7 @@ class ExponentialDistribution:
         """
         return self.maximum_likelihood_estimation(*args, **kwargs)
 
-    def maximum_likelihood_estimation(self, dwell_times, scipy_optimize_method='minimize', **kwargs):
+    def maximum_likelihood_estimation(self, dwell_times, scipy_optimize_method='minimize', free_truncation_min=False, **kwargs):
         """
         Performs maximum likelihood estimation (MLE) to determine the best-fit parameters.
 
@@ -367,9 +381,14 @@ class ExponentialDistribution:
            and optimization metadata.
         """
         scipy_optimize_kwargs = dict(bounds = self.bounds)
+        if free_truncation_min:
+            scipy_optimize_kwargs['bounds'] = np.concatenate([scipy_optimize_kwargs['bounds'], np.array([[0, dwell_times.min()*2]])])
 
         if scipy_optimize_method in ['minimize', 'basinhopping', 'dual_annealing', 'differential_evolution']:
             scipy_optimize_kwargs['x0'] = self.parameter_guess(dwell_times)
+
+            if free_truncation_min:
+                scipy_optimize_kwargs['x0'] += [self.truncation[0]]
 
         # def constraint(parameters):
         #     P, k = self.P_and_k_from_parameters(parameters)
@@ -423,7 +442,7 @@ class ExponentialDistribution:
         """
         return self.histogram_fit(*args, **kwargs)
 
-    def histogram_fit(self, dwell_times, bins='auto_discrete', remove_first_bins=0, **kwargs):
+    def histogram_fit(self, dwell_times, bins='auto_discrete', free_truncation_min=True, remove_first_bins=0, **kwargs):
         """
         Fits an exponential distribution to a histogram of dwell-time data.
 
@@ -445,6 +464,7 @@ class ExponentialDistribution:
             A dataset containing the estimated parameters, their errors, Bayesian Information
             Criterion (BIC), and metadata about the fitting procedure.
         """
+
         if bins == 'auto_discrete':
             bin_edges = auto_bin_size_for_discrete_data(dwell_times)
         else:
@@ -459,6 +479,10 @@ class ExponentialDistribution:
         scipy_curve_fit_kwargs = dict(p0 = self.parameter_guess(dwell_times),
                                       bounds = self.bounds.T, absolute_sigma=True)
         scipy_curve_fit_kwargs.update(kwargs)
+
+        if free_truncation_min:
+            scipy_curve_fit_kwargs['p0'] += [self.truncation[0]]
+            scipy_curve_fit_kwargs['bounds'] = np.concatenate([scipy_curve_fit_kwargs['bounds'].T, np.array([[0, dwell_times.min()*2]])]).T
 
         bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
         optimal_parameters, parameter_covariances = scipy.optimize.curve_fit(self.pdf_binned, bin_centers, counts,
@@ -493,7 +517,7 @@ class ExponentialDistribution:
         # ax.plot(t_fit, y_fit)
         # ax.plot(t_hist, y_hist)
 
-    def cdf_fit(self, dwell_times, **kwargs):
+    def cdf_fit(self, dwell_times, free_truncation_min=True, **kwargs):
         """
         Fit the cumulative distribution function (CDF) to the given dwell times using curve fitting.
 
@@ -513,11 +537,16 @@ class ExponentialDistribution:
 
         scipy_curve_fit_kwargs = dict(p0 = self.parameter_guess(dwell_times),
                                       bounds = self.bounds.T, absolute_sigma=True)
+        if free_truncation_min:
+            scipy_curve_fit_kwargs['p0'] += [self.truncation[0]]
+            scipy_curve_fit_kwargs['bounds'] = np.concatenate([scipy_curve_fit_kwargs['bounds'].T, np.array([[0, dwell_times.min()*2]])]).T
+
         scipy_curve_fit_kwargs.update(kwargs)
 
         optimal_parameters, parameter_covariances = scipy.optimize.curve_fit(self.cdf, t, ecdf,
                                                                              **scipy_curve_fit_kwargs)
         parameter_errors = np.sqrt(np.diag(parameter_covariances))
+
         BIC = self.BIC(dwell_times, optimal_parameters) #TODO: change or check BIC calculation
 
         dwell_analysis = self.parameters_to_dataset(optimal_parameters, parameter_errors=parameter_errors, BIC=BIC)
@@ -666,8 +695,9 @@ class ExponentialDistribution:
         # bic = xr.DataArray([self.BIC(dwell_times, *parameters)], dims=('fit'))
         # dwell_analysis = xr.Dataset(dict(parameter=parameters, bic=bic))
         data_vars = {} # dict(P=P, k=k, BIC=BIC, fit_function=fit_function, fit_method=fit_method, number_of_components=number_of_components)
-        P = self.parameters_full(parameters)[0:self.number_of_exponentials]
-        k = self.parameters_full(parameters)[self.number_of_exponentials:]
+        parameters_full = self.parameters_full(parameters)
+        P = parameters_full[0:self.number_of_exponentials]
+        k = parameters_full[self.number_of_exponentials:self.number_of_exponentials*2]
 
         data_vars['P'] = xr.DataArray(P, dims=('component')).expand_dims('fit')
         data_vars['P'].attrs['units'] = ''
@@ -675,15 +705,26 @@ class ExponentialDistribution:
         data_vars['k'] = xr.DataArray(k, dims=('component')).expand_dims('fit')
         data_vars['k'].attrs['units'] = 's⁻¹'
 
+        if len(parameters_full) > 2 * self.number_of_exponentials:
+            truncation = parameters_full[self.number_of_exponentials*2:]
+            data_vars['truncation_min'] = xr.DataArray(truncation[0]).expand_dims('fit')
+            data_vars['truncation_min'].attrs['units'] = 's'
+
         if parameter_errors is not None:
             P_error = self.parameters_full(parameter_errors)[0:self.number_of_exponentials]
-            k_error = self.parameters_full(parameter_errors)[self.number_of_exponentials:]
+            P_error[-1] = np.nan
+            k_error = self.parameters_full(parameter_errors)[self.number_of_exponentials:self.number_of_exponentials*2]
 
             data_vars['P_error'] = xr.DataArray(P_error, dims=('component')).expand_dims('fit')
             data_vars['P_error'].attrs['units'] = ''
 
             data_vars['k_error'] = xr.DataArray(k_error, dims=('component')).expand_dims('fit')
             data_vars['k_error'].attrs['units'] = 's⁻¹'
+
+            if len(parameters_full) > 2 * self.number_of_exponentials:
+                truncation_errors = self.parameters_full(parameter_errors)[self.number_of_exponentials*2:]
+                data_vars['truncation_min_error'] = xr.DataArray(truncation_errors[0]).expand_dims('fit')
+                data_vars['truncation_min_error'].attrs['units'] = 's'
 
         if BIC is not None:
             data_vars['BIC'] = xr.DataArray([BIC], dims=('fit'))
@@ -719,9 +760,11 @@ class ExponentialDistribution:
         parameters = parameters[~np.isnan(parameters)]
         parameters = list(parameters)
         parameters.pop(self.number_of_exponentials-1)
+        if 'truncation_min' in dataset.data_vars.keys():
+            parameters += [dataset['truncation_min'].item()]
         return parameters
 
-def auto_bin_size_for_discrete_data(dwell_times):
+def auto_bin_size_for_discrete_data(dwell_times, sampling_interval=None):
     """
     Calculate the optimal bin edges for a histogram of discrete data using the Freedman-Diaconis rule.
 
@@ -735,16 +778,18 @@ def auto_bin_size_for_discrete_data(dwell_times):
     bin_edges : numpy.ndarray
         The calculated bin edges for the histogram.
     """
-    dwell_times.sort()
-    d = np.diff(dwell_times)
-    bin_width_min = d[d > 0][1]
+    # dwell_times.sort()
+    # d = np.diff(dwell_times)
+    # bin_width_min = d[d > 0][1]
+    if sampling_interval is None:
+        sampling_interval = dwell_times.min()
 
     Q1 = np.percentile(dwell_times, 25)
     Q3 = np.percentile(dwell_times, 75)
     IQR = Q3 - Q1
-    bin_width = 2 * IQR / len(dwell_times) ** (1 / 3)
+    bin_width_fd = 2 * IQR / len(dwell_times) ** (1 / 3)
 
-    bin_width = np.ceil(bin_width / bin_width_min) * bin_width_min
+    bin_width = np.ceil(bin_width_fd / sampling_interval) * sampling_interval
 
     # plot_range = (bin_width / 2, np.percentile(dwell_times, 99))
     # plot_range = (np.min(dwell_times) / 2, np.max(dwell_times))
@@ -754,7 +799,7 @@ def auto_bin_size_for_discrete_data(dwell_times):
 
     return bin_edges
 
-def plot_dwell_time_histogram(dwell_times, bins='auto_discrete', range=None, ax=None, **hist_kwargs):
+def plot_dwell_time_histogram(dwell_times, bins='auto_discrete', range=None, sampling_interval=None, ax=None, **hist_kwargs):
     """
     Plot a histogram of dwell times with automatic bin sizing or specified bin edges.
 
@@ -782,7 +827,7 @@ def plot_dwell_time_histogram(dwell_times, bins='auto_discrete', range=None, ax=
         fig, ax = plt.subplots()
 
     if bins == 'auto_discrete':
-        bins = auto_bin_size_for_discrete_data(dwell_times)
+        bins = auto_bin_size_for_discrete_data(dwell_times, sampling_interval)
         bins = bins[(bins>range[0])&(bins<range[1])]
     else:
         bins = np.histogram_bin_edges(dwell_times, bins=bins, range=range)
@@ -941,10 +986,10 @@ def plot_dwell_analysis_state(dwell_analysis, dwell_times, plot_type='pdf_binned
         plot_range = (0, np.max(dwell_times)) #np.quantile(dwell_times, 0.99))
 
     sampling_interval = dwell_analysis.sampling_interval
-    truncation = dwell_analysis.truncation
 
     if plot_type in ['pdf', 'pdf_binned']:
-        counts, bin_centers = plot_dwell_time_histogram(dwell_times, bins=bins, range=plot_range, log=log, ax=ax)
+        counts, bin_centers = plot_dwell_time_histogram(dwell_times, bins=bins, range=plot_range,
+                                                        sampling_interval=sampling_interval, log=log, ax=ax)
         bin_width = bin_centers[1] - bin_centers[0]
     elif plot_type == 'cdf':
         plot_empirical_cdf(dwell_times, sampling_interval, ax=ax)
@@ -992,6 +1037,11 @@ def plot_dwell_analysis_state(dwell_analysis, dwell_times, plot_type='pdf_binned
     #             label=label)
 
     for i, number_of_exponentials in enumerate(np.unique(number_of_components)):
+        if 'truncation_min' in dwell_analysis.data_vars.keys():
+            truncation = [dwell_analysis.truncation_min[i].item(), np.inf]
+        else:
+            truncation = dwell_analysis.truncation
+
         distribution = ExponentialDistribution(number_of_exponentials, truncation=truncation,
                                                sampling_interval=sampling_interval)
         distribution.bin_width = bin_width

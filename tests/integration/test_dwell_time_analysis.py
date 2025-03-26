@@ -47,8 +47,9 @@ def test_analyze_dwells(dwells):
 def test_plot_dwell_analysis(dwells):
 
     dwell_analysis = analyze_dwells(dwells, method='maximum_likelihood_estimation', number_of_exponentials=[1, 2, 3],
-                                    state_names=None, P_bounds=(-1, 1), k_bounds=(0,np.inf))
-    plot_dwell_analysis(dwell_analysis, dwells, plot_range=(0, 2), axes=None, log=False, sharey=True, plot_type='pdf_binned')
+                                    state_names=None, P_bounds=(-1, 1), k_bounds=(0,np.inf),
+                                    fit_dwell_times_kwargs=dict(free_truncation_min=False))
+    plot_dwell_analysis(dwell_analysis, dwells, plot_range=(0, 2), axes=None, log=False, sharey=True, plot_type='pdf')
 
     dwell_analysis = analyze_dwells(dwells, method='histogram_fit', number_of_exponentials=[1,2,3], state_names=None,
                                     fit_dwell_times_kwargs=dict(maxfev=1e6), P_bounds=(-1,1), k_bounds=(0,np.inf))
@@ -58,11 +59,11 @@ def test_plot_dwell_analysis(dwells):
                                     fit_dwell_times_kwargs=dict(maxfev=1e6), P_bounds=(-1,1), k_bounds=(0,np.inf))
     plot_dwell_analysis(dwell_analysis, dwells, plot_range=(0,2), axes=None, log=False, sharey=True, plot_type='cdf')
 
-
     dwell_analysis = analyze_dwells(dwells, method='maximum_likelihood_estimation', number_of_exponentials=[1, 2, 3],
                                     state_names=None, P_bounds=(-1, 1), k_bounds=(0,10),
                                     fit_dwell_times_kwargs=dict(scipy_optimize_method='dual_annealing'))
-    plot_dwell_analysis(dwell_analysis, dwells, plot_range=(0, 2), axes=None, log=False, sharey=True)
+    plot_dwell_analysis(dwell_analysis, dwells, plot_range=(0, 2), axes=None, log=False, sharey=True, plot_type='pdf')
+
 
 
 def test_parameters_to_dataset(dwell_times_double_exponential):
