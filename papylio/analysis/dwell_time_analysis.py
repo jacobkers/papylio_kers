@@ -8,8 +8,27 @@ import numbers
 import papylio
 
 class ExponentialDistribution:
+    """
+    A class representing a mixture of exponential distributions.
+    """
     def __init__(self, number_of_exponentials, P_bounds=(-1,1), k_bounds=(1e-9,np.inf), truncation=None,
                  sampling_interval=None):
+        """
+        Initializes the ExponentialDistribution.
+
+        Parameters
+        ----------
+        number_of_exponentials : int
+            Number of exponential components.
+        P_bounds : tuple, optional
+            Bounds for probability parameters.
+        k_bounds : tuple, optional
+            Bounds for rate constants.
+        truncation : tuple or None, optional
+            Range for truncation.
+        sampling_interval : float or None, optional
+            Interval for sampling.
+        """
         self.number_of_exponentials = number_of_exponentials
         self.P_bounds = P_bounds
         self.k_bounds = k_bounds
@@ -19,15 +38,46 @@ class ExponentialDistribution:
         self.sampling_interval = sampling_interval
 
     def __call__(self, t, *parameters):
+        """
+        Computes the probability density function (PDF) for given parameters.
+
+        Parameters
+        ----------
+        t : array-like
+            Time values.
+        parameters : list
+            Model parameters.
+
+        Returns
+        -------
+        array
+            Computed PDF values.
+        """
         return self.pdf(t, *parameters)
 
     @property
     def parameter_names(self):
+        """
+        Returns the parameter names excluding the last probability term.
+
+        Returns
+        -------
+        list
+            List of parameter names.
+        """
         return ([f'P{i}' for i in range(self.number_of_exponentials-1)] +
                 [f'k{i}' for i in range(self.number_of_exponentials)])
 
     @property
     def parameter_names_full(self):
+        """
+        Returns all parameter names including the last probability term.
+
+        Returns
+        -------
+        list
+            List of all parameter names.
+        """
         return ([f'P{i}' for i in range(self.number_of_exponentials)] +
                 [f'k{i}' for i in range(self.number_of_exponentials)])
 
@@ -39,6 +89,20 @@ class ExponentialDistribution:
     #     return P
 
     def P_and_k_from_parameters(self, parameters):
+        """
+        Extracts probabilities and rate constants from parameter list.
+
+        Parameters
+        ----------
+        parameters : list or array
+            Input parameter values.
+
+        Returns
+        -------
+        tuple
+            P (array): Probability values.
+            k (array): Rate constants.
+        """
         parameters = np.array(parameters)
         P = parameters[0:(self.number_of_exponentials-1)]
         P = np.hstack([P, [1-np.sum(P)]])
@@ -46,6 +110,21 @@ class ExponentialDistribution:
         return P, k
 
     def pdf(self, t, *parameters):
+        """
+        Computes the probability density function (PDF).
+
+        Parameters
+        ----------
+        t : array-like
+            Time values.
+        parameters : list
+            Model parameters.
+
+        Returns
+        -------
+        array
+            Computed PDF values.
+        """
         # Parameters given as P1, P2, k1, k2, k3
         t = np.array(t)
         pdf = np.zeros_like(t).astype(float)
@@ -62,6 +141,22 @@ class ExponentialDistribution:
         return pdf
 
     def cdf_untruncated(self, t, *parameters):
+        """
+        Computes the cumulative distribution function (CDF) without truncation.
+
+
+        Parameters
+        ----------
+        t : array-like
+            Time values.
+        parameters : list
+            Model parameters.
+
+        Returns
+        -------
+        array
+            Computed CDF values.
+        """
         t = np.array(t)
         cdf = np.ones_like(t).astype(float)
         P, k = self.P_and_k_from_parameters(parameters)
@@ -70,6 +165,21 @@ class ExponentialDistribution:
         return cdf
 
     def cdf(self, t, *parameters):
+        """
+        Computes the cumulative distribution function (CDF), applying truncation if needed.
+
+        Parameters
+        ----------
+        t : array-like
+            Time values.
+        parameters : list
+            Model parameters.
+
+        Returns
+        -------
+        array
+            Computed CDF values.
+        """
         cdf = self.cdf_untruncated(t, *parameters)
 
         if self.truncation is not None:
@@ -81,6 +191,22 @@ class ExponentialDistribution:
         return cdf
 
     def pdf_binned(self, t, *parameters):
+        """
+        Computes the probability density function (PDF) for binned data.
+
+        Parameters
+        ----------
+        t : array-like
+            The time points at which to evaluate the binned PDF.
+        *parameters : tuple
+            Model parameters used for computing the PDF.
+
+        Returns
+        -------
+        array-like
+            The computed binned PDF values.
+        """
+
         # Parameters given as P1, P2, k1, k2, k3
         # result = np.zeros_like(t).astype(float)
         # P, k = self.P_and_k_from_parameters(parameters)
@@ -93,9 +219,39 @@ class ExponentialDistribution:
         return pdf_binned
 
     def likelihood(self, parameters, t):
+        """
+        Computes the likelihood function for given parameters.
+
+        Parameters
+        ----------
+        parameters : list
+            Model parameters.
+        t : array-like
+            Time values.
+
+        Returns
+        -------
+        float
+            Computed likelihood value.
+        """
         return np.prod(self.pdf(t, *parameters))
 
     def loglikelihood(self, parameters, t):
+        """
+        Computes the log-likelihood function.
+
+        Parameters
+        ----------
+        parameters : list
+            Model parameters.
+        t : array-like
+            Time values.
+
+        Returns
+        -------
+        float
+            Computed log-likelihood value.
+        """
         if self.truncation is not None:
             t = t[(t > self.truncation[0]) | (t < self.truncation[1])]
 
@@ -107,9 +263,41 @@ class ExponentialDistribution:
         return loglikelihood
 
     def negative_loglikelihood(self, parameters, t):
+        """
+        Computes the negative log-likelihood for given parameters and time data.
+
+        Parameters
+        ----------
+        parameters : array-like
+            Model parameters used for computing the log-likelihood.
+        t : array-like
+            The time data.
+
+        Returns
+        -------
+        float
+            The negative log-likelihood value.
+        """
         return -self.loglikelihood(parameters, t)
 
     def loglikelihood_binned(self, parameters, bin_centers, counts):
+        """
+        Computes the log-likelihood for binned data.
+
+        Parameters
+        ----------
+        parameters : array-like
+            Model parameters used for computing the likelihood.
+        bin_centers : array-like
+            Centers of histogram bins.
+        counts : array-like
+            Observed counts in each bin.
+
+        Returns
+        -------
+        float
+            The log-likelihood value.
+        """
         if self.truncation is not None:
             bin_centers = bin_centers[(bin_centers > self.truncation[0]) | (bin_centers < self.truncation[1])]
 
@@ -119,12 +307,65 @@ class ExponentialDistribution:
         return loglikelihood
 
     def negative_loglikelihood_binned(self, parameters, bin_centers, counts):
+        """
+        Computes the negative log-likelihood for binned data.
+
+        Parameters
+        ----------
+        parameters : array-like
+            Model parameters used for computing the likelihood.
+        bin_centers : array-like
+            Centers of histogram bins.
+        counts : array-like
+            Observed counts in each bin.
+
+        Returns
+        -------
+        float
+            The negative log-likelihood value.
+        """
         return -self.loglikelihood_binned(parameters, bin_centers, counts)
 
     def mle(self, *args, **kwargs):
+        """
+
+        Performs maximum likelihood estimation (MLE) for fitting an exponential distribution.
+
+        This method is an alias for `maximum_likelihood_estimation`.
+
+        Parameters
+        ----------
+        *args : tuple
+           Positional arguments passed to `maximum_likelihood_estimation`.
+        **kwargs : dict
+           Keyword arguments passed to `maximum_likelihood_estimation`.
+
+        Returns
+        -------
+        xarray.Dataset
+           A dataset containing the fitted parameters and metadata.
+        """
         return self.maximum_likelihood_estimation(*args, **kwargs)
 
     def maximum_likelihood_estimation(self, dwell_times, scipy_optimize_method='minimize', **kwargs):
+        """
+        Performs maximum likelihood estimation (MLE) to determine the best-fit parameters.
+
+        Parameters
+        ----------
+        dwell_times : array-like
+           The observed dwell times to fit the model.
+        scipy_optimize_method : str, optional
+           The optimization method used from `scipy.optimize` (default: 'minimize').
+        **kwargs : dict
+           Additional keyword arguments passed to the optimization method.
+
+        Returns
+        -------
+        xarray.Dataset
+           A dataset containing the estimated parameters, Bayesian Information Criterion (BIC),
+           and optimization metadata.
+        """
         scipy_optimize_kwargs = dict(bounds = self.bounds)
 
         if scipy_optimize_method in ['minimize', 'basinhopping', 'dual_annealing', 'differential_evolution']:
@@ -163,9 +404,47 @@ class ExponentialDistribution:
         return dwell_analysis
 
     def hist_fit(self, *args, **kwargs):
+        """
+        Fits an exponential distribution to binned dwell-time data.
+
+        This method is an alias for `histogram_fit`.
+
+        Parameters
+        ----------
+        *args : tuple
+            Positional arguments passed to `histogram_fit`.
+        **kwargs : dict
+            Keyword arguments passed to `histogram_fit`.
+
+        Returns
+        -------
+        xarray.Dataset
+            A dataset containing the fitted parameters and metadata.
+        """
         return self.histogram_fit(*args, **kwargs)
 
     def histogram_fit(self, dwell_times, bins='auto_discrete', remove_first_bins=0, **kwargs):
+        """
+        Fits an exponential distribution to a histogram of dwell-time data.
+
+        Parameters
+        ----------
+        dwell_times : array-like
+            The observed dwell times to fit the model.
+        bins : int, str, or array-like, optional
+            The binning method for the histogram. If 'auto_discrete', an automatic binning
+            strategy is used. Default is 'auto_discrete'.
+        remove_first_bins : int, optional
+            The number of bins to remove from the beginning of the histogram (default: 0).
+        **kwargs : dict
+            Additional keyword arguments passed to `scipy.optimize.curve_fit`.
+
+        Returns
+        -------
+        xarray.Dataset
+            A dataset containing the estimated parameters, their errors, Bayesian Information
+            Criterion (BIC), and metadata about the fitting procedure.
+        """
         if bins == 'auto_discrete':
             bin_edges = auto_bin_size_for_discrete_data(dwell_times)
         else:
@@ -215,6 +494,21 @@ class ExponentialDistribution:
         # ax.plot(t_hist, y_hist)
 
     def cdf_fit(self, dwell_times, **kwargs):
+        """
+        Fit the cumulative distribution function (CDF) to the given dwell times using curve fitting.
+
+        Parameters
+        ----------
+        dwell_times : array-like
+            The dwell times data to be fitted.
+        **kwargs : keyword arguments, optional
+            Additional arguments passed to the `scipy.optimize.curve_fit` function.
+
+        Returns
+        -------
+        dwell_analysis : xarray.Dataset
+            The dataset containing the optimal parameters, parameter errors, BIC value, and fit information.
+        """
         t, ecdf = empirical_cdf(dwell_times, self.sampling_interval)
 
         scipy_curve_fit_kwargs = dict(p0 = self.parameter_guess(dwell_times),
@@ -243,21 +537,80 @@ class ExponentialDistribution:
         return dwell_analysis
 
     def parameter_guess(self, dwell_times):
+        """
+        Generate an initial guess for the parameters based on the dwell times.
+
+        Parameters
+        ----------
+        dwell_times : array-like
+            The dwell times data to be used for generating the parameter guess.
+
+        Returns
+        -------
+        parameters : list
+            A list of initial guesses for the parameters.
+        """
         guess_P = [1 / (i + 1) for i in range(1, self.number_of_exponentials)]
         guess_k = [1 / (dwell_times.mean() * (i + 1)) for i in range(self.number_of_exponentials)]
         parameters = guess_P + guess_k
         return parameters
 
     def parameters_full(self, parameters):
+        """
+        Modify the parameters by ensuring that the sum of the first `number_of_exponentials - 1` parameters
+        is less than or equal to 1 and adjusting the last parameter accordingly.
+
+        Parameters
+        ----------
+        parameters : list
+            A list of parameters where the first `number_of_exponentials - 1` are P values.
+
+        Returns
+        -------
+        parameters : list
+            The modified list of parameters with the adjusted last parameter.
+        """
         parameters = list(parameters)
         P = parameters[0:self.number_of_exponentials-1]
         parameters.insert(self.number_of_exponentials - 1, 1 - sum(P))
         return parameters
 
     def BIC(self, dwell_times, optimal_parameters):
+        """
+        Compute the Bayesian Information Criterion (BIC) for the given dwell times and optimal parameters.
+
+        Parameters
+        ----------
+        dwell_times : array-like
+            The dwell times data used to calculate the BIC.
+        optimal_parameters : array-like
+            The optimal parameters obtained from fitting the model.
+
+        Returns
+        -------
+        BIC : float
+            The Bayesian Information Criterion value.
+        """
         return len(optimal_parameters) * np.log(len(dwell_times)) - 2 * self.loglikelihood(optimal_parameters, dwell_times)
 
     def BIC_histogram(self, bin_centers, counts, optimal_parameters):
+        """
+        Compute the Bayesian Information Criterion (BIC) for the binned data using the optimal parameters.
+
+        Parameters
+        ----------
+        bin_centers : array-like
+            The centers of the histogram bins.
+        counts : array-like
+            The counts corresponding to each histogram bin.
+        optimal_parameters : array-like
+            The optimal parameters obtained from fitting the model.
+
+        Returns
+        -------
+        BIC : float
+            The Bayesian Information Criterion value for the binned data.
+        """
         k = len(optimal_parameters)
         N = np.sum(counts)
         BIC = k * np.log(N) - 2 * self.loglikelihood_binned(optimal_parameters, bin_centers, counts)
@@ -286,6 +639,23 @@ class ExponentialDistribution:
     #     return parameters
 
     def parameters_to_dataset(self, parameters, parameter_errors=None, BIC=None):
+        """
+        Convert model parameters and associated information into an xarray dataset.
+
+        Parameters
+        ----------
+        parameters : list
+            The model parameters (P and k values) to be included in the dataset.
+        parameter_errors : list, optional
+            The errors for the model parameters, used if available to include in the dataset.
+        BIC : float, optional
+            The Bayesian Information Criterion value, used if available to include in the dataset.
+
+        Returns
+        -------
+        dwell_analysis : xarray.Dataset
+            The dataset containing the parameters, errors, BIC value, and other associated metadata.
+        """
         # coords = dict(parameter=pd.MultiIndex.from_product((['P','k'], np.arange(self.number_of_exponentials)), names=['name', 'component']))
         # coords = dict(parameter=('parameter', np.repeat(['P','k'],2)),
         #               component=('parameter', list(range(self.number_of_exponentials))*2))
@@ -331,6 +701,19 @@ class ExponentialDistribution:
         return dwell_analysis
 
     def dataset_to_parameters(self, dataset):
+        """
+        Extract the model parameters from an xarray dataset.
+
+        Parameters
+        ----------
+        dataset : xarray.Dataset
+            The dataset containing the model parameters (P and k values).
+
+        Returns
+        -------
+        parameters : list
+            The extracted model parameters, excluding the last parameter (P value).
+        """
         # dataset = dataset.sel(fit=number_of_components == self.number_of_exponentials) # Could be used to assure the correct dataset is passed.
         parameters = dataset[['P', 'k']].to_array().values.flatten()
         parameters = parameters[~np.isnan(parameters)]
@@ -339,6 +722,19 @@ class ExponentialDistribution:
         return parameters
 
 def auto_bin_size_for_discrete_data(dwell_times):
+    """
+    Calculate the optimal bin edges for a histogram of discrete data using the Freedman-Diaconis rule.
+
+    Parameters
+    ----------
+    dwell_times : array-like
+        The input dwell times, which are sorted and used to calculate the optimal bin edges.
+
+    Returns
+    -------
+    bin_edges : numpy.ndarray
+        The calculated bin edges for the histogram.
+    """
     dwell_times.sort()
     d = np.diff(dwell_times)
     bin_width_min = d[d > 0][1]
@@ -359,6 +755,29 @@ def auto_bin_size_for_discrete_data(dwell_times):
     return bin_edges
 
 def plot_dwell_time_histogram(dwell_times, bins='auto_discrete', range=None, ax=None, **hist_kwargs):
+    """
+    Plot a histogram of dwell times with automatic bin sizing or specified bin edges.
+
+    Parameters
+    ----------
+    dwell_times : array-like
+        The input dwell times to be used for plotting the histogram.
+    bins : str or int or sequence, optional
+        The binning method, either 'auto_discrete' for automatic bin sizing or a specific bin configuration.
+    range : tuple, optional
+        The range of values to be used for the histogram.
+    ax : matplotlib.axes.Axes, optional
+        The axes on which to plot the histogram. If None, a new figure and axes will be created.
+    **hist_kwargs : keyword arguments
+        Additional arguments to pass to `matplotlib.pyplot.hist`.
+
+    Returns
+    -------
+    counts : numpy.ndarray
+        The counts for each bin in the histogram.
+    bin_centers : numpy.ndarray
+        The center positions of each bin.
+    """
     if ax is None:
         fig, ax = plt.subplots()
 
@@ -377,6 +796,23 @@ def plot_dwell_time_histogram(dwell_times, bins='auto_discrete', range=None, ax=
     return counts, bin_centers
 
 def empirical_cdf(dwell_times, sampling_interval):
+    """
+    Compute the empirical cumulative distribution function (ECDF) of dwell times.
+
+    Parameters
+    ----------
+    dwell_times : array-like
+        The input dwell times for which the ECDF is calculated.
+    sampling_interval : float
+        The sampling interval used to adjust the ECDF calculation.
+
+    Returns
+    -------
+    t : numpy.ndarray
+        The time points at which the ECDF is evaluated.
+    empirical_cdf : numpy.ndarray
+        The values of the empirical cumulative distribution function.
+    """
     # t = np.hstack([0, np.sort(dwell_times)])
     # empirical_cdf = np.arange(0, len(t)) / (len(t) - 1)
 
@@ -389,6 +825,24 @@ def empirical_cdf(dwell_times, sampling_interval):
     return t, empirical_cdf
 
 def plot_empirical_cdf(dwell_times, sampling_interval, ax=None, **plot_kwargs):
+    """
+    Plot the empirical cumulative distribution function (ECDF) of dwell times.
+
+    Parameters
+    ----------
+    dwell_times : array-like
+        The input dwell times to be used for the ECDF plot.
+    sampling_interval : float
+        The sampling interval used to adjust the ECDF calculation.
+    ax : matplotlib.axes.Axes, optional
+        The axes on which to plot the ECDF. If None, a new figure and axes will be created.
+    **plot_kwargs : keyword arguments
+        Additional arguments to pass to `matplotlib.pyplot.plot`.
+
+    Returns
+    -------
+    None
+    """
     if ax is None:
         fig, ax = plt.subplots()
 
@@ -398,6 +852,33 @@ def plot_empirical_cdf(dwell_times, sampling_interval, ax=None, **plot_kwargs):
 
 def fit_dwell_times(dwell_times, method='maximum_likelihood_estimation', number_of_exponentials=[1,2],
                     P_bounds=(-1,1), k_bounds=(0,np.inf), sampling_interval=None, truncation=None, fit_dwell_times_kwargs={}):
+    """
+    Fit dwell times using a specified fitting method.
+
+    Parameters
+    ----------
+    dwell_times : array-like
+        The input dwell times to be fitted.
+    method : str, optional
+        The fitting method to use (e.g., 'maximum_likelihood_estimation').
+    number_of_exponentials : list of int, optional
+        The number of exponentials to fit.
+    P_bounds : tuple, optional
+        The bounds for the P parameters.
+    k_bounds : tuple, optional
+        The bounds for the k parameters.
+    sampling_interval : float, optional
+        The sampling interval used for analysis.
+    truncation : tuple, optional
+        The truncation limits for the fitting.
+    fit_dwell_times_kwargs : dict, optional
+        Additional arguments to pass to the fitting method.
+
+    Returns
+    -------
+    dwell_analysis : xarray.Dataset
+        The dataset containing the fitted parameters and analysis results.
+    """
     if isinstance(number_of_exponentials, numbers.Number):
         number_of_exponentials = [number_of_exponentials]
 
@@ -426,6 +907,33 @@ def fit_dwell_times(dwell_times, method='maximum_likelihood_estimation', number_
     return dwell_analysis
 
 def plot_dwell_analysis_state(dwell_analysis, dwell_times, plot_type='pdf_binned', plot_range=None, bins='auto_discrete', log=False, ax=None):
+    """
+    Plot the results of a dwell time analysis, including the model fit and empirical data.
+
+    Parameters
+    ----------
+    dwell_analysis : xarray.Dataset
+        The dataset containing the dwell time analysis results, including fitted parameters and BIC values.
+    dwell_times : array-like
+        The input dwell times used for the analysis.
+    plot_type : str, optional
+        The type of plot to generate, e.g., 'pdf_binned', 'cdf'.
+    plot_range : tuple, optional
+        The range of values to plot.
+    bins : str or int or sequence, optional
+        The binning method for the histogram plot.
+    log : bool, optional
+        If True, the y-axis is plotted on a logarithmic scale.
+    ax : matplotlib.axes.Axes, optional
+        The axes on which to plot the results. If None, a new figure and axes will be created.
+
+    Returns
+    -------
+    figure : matplotlib.figure.Figure
+        The figure object containing the plot.
+    ax : matplotlib.axes.Axes
+        The axes object containing the plot.
+    """
     if ax is None:
         fig, ax = plt.subplots()
 
@@ -512,6 +1020,38 @@ def plot_dwell_analysis_state(dwell_analysis, dwell_times, plot_type='pdf_binned
 
 def analyze_dwells(dwells, method='maximum_likelihood_estimation', number_of_exponentials=[1,2,3], state_names=None,
                    P_bounds=(-1,1), k_bounds=(1e-9,np.inf), sampling_interval=None, truncation=None, fit_dwell_times_kwargs={}):
+    """
+    Analyze dwell times for different states using a fitting method.
+
+    This function fits the dwell times for each state, allowing for the number of exponentials to be different for each state. The fitting is done using a specified method, such as maximum likelihood estimation. The resulting fit parameters are returned in an `xarray` dataset.
+
+    Parameters:
+    ----------
+    dwells : xarray.DataArray
+        An xarray DataArray containing the dwell times and states to be analyzed.
+    method : str, optional
+        The method used for fitting the dwell times (default is 'maximum_likelihood_estimation').
+    number_of_exponentials : list of int or dict, optional
+        A list of integers or a dictionary specifying the number of exponentials to fit for each state. If a dictionary is provided, it maps each state to a specific number of exponentials (default is [1, 2, 3]).
+    state_names : dict, optional
+        A dictionary mapping state indices to state names (default is None).
+    P_bounds : tuple, optional
+        The bounds for the parameter P (default is (-1, 1)).
+    k_bounds : tuple, optional
+        The bounds for the parameter k (default is (1e-9, np.inf)).
+    sampling_interval : float, optional
+        The sampling interval for the dwell times (default is None, which uses the minimum dwell time).
+    truncation : tuple, optional
+        A tuple specifying the truncation limits (default is None, which applies no truncation).
+    fit_dwell_times_kwargs : dict, optional
+        Additional keyword arguments to be passed to the `fit_dwell_times` function.
+
+    Returns:
+    -------
+    xarray.Dataset
+        An `xarray` dataset containing the fitted parameters for each state, including the number of components, P, k, and BIC values.
+    """
+
     # number_of_exponentials can be given per state as {0: [1,2,3], 1: [1,2]}
     if state_names is None:
         states = np.unique(dwells.state)
@@ -573,7 +1113,41 @@ def analyze_dwells(dwells, method='maximum_likelihood_estimation', number_of_exp
 # [['P','k']].to_dataframe().dropna()
 def plot_dwell_analysis(dwell_analysis, dwells, plot_type='pdf_binned', plot_range=None, axes=None, bins='auto_discrete',
                         log=False, sharey=True, name=None, save_path=None):
+    """
+    Plot the dwell time analysis results for multiple states.
 
+    This function generates plots for the dwell time distributions of each state, showing either the probability density function (PDF) or cumulative distribution function (CDF). The results are plotted in a single figure, with options for customization, including binning, log scaling, and saving the figure.
+
+    Parameters:
+    ----------
+    dwell_analysis : xarray.Dataset
+        An `xarray` dataset containing the dwell time analysis results, with states as one of the dimensions.
+    dwells : xarray.DataArray
+        An xarray DataArray containing the dwell times and states to be plotted.
+    plot_type : str or list of str, optional
+        The type of plot to generate for each state. Options are 'pdf_binned' or 'cdf'. Can be a list if different types are needed for different states (default is 'pdf_binned').
+    plot_range : tuple or list of tuples, optional
+        The range of the plot for each state. If None, the range is set automatically (default is None).
+    axes : matplotlib.Axes or array-like, optional
+        The axes on which to plot the results. If None, new axes will be created (default is None).
+    bins : str or int, optional
+        The binning strategy for the histogram. Options are 'auto_discrete' or an integer specifying the number of bins (default is 'auto_discrete').
+    log : bool, optional
+        Whether to use a logarithmic scale for the y-axis (default is False).
+    sharey : bool, optional
+        Whether to share the y-axis across all subplots (default is True).
+    name : str, optional
+        The base name for the saved figure (default is None).
+    save_path : pathlib.Path, optional
+        The directory path where the figure will be saved (default is None, meaning the figure will not be saved).
+
+    Returns:
+    -------
+    matplotlib.figure.Figure
+        The figure containing the plots.
+    matplotlib.Axes
+        The axes containing the individual plots for each state.
+    """
     # states = dwell_analysis.index.get_level_values('State').unique().values
     states = dwell_analysis.state.values
 
