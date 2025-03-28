@@ -893,7 +893,11 @@ def plot_empirical_cdf(dwell_times, sampling_interval, ax=None, **plot_kwargs):
 
     t, ecdf = empirical_cdf(dwell_times, sampling_interval)
 
-    ax.plot(t, ecdf, **plot_kwargs)
+    kwargs = {'marker':'.', 'color': 'k', 'ls':'None'}
+    kwargs.update(plot_kwargs)
+    ax.plot(t, ecdf, **kwargs, zorder=1000)
+
+    # ax.fill_between(t, ecdf, **kwargs)
 
 def fit_dwell_times(dwell_times, method='maximum_likelihood_estimation', number_of_exponentials=[1,2],
                     P_bounds=(-1,1), k_bounds=(0,np.inf), sampling_interval=None, truncation=None, fit_dwell_times_kwargs={}):
@@ -989,7 +993,7 @@ def plot_dwell_analysis_state(dwell_analysis, dwell_times, plot_type='pdf_binned
 
     if plot_type in ['pdf', 'pdf_binned']:
         counts, bin_centers = plot_dwell_time_histogram(dwell_times, bins=bins, range=plot_range,
-                                                        sampling_interval=sampling_interval, log=log, ax=ax)
+                                                        sampling_interval=sampling_interval, log=log, ax=ax, color='gainsboro')
         bin_width = bin_centers[1] - bin_centers[0]
     elif plot_type == 'cdf':
         plot_empirical_cdf(dwell_times, sampling_interval, ax=ax)
