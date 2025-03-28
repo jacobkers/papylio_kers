@@ -1472,7 +1472,8 @@ class File:
         return xr.load_dataset(self.absoluteFilePath.with_name(self.name + '_dwells').with_suffix('.nc'), engine='netcdf4')
 
     def analyze_dwells(self, method='maximum_likelihood_estimation', number_of_exponentials=[1,2], state_names=None,
-                       truncation=None, plot=False, fit_dwell_times_kwargs={}, plot_dwell_analysis_kwargs={}, save_file_path=None):
+                       truncation=None, P_bounds=(-1, 1), k_bounds=(1e-9, np.inf), plot=False,
+                       fit_dwell_times_kwargs={}, plot_dwell_analysis_kwargs={}, save_file_path=None):
 
         dwells = self.dwells
 
@@ -1483,7 +1484,7 @@ class File:
 
         #TODO: Add sampling interval to File and refer to it here?
         dwell_analysis = analyze_dwells(dwells, method=method, number_of_exponentials=number_of_exponentials,
-                                        state_names=state_names, P_bounds=(-1, 1), k_bounds=(1e-9, np.inf),
+                                        state_names=state_names, P_bounds=P_bounds, k_bounds=k_bounds,
                                         sampling_interval=None, truncation=truncation, fit_dwell_times_kwargs=fit_dwell_times_kwargs)
 
         if save_file_path is None:
@@ -1498,7 +1499,7 @@ class File:
         return dwell_analysis
 
     def plot_dwell_analysis(self, name=None, plot_type='pdf', plot_range=None, axes=None, bins='auto_discrete',
-                            log=False, sharey=False, save_path='None'):
+                            log=False, sharey=False, save_path=None):
         dwell_analysis = self.dwell_analysis
         dwells = self.dwells
 
