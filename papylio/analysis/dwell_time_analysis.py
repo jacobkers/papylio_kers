@@ -342,10 +342,10 @@ class ExponentialDistribution:
 
     def mle(self, *args, **kwargs):
         """
+        Perform maximum likelihood estimation (MLE) for fitting an exponential distribution.
 
-        Performs maximum likelihood estimation (MLE) for fitting an exponential distribution.
-
-        This method is an alias for `maximum_likelihood_estimation`.
+        This method acts as an alias for `maximum_likelihood_estimation`, forwarding all
+        arguments to it.
 
         Parameters
         ----------
@@ -363,22 +363,27 @@ class ExponentialDistribution:
 
     def maximum_likelihood_estimation(self, dwell_times, scipy_optimize_method='minimize', free_truncation_min=False, **kwargs):
         """
-        Performs maximum likelihood estimation (MLE) to determine the best-fit parameters.
+        Estimate the best-fit parameters using maximum likelihood estimation (MLE).
+
+        This method applies numerical optimization to maximize the likelihood function
+        for the given dwell-time data.
 
         Parameters
         ----------
         dwell_times : array-like
-           The observed dwell times to fit the model.
+            Observed dwell times to be used for model fitting.
         scipy_optimize_method : str, optional
-           The optimization method used from `scipy.optimize` (default: 'minimize').
+            The optimization method from `scipy.optimize` (default: 'minimize').
+        free_truncation_min : bool, optional
+            If True, an additional truncation parameter is included in the optimization (default: False).
         **kwargs : dict
-           Additional keyword arguments passed to the optimization method.
+            Additional arguments passed to the optimization function.
 
         Returns
         -------
         xarray.Dataset
-           A dataset containing the estimated parameters, Bayesian Information Criterion (BIC),
-           and optimization metadata.
+            A dataset containing the estimated parameters, Bayesian Information Criterion (BIC),
+            and optimization metadata.
         """
         scipy_optimize_kwargs = dict(bounds = self.bounds)
         if free_truncation_min:
@@ -424,9 +429,9 @@ class ExponentialDistribution:
 
     def hist_fit(self, *args, **kwargs):
         """
-        Fits an exponential distribution to binned dwell-time data.
+        Fit an exponential distribution to binned dwell-time data.
 
-        This method is an alias for `histogram_fit`.
+        This method acts as an alias for `histogram_fit`, forwarding all arguments to it.
 
         Parameters
         ----------
@@ -444,25 +449,30 @@ class ExponentialDistribution:
 
     def histogram_fit(self, dwell_times, bins='auto_discrete', free_truncation_min=True, remove_first_bins=0, **kwargs):
         """
-        Fits an exponential distribution to a histogram of dwell-time data.
+        Fit an exponential distribution to a histogram of dwell-time data.
+
+        The method constructs a histogram of the dwell times and fits a probability
+        density function to the binned data.
 
         Parameters
         ----------
         dwell_times : array-like
-            The observed dwell times to fit the model.
+            Observed dwell times used for model fitting.
         bins : int, str, or array-like, optional
-            The binning method for the histogram. If 'auto_discrete', an automatic binning
-            strategy is used. Default is 'auto_discrete'.
+            Method for binning the histogram. If 'auto_discrete', an automatic binning
+            strategy is applied (default: 'auto_discrete').
+        free_truncation_min : bool, optional
+            If True, an additional truncation parameter is included in the fitting process (default: True).
         remove_first_bins : int, optional
-            The number of bins to remove from the beginning of the histogram (default: 0).
+            Number of initial bins to exclude from the fitting (default: 0).
         **kwargs : dict
-            Additional keyword arguments passed to `scipy.optimize.curve_fit`.
+            Additional arguments passed to `scipy.optimize.curve_fit`.
 
         Returns
         -------
         xarray.Dataset
-            A dataset containing the estimated parameters, their errors, Bayesian Information
-            Criterion (BIC), and metadata about the fitting procedure.
+            A dataset containing the estimated parameters, their uncertainties, Bayesian
+            Information Criterion (BIC), and metadata about the fitting procedure.
         """
 
         if bins == 'auto_discrete':
@@ -519,19 +529,25 @@ class ExponentialDistribution:
 
     def cdf_fit(self, dwell_times, free_truncation_min=True, **kwargs):
         """
-        Fit the cumulative distribution function (CDF) to the given dwell times using curve fitting.
+        Fit an exponential distribution to the empirical cumulative distribution function (CDF).
+
+        The method uses curve fitting to match the observed CDF of the dwell times
+        to the theoretical CDF of an exponential distribution.
 
         Parameters
         ----------
         dwell_times : array-like
-            The dwell times data to be fitted.
-        **kwargs : keyword arguments, optional
-            Additional arguments passed to the `scipy.optimize.curve_fit` function.
+            The dwell times used for model fitting.
+        free_truncation_min : bool, optional
+            If True, an additional truncation parameter is included in the fitting process (default: True).
+        **kwargs : dict
+            Additional arguments passed to `scipy.optimize.curve_fit`.
 
         Returns
         -------
-        dwell_analysis : xarray.Dataset
-            The dataset containing the optimal parameters, parameter errors, BIC value, and fit information.
+        xarray.Dataset
+            A dataset containing the optimal parameters, parameter uncertainties, Bayesian
+            Information Criterion (BIC), and fitting metadata.
         """
         t, ecdf = empirical_cdf(dwell_times, self.sampling_interval)
 
