@@ -1428,6 +1428,11 @@ class File:
 
     @property
     @return_none_when_executed_by_pycharm
+    def sampling_interval(self):
+        return self.time.diff('frame').mean().item()
+
+    @property
+    @return_none_when_executed_by_pycharm
     def frame_rate(self):
         return 1 / self.cycle_time
 
@@ -1489,12 +1494,13 @@ class File:
 
         if save_file_path is None:
             self.dwell_analysis = dwell_analysis
+            if plot:
+                self.plot_dwell_analysis(**plot_dwell_analysis_kwargs)
         else:
             dwell_analysis.to_netcdf(self.absoluteFilePath.with_name(save_file_path).with_suffix('.nc'),
                                      engine='netcdf4', mode='w')
-
-        if plot:
-            self.plot_dwell_analysis(**plot_dwell_analysis_kwargs)
+            if plot:
+                plot_dwell_analysis(dwell_analysis, dwells, **plot_dwell_analysis_kwargs)
 
         return dwell_analysis
 
