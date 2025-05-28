@@ -65,6 +65,10 @@ def test_perform_mapping(experiment, shared_datadir):
     mapping_control = mp.MatchPoint.load(shared_datadir / 'BN_TIRF_output_test_file' / 'beads.mapping')
     assert ((experiment.files[0].mapping.transformation.params - mapping_control.transformation.params) < 1e-2).all()
 
+def test_parallel_processing_mapping(experiment):
+    experiment.files.parallel.mapping.transformation
+    experiment.files.parallel.mapping.show()
+
 def test_find_molecules(file):
     file.find_coordinates()
 
