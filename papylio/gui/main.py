@@ -1,10 +1,11 @@
 import sys
 import PySide2
+import platform
 
 import sys
 from PySide2.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QGridLayout, QTreeView, QApplication, QMainWindow, \
     QPushButton, QTabWidget, QTableWidget, QComboBox, QLineEdit
-from PySide2.QtGui import QStandardItem, QStandardItemModel
+from PySide2.QtGui import QStandardItem, QStandardItemModel, QIcon
 from PySide2.QtCore import Qt
 
 import matplotlib as mpl
@@ -13,6 +14,7 @@ from matplotlib.backends.backend_qtagg import (
 import matplotlib.pyplot as plt
 import numpy as np
 
+import papylio as pp
 from papylio import Experiment, File
 from papylio.trace_plot import TracePlotWindow
 from papylio.gui.selection_widget import SelectionWidget
@@ -230,10 +232,13 @@ class MainWindow(QMainWindow):
     def __init__(self, main_path=None):
         super().__init__()
 
-        from papylio import Experiment
-        # self.experiment = Experiment(
-        #     r'D:\SURFdrive\Promotie\Code\Python\papylio\twoColourExampleData\20141017 - Holliday junction - Copy')
-        self.experiment = Experiment(main_path)
+        system = platform.system()
+        if system == "Windows":
+            extension = 'ico'
+        else:  # macOS or Linux
+            extension = "png"
+        self.setWindowIcon(QIcon("icon."+extension))
+        self.setWindowTitle("Papylio v" + pp.__version__ )
 
         self.tree = QTreeView(self)
         layout = QVBoxLayout()
@@ -243,7 +248,7 @@ class MainWindow(QMainWindow):
         self.model.setHorizontalHeaderLabels(['Name', 'Count'])
         self.tree.header().setDefaultSectionSize(180)
         self.tree.setModel(self.model)
-        self.addExperiment(self.experiment)
+
         self.tree.setFocusPolicy(Qt.NoFocus)
         self.tree.setFixedWidth(256)
         self.update = True
@@ -309,8 +314,7 @@ class MainWindow(QMainWindow):
         tab1 = QWidget(self)
         tab1.setLayout(extraction_layout)
         tabs.addTab(tab1, 'Movie')
-        self.traces = TracePlotWindow(parent=self, width=4, height=3, show=False,
-                                      save_path=self.experiment.analysis_path.joinpath('Trace_plots'))
+        self.traces = TracePlotWindow(parent=self, width=4, height=3, show=False)
         tabs.addTab(self.traces, 'Traces')
         self.selection = SelectionWidget()
         tabs.addTab(self.selection, 'Selection (beta)')
@@ -331,6 +335,14 @@ class MainWindow(QMainWindow):
         widget = QWidget()
         widget.setLayout(layout)
         self.setCentralWidget(widget)
+
+        self.show()
+
+        # self.experiment = Experiment(
+        #     r'D:\SURFdrive\Promotie\Code\Python\papylio\twoColourExampleData\20141017 - Holliday junction - Copy')
+        self.experiment = pp.Experiment(main_path, main_window=self)
+        self.addExperiment(self.experiment)
+        self.traces.save_path = self.experiment.analysis_path.joinpath('Trace_plots')
 
     def keyPressEvent(self, e):
         self.traces.keyPressEvent(e)
