@@ -5,20 +5,18 @@ from PySide2.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QGridLayout, QT
     QPushButton, QTabWidget, QTableWidget, QComboBox, QLineEdit
 from PySide2.QtGui import QStandardItem, QStandardItemModel, QIcon
 from PySide2.QtCore import Qt
-
 import matplotlib as mpl
 from matplotlib.backends.backend_qtagg import (
     FigureCanvas, NavigationToolbar2QT as NavigationToolbar)
 import matplotlib.pyplot as plt
-import numpy as np
 
 import papylio as pp
+
 from papylio import Experiment, File
 from papylio.trace_plot import TracePlotWindow
 from papylio.gui.selection_widget import SelectionWidget
 
 class MainWindow(QMainWindow):
-
     def __init__(self, main_path=None):
         super().__init__()
 
@@ -30,6 +28,8 @@ class MainWindow(QMainWindow):
         self.setWindowIcon(QIcon("icon."+extension))
         self.setWindowTitle("Papylio v" + pp.__version__ )
 
+        #I. set up the left section of the GUI,
+        # displaying a tree of selectable files in th dataset-directory:
         self.tree = QTreeView(self)
         layout = QVBoxLayout()
         layout.addWidget(self.tree)
@@ -42,33 +42,30 @@ class MainWindow(QMainWindow):
         self.tree.setFocusPolicy(Qt.NoFocus)
         self.tree.setFixedWidth(256)
         self.update = True
-
         self.model.itemChanged.connect(self.onItemChange)
-
         self.image_canvas = ImageCanvas(self, width=5, height=4, dpi=100)
 
-        # Create toolbar, passing canvas as first parament, parent (self, the MainWindow) as second.
+        #II. Build the 'extraction' tab, containing an image display (including a toolbar)  and action buttons.
+        # a. Create toolbar, passing canvas as first parameter, parent (self, the MainWindow) as second.
         image_toolbar = NavigationToolbar(self.image_canvas, self)
-
         image_layout = QVBoxLayout()
         image_layout.addWidget(image_toolbar)
         image_layout.addWidget(self.image_canvas)
 
-        # Create a placeholder widget to hold our toolbar and canvas.
+        # b. Create a placeholder widget to hold our toolbar and the canvas as defined above.
+        #toolbar is the column of control buttons to the right
         self.image = QWidget()
         self.image.setLayout(image_layout)
-
         controls_layout = QGridLayout()
         controls_layout.setAlignment(Qt.AlignTop)
 
-        perform_mapping_button = QPushButton('Perform mapping Jacob')
+        # c. The  main action buttons are defined here:
+        perform_mapping_button = QPushButton('Perform mapping')
         perform_mapping_button.clicked.connect(self.perform_mapping)
         controls_layout.addWidget(perform_mapping_button, 1, 0, 1, 2)
-
         find_molecules_button = QPushButton('Find coordinates')
         find_molecules_button.clicked.connect(self.find_coordinates)
         controls_layout.addWidget(find_molecules_button, 2, 0, 1, 2)
-
         extract_traces_button = QPushButton('Extract traces')
         extract_traces_button.clicked.connect(self.extract_traces)
         controls_layout.addWidget(extract_traces_button, 3, 0, 1, 2)
@@ -76,7 +73,6 @@ class MainWindow(QMainWindow):
         self.controls = QWidget()
         self.controls.setLayout(controls_layout)
         self.controls.setMinimumWidth(200)
-
 
         extraction_layout = QHBoxLayout()
         extraction_layout.addWidget(self.image)
@@ -89,21 +85,26 @@ class MainWindow(QMainWindow):
 
         tab1 = QWidget(self)
         tab1.setLayout(extraction_layout)
+
+        # III. Build a tab for trace evaluation by eye:
         tabs.addTab(tab1, 'Movie')
         self.traces = TracePlotWindow(parent=self, width=4, height=3, show=False)
+
         tabs.addTab(self.traces, 'Traces')
         self.selection = SelectionWidget()
+
+        # IV. Build a tab for trace evaluation by tresholds and more:
         tabs.addTab(self.selection, 'Selection (beta)')
         tabs.currentChanged.connect(self.setTabFocus)
 
-        experiment_layout = QVBoxLayout()
-
+        # V. build an 'experiment' pane with tree and refresh button in vertical order:
         refresh_button = QPushButton('Refresh')
         refresh_button.clicked.connect(self.refresh)
+        experiment_layout = QVBoxLayout()
         experiment_layout.addWidget(refresh_button)
-
         experiment_layout.addWidget(self.tree)
 
+        # VI. now, assemble the various panes
         layout = QHBoxLayout()
         layout.addLayout(experiment_layout)
         layout.addWidget(tabs)
@@ -183,13 +184,12 @@ class MainWindow(QMainWindow):
             self.selection.file = None
 
     def addExperiment(self, experiment):
-
-        # experiment = Experiment(r'D:\SURFdrive\Promotie\Code\Python\papylio\twoColourExampleData\20141017 - Holliday junction - Copy')
-        #experiment = Experiment(r'C:\Users\ivoseverins\surfdrive\Promotie\Code\Python\papylio\twoColourExampleData\20141017 - Holliday junction - Copy')
+        #jk_note: when uncommenting a path here, code basically auto-loads:
+        # experiment = Experiment(r'C:\Users\myname\personalpaths\Papylio example dataset')
         self.root.appendRow([
-                QStandardItem(experiment.name),
-                QStandardItem(0),
-            ])
+        QStandardItem(experiment.name),
+        QStandardItem(0),
+        ])
         experimentNode = self.root.child(self.root.rowCount() - 1)
         for file in experiment.files:
             print('addfile'+file.name)
