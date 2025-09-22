@@ -4,9 +4,9 @@ from PySide2.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QGridLayout, QT
     QPushButton, QTabWidget, QTableWidget, QComboBox, QLineEdit
 from PySide2.QtGui import QStandardItem, QStandardItemModel
 from PySide2.QtCore import Qt
-import matplotlib as mpl
 from matplotlib.backends.backend_qtagg import (
     FigureCanvas, NavigationToolbar2QT as NavigationToolbar)
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 from papylio import Experiment, File
 from papylio.trace_plot import TracePlotWindow
@@ -54,13 +54,19 @@ class MainWindow(QMainWindow):
         controls_layout.setAlignment(Qt.AlignTop)
 
         # c. The  main action buttons are defined here:
-        perform_mapping_button = QPushButton('Perform mapping Jacob')
+        #map:
+        perform_mapping_button = QPushButton('Perform mapping')
+        perform_mapping_button.setToolTip("select bead slide in tree pane and press; afterward close pop-ups")
         perform_mapping_button.clicked.connect(self.perform_mapping)
         controls_layout.addWidget(perform_mapping_button, 1, 0, 1, 2)
+        #find:
         find_molecules_button = QPushButton('Find coordinates')
+        find_molecules_button.setToolTip("select movie(s) in tree pane and press to obtain XY per molecule")
         find_molecules_button.clicked.connect(self.find_coordinates)
         controls_layout.addWidget(find_molecules_button, 2, 0, 1, 2)
+
         extract_traces_button = QPushButton('Extract traces')
+        extract_traces_button.setToolTip("select movie(s) in tree pane and press to obtain trace per molecule")
         extract_traces_button.clicked.connect(self.extract_traces)
         controls_layout.addWidget(extract_traces_button, 3, 0, 1, 2)
 
@@ -79,7 +85,7 @@ class MainWindow(QMainWindow):
 
         tab1 = QWidget(self)
         tab1.setLayout(extraction_layout)
-        tabs.addTab(tab1, 'Extraction')
+        tabs.addTab(tab1, 'Movie')
 
         # III. Build a tab for trace evaluation by eye:
         self.traces = TracePlotWindow(parent=self, width=4, height=3, show=False,
@@ -98,7 +104,7 @@ class MainWindow(QMainWindow):
         experiment_layout.addWidget(refresh_button)
         experiment_layout.addWidget(self.tree)
 
-        # VI. now, assemble the various panes
+        # VI. now, assemble the various panels
         layout = QHBoxLayout()
         layout.addLayout(experiment_layout)
         layout.addWidget(tabs)
@@ -187,15 +193,12 @@ class MainWindow(QMainWindow):
 
     def addFile(self, file, experimentNode):
         folders = file.relativePath.parts
-
         parentItem = experimentNode
         parentItem.setCheckable(True)
         for folder in folders:
-
             # Get the folderItems and folder names for the current folderItem
             nodeItems = [parentItem.child(i) for i in range(parentItem.rowCount())]# if item.type == 'folder']
             nodeItemNames = [item.text() for item in nodeItems]
-
             if folder not in nodeItemNames:
                 # Add new item for the folder and set parentItem to this item
                 parentItem.appendRow([
@@ -219,9 +222,7 @@ class MainWindow(QMainWindow):
         else:
             item.setCheckState(Qt.Unchecked)
         item.setData(file)
-        #self.FileItems.append(item)
-
-        # self.insertDataIntoColumns(item)
+        #self.insertDataIntoColumns(item)
 
         return item
 
@@ -261,14 +262,10 @@ class ImageCanvas(FigureCanvas):
         self._file.show_coordinates_in_image(figure=self.figure)
         self.draw()
 
-
 if __name__ == '__main__':
     from multiprocessing import Process, freeze_support
     freeze_support()
-
     app = QApplication(sys.argv)
-
     window = MainWindow()
     window.show()
-
     app.exec_()
