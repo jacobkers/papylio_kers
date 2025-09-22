@@ -1,8 +1,6 @@
 import sys
-import PySide2
 import platform
 
-import sys
 from PySide2.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QGridLayout, QTreeView, QApplication, QMainWindow, \
     QPushButton, QTabWidget, QTableWidget, QComboBox, QLineEdit
 from PySide2.QtGui import QStandardItem, QStandardItemModel, QIcon
@@ -19,215 +17,7 @@ from papylio import Experiment, File
 from papylio.trace_plot import TracePlotWindow
 from papylio.gui.selection_widget import SelectionWidget
 
-# class TreeNode:
-#     def __init__(self, node_object, parent=None):
-#         self.parent = parent
-#         if isinstance(node_object, Experiment):
-#             self.experiment = node_object
-#             self.name = self.experiment.name
-#             self.type = 'experiment'
-#         elif isinstance(node_object, str):
-#             self.name = node_object
-#             self.type = 'folder'
-#         elif isinstance(node_object, File):
-#             self.file = node_object
-#             self.name = self.file.name
-#             self.type = 'file'
-#
-#         self.children = []
-#
-#     def data(self, column):
-#         # if column == 0:
-#         return self.columnValues[column]
-#         # else:
-#         #     return ''
-#         # return self._data[column]
-#
-#     def appendChild(self, node_object):
-#         node = TreeNode(node_object, self)
-#         self.children.append(node)
-#         return node
-#
-#     def child(self, row):
-#         return self.children[row]
-#
-#     def childrenCount(self):
-#         return len(self.children)
-#
-#     def hasChildren(self):
-#         if len(self.children) > 0:
-#             return True
-#         return False
-#
-#     def row(self):
-#         if self.parent is not None:
-#             return self.parent.children.index(self)
-#         else:
-#             return 0
-#
-#     @property
-#     def columnValues(self):
-#         return [self.name]
-#
-#     def columnCount(self):
-#         return len(self.columnValues)
-#
-#     def __repr__(self):
-#         return f'TreeNode: {self.name}'
-#
-#
-# class TreeModel(QAbstractItemModel):
-#     def __init__(self, parent=None):
-#         super().__init__(parent)
-#         # column_names = ['Column1','Column2']
-#         self.root = TreeNode('Name')
-#         self.createData()
-#         print('t')
-#
-#     def createData(self):
-#         for x in ['a','b','c']:
-#             self.root.appendChild(x)
-#         for y in ['q','r','s']:
-#             self.root.child(0).appendChild(y)
-#         for z in ['d','e','f']:
-#             self.root.child(2).appendChild(z)
-#
-#     def addExperiment(self, experiment):
-#         # experiment = Experiment(r'D:\SURFdrive\Promotie\Code\Python\papylio\twoColourExampleData\20141017 - Holliday junction - Copy')
-#         #experiment = Experiment(r'C:\Users\ivoseverins\surfdrive\Promotie\Code\Python\papylio\twoColourExampleData\20141017 - Holliday junction - Copy')
-#         experimentNode = self.root.appendChild(experiment)
-#         for file in experiment.files:
-#             print('addfile'+file.name)
-#             self.addFile(file, experimentNode)
-#
-#         print('add')
-#
-#     def addFile(self, file, experimentNode):
-#         # pass
-#
-#         folders = file.relativePath.parts
-#
-#         #nodeItemNames = [item.GetText() for item in experimentNode.children if item.GetData() == None]
-#
-#         parentItem = experimentNode
-#         for folder in folders:
-#
-#             # Get the folderItems and folder names for the current folderItem
-#             nodeItems = [item for item in parentItem.children if item.type == 'folder']
-#             nodeItemNames = [item.name for item in nodeItems]
-#
-#             if folder not in nodeItemNames:
-#                 # Add new item for the folder and set parentItem to this item
-#                 parentItem = parentItem.appendChild(folder)
-#             else:
-#                 # Set parent item to the found folderItem
-#                 parentItem = nodeItems[nodeItemNames.index(folder)]
-#
-#         item = parentItem.appendChild(file)
-#         #self.FileItems.append(item)
-#
-#         # self.insertDataIntoColumns(item)
-#
-#         return item
-#
-#     def columnCount(self, index=QtCore.QModelIndex()):
-#         if index.isValid():
-#             return index.internalPointer().columnCount()
-#         else:
-#             return self.root.columnCount()
-#
-#     def rowCount(self, index=QtCore.QModelIndex()):
-#         if index.row() > 0:
-#             return 0
-#         if index.isValid():
-#             item = index.internalPointer()
-#         else:
-#             item = self.root
-#         return item.childrenCount()
-#
-#     def index(self, row, column, index=QtCore.QModelIndex()):
-#         if not self.hasIndex(row, column, index):
-#             return QtCore.QModelIndex()
-#         if not index.isValid():
-#             item = self.root
-#         else:
-#             item = index.internalPointer()
-#
-#         child = item.child(row)
-#         if child:
-#             return self.createIndex(row, column, child)
-#         return QtCore.QMOdelIndex()
-#
-#     def parent(self, index):
-#         if not index.isValid():
-#             return QtCore.QModelIndex()
-#         item = index.internalPointer()
-#         if not item:
-#             return QtCore.QModelIndex()
-#
-#         parent = item.parent
-#         if parent == self.root:
-#             return QtCore.QModelIndex()
-#         else:
-#             return self.createIndex(parent.row(), 0, parent)
-#
-#     def hasChildren(self, index):
-#         if not index.isValid():
-#             item = self.root
-#         else:
-#             item = index.internalPointer()
-#         return item.hasChildren()
-#
-#     def data(self, index, role=QtCore.Qt.DisplayRole):
-#        if index.isValid() and role == QtCore.Qt.DisplayRole:
-#             return index.internalPointer().data(index.column())
-#        elif not index.isValid():
-#             return self.root.getData()
-#
-#     def headerData(self, section, orientation, role):
-#         if orientation == QtCore.Qt.Horizontal and role == QtCore.Qt.DisplayRole:
-#             return self.root.data(section)
-#
-#
-#
-# class MainWindow(QMainWindow):
-#     def __init__(self):
-#         super().__init__()
-#         # model = QFileSystemModel()
-#         # model.setRootPath(QDir.currentPath())
-#
-#
-#
-#         self.model = TreeModel()
-#
-#         self.tree = QTreeView()
-#         self.tree.setModel(self.model)
-#
-#         from papylio import Experiment
-#         experiment = Experiment(r'D:\SURFdrive\Promotie\Code\Python\papylio\twoColourExampleData\20141017 - Holliday junction - Copy')
-#         #experiment = Experiment(r'C:\Users\ivoseverins\surfdrive\Promotie\Code\Python\papylio\twoColourExampleData\20141017 - Holliday junction - Copy')
-#         #self.model.addExperiment(experiment)
-#
-#         self.setCentralWidget(self.tree)
-
-
 class MainWindow(QMainWindow):
-    # def __init__(self):
-    #     super().__init__()
-    #     # model = QFileSystemModel()
-    #     # model.setRootPath(QDir.currentPath())
-    #
-    #
-    #
-    #     self.model = TreeModel()
-    #
-    #     self.tree = QTreeView()
-    #     self.tree.setModel(self.model)
-    #
-    #      #experiment = Experiment(r'C:\Users\ivoseverins\surfdrive\Promotie\Code\Python\papylio\twoColourExampleData\20141017 - Holliday junction - Copy')
-    #     #self.model.addExperiment(experiment)
-    #
-    #     self.setCentralWidget(self.tree)
 
     def __init__(self, main_path=None):
         super().__init__()
@@ -255,7 +45,6 @@ class MainWindow(QMainWindow):
 
         self.model.itemChanged.connect(self.onItemChange)
 
-
         self.image_canvas = ImageCanvas(self, width=5, height=4, dpi=100)
 
         # Create toolbar, passing canvas as first parament, parent (self, the MainWindow) as second.
@@ -271,11 +60,6 @@ class MainWindow(QMainWindow):
 
         controls_layout = QGridLayout()
         controls_layout.setAlignment(Qt.AlignTop)
-
-        # controls_layout.addWidget(QLabel('Minimum intensity difference'), 0, 0)
-        # mid = QLineEdit(str(self.experiment.configuration['find_coordinates']['peak_finding']['minimum_intensity_difference']))
-        # mid.textChanged.connect(self.midChange)
-        # controls_layout.addWidget(mid, 0, 1)
 
         perform_mapping_button = QPushButton('Perform mapping Jacob')
         perform_mapping_button.clicked.connect(self.perform_mapping)
@@ -297,14 +81,6 @@ class MainWindow(QMainWindow):
         extraction_layout = QHBoxLayout()
         extraction_layout.addWidget(self.image)
         extraction_layout.addWidget(self.controls)
-
-
-
-
-        # self.selection = QTableWidget()
-        # self.selection.setRowCount(5)
-        # self.selection.setColumnCount(4)
-
 
         tabs = QTabWidget()
         tabs.setTabPosition(QTabWidget.North)
