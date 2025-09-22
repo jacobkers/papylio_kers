@@ -43,6 +43,20 @@ class MainWindow(QMainWindow):
         self.model.itemChanged.connect(self.onItemChange)
         self.image_canvas = ImageCanvas(self, width=5, height=4, dpi=100)
 
+        #Folowing Ivo's overview ppt, these should be the menus:'
+        #1.Channel_alignment
+        #2.Image_correction
+        #3.Molecule_localization
+        #4.Trace_extraction
+        #5.Trace_correction
+        #6.Molecule_selection
+        #7.Trace_classification
+        #8.Kinetics_quantification
+        #each of these comes with settings, QTY feed back and a status/go button
+        #(the latter should give status info)
+        #IF we skip a menu, it should run in default mode
+
+        #Current menus:
         #II. Build the 'extraction' tab, containing an image display (including a toolbar)  and action buttons.
         # a. Create toolbar, passing canvas as first parameter, parent (self, the MainWindow) as second.
         image_toolbar = NavigationToolbar(self.image_canvas, self)
@@ -60,18 +74,18 @@ class MainWindow(QMainWindow):
         # c. The  main action buttons are defined here:
 
         #map:
-        perform_mapping_button = QPushButton('Perform mapping')
+        perform_mapping_button = QPushButton('go: alignment')
         perform_mapping_button.setToolTip("select bead slide in tree pane and press; afterward close pop-ups")
 
         perform_mapping_button.clicked.connect(self.perform_mapping)
         controls_layout.addWidget(perform_mapping_button, 1, 0, 1, 2)
         #find:
-        find_molecules_button = QPushButton('Find coordinates')
+        find_molecules_button = QPushButton('go: coordinates')
         find_molecules_button.setToolTip("select movie(s) in tree pane and press to obtain XY per molecule")
         find_molecules_button.clicked.connect(self.find_coordinates)
         controls_layout.addWidget(find_molecules_button, 2, 0, 1, 2)
         #extracto
-        extract_traces_button = QPushButton('Extract traces')
+        extract_traces_button = QPushButton('go: traces')
         extract_traces_button.setToolTip("select movie(s) in tree pane and press to obtain trace per molecule")
         extract_traces_button.clicked.connect(self.extract_traces)
         controls_layout.addWidget(extract_traces_button, 3, 0, 1, 2)
