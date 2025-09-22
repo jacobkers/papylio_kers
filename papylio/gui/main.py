@@ -272,7 +272,7 @@ class MainWindow(QMainWindow):
         # mid.textChanged.connect(self.midChange)
         # controls_layout.addWidget(mid, 0, 1)
 
-        perform_mapping_button = QPushButton('Perform mapping')
+        perform_mapping_button = QPushButton('Perform mapping Jacob')
         perform_mapping_button.clicked.connect(self.perform_mapping)
         controls_layout.addWidget(perform_mapping_button, 1, 0, 1, 2)
 
