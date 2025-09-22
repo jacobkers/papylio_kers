@@ -70,11 +70,16 @@ class MainWindow(QMainWindow):
         find_molecules_button.setToolTip("select movie(s) in tree pane and press to obtain XY per molecule")
         find_molecules_button.clicked.connect(self.find_coordinates)
         controls_layout.addWidget(find_molecules_button, 2, 0, 1, 2)
-
+        #extracto
         extract_traces_button = QPushButton('Extract traces')
         extract_traces_button.setToolTip("select movie(s) in tree pane and press to obtain trace per molecule")
         extract_traces_button.clicked.connect(self.extract_traces)
         controls_layout.addWidget(extract_traces_button, 3, 0, 1, 2)
+        #dummy comment
+        to_do_button = QPushButton('TO DO')
+        to_do_button.setToolTip("each button should have user-trial settings& qty result OR be merged with former")
+        controls_layout.addWidget(to_do_button, 4, 0, 1, 2)
+
 
         self.controls = QWidget()
         self.controls.setLayout(controls_layout)
@@ -97,6 +102,7 @@ class MainWindow(QMainWindow):
         self.traces = TracePlotWindow(parent=self, width=4, height=3, show=False)
 
         tabs.addTab(self.traces, 'Traces')
+        tabs.setToolTip("TO DO: tabs should contain main steps, inside settings & GO")
         self.selection = SelectionWidget()
 
         # IV. Build a tab for trace evaluation by tresholds and more:
@@ -105,6 +111,7 @@ class MainWindow(QMainWindow):
 
         # V. build an 'experiment' pane with tree and refresh button in vertical order:
         refresh_button = QPushButton('Refresh')
+        refresh_button.setToolTip("TO DO: refresh adds status color to filenames")
         refresh_button.clicked.connect(self.refresh)
         experiment_layout = QVBoxLayout()
         experiment_layout.addWidget(refresh_button)
