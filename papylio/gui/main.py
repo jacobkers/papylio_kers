@@ -43,7 +43,12 @@ class MainWindow(QMainWindow):
         self.model.itemChanged.connect(self.onItemChange)
         self.image_canvas = ImageCanvas(self, width=5, height=4, dpi=100)
 
-        #Folowing Ivo's overview ppt, these should be the menus:'
+        #Folowing Ivo's overview ppt, these should be the menus:
+        #Each menu, we should ask ourselves on:
+        # A. settings: all default settings from config should be listed/adaptable
+        # B. user_visuals:  if I change settings, can I see if it matters? Graphs? Pics?
+        # C. action ('apply') button plus some sort of status (done with current settings)
+
         #1.Channel_alignment
         #2.Image_correction
         #3.Molecule_localization
@@ -52,9 +57,6 @@ class MainWindow(QMainWindow):
         #6.Molecule_selection
         #7.Trace_classification
         #8.Kinetics_quantification
-        #each of these comes with settings, QTY feed back and a status/go button
-        #(the latter should give status info)
-        #IF we skip a menu, it should run in default mode
 
         #Current menus:
         #II. Build the 'extraction' tab, containing an image display (including a toolbar)  and action buttons.
