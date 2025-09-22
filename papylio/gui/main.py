@@ -31,8 +31,6 @@ class MainWindow(QMainWindow):
         #I. set up the left section of the GUI,
         # displaying a tree of selectable files in th dataset-directory:
         self.tree = QTreeView(self)
-        layout = QVBoxLayout()
-        layout.addWidget(self.tree)
         self.model = QStandardItemModel()
         self.root = self.model.invisibleRootItem()
         self.model.setHorizontalHeaderLabels(['Name', 'Count'])
