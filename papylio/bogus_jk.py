@@ -1,0 +1,2 @@
+def bgs():
+    print('bogus')
