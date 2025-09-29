@@ -1,7 +1,8 @@
 
-jacob_sandbox
+
 
 development_not_to_be_included_in_git/
+bogus*
 
 __pycache__
 __pycache__/*.pyc
