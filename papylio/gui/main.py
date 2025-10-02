@@ -1,6 +1,6 @@
 
 import sys
-from PySide2.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QGridLayout, QTreeView, QApplication, QMainWindow, \
+from PySide2.QtWidgets import QWidget, QCheckBox,QHBoxLayout, QVBoxLayout, QGridLayout, QTreeView, QApplication, QMainWindow, \
     QPushButton, QTabWidget, QTableWidget, QComboBox, QLineEdit
 from PySide2.QtGui import QStandardItem, QStandardItemModel
 from PySide2.QtCore import Qt
@@ -11,8 +11,10 @@ import matplotlib.pyplot as plt
 from networkx.algorithms.approximation.matching import min_maximal_matching
 
 from papylio import Experiment, File
+#separately defined layouts
 from papylio.trace_plot import TracePlotWindow
-from papylio.gui.selection_widget import SelectionWidget
+from papylio.gui.a1_alignment_widget import AlignmentWidget
+from papylio.gui.a6_selection_widget import SelectionWidget
 
 class MainWindow(QMainWindow):
     def __init__(self, main_path=None):
@@ -36,25 +38,30 @@ class MainWindow(QMainWindow):
         self.tree.setModel(self.model)
         self.addExperiment(self.experiment)
         self.tree.setFocusPolicy(Qt.NoFocus)
-        self.tree.setFixedWidth(256)
+        self.tree.setFixedWidth(300)
         self.update = True
         self.model.itemChanged.connect(self.onItemChange)
-        self.image_canvas = ImageCanvas(self, width=5, height=4, dpi=100)
+
+
+        #set the overall size
+        self.image_canvas = ImageCanvas(self, width=8, height=5, dpi=100)
 
         #Folowing Ivo's overview ppt, these should be the menus:
         #Each menu, we should ask ourselves on:
-        # A. settings: all default settings from config should be listed/adaptable
-        # B. user_visuals:  if I change settings, can I see if it matters? Graphs? Pics?
-        # C. action ('apply') button plus some sort of status (done with current settings)
+        # A. control_layout: all default settings from config should be listed/adaptable
+        # B. user_feedback_layout:  if I change settings, can I see if it matters? Graphs? Pics?
+        # C. runtime_layout ('apply') button, status (done with current settings)
 
-        #1.Channel_alignment
-        #2.Image_correction
-        #3.Molecule_localization
-        #4.Trace_extraction
-        #5.Trace_correction
-        #6.Molecule_selection
-        #7.Trace_classification
-        #8.Kinetics_quantification
+        #for convenience, define menu acronyms
+        #A1_Channel_alignment: CHA
+        #A2_Image_correction: ICR
+        #A3_Molecule_localization: MLO
+        #A4_Trace_extraction: TEX
+        #A5_Trace_evaluation: TEV
+        #A6_Trace_correction: TCR
+        #A7_Molecule_selection: MOS
+        #A8_Trace_classification: TCL
+        #A9_Kinetics_quantification: KIQ
 
         #Current menus:
         #II. Build the 'extraction' tab, containing an image display (including a toolbar)  and action buttons.
@@ -68,65 +75,142 @@ class MainWindow(QMainWindow):
         #toolbar is the column of control buttons to the right
         self.image = QWidget()
         self.image.setLayout(image_layout)
-        controls_layout = QGridLayout()
-        controls_layout.setAlignment(Qt.AlignTop)
+        
+        #set the current menu layouts
+        a1_alignment_controls_layout = QGridLayout()
+        a1_alignment_controls_layout.setAlignment(Qt.AlignTop)
 
-        # c. The  main action buttons are defined here:
-        #map:
+        a3_localization_controls_layout = QGridLayout()
+        a3_localization_controls_layout.setAlignment(Qt.AlignTop)
+
+        a4_extraction_controls_layout = QGridLayout()
+        a4_extraction_controls_layout.setAlignment(Qt.AlignTop)
+
+        a6_trace_selection_layout=SelectionWidget()
+
+        # c. The  main action buttons are defined here (for now, they are grouped together:
+
+
+        #dummy button
+        to_do_button = QPushButton('TO DO')
+        to_do_button.setToolTip("each button should have user-trial settings& qty result OR be merged with former")
+        a1_alignment_controls_layout.addWidget(to_do_button, 4, 0, 1, 2)
+
+        #build control panels with layout per menu
+        # a1: set buttons:
         perform_mapping_button = QPushButton('go: alignment')
         perform_mapping_button.setToolTip("select bead slide in tree pane and press; afterward close pop-ups")
         perform_mapping_button.clicked.connect(self.perform_mapping)
-        controls_layout.addWidget(perform_mapping_button, 1, 0, 1, 2)
-        #find:
+        a1_alignment_controls_layout.addWidget(perform_mapping_button, 1, 0, 1, 2)
+
+        #a1: set control panel:
+        self.a1_alignment_controls = QWidget()
+        self.a1_alignment_controls.setLayout(a1_alignment_controls_layout)
+        self.a1_alignment_controls.setMinimumWidth(200)
+
+        #a1: combine image and control panel:
+        a1_alignment_layout = QHBoxLayout()
+        a1_alignment_layout.addWidget(self.image)
+        a1_alignment_layout.addWidget(self.a1_alignment_controls)
+
+        #a3: localization buttons:
         find_molecules_button = QPushButton('go: coordinates')
         find_molecules_button.setToolTip("select movie(s) in tree pane and press to obtain XY per molecule")
         find_molecules_button.clicked.connect(self.find_coordinates)
-        controls_layout.addWidget(find_molecules_button, 2, 0, 1, 2)
-        #extracto
+        a3_localization_controls_layout.addWidget(find_molecules_button, 2, 0, 1, 2)
+        # a3: set control panel:
+        self.a3_localization_controls = QWidget()
+        self.a3_localization_controls.setLayout(a3_localization_controls_layout)
+        self.a3_localization_controls.setMinimumWidth(200)
+        # a3: build control panel:
+        a3_localization_layout = QHBoxLayout()
+        a3_localization_layout.addWidget(self.a3_localization_controls)
+
+        # a4: buttons:
+        # extract
         extract_traces_button = QPushButton('go: traces')
         extract_traces_button.setToolTip("select movie(s) in tree pane and press to obtain trace per molecule")
         extract_traces_button.clicked.connect(self.extract_traces)
-        controls_layout.addWidget(extract_traces_button, 3, 0, 1, 2)
-        #dummy comment
-        to_do_button = QPushButton('TO DO')
-        to_do_button.setToolTip("each button should have user-trial settings& qty result OR be merged with former")
-        controls_layout.addWidget(to_do_button, 4, 0, 1, 2)
+        a4_extraction_controls_layout.addWidget(extract_traces_button, 3, 0, 1, 2)
+        # a4: set control panel:
+        self.a4_extraction_controls = QWidget()
+        self.a4_extraction_controls.setLayout(a4_extraction_controls_layout)
+        self.a4_extraction_controls.setMinimumWidth(200)
+        # a4: build control panel:
+        a4_extraction_layout = QHBoxLayout()
+        a4_extraction_layout.addWidget(self.a4_extraction_controls)
 
-
-        self.controls = QWidget()
-        self.controls.setLayout(controls_layout)
-        self.controls.setMinimumWidth(200)
-
-        extraction_layout = QHBoxLayout()
-        extraction_layout.addWidget(self.image)
-        extraction_layout.addWidget(self.controls)
-
+        #build tabs:
+        #we distinguish 'basic' tabs that are always visible,
+        # and 'advanced' tabs for more elaborate control
         tabs = QTabWidget()
         tabs.setTabPosition(QTabWidget.North)
         tabs.setMovable(False)
         tabs.setDocumentMode(True)
 
-        tab1 = QWidget(self)
-        tab1.setLayout(extraction_layout)
-        tabs.addTab(tab1, 'Movie')
+        advanced_checkbox = QCheckBox()
+        advanced_checkbox.setTristate(True)
+        advanced_checkbox.setCheckState(Qt.PartiallyChecked)
+        advanced_checkbox.stateChanged.connect(self.on_advanced_checkbox_state_change)
+        advanced_checkbox.setFocusPolicy(Qt.NoFocus)
 
-        # III. Build a tab for trace evaluation by eye:
-        self.traces = TracePlotWindow(parent=self, width=4, height=3, show=False,
+        advanced = False
+        # A1_Channel_alignment (basic) (transfer 'movie' functionality to widget)
+        #self.alignment = AlignmentWidget() [later]
+        tab_alignment = QWidget(self)
+        tab_alignment.setLayout(a1_alignment_layout)
+        tabs.addTab(tab_alignment, 'Align')
+
+        # A2_Image_correction (advanced) [new]
+        if advanced:  #placeholder for conditonal 'advanced' menu adding
+            self.image_correction = QWidget(self)
+            tabs.addTab(self.image_correction, 'Correct I')
+
+        # A3_Molecule_localization (basic):
+        self.molecule_localization = QWidget(self)
+        self.molecule_localization.setLayout(a3_localization_layout)
+        tabs.addTab(self.molecule_localization, 'Localize')
+
+        # A4_Trace_extraction (basic)
+        self.trace_extraction = QWidget(self)
+        self.trace_extraction.setLayout(a4_extraction_layout)
+        tabs.addTab(self.trace_extraction, 'Extract')
+
+        #A5_Trace_evaluation (basic)
+        self.trace_evaluation = TracePlotWindow(parent=self, width=4, height=3, show=False,
                                       save_path=self.experiment.analysis_path.joinpath('Trace_plots'))
-        tabs.addTab(self.traces, 'Traces')
-        tabs.setToolTip("TO DO: tabs should contain main steps, inside settings & GO")
-        self.selection = SelectionWidget()
+        tabs.addTab(self.trace_evaluation, 'Evaluate')
 
-        # IV. Build a tab for trace evaluation by tresholds and more:
-        tabs.addTab(self.selection, 'Selection (beta)')
+        self.trace_extraction.setToolTip("TO DO: tabs should contain main steps, inside settings & GO")
+
+
+        # A5_Trace_correction: (advanced)
+        if advanced:
+            self.trace_correction = QWidget(self)
+            tabs.addTab(self.trace_correction, 'Correct II')
+
+        # A6_trace_selection (basic):
+        #self.trace_selection = SelectionWidget()
+        tabs.addTab(a6_trace_selection_layout, 'Select')
         tabs.currentChanged.connect(self.setTabFocus)
+
+        # A7_Trace_classification: (basic)
+        self.trace_classification = QWidget(self)
+        tabs.addTab(self.trace_classification, 'Classify')
+
+        # A8_Kinetics_quantification: KIQ (basic)
+        self.trace_quantification = QWidget(self)
+        tabs.addTab(self.trace_quantification, 'Quantify')
+
 
         # V. build an 'experiment' pane with tree and refresh button in vertical order:
         refresh_button = QPushButton('Refresh')
         refresh_button.setToolTip("TO DO: refresh adds status color to filenames")
         refresh_button.clicked.connect(self.refresh)
+        
         experiment_layout = QVBoxLayout()
         experiment_layout.addWidget(refresh_button)
+        experiment_layout.addWidget(advanced_checkbox)
         experiment_layout.addWidget(self.tree)
 
         # VI. now, assemble the various panels
@@ -138,6 +222,10 @@ class MainWindow(QMainWindow):
         widget.setLayout(layout)
         self.setCentralWidget(widget)
 
+    def on_advanced_checkbox_state_change(self, advanced):
+        advanced_state = advanced
+        #advanced_state_checkbox.clearFocus()
+
     def keyPressEvent(self, e):
         self.traces.keyPressEvent(e)
 
@@ -145,7 +233,7 @@ class MainWindow(QMainWindow):
         if e == 0:
             self.image.setFocus()
         if e == 1:
-            self.traces.setFocus()
+            self.trace_extraction.setFocus()
 
     def midChange(self, input):
         input = int(input)
@@ -194,10 +282,10 @@ class MainWindow(QMainWindow):
         selected_files = self.experiment.selectedFiles + [None]
         self.image_canvas.file = selected_files[0]
         if selected_files[0] is not None:
-            self.traces.dataset = selected_files[0].dataset
-            self.selection.file = selected_files[0]
+            self.trace_extraction.dataset = selected_files[0].dataset
+            self.trace_extraction.file = selected_files[0]
         else:
-            self.traces.dataset = None
+            self.trace_extraction.dataset = None
             self.selection.file = None
 
     def addExperiment(self, experiment):
