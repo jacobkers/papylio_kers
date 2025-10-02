@@ -16,6 +16,7 @@ import sys
 import re
 import tifffile
 import netCDF4
+import json
 # from papylio.molecule import Molecule
 from papylio.movie.movie import Movie
 from papylio.movie.tif import TifMovie
@@ -29,6 +30,7 @@ from papylio.coordinate_optimization import  coordinates_within_margin, \
                                                     set_of_tuples_from_array, array_from_set_of_tuples, \
                                                     coordinates_within_margin_selection
 from papylio.trace_extraction import extract_traces
+from papylio.log_functions import add_configuration_to_dataarray
 # from matchpoint.coordinate_transformations import translate, transform # MD: we don't want to use this anymore I think, it is only linear
                                                                            # IS: We do! But we just need to make them usable with the nonlinear mapping
 from papylio.background_subtraction import extract_background
@@ -306,6 +308,16 @@ class File:
     def data_vars(self):
         with xr.open_dataset(self.absoluteFilePath.with_suffix('.nc'), engine='netcdf4') as dataset:
             return dataset.data_vars
+
+    @property
+    @return_none_when_executed_by_pycharm
+    def dataset_attributes(self):
+        if self.absoluteFilePath.with_suffix('.nc').exists():
+            with xr.open_dataset(self.absoluteFilePath.with_suffix('.nc'), engine='netcdf4') as dataset:
+                return dataset.attrs
+        else:
+            return {}
+
     # def get_coordinates(self, selected=False):
     #     if selected:
     #         molecules = self.selectedMolecules
@@ -338,6 +350,7 @@ class File:
         dataset = dataset.reset_index('molecule', drop=True)
         dataset = dataset.assign_coords({'file': ('molecule', [str(self.relativeFilePath).encode()] * number_of_molecules)})
         encoding = {'file': {'dtype': '|S'}, 'selected': {'dtype': bool}}
+        dataset.attrs['channel_arrangement'] = json.dumps(self.movie.channel_arrangement.tolist())
         dataset.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='netcdf4', mode='w', encoding=encoding)
         self.extensions.add('.nc')
 
@@ -387,7 +400,8 @@ class File:
 
         rot90 = self.configuration['movie']['rot90']
         self.movie = Movie(filepath, rot90)
-
+        if 'channel_arrangement' in self.dataset_attributes.keys():
+            self.movie.channel_arrangement = self.dataset_attributes['channel_arrangement']
         # self.number_of_frames = self.movie.number_of_frames
 
     def import_coeff_file(self, extension):
@@ -724,6 +738,16 @@ class File:
 
         # if len(coordinates) !=0:
 
+        add_configuration_to_dataarray(coordinates, File.find_coordinates, locals(), units='pixel')
+
+        for item_name in ['pixel_size', 'pixel_size_unit', 'stage_coordinates']:
+            if hasattr(self.movie, item_name):
+                if item_name == 'stage_coordinates':
+                    item = getattr(self.movie, item_name)[0]
+                else:
+                    item = getattr(self.movie, item_name)
+                coordinates.attrs[item_name] = item
+
         self.coordinates = coordinates
 
         # self.molecules.export_pks_file(self.relativeFilePath.with_suffix('.pks'))
@@ -942,6 +966,10 @@ class File:
         intensity = extract_traces(self.movie, self.coordinates, background=None, mask_size=mask_size,
                                    neighbourhood_size=neighbourhood_size, correct_illumination=False)
 
+        add_configuration_to_dataarray(intensity, units='a.u.') # TODO: Link to units in movie metadata?
+        intensity.attrs['configuration'] = json.dumps(dict(mask_size=mask_size, neighbourhood_size=neighbourhood_size))
+        intensity.attrs['movie_configuration'] = json.dumps(self.movie.configuration)
+
         if self.movie.time is not None: # hasattr(self.movie, 'time')
             intensity = intensity.assign_coords(time=self.movie.time)
 
@@ -974,13 +1002,19 @@ class File:
 
         intensity = trace_correction(intensity_raw, background_correction, alpha_correction, gamma_correction)
         intensity.name = 'intensity'
+        initial_configuration = intensity.attrs['configuration']
+        add_configuration_to_dataarray(intensity, self.apply_trace_corrections, locals(), units='a.u.') # TODO: Link to units in movie metadata?
+        intensity.attrs['configuration'] = initial_configuration[:-1] + ', ' + intensity.attrs['configuration'][1:]
+
         intensity.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='netcdf4', mode='a')
 
         if 'FRET' in self.data_vars:
             self.calculate_FRET()
 
     def calculate_FRET(self):
-        FRET = calculate_FRET(self.intensity)
+        intensity = self.intensity
+        FRET = calculate_FRET(intensity)
+        FRET.attrs = intensity.attrs
         FRET.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='netcdf4', mode='a')
 
     def get_traces(self, selected=False):
@@ -1850,6 +1884,7 @@ class File:
 def calculate_intensity_total(intensity):
     intensity_total = intensity.sum(dim='channel')
     intensity_total.name = 'intensity_total'
+    intensity_total.attrs = intensity.attrs
     return intensity_total
 
 
