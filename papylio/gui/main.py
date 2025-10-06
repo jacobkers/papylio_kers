@@ -55,16 +55,16 @@ class MainWindow(QMainWindow):
         # B. user_feedback_layout:  if I change settings, can I see if it matters? Graphs? Pics?
         # C. runtime_layout ('apply') button, status (done with current settings)
 
-        #for convenience, define menu acronyms
-        #A1_Channel_alignment: CHA
-        #A2_Image_correction: ICR
-        #A3_Molecule_localization: MLO
-        #A4_Trace_extraction: TEX
-        #A5_Trace_evaluation: TEV
-        #A6_Trace_correction: TCR
-        #A7_Molecule_selection: MOS
-        #A8_Trace_classification: TCL
-        #A9_Kinetics_quantification: KIQ
+        #the menus:
+        #A1_Channel_alignment
+        #A2_Image_correction
+        #A3_Molecule_localization
+        #A4_Trace_extraction
+        #A5_Trace_evaluation
+        #A6_Trace_correction
+        #A7_Molecule_selection
+        #A8_Trace_classification
+        #A9_Kinetics_quantification
 
         #Current menus:
         #II. Build the 'extraction' tab, containing an image display (including a toolbar)  and action buttons.
@@ -95,14 +95,15 @@ class MainWindow(QMainWindow):
 
 
         #dummy button
-        to_do_button = QPushButton('TO DO')
-        to_do_button.setToolTip("each button should have user-trial settings& qty result OR be merged with former")
-        a1_alignment_controls_layout.addWidget(to_do_button, 4, 0, 1, 2)
+        to_do_button = QPushButton('method button')
+        to_do_button.setToolTip("method buttons could be divided in default and advanced")
+        a1_alignment_controls_layout.addWidget(to_do_button, 0, 0, 1, 2)
 
         #build control panels with layout per menu
         # a1: set buttons:
-        perform_mapping_button = QPushButton('go: alignment')
-        perform_mapping_button.setToolTip("select bead slide in tree pane and press; afterward close pop-ups")
+
+        perform_mapping_button = QPushButton('apply/status')
+        perform_mapping_button.setToolTip("this button should apply all settings, but also check if this was done")
 
         perform_mapping_button.clicked.connect(self.perform_mapping)
         a1_alignment_controls_layout.addWidget(perform_mapping_button, 1, 0, 1, 2)
@@ -164,48 +165,66 @@ class MainWindow(QMainWindow):
         tab_alignment = QWidget(self)
         tab_alignment.setLayout(a1_alignment_layout)
         tabs.addTab(tab_alignment, 'Align')
+        tab_i = tabs.indexOf(tab_alignment)
+        tabs.setTabToolTip(tab_i, "Align the two color channels using one reference image")
 
         # A2_Image_correction (advanced) [new]
-        if advanced:  #placeholder for conditonal 'advanced' menu adding
+        if advanced:  #placeholder for conditional 'advanced' menu addin
             self.image_correction = QWidget(self)
             tabs.addTab(self.image_correction, 'Correct I')
+            tab_i = tabs.indexOf(self.image_correction)
+            tabs.setTabToolTip(tab_i, "Set background corrections for spot detection")
 
         # A3_Molecule_localization (basic):
         self.molecule_localization = QWidget(self)
         self.molecule_localization.setLayout(a3_localization_layout)
         tabs.addTab(self.molecule_localization, 'Localize')
+        tab_i = tabs.indexOf(self.molecule_localization)
+        tabs.setTabToolTip(tab_i, "find XY coordinates of molecules")
 
         # A4_Trace_extraction (basic)
         self.trace_extraction = QWidget(self)
         self.trace_extraction.setLayout(a4_extraction_layout)
         tabs.addTab(self.trace_extraction, 'Extract')
+        tab_i = tabs.indexOf(self.trace_extraction)
+        tabs.setTabToolTip(tab_i, "Get intensity traces per molecule")
 
         #A5_Trace_evaluation (basic)
         self.trace_evaluation = TracePlotWindow(parent=self, width=4, height=3, show=False,
                                       save_path=self.experiment.analysis_path.joinpath('Trace_plots'))
         tabs.addTab(self.trace_evaluation, 'Evaluate')
-
-        self.trace_extraction.setToolTip("TO DO: tabs should contain main steps, inside settings & GO")
-
+        tab_i = tabs.indexOf(self.trace_evaluation)
+        tabs.setTabToolTip(tab_i, "Inspect and select (??) traces")
 
         # A5_Trace_correction: (advanced)
         if advanced:
+            tab_i += 1
             self.trace_correction = QWidget(self)
             tabs.addTab(self.trace_correction, 'Correct II')
+            tab_i = tabs.indexOf(self.trace_correction)
+            tabs.setTabToolTip(tab_i, "Scale intensity of traces per molecule")
 
         # A6_trace_selection (basic):
         #self.trace_selection = SelectionWidget()
+        tab_i += 1
         tabs.addTab(a6_trace_selection_layout, 'Select')
         tabs.currentChanged.connect(self.setTabFocus)
+        tab_i = tabs.indexOf(a6_trace_selection_layout)
+        tabs.setTabToolTip(tab_i, "Set threshold parameters for auto-selection of traces")
 
         # A7_Trace_classification: (basic)
+        tab_i += 1
         self.trace_classification = QWidget(self)
         tabs.addTab(self.trace_classification, 'Classify')
+        tab_i = tabs.indexOf(self.trace_classification)
+        tabs.setTabToolTip(tab_i, "Extract molecule states using HMM or other methods")
 
         # A8_Kinetics_quantification: KIQ (basic)
+        tab_i += 1
         self.trace_quantification = QWidget(self)
         tabs.addTab(self.trace_quantification, 'Quantify')
-
+        tab_i = tabs.indexOf(self.trace_quantification)
+        tabs.setTabToolTip(tab_i, "Obtain kinetic parameters of molecule states")
 
         # V. build an 'experiment' pane with tree and refresh button in vertical order:
         refresh_button = QPushButton('Refresh')
@@ -286,7 +305,6 @@ class MainWindow(QMainWindow):
             for i in range(item.rowCount()):
                 item.child(i).setCheckState(item.checkState())
             self.update = True
-
         if self.update:
             self.update_plots()
 
@@ -298,7 +316,7 @@ class MainWindow(QMainWindow):
             self.trace_extraction.file = selected_files[0]
         else:
             self.trace_extraction.dataset = None
-            self.selection.file = None
+            self.trace_extraction.file = None
 
     def addExperiment(self, experiment):
         #jk_note: when uncommenting a path here, code basically auto-loads:
