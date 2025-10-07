@@ -1348,20 +1348,13 @@ class File:
     def intensity_total(self):
         return calculate_intensity_total(self.intensity)
 
+
     @property
     @return_none_when_executed_by_pycharm
     def selections(self):
         with xr.open_dataset(self.absoluteFilePath.with_suffix('.nc'), engine='netcdf4') as dataset:
             return xr.Dataset({value.name: value for key, value in dataset.data_vars.items()
-                               if key.startswith('selection')}).to_array(dim='selection')
-        # return xr.concat([value for key, value in self.dataset.data_vars.items() if key.startswith('filter')], dim='filter')
-
-    @property
-    @return_none_when_executed_by_pycharm
-    def selections_dataset(self):
-        with xr.open_dataset(self.absoluteFilePath.with_suffix('.nc'), engine='netcdf4') as dataset:
-            return xr.Dataset({value.name: value for key, value in dataset.data_vars.items()
-                               if key.startswith('selection')})
+                               if key.startswith('selection')}) # .to_array(dim='selection')
         # return xr.concat([value for key, value in self.dataset.data_vars.items() if key.startswith('filter')], dim='filter')
 
     def add_selection(self, variable, channel, aggregator, operator, threshold):
@@ -1383,49 +1376,67 @@ class File:
         else:
             raise ValueError('Unknown operator')
 
-        selection.attrs = {'variable': variable, 'channel': channel, 'aggregator': aggregator,
-                            'operator': operator, 'threshold': threshold}
+        # selection.attrs = {'variable': variable, 'channel': channel, 'aggregator': aggregator,
+        #                     'operator': operator, 'threshold': threshold}
 
         threshold_str = str(threshold).replace('.','p')
 
         selection_name = f'selection_{variable}_{channel_str}_{aggregator}_{operator}_{threshold_str}'
 
+        add_configuration_to_dataarray(selection, File.add_selection, locals())
+
         self.set_variable(selection, name=selection_name)
 
     def copy_selections_to_selected_files(self):
         name_and_selection_parameters = [(name, dataarray.attrs) for name, dataarray in
-                                         self.selections_dataset.data_vars.items()]
+                                         self.selections.data_vars.items()]
         for file in self.experiment.selectedFiles:
             if file is not self:
                 for name, selection_parameters in name_and_selection_parameters:
                     file.add_selection(**selection_parameters)
-                file.apply_selections(selection_names=self.selection_names)
+                file.apply_selections(selection_names=self.selected.attrs['selection_names'])
 
     @property
+    @return_none_when_executed_by_pycharm
     def selection_names(self):
-        return self.selected.attrs['selection_names']
+        return list(self.selections.data_vars.keys())
 
     def clear_selections(self):
         dataset = self.dataset
         dataset = dataset.drop_vars([name for name in dataset.data_vars.keys() if name.startswith('selection_')])
         dataset.to_netcdf(self.absoluteFilePath.with_suffix('.nc'))
 
+    @property
+    @return_none_when_executed_by_pycharm
+    def selection_configurations(self):
+        selection_configurations = {}
+        for name, selection in self.selections.items():
+            if 'configuration' in selection.attrs:
+                selection_configurations[name] = json.loads(selection.attrs['configuration'])
+            else:
+                selection_configurations[name] = None
+        return selection_configurations
+
     def apply_selections(self, selection_names='all'):
+        if selection_names in ['all', None]:
+            selection_names = self.selection_names
+
         invert = np.zeros(len(selection_names), bool)
         for i, selection_name in enumerate(selection_names):
             if selection_name.startswith('~'):
                 invert[i] = True
                 selection_names[i] = selection_name[1:]
 
-        if selection_names in ['all', None]:
-            selection_names = self.selections.selection.values.tolist()
         #     selections = self.selections
         # else:
-        selections = self.selections.sel(selection=selection_names)
+        selections = self.selections[selection_names].to_array(dim='selection')
 
         selections[invert] = ~selections[invert]
         selected = selections.all(dim='selection')
-        selected.attrs['selection_names'] = selection_names
+
+        add_configuration_to_dataarray(selected)
+        selected.attrs['configuration'] = json.dumps({'selection_names': selection_names})
+        selected.attrs['selection_configurations'] = json.dumps(self.selection_configurations)
         self.set_variable(selected, name='selected')
 
     def apply_classifications(self, **kwargs):
