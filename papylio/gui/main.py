@@ -21,7 +21,7 @@ class MainWindow(QMainWindow):
         super().__init__()
         from papylio import Experiment
         # jk note: here you may just use a fixed path for quick editing
-        if 1: #jk's easy-to_find UglySwitch
+        if 0: #jk's easy-to_find UglySwitch
             # experiment = Experiment(r'C:\Users\myname\personalpaths\Papylio example dataset')
             self.experiment = Experiment(
                  r'C:\Users\jkerssemakers\OneDrive - Delft University of Technology\ChJ_recent\Papylio example dataset')
