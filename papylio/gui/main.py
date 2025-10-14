@@ -46,22 +46,16 @@ class MainWindow(QMainWindow):
         #set the overall size
         self.image_canvas = ImageCanvas(self, width=8, height=5, dpi=100)
 
-        #Folowing Ivo's overview ppt, these should be the menus:
-        #Each menu, we should ask ourselves on:
-        # control_layout: all default settings from config should be listed/adaptable
-        # user_feedback_layout:  if I change settings, can I see if it matters? Graphs? Pics?
-        # runtime_layout ('apply') button, status (done with current settings)
-
-        #the menus:
-        #Channel_alignment
-        #Image_correction
-        #Molecule_localization
-        #Trace_extraction
-        #Trace_evaluation
-        #Trace_correction
-        #Molecule_selection
-        #Trace_classification
-        #Kinetics_quantification
+        #menus following Papylio-by-script:
+        #Channel_alignment (current label: 'movie')
+        #Image_correction (inactive)
+        #Molecule_localization (inactive)
+        #Trace_extraction (inactive)
+        #Trace_evaluation (current label: 'Traces')
+        #Trace_correction (inactive)
+        #Molecule_selection (current label: 'Selection (beta)' )
+        #Trace_classification (tbd)
+        #Kinetics_quantification (tbd)
 
         #Current menus:
         #II. Build the 'extraction' tab, containing an image display (including a toolbar)  and action buttons.
@@ -89,16 +83,23 @@ class MainWindow(QMainWindow):
         trace_selection_layout=SelectionWidget()
 
         # c. The  main action buttons are defined here (for now, they are grouped together:
-
-        #build control panels with layout per menu
         # set buttons:
-        perform_mapping_button = QPushButton('apply/status')
-        perform_mapping_button.setToolTip("this button should apply all settings, but also check if this was done")
+        perform_mapping_button = QPushButton('Perform mapping')
+        perform_mapping_button.setToolTip("Use this once for the bead slide")
         perform_mapping_button.clicked.connect(self.perform_mapping)
 
+        find_molecules_button = QPushButton('Find coordinates')
+        find_molecules_button.setToolTip("select movie(s) in tree pane and press to obtain XY per molecule")
+        find_molecules_button.clicked.connect(self.find_coordinates)
 
+        extract_traces_button = QPushButton('Extract traces')
+        extract_traces_button.setToolTip("select movie(s) in tree pane and press to obtain trace per molecule")
+        extract_traces_button.clicked.connect(self.extract_traces)
 
+        #for now, we place buttons at their original location (in the 'movie' tab)
         alignment_controls_layout.addWidget(perform_mapping_button, 1, 0, 1, 2)
+        alignment_controls_layout.addWidget(find_molecules_button, 2, 0, 1, 2)
+        alignment_controls_layout.addWidget(extract_traces_button, 3, 0, 1, 2)
 
         #set control panel:
         self.alignment_controls = QWidget()
@@ -110,34 +111,38 @@ class MainWindow(QMainWindow):
         alignment_layout.addWidget(self.image)
         alignment_layout.addWidget(self.alignment_controls)
 
-        #localization buttons:
-        find_molecules_button = QPushButton('go: coordinates')
-        find_molecules_button.setToolTip("select movie(s) in tree pane and press to obtain XY per molecule")
-        find_molecules_button.clicked.connect(self.find_coordinates)
-        localization_controls_layout.addWidget(find_molecules_button, 2, 0, 1, 2)
-        # a3: set control panel:
-        self.localization_controls = QWidget()
-        self.localization_controls.setLayout(localization_controls_layout)
-        self.localization_controls.setMinimumWidth(200)
-        # a3: build control panel:
-        localization_layout = QHBoxLayout()
-        localization_layout.addWidget(self.localization_controls)
+        # temporally inactive tabs, following the papylio script menu:
+        if 0:
+            #localize:
+            # buttons
+            find_molecules_button = QPushButton('go: coordinates')
+            find_molecules_button.setToolTip("select movie(s) in tree pane and press to obtain XY per molecule")
+            find_molecules_button.clicked.connect(self.find_coordinates)
+            localization_controls_layout.addWidget(find_molecules_button, 2, 0, 1, 2)
+            # set control panel:
+            self.localization_controls = QWidget()
+            self.localization_controls.setLayout(localization_controls_layout)
+            self.localization_controls.setMinimumWidth(200)
+            # build control panel:
+            localization_layout = QHBoxLayout()
+            localization_layout.addWidget(self.localization_controls)
 
-        # extract
-        # buttons:
-        extract_traces_button = QPushButton('go: traces')
-        extract_traces_button.setToolTip("select movie(s) in tree pane and press to obtain trace per molecule")
-        extract_traces_button.clicked.connect(self.extract_traces)
-        extraction_controls_layout.addWidget(extract_traces_button, 3, 0, 1, 2)
-        # set control panel:
-        self.extraction_controls = QWidget()
-        self.extraction_controls.setLayout(extraction_controls_layout)
-        self.extraction_controls.setMinimumWidth(200)
-        # build control panel:
-        extraction_layout = QHBoxLayout()
-        extraction_layout.addWidget(self.extraction_controls)
+            # extract
+            # buttons:
+            extract_traces_button = QPushButton('go: traces')
+            extract_traces_button.setToolTip("select movie(s) in tree pane and press to obtain trace per molecule")
+            extract_traces_button.clicked.connect(self.extract_traces)
+            extraction_controls_layout.addWidget(extract_traces_button, 3, 0, 1, 2)
+            # set control panel:
+            self.extraction_controls = QWidget()
+            self.extraction_controls.setLayout(extraction_controls_layout)
+            self.extraction_controls.setMinimumWidth(200)
+        if 0:  # inactive tab, following the papylio script menu:
+            # build control panel:
+            extraction_layout = QHBoxLayout()
+            extraction_layout.addWidget(self.extraction_controls)
 
-        #build tabs:
+        # build tabs:
         #we distinguish 'basic' tabs that are always visible,
         # and 'advanced' tabs for more elaborate control
         tabs = QTabWidget()
@@ -145,21 +150,15 @@ class MainWindow(QMainWindow):
         tabs.setMovable(False)
         tabs.setDocumentMode(True)
 
-        advanced_checkbox = QCheckBox()
-        advanced_checkbox.setTristate(True)
-        advanced_checkbox.setCheckState(Qt.PartiallyChecked)
-        advanced_checkbox.stateChanged.connect(self.on_advanced_checkbox_state_change)
-        advanced_checkbox.setFocusPolicy(Qt.NoFocus)
-
-        advanced = False
-        # Channel_alignment (basic) (transfer 'movie' functionality to widget)
+        # Channel_alignment (later might transfer 'movie' functionality to separate widget)
         #self.alignment = AlignmentWidget() [later]
         tab_alignment = QWidget(self)
         tab_alignment.setLayout(alignment_layout)
-        tabs.addTab(tab_alignment, 'Align')
+        tabs.addTab(tab_alignment, 'Movie')
         tab_i = tabs.indexOf(tab_alignment)
         tabs.setTabToolTip(tab_i, "Align the two color channels using one reference image")
 
+        advanced = False
         # Image_correction (advanced) [new]
         if advanced:  #placeholder for conditional 'advanced' menu addin
             self.image_correction = QWidget(self)
@@ -167,29 +166,32 @@ class MainWindow(QMainWindow):
             tab_i = tabs.indexOf(self.image_correction)
             tabs.setTabToolTip(tab_i, "Set background corrections for spot detection")
 
-        # Molecule_localization (basic):
-        self.molecule_localization = QWidget(self)
-        self.molecule_localization.setLayout(localization_layout)
-        tabs.addTab(self.molecule_localization, 'Localize')
-        tab_i = tabs.indexOf(self.molecule_localization)
-        tabs.setTabToolTip(tab_i, "find XY coordinates of molecules")
+        if 0: #inactive tab, following the papylio script menu:
+            # Molecule_localization (basic):
+            self.molecule_localization = QWidget(self)
+            self.molecule_localization.setLayout(localization_layout)
+            tabs.addTab(self.molecule_localization, 'Localize')
+            tab_i = tabs.indexOf(self.molecule_localization)
+            tabs.setTabToolTip(tab_i, "find XY coordinates of molecules")
 
-        # Trace_extraction (basic)
-        self.trace_extraction = QWidget(self)
-        self.trace_extraction.setLayout(extraction_layout)
-        tabs.addTab(self.trace_extraction, 'Extract')
-        tab_i = tabs.indexOf(self.trace_extraction)
-        tabs.setTabToolTip(tab_i, "Get intensity traces per molecule")
+        if 0: #inactive tab, following the papylio script menu:
+            # Trace_extraction (basic)
+            self.trace_extraction = QWidget(self)
+            self.trace_extraction.setLayout(extraction_layout)
+            tabs.addTab(self.trace_extraction, 'Extract')
+            tab_i = tabs.indexOf(self.trace_extraction)
+            tabs.setTabToolTip(tab_i, "Get intensity traces per molecule")
 
         #Trace_evaluation (basic)
         self.trace_evaluation = TracePlotWindow(parent=self, width=4, height=3, show=False,
                                       save_path=self.experiment.analysis_path.joinpath('Trace_plots'))
-        tabs.addTab(self.trace_evaluation, 'Evaluate')
+        tabs.addTab(self.trace_evaluation, 'Traces')
         tab_i = tabs.indexOf(self.trace_evaluation)
-        tabs.setTabToolTip(tab_i, "Inspect and select (??) traces")
+        tabs.setTabToolTip(tab_i, "Inspect and select traces")
+
 
         # Trace_correction: (advanced)
-        if advanced:
+        if 0: #inactive tab, following the papylio script menu:
             tab_i += 1
             self.trace_correction = QWidget(self)
             tabs.addTab(self.trace_correction, 'Correct II')
@@ -204,28 +206,28 @@ class MainWindow(QMainWindow):
         tab_i = tabs.indexOf(trace_selection_layout)
         tabs.setTabToolTip(tab_i, "Set threshold parameters for auto-selection of traces")
 
-        # Trace_classification: (basic)
-        tab_i += 1
-        self.trace_classification = QWidget(self)
-        tabs.addTab(self.trace_classification, 'Classify')
-        tab_i = tabs.indexOf(self.trace_classification)
-        tabs.setTabToolTip(tab_i, "Extract molecule states using HMM or other methods")
+        if 0:  # inactive tab, following the papylio script menu:
+            # Trace_classification: (basic)
+            tab_i += 1
+            self.trace_classification = QWidget(self)
+            tabs.addTab(self.trace_classification, 'Classify')
+            tab_i = tabs.indexOf(self.trace_classification)
+            tabs.setTabToolTip(tab_i, "Extract molecule states using HMM or other methods")
 
-        # Kinetics_quantification: KIQ (basic)
-        tab_i += 1
-        self.trace_quantification = QWidget(self)
-        tabs.addTab(self.trace_quantification, 'Quantify')
-        tab_i = tabs.indexOf(self.trace_quantification)
-        tabs.setTabToolTip(tab_i, "Obtain kinetic parameters of molecule states")
+            # Kinetics_quantification: KIQ (basic)
+            tab_i += 1
+            self.trace_quantification = QWidget(self)
+            tabs.addTab(self.trace_quantification, 'Quantify')
+            tab_i = tabs.indexOf(self.trace_quantification)
+            tabs.setTabToolTip(tab_i, "Obtain kinetic parameters of molecule states")
 
         # V. build an 'experiment' pane with tree and refresh button in vertical order:
         refresh_button = QPushButton('Refresh')
         refresh_button.setToolTip("TO DO: refresh adds status color to filenames")
         refresh_button.clicked.connect(self.refresh)
-        
+
         experiment_layout = QVBoxLayout()
         experiment_layout.addWidget(refresh_button)
-        experiment_layout.addWidget(advanced_checkbox)
         experiment_layout.addWidget(self.tree)
 
         # VI. now, assemble the various panels
@@ -248,7 +250,7 @@ class MainWindow(QMainWindow):
         if e == 0:
             self.image.setFocus()
         if e == 1:
-            self.trace_extraction.setFocus()
+            self.trace_evaluation.setFocus()
 
     def midChange(self, input):
         input = int(input)
@@ -296,11 +298,11 @@ class MainWindow(QMainWindow):
         selected_files = self.experiment.selectedFiles + [None]
         self.image_canvas.file = selected_files[0]
         if selected_files[0] is not None:
-            self.trace_extraction.dataset = selected_files[0].dataset
-            self.trace_extraction.file = selected_files[0]
+            self.trace_evaluation.dataset = selected_files[0].dataset
+            self.trace_evaluation.file = selected_files[0]
         else:
-            self.trace_extraction.dataset = None
-            self.trace_extraction.file = None
+            self.trace_evaluation.dataset = None
+            self.trace_evaluation.file = None
 
     def addExperiment(self, experiment):
         #jk_note: when uncommenting a path here, code basically auto-loads:
