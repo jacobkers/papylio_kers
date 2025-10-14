@@ -80,7 +80,7 @@ class MainWindow(QMainWindow):
         extraction_controls_layout = QGridLayout()
         extraction_controls_layout.setAlignment(Qt.AlignTop)
 
-        trace_selection_layout=SelectionWidget()
+        #trace_selection_layout=SelectionWidget()
 
         # c. The  main action buttons are defined here (for now, they are grouped together:
         # set buttons:
