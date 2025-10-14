@@ -92,10 +92,6 @@ class MainWindow(QMainWindow):
         trace_selection_layout=SelectionWidget()
 
         # c. The  main action buttons are defined here (for now, they are grouped together:
-        #dummy button
-        to_do_button = QPushButton('method button')
-        to_do_button.setToolTip("method buttons could be divided in default and advanced")
-        alignment_controls_layout.addWidget(to_do_button, 0, 0, 1, 2)
 
         #build control panels with layout per menu
 
@@ -104,6 +100,9 @@ class MainWindow(QMainWindow):
         perform_mapping_button.setToolTip("this button should apply all settings, but also check if this was done")
 
         perform_mapping_button.clicked.connect(self.perform_mapping)
+
+
+
         alignment_controls_layout.addWidget(perform_mapping_button, 1, 0, 1, 2)
 
         #set control panel:
