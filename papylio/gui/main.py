@@ -199,11 +199,11 @@ class MainWindow(QMainWindow):
             tabs.setTabToolTip(tab_i, "Scale intensity of traces per molecule")
 
         # trace_selection (basic):
-        #self.trace_selection = SelectionWidget()
+        self.trace_selection = SelectionWidget()
         tab_i += 1
-        tabs.addTab(trace_selection_layout, 'Select')
+        tabs.addTab(self.trace_selection, 'Select')
         tabs.currentChanged.connect(self.setTabFocus)
-        tab_i = tabs.indexOf(trace_selection_layout)
+        tab_i = tabs.indexOf(self.trace_selection)
         tabs.setTabToolTip(tab_i, "Set threshold parameters for auto-selection of traces")
 
         if 0:  # inactive tab, following the papylio script menu:
@@ -299,10 +299,10 @@ class MainWindow(QMainWindow):
         self.image_canvas.file = selected_files[0]
         if selected_files[0] is not None:
             self.trace_evaluation.dataset = selected_files[0].dataset
-            self.trace_evaluation.file = selected_files[0]
+            self.trace_selection.file = selected_files[0]
         else:
             self.trace_evaluation.dataset = None
-            self.trace_evaluation.file = None
+            self.trace_selection.file = None
 
     def addExperiment(self, experiment):
         #jk_note: when uncommenting a path here, code basically auto-loads:
