@@ -26,7 +26,7 @@ Current functionality
     :hidden:
 
     Installation
-    :doc:`Getting started <getting_started>'
+    Getting started <getting_started>
     User guide <user_guide/index>
     Examples <examples/index>
     SPARXS <SPARXS/index>
