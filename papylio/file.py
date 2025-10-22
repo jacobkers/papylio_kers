@@ -34,7 +34,7 @@ from papylio.log_functions import add_configuration_to_dataarray
 # from matchpoint.coordinate_transformations import translate, transform # MD: we don't want to use this anymore I think, it is only linear
                                                                            # IS: We do! But we just need to make them usable with the nonlinear mapping
 from papylio.background_subtraction import extract_background
-from papylio.analysis.hidden_markov_modelling import hmm_traces, hidden_markov_modelling
+from papylio.analysis.hidden_markov_modelling import hmm_traces, classify_hmm
 # from papylio.plugin_manager import PluginManager
 # from papylio.plugin_manager import PluginMetaClass
 from papylio.plugin_manager import plugins
@@ -1032,18 +1032,6 @@ class File:
 
         return traces
 
-    # def classify_traces(self):
-    #     ds = hmm_traces(self.FRET, n_components=2, covariance_type="full", n_iter=100)
-    #     ds.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='netcdf4', mode='a')
-
-    def classify_hmm(self, variable, seed=0, n_states=2, threshold_state_mean=None, level='molecule'):#, use_selection=True, use_classification=True):
-        np.random.seed(seed)
-        if isinstance(variable, str):
-            variable = getattr(self, variable)
-
-        ds = hidden_markov_modelling(variable, self.classification, self.selected, n_states=n_states, threshold_state_mean=threshold_state_mean, level=level)
-        ds.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='netcdf4', mode='a')
-
     def plot_hmm_rates(self, name=None):
         if name is None:
             name = self.name
@@ -1348,16 +1336,16 @@ class File:
     def intensity_total(self):
         return calculate_intensity_total(self.intensity)
 
-
     @property
     @return_none_when_executed_by_pycharm
     def selections(self):
         with xr.open_dataset(self.absoluteFilePath.with_suffix('.nc'), engine='netcdf4') as dataset:
             return xr.Dataset({value.name: value for key, value in dataset.data_vars.items()
-                               if key.startswith('selection')}) # .to_array(dim='selection')
+                               if key.startswith('selection_')}) # .to_array(dim='selection')
         # return xr.concat([value for key, value in self.dataset.data_vars.items() if key.startswith('filter')], dim='filter')
 
     def add_selection(self, variable, channel, aggregator, operator, threshold):
+        #TODO: Add option to give name
         data_array = getattr(self, variable)
 
         if 'channel' in data_array.dims:
@@ -1406,15 +1394,17 @@ class File:
         dataset = dataset.drop_vars([name for name in dataset.data_vars.keys() if name.startswith('selection_')])
         dataset.to_netcdf(self.absoluteFilePath.with_suffix('.nc'))
 
-    @property
-    @return_none_when_executed_by_pycharm
-    def selection_configurations(self):
+    def selection_configurations(self, selection_names='all'):
+        if selection_names in ['all', None]:
+            selection_names = self.selection_names
+
         selection_configurations = {}
         for name, selection in self.selections.items():
-            if 'configuration' in selection.attrs:
-                selection_configurations[name] = json.loads(selection.attrs['configuration'])
-            else:
-                selection_configurations[name] = None
+            if name in selection_names:
+                if 'configuration' in selection.attrs:
+                    selection_configurations[name] = json.loads(selection.attrs['configuration'])
+                else:
+                    selection_configurations[name] = None
         return selection_configurations
 
     def apply_selections(self, selection_names='all'):
@@ -1436,12 +1426,84 @@ class File:
 
         add_configuration_to_dataarray(selected)
         selected.attrs['configuration'] = json.dumps({'selection_names': selection_names})
-        selected.attrs['selection_configurations'] = json.dumps(self.selection_configurations)
+        selected.attrs['selection_configurations'] = json.dumps(self.selection_configurations(selection_names))
         self.set_variable(selected, name='selected')
 
-    def apply_classifications(self, **kwargs):
+    @property
+    @return_none_when_executed_by_pycharm
+    def classifications(self):
+        with xr.open_dataset(self.absoluteFilePath.with_suffix('.nc'), engine='netcdf4') as dataset:
+            return xr.Dataset({value.name: value for key, value in dataset.data_vars.items()
+                               if key.startswith('classification_')})  # .to_array(dim='selection')
+        # return xr.concat([value for key, value in self.dataset.data_vars.items() if key.startswith('filter')], dim='filter')
+
+    @property
+    @return_none_when_executed_by_pycharm
+    def classification_names(self):
+        return list(self.classifications.data_vars.keys())
+
+    def classification_configurations(self, classification_names='all'):
+        if classification_names in ['all', None]:
+            classification_names = self.classification_names
+
+        classification_configurations = {}
+        for name, classification in self.classifications.items():
+            if name in classification_names:
+                if 'configuration' in classification.attrs:
+                    classification_configurations[name] = json.loads(classification.attrs['configuration'])
+                else:
+                    classification_configurations[name] = None
+        return classification_configurations
+
+    def classify_traces(self, classification_type, variable, select=None, name=None, classification_kwargs=None):
+        if classification_kwargs is None:
+            classification_kwargs = {}
+        if isinstance(variable, str):
+            traces = getattr(self, variable)
+        else:
+            traces = variable
+            variable = traces.name
+
+        if select is not None:
+            traces = traces.sel(**select)
+
+        if classification_type == 'threshold':
+            from papylio.analysis.classification_simple import classify_threshold
+            ds = classify_threshold(traces, **classification_kwargs).to_dataset()
+            # TODO: perhaps replace the following line with some function that actually spits out the classification kwargs.
+            add_configuration_to_dataarray(ds.classification, classify_threshold, classification_kwargs)
+
+        elif classification_type in ['hmm', 'hidden_markov_model']:
+            # ds = hmm_traces(self.FRET, n_components=2, covariance_type="full", n_iter=100) # Old
+            ds = classify_hmm(traces, self.classification, self.selected, **classification_kwargs)
+            ds.classification.attrs['input_selection_configuration'] = json.dumps(self.selection_configurations())
+            ds.classification.attrs['input_classification_configuration'] = json.dumps(self.classification_configurations())
+            #TODO: perhaps replace the following line with some function that actually spits out the classification kwargs.
+            add_configuration_to_dataarray(ds.classification, classify_hmm, classification_kwargs)
+
+        else:
+            raise ValueError('Unknown classification type')
+
+        classification_kwargs = json.loads(ds.classification.attrs['configuration'])
+        add_configuration_to_dataarray(ds.classification, File.classify_traces, locals())
+
+        if name is None:
+            name = classification_type
+        if not name.startswith('classification_'):
+            name = 'classification_' + name
+        ds = ds.rename({'classification': name})
+
+        ds.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='netcdf4', mode='a')
+
+    def classify_hmm(self, variable, seed=0, n_states=2, threshold_state_mean=None,
+                     level='molecule'):  # , use_selection=True, use_classification=True):
+        self.classify_traces(name='hmm', classification_type='hmm', variable=variable,
+                             classification_kwargs=dict(seed=seed, n_states=n_states,
+                                threshold_state_mean=threshold_state_mean, level=level))
+
+    def apply_classifications(self, **classification_assignment):
         classification_combined = np.zeros((len(self.molecule), len(self.frame)),'int8')
-        for classification_name, state_indices in kwargs.items():
+        for classification_name, state_indices in classification_assignment.items():
             if not classification_name.startswith('classification'):
                 raise ValueError('Only insert classifications')
 
@@ -1463,6 +1525,11 @@ class File:
                 for i, c in enumerate(np.unique(classification)):
                     if state_indices[i] is not None:
                         classification_combined[(classification == c).values] = state_indices[i]
+
+        classification_combined = xr.DataArray(classification_combined)
+        add_configuration_to_dataarray(classification_combined)
+        classification_combined.attrs['configuration'] = json.dumps(classification_assignment)
+        classification_combined.attrs['classification_configurations'] = json.dumps(self.classification_configurations(list(classification_assignment.keys())))
 
         self.set_variable(classification_combined, name='classification', dims=('molecule','frame'))
 

@@ -1,6 +1,7 @@
 import pytest
 import tifffile
 import numpy as np
+import json
 
 
 @pytest.fixture
@@ -109,6 +110,11 @@ def test_apply_selections(file_hj):
     file_hj.add_selection(variable='FRET', channel=None, aggregator='mean', operator='>', threshold=0.5)
     file_hj.apply_selections()
 
+def test_classify(file_output):
+    file_output.classify_traces(name='classification_test', classification_type='threshold',
+                                variable='intensity_total', classification_kwargs=dict(threshold=500, rolling='median', window_size=5))
+    file_output.classify_traces(**json.loads(file_output.classification_test.attrs['configuration']))
+
 def test_classify_hmm(file_output):
     selection = file_output.selected
     selection[0:20] = True
@@ -116,6 +122,10 @@ def test_classify_hmm(file_output):
     file_output.apply_classifications()
     file_output.classify_hmm('FRET')
     file_output.classify_hmm(file_output.intensity.sel(channel=0, drop=True))
+
+def test_apply_classifications(file_hj):
+    file_hj.apply_classifications(classification_donor_active=-1, classification_single_dye=-2,
+                               classification_hmm=[None, 0, 1])
 
 def test_use_for_darkfield_correction(file):
     file.use_for_darkfield_correction()

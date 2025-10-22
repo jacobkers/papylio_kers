@@ -8,7 +8,7 @@ def function_arguments(function, function_locals):
     all_argument_values = {
         parameter.name:
             function_locals[parameter.name] for parameter
-        in signature_values if parameter.name is not 'self'
+        in signature_values if parameter.name is not 'self' and parameter.name in function_locals
     }
 
     if list(all_argument_values.keys())==['configuration']:
@@ -31,3 +31,4 @@ def add_configuration_to_dataarray(dataarray, function=None, function_locals=Non
     if units is not None:
         dataarray.attrs['units'] = units
     return dataarray
+
