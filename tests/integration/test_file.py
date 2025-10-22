@@ -110,10 +110,10 @@ def test_apply_selections(file_hj):
     file_hj.create_selection(variable='FRET', channel=None, aggregator='mean', operator='>', threshold=0.5)
     file_hj.apply_selections()
 
-def test_classify(file_output):
-    file_output.classify_traces(name='classification_test', classification_type='threshold',
-                                variable='intensity_total', classification_kwargs=dict(threshold=500, rolling='median', window_size=5))
-    file_output.classify_traces(**json.loads(file_output.classification_test.attrs['configuration']))
+def test_create_classification(file_output):
+    file_output.create_classification(name='classification_test', classification_type='threshold',
+                                      variable='intensity_total', classification_kwargs=dict(threshold=500, rolling='median', window_size=5))
+    file_output.create_classification(**json.loads(file_output.classification_test.attrs['configuration']))
 
 def test_classify_hmm(file_output):
     selection = file_output.selected

@@ -1457,7 +1457,7 @@ class File:
                     classification_configurations[name] = None
         return classification_configurations
 
-    def classify_traces(self, classification_type, variable, select=None, name=None, classification_kwargs=None):
+    def create_classification(self, classification_type, variable, select=None, name=None, classification_kwargs=None):
         if classification_kwargs is None:
             classification_kwargs = {}
         if isinstance(variable, str):
@@ -1487,7 +1487,7 @@ class File:
             raise ValueError('Unknown classification type')
 
         classification_kwargs = json.loads(ds.classification.attrs['configuration'])
-        add_configuration_to_dataarray(ds.classification, File.classify_traces, locals())
+        add_configuration_to_dataarray(ds.classification, File.create_classification, locals())
 
         if name is None:
             name = classification_type
@@ -1499,8 +1499,8 @@ class File:
 
     def classify_hmm(self, variable, seed=0, n_states=2, threshold_state_mean=None,
                      level='molecule'):  # , use_selection=True, use_classification=True):
-        self.classify_traces(name='hmm', classification_type='hmm', variable=variable,
-                             classification_kwargs=dict(seed=seed, n_states=n_states,
+        self.create_classification(name='hmm', classification_type='hmm', variable=variable,
+                                   classification_kwargs=dict(seed=seed, n_states=n_states,
                                 threshold_state_mean=threshold_state_mean, level=level))
 
     def apply_classifications(self, **classification_assignment):
