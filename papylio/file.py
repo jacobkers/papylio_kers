@@ -1344,8 +1344,7 @@ class File:
                                if key.startswith('selection_')}) # .to_array(dim='selection')
         # return xr.concat([value for key, value in self.dataset.data_vars.items() if key.startswith('filter')], dim='filter')
 
-    def add_selection(self, variable, channel, aggregator, operator, threshold):
-        #TODO: Add option to give name
+    def create_selection(self, variable, channel, aggregator, operator, threshold, name=None):
         data_array = getattr(self, variable)
 
         if 'channel' in data_array.dims:
@@ -1369,11 +1368,14 @@ class File:
 
         threshold_str = str(threshold).replace('.','p')
 
-        selection_name = f'selection_{variable}_{channel_str}_{aggregator}_{operator}_{threshold_str}'
+        add_configuration_to_dataarray(selection, File.create_selection, locals())
 
-        add_configuration_to_dataarray(selection, File.add_selection, locals())
+        if name is None:
+            name = f'selection_{variable}_{channel_str}_{aggregator}_{operator}_{threshold_str}'
+        if not name.startswith('selection_'):
+            name = 'selection_' + name
 
-        self.set_variable(selection, name=selection_name)
+        self.set_variable(selection, name=name)
 
     def copy_selections_to_selected_files(self):
         name_and_selection_parameters = [(name, dataarray.attrs) for name, dataarray in
@@ -1381,7 +1383,7 @@ class File:
         for file in self.experiment.selectedFiles:
             if file is not self:
                 for name, selection_parameters in name_and_selection_parameters:
-                    file.add_selection(**selection_parameters)
+                    file.create_selection(**selection_parameters)
                 file.apply_selections(selection_names=self.selected.attrs['selection_names'])
 
     @property

@@ -103,11 +103,11 @@ def test_save_dataset_selected(file_output_with_selected):
     assert (indices_selected == np.array([0,5,33])).all().item()
 
 def test_add_selection(file_hj):
-    file_hj.add_selection(variable='intensity_total', channel=None, aggregator='max', operator='<', threshold=10000)
+    file_hj.create_selection(variable='intensity_total', channel=None, aggregator='max', operator='<', threshold=10000)
 
 def test_apply_selections(file_hj):
-    file_hj.add_selection(variable='intensity_total', channel=None, aggregator='max', operator='<', threshold=10000)
-    file_hj.add_selection(variable='FRET', channel=None, aggregator='mean', operator='>', threshold=0.5)
+    file_hj.create_selection(variable='intensity_total', channel=None, aggregator='max', operator='<', threshold=10000)
+    file_hj.create_selection(variable='FRET', channel=None, aggregator='mean', operator='>', threshold=0.5)
     file_hj.apply_selections()
 
 def test_classify(file_output):
