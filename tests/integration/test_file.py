@@ -102,17 +102,23 @@ def test_save_dataset_selected(file_output_with_selected):
     indices_selected = np.nonzero(ds.molecule_in_file.values)[0]
     assert (indices_selected == np.array([0,5,33])).all().item()
 
-def test_add_selection(file_hj):
+def test_create_selection(file_hj):
     file_hj.create_selection(variable='intensity_total', channel=None, aggregator='max', operator='<', threshold=10000)
 
 def test_apply_selections(file_hj):
     file_hj.create_selection(variable='intensity_total', channel=None, aggregator='max', operator='<', threshold=10000)
     file_hj.create_selection(variable='FRET', channel=None, aggregator='mean', operator='>', threshold=0.5)
     file_hj.apply_selections()
+    file_hj.apply_selections(None)
+    file_hj.apply_selections('all')
+    file_hj.apply_selections('selection_intensity_total_maximum', 'selection_complex_rates', 'selection_lower_rate_limit')
+    file_hj.clear_selections()
+    file_hj.apply_selections('all')
 
 def test_create_classification(file_output):
     file_output.create_classification(name='classification_test', classification_type='threshold',
                                       variable='intensity_total', classification_kwargs=dict(threshold=500, rolling='median', window_size=5))
+    file_output.create_classification(name='classification_test', classification_type='hmm', variable='FRET')
     file_output.create_classification(**json.loads(file_output.classification_test.attrs['configuration']))
 
 def test_classify_hmm(file_output):
@@ -126,9 +132,15 @@ def test_classify_hmm(file_output):
 def test_apply_classifications(file_hj):
     file_hj.apply_classifications(classification_donor_active=-1, classification_single_dye=-2,
                                classification_hmm=[None, 0, 1])
+    file_hj.apply_classifications(add=True, classification_hmm=[None, 2, 3])
 
 def test_use_for_darkfield_correction(file):
     file.use_for_darkfield_correction()
+
+def test_determine_dwells_from_classification(file_hj):
+    file_hj.apply_selections()
+    file_hj.apply_classifications(classification_hmm=[-1,0,1])
+    file_hj.determine_dwells_from_classification(selected=True)
 
 def test_analyze_dwells(file_hj):
     file_hj.analyze_dwells(method='maximum_likelihood_estimation', number_of_exponentials=[1, 2, 3],

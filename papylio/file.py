@@ -1391,13 +1391,19 @@ class File:
     def selection_names(self):
         return list(self.selections.data_vars.keys())
 
+    @property
+    @return_none_when_executed_by_pycharm
+    def selection_names_active(self):
+        return json.loads(self.selected.attrs['configuration'])
+
     def clear_selections(self):
         dataset = self.dataset
         dataset = dataset.drop_vars([name for name in dataset.data_vars.keys() if name.startswith('selection_')])
         dataset.to_netcdf(self.absoluteFilePath.with_suffix('.nc'))
 
-    def selection_configurations(self, selection_names='all'):
-        if selection_names in ['all', None]:
+    def selection_configurations(self, *selection_names):
+        selection_names = list(selection_names)
+        if not selection_names:
             selection_names = self.selection_names
 
         selection_configurations = {}
@@ -1409,27 +1415,47 @@ class File:
                     selection_configurations[name] = None
         return selection_configurations
 
-    def apply_selections(self, selection_names='all'):
-        if selection_names in ['all', None]:
+    def apply_selections(self, *selection_names, add_to_current=False):
+        selection_names = list(selection_names)
+        if not selection_names:
             selection_names = self.selection_names
 
-        invert = np.zeros(len(selection_names), bool)
-        for i, selection_name in enumerate(selection_names):
-            if selection_name.startswith('~'):
-                invert[i] = True
-                selection_names[i] = selection_name[1:]
+        if add_to_current:
+            selection_names = json.loads(self.selected.attrs['configuration']) + selection_names
 
-        #     selections = self.selections
-        # else:
-        selections = self.selections[selection_names].to_array(dim='selection')
+        if not selection_names or selection_names[0] in [None, 'none', 'None']:
+            selection_names = []
+            selected = self.selected
+            selected[:] = False
+        else:
+            invert = np.zeros(len(selection_names), bool)
+            for i, selection_name in enumerate(selection_names):
+                if selection_name.startswith('~'):
+                    invert[i] = True
+                    selection_names[i] = selection_name[1:]
 
-        selections[invert] = ~selections[invert]
-        selected = selections.all(dim='selection')
+            #     selections = self.selections
+            # else:
+            selections = self.selections[selection_names].to_array(dim='selection')
+
+            selections[invert] = ~selections[invert]
+            selected = selections.all(dim='selection')
 
         add_configuration_to_dataarray(selected)
-        selected.attrs['configuration'] = json.dumps({'selection_names': selection_names})
+        selected.attrs['configuration'] = json.dumps(selection_names)
         selected.attrs['selection_configurations'] = json.dumps(self.selection_configurations(selection_names))
         self.set_variable(selected, name='selected')
+
+    @property
+    @return_none_when_executed_by_pycharm
+    def classification(self):
+        # Or add a standard classification datavar in the dataset?
+        if not 'classification' in self.data_vars:
+            self.apply_classifications()
+        classification = self.__getattr__('classification')
+        # if 'classification_configurations' not in classification.attrs:
+        #     classification.attrs['classification_configurations'] = None
+        return classification
 
     @property
     @return_none_when_executed_by_pycharm
@@ -1445,7 +1471,7 @@ class File:
         return list(self.classifications.data_vars.keys())
 
     def classification_configurations(self, classification_names='all'):
-        if classification_names in ['all', None]:
+        if classification_names == 'all':
             classification_names = self.classification_names
 
         classification_configurations = {}
@@ -1457,7 +1483,7 @@ class File:
                     classification_configurations[name] = None
         return classification_configurations
 
-    def create_classification(self, classification_type, variable, select=None, name=None, classification_kwargs=None):
+    def create_classification(self, classification_type, variable, select=None, name=None, classification_kwargs=None, apply=None):
         if classification_kwargs is None:
             classification_kwargs = {}
         if isinstance(variable, str):
@@ -1477,12 +1503,17 @@ class File:
 
         elif classification_type in ['hmm', 'hidden_markov_model']:
             # ds = hmm_traces(self.FRET, n_components=2, covariance_type="full", n_iter=100) # Old
-            ds = classify_hmm(traces, self.classification, self.selected, **classification_kwargs)
-            ds.classification.attrs['input_selection_configuration'] = json.dumps(self.selection_configurations())
-            ds.classification.attrs['input_classification_configuration'] = json.dumps(self.classification_configurations())
+            classification = self.classification
+            selected = self.selected
+            ds = classify_hmm(traces, classification, selected, **classification_kwargs)
+            if 'version' in selected.attrs:
+                ds.classification.attrs['input_selection_application'] = json.dumps(selected.attrs['selection_configurations'])
+            if 'version' in classification.attrs:
+                ds.classification.attrs['input_classification_configuration'] = json.dumps(classification.attrs['classification_configurations'])
+                ds.classification.attrs['input_classification_application'] = json.dumps(classification.attrs['configuration'])
             #TODO: perhaps replace the following line with some function that actually spits out the classification kwargs.
             add_configuration_to_dataarray(ds.classification, classify_hmm, classification_kwargs)
-
+        # TODO: create classification to deactivate certain frames of the trace
         else:
             raise ValueError('Unknown classification type')
 
@@ -1497,14 +1528,21 @@ class File:
 
         ds.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='netcdf4', mode='a')
 
+        if apply is not None:
+            self.apply_classifications(add_to_current=True, **{name: apply})
+
     def classify_hmm(self, variable, seed=0, n_states=2, threshold_state_mean=None,
                      level='molecule'):  # , use_selection=True, use_classification=True):
         self.create_classification(name='hmm', classification_type='hmm', variable=variable,
                                    classification_kwargs=dict(seed=seed, n_states=n_states,
                                 threshold_state_mean=threshold_state_mean, level=level))
 
-    def apply_classifications(self, **classification_assignment):
-        classification_combined = np.zeros((len(self.molecule), len(self.frame)),'int8')
+    def apply_classifications(self, add_to_current=False, **classification_assignment):
+        if not add_to_current:
+            classification_combined = np.zeros((len(self.molecule), len(self.frame)),'int8')
+        else:
+            classification_combined = self.classification.values
+
         for classification_name, state_indices in classification_assignment.items():
             if not classification_name.startswith('classification'):
                 raise ValueError('Only insert classifications')
@@ -1530,6 +1568,11 @@ class File:
 
         classification_combined = xr.DataArray(classification_combined)
         add_configuration_to_dataarray(classification_combined)
+        if add_to_current:
+            classification_assignment_old = json.loads(self.classification.attrs['configuration'])
+            for key in classification_assignment.keys():
+                classification_assignment_old.pop(key, None)
+            classification_assignment = classification_assignment_old | classification_assignment
         classification_combined.attrs['configuration'] = json.dumps(classification_assignment)
         classification_combined.attrs['classification_configurations'] = json.dumps(self.classification_configurations(list(classification_assignment.keys())))
 
