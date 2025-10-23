@@ -1513,9 +1513,9 @@ class File:
             selected = self.selected
             ds = classify_hmm(traces, classification, selected, **classification_kwargs)
             if 'configuration' in selected.attrs:
-                ds.classification.attrs['applied_selections'] = json.dumps(selected.attrs['configuration'])
+                ds.classification.attrs['applied_selections'] = selected.attrs['configuration']
             if 'configuration' in classification.attrs:
-                ds.classification.attrs['applied_classifications'] = json.dumps(classification.attrs['configuration'])
+                ds.classification.attrs['applied_classifications'] = classification.attrs['configuration']
             #TODO: perhaps replace the following line with some function that actually spits out the classification kwargs.
             add_configuration_to_dataarray(ds.classification, classify_hmm, classification_kwargs)
         # TODO: create classification to deactivate certain frames of the trace
@@ -1617,7 +1617,15 @@ class File:
         dwells['number_of_states'] = self.number_of_states_from_classification.sel(molecule=dwells.molecule)\
             .reset_coords(drop=True)
 
-        dwells.attrs['selected'] = str(selected)
+        add_configuration_to_dataarray(dwells, File.determine_dwells_from_classification, locals())
+
+        if not selected:
+            dwells.attrs['applied_selections'] = json.dumps([])
+        elif 'configuration' in self.selected.attrs:
+            dwells.attrs['applied_selections'] = self.selected.attrs['configuration']
+        if 'configuration' in self.classification.attrs:
+            dwells.attrs['applied_classifications'] = self.classification.attrs['configuration']
+
         dwells.to_netcdf(self.absoluteFilePath.with_name(self.name + '_dwells').with_suffix('.nc'), engine='netcdf4', mode='w')
 
     def classification_binary(self, positive_states_only=False, selected=False):

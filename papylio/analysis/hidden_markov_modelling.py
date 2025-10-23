@@ -45,6 +45,7 @@ def classify_hmm(traces, classification, selection, n_states=2, threshold_state_
     ds['start_probability'] = transition_matrices[:, -2, :n_states]
     ds['end_probability'] = transition_matrices[:, :n_states, -1]
 
+    # TODO: Perhaps we should not add additional selections, just encode the selections as negative values for the whole trace in classifications?
 
     number_of_frames = len(traces.frame)
     frame_rate = 1 / traces.time.diff('frame').mean().item()
