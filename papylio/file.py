@@ -1512,11 +1512,10 @@ class File:
             classification = self.classification
             selected = self.selected
             ds = classify_hmm(traces, classification, selected, **classification_kwargs)
-            if 'version' in selected.attrs:
-                ds.classification.attrs['input_selection_application'] = json.dumps(selected.attrs['selection_configurations'])
-            if 'version' in classification.attrs:
-                ds.classification.attrs['input_classification_configuration'] = json.dumps(classification.attrs['classification_configurations'])
-                ds.classification.attrs['input_classification_application'] = json.dumps(classification.attrs['configuration'])
+            if 'configuration' in selected.attrs:
+                ds.classification.attrs['applied_selections'] = json.dumps(selected.attrs['configuration'])
+            if 'configuration' in classification.attrs:
+                ds.classification.attrs['applied_classifications'] = json.dumps(classification.attrs['configuration'])
             #TODO: perhaps replace the following line with some function that actually spits out the classification kwargs.
             add_configuration_to_dataarray(ds.classification, classify_hmm, classification_kwargs)
         # TODO: create classification to deactivate certain frames of the trace
