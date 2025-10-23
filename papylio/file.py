@@ -345,8 +345,12 @@ class File:
 
     def _init_dataset(self, number_of_molecules):
         selected = xr.DataArray(False, dims=('molecule',), coords={'molecule': range(number_of_molecules)}, name='selected')
+        add_configuration_to_dataarray(selected)
+        selected.attrs['configuration'] = json.dumps([])
+        selected.attrs['selection_configurations'] = json.dumps({})
+
         # dataset = selected.reset_index('molecule').rename(_molecule='molecule_in_file').to_dataset()
-        dataset = selected.assign_coords(molecule_in_file=('molecule', selected.molecule.values))
+        dataset = selected.to_dataset().assign_coords(molecule_in_file=('molecule', selected.molecule.values))
         dataset = dataset.reset_index('molecule', drop=True)
         dataset = dataset.assign_coords({'file': ('molecule', [str(self.relativeFilePath).encode()] * number_of_molecules)})
         encoding = {'file': {'dtype': '|S'}, 'selected': {'dtype': bool}}
@@ -1341,7 +1345,7 @@ class File:
     def selections(self):
         with xr.open_dataset(self.absoluteFilePath.with_suffix('.nc'), engine='netcdf4') as dataset:
             return xr.Dataset({value.name: value for key, value in dataset.data_vars.items()
-                               if key.startswith('selection_')}) # .to_array(dim='selection')
+                               if key.startswith('selection_')}).load() # .to_array(dim='selection')
         # return xr.concat([value for key, value in self.dataset.data_vars.items() if key.startswith('filter')], dim='filter')
 
     def create_selection(self, variable, channel, aggregator, operator, threshold, name=None):
@@ -1378,13 +1382,16 @@ class File:
         self.set_variable(selection, name=name)
 
     def copy_selections_to_selected_files(self):
-        name_and_selection_parameters = [(name, dataarray.attrs) for name, dataarray in
-                                         self.selections.data_vars.items()]
+        selection_configurations = self.selection_configurations()
+        applied_selection = json.loads(self.selected.attrs['configuration'])
+
         for file in self.experiment.selectedFiles:
             if file is not self:
-                for name, selection_parameters in name_and_selection_parameters:
-                    file.create_selection(**selection_parameters)
-                file.apply_selections(selection_names=self.selected.attrs['selection_names'])
+                for name, configuration in selection_configurations.items():
+                    if configuration is None:
+                        raise ValueError(f'Selection {name} is a custom selection that cannot be copied')
+                    file.create_selection(**configuration)
+                file.apply_selections(*applied_selection)
 
     @property
     @return_none_when_executed_by_pycharm
@@ -1399,7 +1406,12 @@ class File:
     def clear_selections(self):
         dataset = self.dataset
         dataset = dataset.drop_vars([name for name in dataset.data_vars.keys() if name.startswith('selection_')])
-        dataset.to_netcdf(self.absoluteFilePath.with_suffix('.nc'))
+        # for name, da in dataset.data_vars.items():
+        #     da.encoding['dtype'] = da.dtype
+        encoding = {
+            var: {"dtype": 'bool'} for var in dataset.data_vars if dataset[var].dtype == bool
+        }
+        dataset.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='netcdf4', mode='w', encoding=encoding)
 
     def selection_configurations(self, *selection_names):
         selection_names = list(selection_names)
@@ -1449,7 +1461,7 @@ class File:
 
         add_configuration_to_dataarray(selected)
         selected.attrs['configuration'] = json.dumps(selection_names)
-        selected.attrs['selection_configurations'] = json.dumps(self.selection_configurations(selection_names))
+        selected.attrs['selection_configurations'] = json.dumps(self.selection_configurations(*selection_names))
         self.set_variable(selected, name='selected')
 
     @property
@@ -1468,7 +1480,7 @@ class File:
     def classifications(self):
         with xr.open_dataset(self.absoluteFilePath.with_suffix('.nc'), engine='netcdf4') as dataset:
             return xr.Dataset({value.name: value for key, value in dataset.data_vars.items()
-                               if key.startswith('classification_')})  # .to_array(dim='selection')
+                               if key.startswith('classification_')}).load()  # .to_array(dim='selection')
         # return xr.concat([value for key, value in self.dataset.data_vars.items() if key.startswith('filter')], dim='filter')
 
     @property

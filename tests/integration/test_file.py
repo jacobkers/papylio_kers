@@ -115,6 +115,16 @@ def test_apply_selections(file_hj):
     file_hj.clear_selections()
     file_hj.apply_selections()
 
+def test_copy_selections_to_selected_files(experiment_hj):
+    files_hj1 = experiment_hj.files.select('HJ1')
+    files_hj1.clear_selections()
+    files_hj1[0].create_selection(name='test', variable='FRET', channel=None, aggregator='mean', operator='>', threshold=0.5)
+    files_hj1[0].apply_selections()
+
+    files_hj1.isSelected = True
+    files_hj1[0].copy_selections_to_selected_files()
+    assert 'selection_test' in files_hj1[-1].selections
+
 def test_create_classification(file_output):
     file_output.create_classification(name='classification_test', classification_type='threshold',
                                       variable='intensity_total', classification_kwargs=dict(threshold=500, rolling='median', window_size=5))
