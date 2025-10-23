@@ -110,10 +110,10 @@ def test_apply_selections(file_hj):
     file_hj.create_selection(variable='FRET', channel=None, aggregator='mean', operator='>', threshold=0.5)
     file_hj.apply_selections()
     file_hj.apply_selections(None)
-    file_hj.apply_selections('all')
     file_hj.apply_selections('selection_intensity_total_maximum', 'selection_complex_rates', 'selection_lower_rate_limit')
+    file_hj.apply_selections('selection_intensity_total_maximum', add_to_current=True)
     file_hj.clear_selections()
-    file_hj.apply_selections('all')
+    file_hj.apply_selections()
 
 def test_create_classification(file_output):
     file_output.create_classification(name='classification_test', classification_type='threshold',
@@ -132,7 +132,7 @@ def test_classify_hmm(file_output):
 def test_apply_classifications(file_hj):
     file_hj.apply_classifications(classification_donor_active=-1, classification_single_dye=-2,
                                classification_hmm=[None, 0, 1])
-    file_hj.apply_classifications(add=True, classification_hmm=[None, 2, 3])
+    file_hj.apply_classifications(add_to_current=True, classification_hmm=[None, 2, 3])
 
 def test_use_for_darkfield_correction(file):
     file.use_for_darkfield_correction()

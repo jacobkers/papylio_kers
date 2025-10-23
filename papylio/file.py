@@ -1417,17 +1417,23 @@ class File:
 
     def apply_selections(self, *selection_names, add_to_current=False):
         selection_names = list(selection_names)
+        all_selection_names = self.selection_names
         if not selection_names:
-            selection_names = self.selection_names
+            selection_names = all_selection_names
 
         if add_to_current:
             selection_names = json.loads(self.selected.attrs['configuration']) + selection_names
+            selection_names = list(set(selection_names)) # Remove double names
 
         if not selection_names or selection_names[0] in [None, 'none', 'None']:
             selection_names = []
             selected = self.selected
             selected[:] = False
         else:
+            for selection_name in selection_names:
+                if selection_name not in all_selection_names:
+                    raise ValueError(f'Selection {selection_name} does not exist')
+
             invert = np.zeros(len(selection_names), bool)
             for i, selection_name in enumerate(selection_names):
                 if selection_name.startswith('~'):
@@ -1538,10 +1544,18 @@ class File:
                                 threshold_state_mean=threshold_state_mean, level=level))
 
     def apply_classifications(self, add_to_current=False, **classification_assignment):
-        if not add_to_current:
-            classification_combined = np.zeros((len(self.molecule), len(self.frame)),'int8')
-        else:
-            classification_combined = self.classification.values
+        if add_to_current:
+            classification_assignment_old = json.loads(self.classification.attrs['configuration'])
+            for key in classification_assignment.keys():
+                classification_assignment_old.pop(key, None)
+            classification_assignment = classification_assignment_old | classification_assignment
+
+        all_classification_names = self.classification_names
+        for classification_name in classification_assignment.keys():
+            if classification_name not in all_classification_names:
+                raise ValueError(f'Classification {classification_name} does not exist')
+
+        classification_combined = np.zeros((len(self.molecule), len(self.frame)), 'int8')
 
         for classification_name, state_indices in classification_assignment.items():
             if not classification_name.startswith('classification'):
@@ -1568,11 +1582,6 @@ class File:
 
         classification_combined = xr.DataArray(classification_combined)
         add_configuration_to_dataarray(classification_combined)
-        if add_to_current:
-            classification_assignment_old = json.loads(self.classification.attrs['configuration'])
-            for key in classification_assignment.keys():
-                classification_assignment_old.pop(key, None)
-            classification_assignment = classification_assignment_old | classification_assignment
         classification_combined.attrs['configuration'] = json.dumps(classification_assignment)
         classification_combined.attrs['classification_configurations'] = json.dumps(self.classification_configurations(list(classification_assignment.keys())))
 
