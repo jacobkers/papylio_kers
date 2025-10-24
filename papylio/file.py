@@ -1007,7 +1007,7 @@ class File:
         intensity = trace_correction(intensity_raw, background_correction, alpha_correction, gamma_correction)
         intensity.name = 'intensity'
         initial_configuration = intensity.attrs['configuration']
-        add_configuration_to_dataarray(intensity, self.apply_trace_corrections, locals(), units='a.u.') # TODO: Link to units in movie metadata?
+        add_configuration_to_dataarray(intensity, File.apply_trace_corrections, locals(), units='a.u.') # TODO: Link to units in movie metadata?
         intensity.attrs['configuration'] = initial_configuration[:-1] + ', ' + intensity.attrs['configuration'][1:]
 
         intensity.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='netcdf4', mode='a')
@@ -1676,6 +1676,15 @@ class File:
         dwell_analysis = analyze_dwells(dwells, method=method, number_of_exponentials=number_of_exponentials,
                                         state_names=state_names, P_bounds=P_bounds, k_bounds=k_bounds,
                                         sampling_interval=None, truncation=truncation, fit_dwell_times_kwargs=fit_dwell_times_kwargs)
+
+        add_configuration_to_dataarray(dwell_analysis, File.analyze_dwells, locals())
+
+        if 'applied_selections' in dwells.attrs:
+            dwell_analysis.attrs['applied_selections'] = dwells.attrs['applied_selections']
+        if 'applied_classifications' in dwells.attrs:
+            dwell_analysis.attrs['applied_classifications'] = dwells.attrs['applied_classifications']
+        if 'configuration' in dwells.attrs:
+            dwell_analysis.attrs['dwells_configuration'] = dwells.attrs['configuration']
 
         if save_file_path is None:
             self.dwell_analysis = dwell_analysis

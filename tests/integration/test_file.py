@@ -149,10 +149,12 @@ def test_use_for_darkfield_correction(file):
 
 def test_determine_dwells_from_classification(file_hj):
     file_hj.apply_selections()
-    file_hj.apply_classifications(classification_hmm=[-1,0,1])
+    file_hj.apply_classifications(classification_donor_active=-1, classification_single_dye=-2,
+                                  classification_hmm=[None, 0, 1])
     file_hj.determine_dwells_from_classification(selected=True)
 
 def test_analyze_dwells(file_hj):
+    test_determine_dwells_from_classification(file_hj)
     file_hj.analyze_dwells(method='maximum_likelihood_estimation', number_of_exponentials=[1, 2, 3],
                            state_names={0: 'Low FRET',  1:'High FRET'},
                            plot=False)
