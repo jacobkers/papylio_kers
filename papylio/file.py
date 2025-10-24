@@ -14,9 +14,12 @@ import skimage as ski
 import warnings
 import sys
 import re
+import logging
+import inspect
 import tifffile
 import netCDF4
 import json
+import papylio
 # from papylio.molecule import Molecule
 from papylio.movie.movie import Movie
 from papylio.movie.tif import TifMovie
@@ -30,7 +33,7 @@ from papylio.coordinate_optimization import  coordinates_within_margin, \
                                                     set_of_tuples_from_array, array_from_set_of_tuples, \
                                                     coordinates_within_margin_selection
 from papylio.trace_extraction import extract_traces
-from papylio.log_functions import add_configuration_to_dataarray
+from papylio.log_functions import add_configuration_to_dataarray, log_all_methods
 # from matchpoint.coordinate_transformations import translate, transform # MD: we don't want to use this anymore I think, it is only linear
                                                                            # IS: We do! But we just need to make them usable with the nonlinear mapping
 from papylio.background_subtraction import extract_background
@@ -44,6 +47,7 @@ from papylio.analysis.dwell_time_analysis import analyze_dwells, plot_dwell_time
 from papylio.decorators import return_none_when_executed_by_pycharm
 
 @plugins
+@log_all_methods
 class File:
     # plugins = []
     # _plugin_mixin_class = None
@@ -60,6 +64,9 @@ class File:
     #         return super().__new__(cls._plugin_mixin_class)
 
     def __init__(self, relativeFilePath, extensions=None, experiment=None):
+        self.dataset_variables = ['molecule', 'frame', 'time', 'coordinates', 'background', 'intensity', 'FRET', 'selected',
+                                  'molecule_in_file', 'illumination_correction', 'number_of_states', 'transition_rate', 'state_mean', 'classification']
+
         relativeFilePath = Path(relativeFilePath)
         self.experiment = experiment
 
@@ -79,10 +86,6 @@ class File:
 
         self.movie = None
         self.mapping = None
-
-
-        self.dataset_variables = ['molecule', 'frame', 'time', 'coordinates', 'background', 'intensity', 'FRET', 'selected',
-                                  'molecule_in_file', 'illumination_correction', 'number_of_states', 'transition_rate', 'state_mean', 'classification']
 
 
         # I think it will be easier if we have import functions for specific data instead of specific files.
@@ -114,8 +117,29 @@ class File:
             extensions = self.find_extensions()
         self.add_extensions(extensions, load=self.experiment.import_all)
 
+        self.logger = self._create_logger()
+        self.logger.info(f"Initialized {self} with Papylio v{papylio.__version__}")
+
     def __repr__(self):
         return (f'{self.__class__.__name__}({self.relativePath.joinpath(self.name)})')
+
+    def _create_logger(self):
+        """Create a dedicated logger per File instance."""
+        logger_name = f"FileLogger.{self.relativeFilePath}"
+        logger = logging.getLogger(logger_name)
+
+        if not logger.handlers:
+            logger.setLevel(logging.INFO)
+            log_file = self.absoluteFilePath.with_suffix(".log")
+            handler = logging.FileHandler(log_file, mode="a", encoding="utf-8")
+            formatter = logging.Formatter(
+                "%(asctime)s [%(levelname)s]: %(message)s",
+                datefmt="%Y-%m-%d %H:%M:%S"
+            )
+            handler.setFormatter(formatter)
+            logger.addHandler(handler)
+
+        return logger
 
     @property
     @return_none_when_executed_by_pycharm
@@ -283,6 +307,17 @@ class File:
         # else:
         #     super().__getattribute__(item)
         raise AttributeError(f'Attribute {item} not found')
+
+    def __setattr__(self, name, value):
+        super().__setattr__(name, value)
+        # Skip logger itself
+        if name != "logger" and hasattr(self, "logger"):
+            # Check if the assignment comes from outside this instance
+            stack = inspect.stack()
+            external = all(frame.frame.f_locals.get("self") is not self for frame in stack[1:])
+            if external:
+                self.logger.info(f"Set attribute {name} = {value!r}")
+
 
     def get_data(self, key):
         with xr.open_dataset(self.absoluteFilePath.with_suffix('.nc'), engine='netcdf4') as dataset:

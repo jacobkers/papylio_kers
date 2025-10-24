@@ -164,3 +164,8 @@ def test_plot_dwell_analysis(file_hj):
                            state_names={0: 'Low FRET',  1:'High FRET'},
                            plot=False, fit_dwell_times_kwargs=dict())
     file_hj.plot_dwell_analysis(plot_type='pdf', log=False, plot_range=(0,3))
+
+def test_logging(file_hj):
+    file_hj.apply_classifications(classification_donor_active=-1, classification_single_dye=-2,
+                               classification_hmm=[None, 0, 1])
+    file_hj
