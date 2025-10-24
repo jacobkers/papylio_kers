@@ -33,7 +33,7 @@ from papylio.coordinate_optimization import  coordinates_within_margin, \
                                                     set_of_tuples_from_array, array_from_set_of_tuples, \
                                                     coordinates_within_margin_selection
 from papylio.trace_extraction import extract_traces
-from papylio.log_functions import add_configuration_to_dataarray, log_all_methods
+from papylio.log_functions import add_configuration_to_dataarray
 # from matchpoint.coordinate_transformations import translate, transform # MD: we don't want to use this anymore I think, it is only linear
                                                                            # IS: We do! But we just need to make them usable with the nonlinear mapping
 from papylio.background_subtraction import extract_background
@@ -47,7 +47,6 @@ from papylio.analysis.dwell_time_analysis import analyze_dwells, plot_dwell_time
 from papylio.decorators import return_none_when_executed_by_pycharm
 
 @plugins
-@log_all_methods
 class File:
     # plugins = []
     # _plugin_mixin_class = None
