@@ -1,234 +1,24 @@
 import sys
 import PySide2
 import platform
-
-import sys
-from PySide2.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QGridLayout, QTreeView, QApplication, QMainWindow, \
+from PySide2.QtWidgets import QWidget, QCheckBox,QHBoxLayout, QVBoxLayout, QGridLayout, QTreeView, QApplication, QMainWindow, \
     QPushButton, QTabWidget, QTableWidget, QComboBox, QLineEdit
 from PySide2.QtGui import QStandardItem, QStandardItemModel, QIcon
 from PySide2.QtCore import Qt
-
-import matplotlib as mpl
 from matplotlib.backends.backend_qtagg import (
     FigureCanvas, NavigationToolbar2QT as NavigationToolbar)
+import matplotlib as mpl
 import matplotlib.pyplot as plt
-import numpy as np
+from networkx.algorithms.approximation.matching import min_maximal_matching
 
 import papylio as pp
 from papylio import Experiment, File
+#separately defined layouts
 from papylio.trace_plot import TracePlotWindow
+from papylio.gui.alignment_widget import AlignmentWidget
 from papylio.gui.selection_widget import SelectionWidget
 
-# class TreeNode:
-#     def __init__(self, node_object, parent=None):
-#         self.parent = parent
-#         if isinstance(node_object, Experiment):
-#             self.experiment = node_object
-#             self.name = self.experiment.name
-#             self.type = 'experiment'
-#         elif isinstance(node_object, str):
-#             self.name = node_object
-#             self.type = 'folder'
-#         elif isinstance(node_object, File):
-#             self.file = node_object
-#             self.name = self.file.name
-#             self.type = 'file'
-#
-#         self.children = []
-#
-#     def data(self, column):
-#         # if column == 0:
-#         return self.columnValues[column]
-#         # else:
-#         #     return ''
-#         # return self._data[column]
-#
-#     def appendChild(self, node_object):
-#         node = TreeNode(node_object, self)
-#         self.children.append(node)
-#         return node
-#
-#     def child(self, row):
-#         return self.children[row]
-#
-#     def childrenCount(self):
-#         return len(self.children)
-#
-#     def hasChildren(self):
-#         if len(self.children) > 0:
-#             return True
-#         return False
-#
-#     def row(self):
-#         if self.parent is not None:
-#             return self.parent.children.index(self)
-#         else:
-#             return 0
-#
-#     @property
-#     def columnValues(self):
-#         return [self.name]
-#
-#     def columnCount(self):
-#         return len(self.columnValues)
-#
-#     def __repr__(self):
-#         return f'TreeNode: {self.name}'
-#
-#
-# class TreeModel(QAbstractItemModel):
-#     def __init__(self, parent=None):
-#         super().__init__(parent)
-#         # column_names = ['Column1','Column2']
-#         self.root = TreeNode('Name')
-#         self.createData()
-#         print('t')
-#
-#     def createData(self):
-#         for x in ['a','b','c']:
-#             self.root.appendChild(x)
-#         for y in ['q','r','s']:
-#             self.root.child(0).appendChild(y)
-#         for z in ['d','e','f']:
-#             self.root.child(2).appendChild(z)
-#
-#     def addExperiment(self, experiment):
-#         # experiment = Experiment(r'D:\SURFdrive\Promotie\Code\Python\papylio\twoColourExampleData\20141017 - Holliday junction - Copy')
-#         #experiment = Experiment(r'C:\Users\ivoseverins\surfdrive\Promotie\Code\Python\papylio\twoColourExampleData\20141017 - Holliday junction - Copy')
-#         experimentNode = self.root.appendChild(experiment)
-#         for file in experiment.files:
-#             print('addfile'+file.name)
-#             self.addFile(file, experimentNode)
-#
-#         print('add')
-#
-#     def addFile(self, file, experimentNode):
-#         # pass
-#
-#         folders = file.relativePath.parts
-#
-#         #nodeItemNames = [item.GetText() for item in experimentNode.children if item.GetData() == None]
-#
-#         parentItem = experimentNode
-#         for folder in folders:
-#
-#             # Get the folderItems and folder names for the current folderItem
-#             nodeItems = [item for item in parentItem.children if item.type == 'folder']
-#             nodeItemNames = [item.name for item in nodeItems]
-#
-#             if folder not in nodeItemNames:
-#                 # Add new item for the folder and set parentItem to this item
-#                 parentItem = parentItem.appendChild(folder)
-#             else:
-#                 # Set parent item to the found folderItem
-#                 parentItem = nodeItems[nodeItemNames.index(folder)]
-#
-#         item = parentItem.appendChild(file)
-#         #self.FileItems.append(item)
-#
-#         # self.insertDataIntoColumns(item)
-#
-#         return item
-#
-#     def columnCount(self, index=QtCore.QModelIndex()):
-#         if index.isValid():
-#             return index.internalPointer().columnCount()
-#         else:
-#             return self.root.columnCount()
-#
-#     def rowCount(self, index=QtCore.QModelIndex()):
-#         if index.row() > 0:
-#             return 0
-#         if index.isValid():
-#             item = index.internalPointer()
-#         else:
-#             item = self.root
-#         return item.childrenCount()
-#
-#     def index(self, row, column, index=QtCore.QModelIndex()):
-#         if not self.hasIndex(row, column, index):
-#             return QtCore.QModelIndex()
-#         if not index.isValid():
-#             item = self.root
-#         else:
-#             item = index.internalPointer()
-#
-#         child = item.child(row)
-#         if child:
-#             return self.createIndex(row, column, child)
-#         return QtCore.QMOdelIndex()
-#
-#     def parent(self, index):
-#         if not index.isValid():
-#             return QtCore.QModelIndex()
-#         item = index.internalPointer()
-#         if not item:
-#             return QtCore.QModelIndex()
-#
-#         parent = item.parent
-#         if parent == self.root:
-#             return QtCore.QModelIndex()
-#         else:
-#             return self.createIndex(parent.row(), 0, parent)
-#
-#     def hasChildren(self, index):
-#         if not index.isValid():
-#             item = self.root
-#         else:
-#             item = index.internalPointer()
-#         return item.hasChildren()
-#
-#     def data(self, index, role=QtCore.Qt.DisplayRole):
-#        if index.isValid() and role == QtCore.Qt.DisplayRole:
-#             return index.internalPointer().data(index.column())
-#        elif not index.isValid():
-#             return self.root.getData()
-#
-#     def headerData(self, section, orientation, role):
-#         if orientation == QtCore.Qt.Horizontal and role == QtCore.Qt.DisplayRole:
-#             return self.root.data(section)
-#
-#
-#
-# class MainWindow(QMainWindow):
-#     def __init__(self):
-#         super().__init__()
-#         # model = QFileSystemModel()
-#         # model.setRootPath(QDir.currentPath())
-#
-#
-#
-#         self.model = TreeModel()
-#
-#         self.tree = QTreeView()
-#         self.tree.setModel(self.model)
-#
-#         from papylio import Experiment
-#         experiment = Experiment(r'D:\SURFdrive\Promotie\Code\Python\papylio\twoColourExampleData\20141017 - Holliday junction - Copy')
-#         #experiment = Experiment(r'C:\Users\ivoseverins\surfdrive\Promotie\Code\Python\papylio\twoColourExampleData\20141017 - Holliday junction - Copy')
-#         #self.model.addExperiment(experiment)
-#
-#         self.setCentralWidget(self.tree)
-
-
 class MainWindow(QMainWindow):
-    # def __init__(self):
-    #     super().__init__()
-    #     # model = QFileSystemModel()
-    #     # model.setRootPath(QDir.currentPath())
-    #
-    #
-    #
-    #     self.model = TreeModel()
-    #
-    #     self.tree = QTreeView()
-    #     self.tree.setModel(self.model)
-    #
-    #      #experiment = Experiment(r'C:\Users\ivoseverins\surfdrive\Promotie\Code\Python\papylio\twoColourExampleData\20141017 - Holliday junction - Copy')
-    #     #self.model.addExperiment(experiment)
-    #
-    #     self.setCentralWidget(self.tree)
-
     def __init__(self, main_path=None):
         super().__init__()
 
@@ -239,10 +29,20 @@ class MainWindow(QMainWindow):
             extension = "png"
         self.setWindowIcon(QIcon("icon."+extension))
         self.setWindowTitle("Papylio v" + pp.__version__ )
+        
+        from papylio import Experiment
+        
+        # jk note: here you may just use a fixed path for quick editing
+        if 0: #jk's easy-to_find UglySwitch
+            # experiment = Experiment(r'C:\Users\myname\personalpaths\Papylio example dataset')
+            self.experiment = Experiment(
+                 r'C:\Users\jkerssemakers\OneDrive - Delft University of Technology\ChJ_recent\Papylio example dataset')
+        else:
+            self.experiment = Experiment(main_path)
 
+        #I. set up the left section of the GUI,
+        # displaying a tree of selectable files in th dataset-directory:
         self.tree = QTreeView(self)
-        layout = QVBoxLayout()
-        layout.addWidget(self.tree)
         self.model = QStandardItemModel()
         self.root = self.model.invisibleRootItem()
         self.model.setHorizontalHeaderLabels(['Name', 'Count'])
@@ -250,84 +50,199 @@ class MainWindow(QMainWindow):
         self.tree.setModel(self.model)
 
         self.tree.setFocusPolicy(Qt.NoFocus)
-        self.tree.setFixedWidth(256)
+        self.tree.setFixedWidth(300)
         self.update = True
-
         self.model.itemChanged.connect(self.onItemChange)
 
 
-        self.image_canvas = ImageCanvas(self, width=5, height=4, dpi=100)
+        #set the overall size
+        self.image_canvas = ImageCanvas(self, width=8, height=5, dpi=100)
 
-        # Create toolbar, passing canvas as first parament, parent (self, the MainWindow) as second.
+        #menus following Papylio-by-script:
+        #Channel_alignment (current label: 'movie')
+        #Image_correction (inactive)
+        #Molecule_localization (inactive)
+        #Trace_extraction (inactive)
+        #Trace_evaluation (current label: 'Traces')
+        #Trace_correction (inactive)
+        #Molecule_selection (current label: 'Selection (beta)' )
+        #Trace_classification (tbd)
+        #Kinetics_quantification (tbd)
+
+        #Current menus:
+        #II. Build the 'extraction' tab, containing an image display (including a toolbar)  and action buttons.
+        # a. Create toolbar, passing canvas as first parameter, parent (self, the MainWindow) as second.
         image_toolbar = NavigationToolbar(self.image_canvas, self)
-
         image_layout = QVBoxLayout()
         image_layout.addWidget(image_toolbar)
         image_layout.addWidget(self.image_canvas)
 
-        # Create a placeholder widget to hold our toolbar and canvas.
+        # b. Create a placeholder widget to hold our toolbar and the canvas as defined above.
+        #toolbar is the column of control buttons to the right
         self.image = QWidget()
         self.image.setLayout(image_layout)
+        
+        #set the current menu layouts
+        alignment_controls_layout = QGridLayout()
+        alignment_controls_layout.setAlignment(Qt.AlignTop)
 
-        controls_layout = QGridLayout()
-        controls_layout.setAlignment(Qt.AlignTop)
+        localization_controls_layout = QGridLayout()
+        localization_controls_layout.setAlignment(Qt.AlignTop)
 
-        # controls_layout.addWidget(QLabel('Minimum intensity difference'), 0, 0)
-        # mid = QLineEdit(str(self.experiment.configuration['find_coordinates']['peak_finding']['minimum_intensity_difference']))
-        # mid.textChanged.connect(self.midChange)
-        # controls_layout.addWidget(mid, 0, 1)
+        extraction_controls_layout = QGridLayout()
+        extraction_controls_layout.setAlignment(Qt.AlignTop)
 
+        #trace_selection_layout=SelectionWidget()
+
+        # c. The  main action buttons are defined here (for now, they are grouped together:
+        # set buttons:
         perform_mapping_button = QPushButton('Perform mapping')
+        perform_mapping_button.setToolTip("Use this once for the bead slide")
         perform_mapping_button.clicked.connect(self.perform_mapping)
-        controls_layout.addWidget(perform_mapping_button, 1, 0, 1, 2)
 
         find_molecules_button = QPushButton('Find coordinates')
+        find_molecules_button.setToolTip("select movie(s) in tree pane and press to obtain XY per molecule")
         find_molecules_button.clicked.connect(self.find_coordinates)
-        controls_layout.addWidget(find_molecules_button, 2, 0, 1, 2)
 
         extract_traces_button = QPushButton('Extract traces')
+        extract_traces_button.setToolTip("select movie(s) in tree pane and press to obtain trace per molecule")
         extract_traces_button.clicked.connect(self.extract_traces)
-        controls_layout.addWidget(extract_traces_button, 3, 0, 1, 2)
 
-        self.controls = QWidget()
-        self.controls.setLayout(controls_layout)
-        self.controls.setMinimumWidth(200)
+        #for now, we place buttons at their original location (in the 'movie' tab)
+        alignment_controls_layout.addWidget(perform_mapping_button, 1, 0, 1, 2)
+        alignment_controls_layout.addWidget(find_molecules_button, 2, 0, 1, 2)
+        alignment_controls_layout.addWidget(extract_traces_button, 3, 0, 1, 2)
 
+        #set control panel:
+        self.alignment_controls = QWidget()
+        self.alignment_controls.setLayout(alignment_controls_layout)
+        self.alignment_controls.setMinimumWidth(200)
 
-        extraction_layout = QHBoxLayout()
-        extraction_layout.addWidget(self.image)
-        extraction_layout.addWidget(self.controls)
+        #combine image and control panel:
+        alignment_layout = QHBoxLayout()
+        alignment_layout.addWidget(self.image)
+        alignment_layout.addWidget(self.alignment_controls)
 
+        # temporally inactive tabs, following the papylio script menu:
+        if 0:
+            #localize:
+            # buttons
+            find_molecules_button = QPushButton('go: coordinates')
+            find_molecules_button.setToolTip("select movie(s) in tree pane and press to obtain XY per molecule")
+            find_molecules_button.clicked.connect(self.find_coordinates)
+            localization_controls_layout.addWidget(find_molecules_button, 2, 0, 1, 2)
+            # set control panel:
+            self.localization_controls = QWidget()
+            self.localization_controls.setLayout(localization_controls_layout)
+            self.localization_controls.setMinimumWidth(200)
+            # build control panel:
+            localization_layout = QHBoxLayout()
+            localization_layout.addWidget(self.localization_controls)
 
+            # extract
+            # buttons:
+            extract_traces_button = QPushButton('go: traces')
+            extract_traces_button.setToolTip("select movie(s) in tree pane and press to obtain trace per molecule")
+            extract_traces_button.clicked.connect(self.extract_traces)
+            extraction_controls_layout.addWidget(extract_traces_button, 3, 0, 1, 2)
+            # set control panel:
+            self.extraction_controls = QWidget()
+            self.extraction_controls.setLayout(extraction_controls_layout)
+            self.extraction_controls.setMinimumWidth(200)
+        if 0:  # inactive tab, following the papylio script menu:
+            # build control panel:
+            extraction_layout = QHBoxLayout()
+            extraction_layout.addWidget(self.extraction_controls)
 
-
-        # self.selection = QTableWidget()
-        # self.selection.setRowCount(5)
-        # self.selection.setColumnCount(4)
-
-
+        # build tabs:
+        #we distinguish 'basic' tabs that are always visible,
+        # and 'advanced' tabs for more elaborate control
         tabs = QTabWidget()
         tabs.setTabPosition(QTabWidget.North)
         tabs.setMovable(False)
         tabs.setDocumentMode(True)
 
-        tab1 = QWidget(self)
-        tab1.setLayout(extraction_layout)
-        tabs.addTab(tab1, 'Movie')
-        self.traces = TracePlotWindow(parent=self, width=4, height=3, show=False)
-        tabs.addTab(self.traces, 'Traces')
-        self.selection = SelectionWidget()
-        tabs.addTab(self.selection, 'Selection (beta)')
+        # Channel_alignment (later might transfer 'movie' functionality to separate widget)
+        #self.alignment = AlignmentWidget() [later]
+        tab_alignment = QWidget(self)
+        tab_alignment.setLayout(alignment_layout)
+        tabs.addTab(tab_alignment, 'Movie')
+        tab_i = tabs.indexOf(tab_alignment)
+        tabs.setTabToolTip(tab_i, "Align the two color channels using one reference image")
+
+        advanced = False
+        # Image_correction (advanced) [new]
+        if advanced:  #placeholder for conditional 'advanced' menu addin
+            self.image_correction = QWidget(self)
+            tabs.addTab(self.image_correction, 'Correct I')
+            tab_i = tabs.indexOf(self.image_correction)
+            tabs.setTabToolTip(tab_i, "Set background corrections for spot detection")
+
+        if 0: #inactive tab, following the papylio script menu:
+            # Molecule_localization (basic):
+            self.molecule_localization = QWidget(self)
+            self.molecule_localization.setLayout(localization_layout)
+            tabs.addTab(self.molecule_localization, 'Localize')
+            tab_i = tabs.indexOf(self.molecule_localization)
+            tabs.setTabToolTip(tab_i, "find XY coordinates of molecules")
+
+        if 0: #inactive tab, following the papylio script menu:
+            # Trace_extraction (basic)
+            self.trace_extraction = QWidget(self)
+            self.trace_extraction.setLayout(extraction_layout)
+            tabs.addTab(self.trace_extraction, 'Extract')
+            tab_i = tabs.indexOf(self.trace_extraction)
+            tabs.setTabToolTip(tab_i, "Get intensity traces per molecule")
+
+        #Trace_evaluation (basic)
+        self.trace_evaluation = TracePlotWindow(parent=self, width=4, height=3, show=False,
+                                      save_path=self.experiment.analysis_path.joinpath('Trace_plots'))
+        tabs.addTab(self.trace_evaluation, 'Traces')
+        tab_i = tabs.indexOf(self.trace_evaluation)
+        tabs.setTabToolTip(tab_i, "Inspect and select traces")
+
+
+        # Trace_correction: (advanced)
+        if 0: #inactive tab, following the papylio script menu:
+            tab_i += 1
+            self.trace_correction = QWidget(self)
+            tabs.addTab(self.trace_correction, 'Correct II')
+            tab_i = tabs.indexOf(self.trace_correction)
+            tabs.setTabToolTip(tab_i, "Scale intensity of traces per molecule")
+
+        # trace_selection (basic):
+        self.trace_selection = SelectionWidget()
+        tab_i += 1
+        tabs.addTab(self.trace_selection, 'Select')
         tabs.currentChanged.connect(self.setTabFocus)
+        tab_i = tabs.indexOf(self.trace_selection)
+        tabs.setTabToolTip(tab_i, "Set threshold parameters for auto-selection of traces")
+
+        if 0:  # inactive tab, following the papylio script menu:
+            # Trace_classification: (basic)
+            tab_i += 1
+            self.trace_classification = QWidget(self)
+            tabs.addTab(self.trace_classification, 'Classify')
+            tab_i = tabs.indexOf(self.trace_classification)
+            tabs.setTabToolTip(tab_i, "Extract molecule states using HMM or other methods")
+
+            # Kinetics_quantification: KIQ (basic)
+            tab_i += 1
+            self.trace_quantification = QWidget(self)
+            tabs.addTab(self.trace_quantification, 'Quantify')
+            tab_i = tabs.indexOf(self.trace_quantification)
+            tabs.setTabToolTip(tab_i, "Obtain kinetic parameters of molecule states")
+
+        # V. build an 'experiment' pane with tree and refresh button in vertical order:
+        refresh_button = QPushButton('Refresh')
+        refresh_button.setToolTip("TO DO: refresh adds status color to filenames")
+        refresh_button.clicked.connect(self.refresh)
 
         experiment_layout = QVBoxLayout()
-
-        refresh_button = QPushButton('Refresh')
-        refresh_button.clicked.connect(self.refresh)
         experiment_layout.addWidget(refresh_button)
-
         experiment_layout.addWidget(self.tree)
 
+        # VI. now, assemble the various panels
         layout = QHBoxLayout()
         layout.addLayout(experiment_layout)
         layout.addWidget(tabs)
@@ -351,7 +266,7 @@ class MainWindow(QMainWindow):
         if e == 0:
             self.image.setFocus()
         if e == 1:
-            self.traces.setFocus()
+            self.trace_evaluation.setFocus()
 
     def midChange(self, input):
         input = int(input)
@@ -392,7 +307,6 @@ class MainWindow(QMainWindow):
             for i in range(item.rowCount()):
                 item.child(i).setCheckState(item.checkState())
             self.update = True
-
         if self.update:
             self.update_plots()
 
@@ -400,20 +314,19 @@ class MainWindow(QMainWindow):
         selected_files = self.experiment.selectedFiles + [None]
         self.image_canvas.file = selected_files[0]
         if selected_files[0] is not None:
-            self.traces.dataset = selected_files[0].dataset
-            self.selection.file = selected_files[0]
+            self.trace_evaluation.dataset = selected_files[0].dataset
+            self.trace_selection.file = selected_files[0]
         else:
-            self.traces.dataset = None
-            self.selection.file = None
+            self.trace_evaluation.dataset = None
+            self.trace_selection.file = None
 
     def addExperiment(self, experiment):
-
-        # experiment = Experiment(r'D:\SURFdrive\Promotie\Code\Python\papylio\twoColourExampleData\20141017 - Holliday junction - Copy')
-        #experiment = Experiment(r'C:\Users\ivoseverins\surfdrive\Promotie\Code\Python\papylio\twoColourExampleData\20141017 - Holliday junction - Copy')
+        #jk_note: when uncommenting a path here, code basically auto-loads:
+        # experiment = Experiment(r'C:\Users\myname\personalpaths\Papylio example dataset')
         self.root.appendRow([
-                QStandardItem(experiment.name),
-                QStandardItem(0),
-            ])
+        QStandardItem(experiment.name),
+        QStandardItem(0),
+        ])
         experimentNode = self.root.child(self.root.rowCount() - 1)
         for file in experiment.files:
             print('addfile'+file.name)
@@ -425,15 +338,12 @@ class MainWindow(QMainWindow):
 
     def addFile(self, file, experimentNode):
         folders = file.relativePath.parts
-
         parentItem = experimentNode
         parentItem.setCheckable(True)
         for folder in folders:
-
             # Get the folderItems and folder names for the current folderItem
             nodeItems = [parentItem.child(i) for i in range(parentItem.rowCount())]# if item.type == 'folder']
             nodeItemNames = [item.text() for item in nodeItems]
-
             if folder not in nodeItemNames:
                 # Add new item for the folder and set parentItem to this item
                 parentItem.appendRow([
@@ -457,9 +367,7 @@ class MainWindow(QMainWindow):
         else:
             item.setCheckState(Qt.Unchecked)
         item.setData(file)
-        #self.FileItems.append(item)
-
-        # self.insertDataIntoColumns(item)
+        #self.insertDataIntoColumns(item)
 
         return item
 
@@ -499,14 +407,10 @@ class ImageCanvas(FigureCanvas):
         self._file.show_coordinates_in_image(figure=self.figure)
         self.draw()
 
-
 if __name__ == '__main__':
     from multiprocessing import Process, freeze_support
     freeze_support()
-
     app = QApplication(sys.argv)
-
     window = MainWindow()
     window.show()
-
     app.exec_()
