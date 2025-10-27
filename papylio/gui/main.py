@@ -188,8 +188,7 @@ class MainWindow(QMainWindow):
             tabs.setTabToolTip(tab_i, "Get intensity traces per molecule")
 
         #Trace_evaluation (basic)
-        self.trace_evaluation = TracePlotWindow(parent=self, width=4, height=3, show=False,
-                                      save_path=self.experiment.analysis_path.joinpath('Trace_plots'))
+        self.trace_evaluation = TracePlotWindow(parent=self, width=4, height=3, show=False)
         tabs.addTab(self.trace_evaluation, 'Traces')
         tab_i = tabs.indexOf(self.trace_evaluation)
         tabs.setTabToolTip(tab_i, "Inspect and select traces")
@@ -250,7 +249,7 @@ class MainWindow(QMainWindow):
         #     r'D:\SURFdrive\Promotie\Code\Python\papylio\twoColourExampleData\20141017 - Holliday junction - Copy')
         self.experiment = pp.Experiment(main_path, main_window=self)
         self.addExperiment(self.experiment)
-        self.traces.save_path = self.experiment.analysis_path.joinpath('Trace_plots')
+        self.trace_evaluation.save_path = self.experiment.analysis_path.joinpath('Trace_plots')
 
     def on_advanced_checkbox_state_change(self, advanced):
         advanced_state = advanced
