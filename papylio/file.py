@@ -2087,7 +2087,6 @@ def calculate_FRET(intensity):
     donor = intensity.sel(channel=0, drop=True)
     acceptor = intensity.sel(channel=1, drop=True)
     FRET = acceptor / (donor + acceptor)
-    FRET = FRET.where(FRET >= 0, 0)
     FRET.name = 'FRET'
     return FRET
 
