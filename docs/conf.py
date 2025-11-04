@@ -50,8 +50,8 @@ extensions = [
     # "sphinx.ext.todo",
     # "sphinx.ext.autosectionlabel",
     # "sphinx.ext.githubpages",
-    "nbsphinx",
-    # "myst_nb",
+    # "nbsphinx",
+    "myst_nb",
     # "IPython.sphinxext.ipython_directive",
     # "IPython.sphinxext.ipython_console_highlighting",
 ]
