@@ -9,7 +9,7 @@ def function_arguments(function, function_locals):
     all_argument_values = {
         parameter.name:
             function_locals[parameter.name] for parameter
-        in signature_values if parameter.name is not 'self' and parameter.name in function_locals
+        in signature_values if parameter.name != 'self' and parameter.name in function_locals
     }
 
     if list(all_argument_values.keys())==['configuration']:
@@ -89,15 +89,15 @@ def log_call(method):
         )
 
         # 1️⃣ Log method call first if external
-        if not called_from_inside and hasattr(self, "logger"):
-            self.logger.info(f"Called {method.__name__}({arg_str})")
+        if not called_from_inside and hasattr(self, "_logger"):
+            self._log('info', f"Called {method.__name__}({arg_str})")
 
         # 2️⃣ Execute the method and catch exceptions
         try:
             return method(self, *args, **kwargs)
         except Exception:
-            if hasattr(self, "logger"):
-                self.logger.exception(f"Exception in {method.__name__}({arg_str})")
+            if hasattr(self, "_logger"):
+                self._log('exception', f"Exception in {method.__name__}({arg_str})")
             raise  # re-raise after logging
     return wrapper
 

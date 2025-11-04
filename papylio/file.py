@@ -116,29 +116,37 @@ class File:
             extensions = self.find_extensions()
         self.add_extensions(extensions, load=self.experiment.import_all)
 
-        self.logger = self._create_logger()
-        self.logger.info(f"Initialized {self} with Papylio v{papylio.__version__}")
+        self._logger = self._create_logger()
+        self._log('info', f"Initialized {self} with Papylio v{papylio.__version__}")
 
     def __repr__(self):
         return (f'{self.__class__.__name__}({self.relativePath.joinpath(self.name)})')
+
+    @property
+    @return_none_when_executed_by_pycharm
+    def _log_filepath(self):
+        return self.absoluteFilePath.with_suffix(".log")
 
     def _create_logger(self):
         """Create a dedicated logger per File instance."""
         logger_name = f"FileLogger.{self.relativeFilePath}"
         logger = logging.getLogger(logger_name)
-
-        if not logger.handlers:
-            logger.setLevel(logging.INFO)
-            log_file = self.absoluteFilePath.with_suffix(".log")
-            handler = logging.FileHandler(log_file, mode="a", encoding="utf-8")
-            formatter = logging.Formatter(
-                "%(asctime)s [%(levelname)s]: %(message)s",
-                datefmt="%Y-%m-%d %H:%M:%S"
-            )
-            handler.setFormatter(formatter)
-            logger.addHandler(handler)
-
+        logger.setLevel(logging.INFO)
         return logger
+
+    def _log(self, log_type, message):
+        handler = logging.FileHandler(self._log_filepath, mode="a", encoding="utf-8")
+        formatter = logging.Formatter(
+            "%(asctime)s [%(levelname)s]: %(message)s",
+            datefmt="%Y-%m-%d %H:%M:%S"
+        )
+        handler.setFormatter(formatter)
+        self._logger.addHandler(handler)
+
+        getattr(self._logger, log_type)(message)
+
+        handler.close()
+        self._logger.removeHandler(handler)
 
     @property
     @return_none_when_executed_by_pycharm
@@ -310,12 +318,12 @@ class File:
     def __setattr__(self, name, value):
         super().__setattr__(name, value)
         # Skip logger itself
-        if name != "logger" and hasattr(self, "logger"):
+        if name != "_logger" and hasattr(self, "_logger"):
             # Check if the assignment comes from outside this instance
             stack = inspect.stack()
             external = all(frame.frame.f_locals.get("self") is not self for frame in stack[1:])
             if external:
-                self.logger.info(f"Set attribute {name} = {value!r}")
+                self._log('info', f"Set attribute {name} = {value!r}")
 
 
     def get_data(self, key):
