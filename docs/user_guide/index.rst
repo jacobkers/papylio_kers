@@ -14,4 +14,4 @@ User guide
     trace_classification
     hidden_markov_modelling
     dwell_time_analysis/index
-    logging
+    metadata_and_logging
