@@ -163,7 +163,7 @@ class Experiment:
         If false, then files are detected, but not imported.
     """
     # TODO: Add presets for specific microscopes
-    def __init__(self, main_path=None, channels=['g', 'r'], import_all=True, main_window=None):
+    def __init__(self, main_path=None, channels=['g', 'r'], import_all=True, main_window=None, perform_logging=True):
         """Init method for the Experiment class
 
         Loads config file if it locates one in the main directory, otherwise it exports the default config file to the main directory.
@@ -188,6 +188,7 @@ class Experiment:
         self.main_path = Path(main_path).absolute()
         self.files = FileCollection()
         self.import_all = import_all
+        self.perform_logging = perform_logging
 
         self._channels = np.atleast_1d(np.array(channels))
         self._number_of_channels = len(channels)
@@ -390,7 +391,7 @@ class Experiment:
         for file_path, extensions in tqdm.tqdm(zip(*file_paths_and_extensions), 'Import files',
                                                total=(len(file_paths_and_extensions[0]))):
             if not test_duplicates or (file_path.absolute().relative_to(self.main_path) not in self.file_paths):
-                self.files.append(File(file_path, extensions, self))
+                self.files.append(File(file_path, extensions, self, perform_logging=self.perform_logging))
             else:
                 i = self.file_paths.find(file_path.absolute().relative_to(self.main_path))
                 self.files[i].add_extensions(extensions)

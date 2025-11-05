@@ -62,7 +62,7 @@ class File:
     #     else:
     #         return super().__new__(cls._plugin_mixin_class)
 
-    def __init__(self, relativeFilePath, extensions=None, experiment=None):
+    def __init__(self, relativeFilePath, extensions=None, experiment=None, perform_logging=True):
         self.dataset_variables = ['molecule', 'frame', 'time', 'coordinates', 'background', 'intensity', 'FRET', 'selected',
                                   'molecule_in_file', 'illumination_correction', 'number_of_states', 'transition_rate', 'state_mean', 'classification']
 
@@ -116,6 +116,7 @@ class File:
             extensions = self.find_extensions()
         self.add_extensions(extensions, load=self.experiment.import_all)
 
+        self.perform_logging = perform_logging
         self._logger = self._create_logger()
         self._log('info', f"Initialized {self} with Papylio v{papylio.__version__}")
 
@@ -135,18 +136,19 @@ class File:
         return logger
 
     def _log(self, log_type, message):
-        handler = logging.FileHandler(self._log_filepath, mode="a", encoding="utf-8")
-        formatter = logging.Formatter(
-            "%(asctime)s [%(levelname)s]: %(message)s",
-            datefmt="%Y-%m-%d %H:%M:%S"
-        )
-        handler.setFormatter(formatter)
-        self._logger.addHandler(handler)
+        if self.perform_logging:
+            handler = logging.FileHandler(self._log_filepath, mode="a", encoding="utf-8")
+            formatter = logging.Formatter(
+                "%(asctime)s [%(levelname)s]: %(message)s",
+                datefmt="%Y-%m-%d %H:%M:%S"
+            )
+            handler.setFormatter(formatter)
+            self._logger.addHandler(handler)
 
-        getattr(self._logger, log_type)(message)
+            getattr(self._logger, log_type)(message)
 
-        handler.close()
-        self._logger.removeHandler(handler)
+            handler.close()
+            self._logger.removeHandler(handler)
 
     @property
     @return_none_when_executed_by_pycharm
