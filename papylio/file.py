@@ -37,7 +37,7 @@ from papylio.log_functions import add_configuration_to_dataarray
 # from matchpoint.coordinate_transformations import translate, transform # MD: we don't want to use this anymore I think, it is only linear
                                                                            # IS: We do! But we just need to make them usable with the nonlinear mapping
 from papylio.background_subtraction import extract_background
-from papylio.analysis.hidden_markov_modelling import hmm_traces, classify_hmm
+from papylio.analysis.hidden_markov_modelling import classify_hmm
 # from papylio.plugin_manager import PluginManager
 # from papylio.plugin_manager import PluginMetaClass
 from papylio.plugin_manager import plugins
