@@ -1,7 +1,9 @@
 SPARXS
 ======
 
-Papylio can be used for analyzing data from a Single-molecule Parallel Analysis for Rapid eXploration of Sequence space (SPARXS) experiment, as described in `Single-molecule structural and kinetic studies across sequence space`_.
+Papylio can be used for analyzing data from a Single-molecule Parallel Analysis for Rapid eXploration of Sequence space (SPARXS) experiment,
+as described in the research article `Single-molecule structural and kinetic studies across sequence space`_ and
+the protocol `Single-molecule parallel analysis for rapid exploration of sequence space`_.
 
 Obtaining the sequence characteristics from the data is divided into 6 step.
 
@@ -30,5 +32,7 @@ The documentation was made using the `SPARXS example dataset`_ which is freely a
 
 
 .. _Single-molecule structural and kinetic studies across sequence space: https://www.science.org/doi/10.1126/science.adn5968
+
+.. _Single-molecule parallel analysis for rapid exploration of sequence space: https://www.nature.com/articles/s41596-025-01196-y
 
 .. _SPARXS example dataset: https://doi.org/10.5281/zenodo.13841177
