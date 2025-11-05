@@ -23,7 +23,7 @@ Current functionality
 Example dataset
 ---------------
 
-An `example dataset`_ is freely availabe on Zenodo.
+An `example dataset`_ is freely available on Zenodo.
 
 .. _example dataset: https://doi.org/10.5281/zenodo.14997235
 
