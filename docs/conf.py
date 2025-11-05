@@ -100,3 +100,5 @@ napoleon_preprocess_types = True
 #     "array-like": ":term:`array-like <array_like>`",
 #     "Path": "~~pathlib.Path",
 # }
+
+myst_nb_render_plugin = "default"
