@@ -316,7 +316,7 @@ class MainWindow(QMainWindow):
         tabs.addTab(tab1, 'Movie')
         self.traces = TracePlotWindow(parent=self, width=4, height=3, show=False)
         tabs.addTab(self.traces, 'Traces')
-        self.selection = SelectionWidget()
+        self.selection = SelectionWidget(parent=self)
         tabs.addTab(self.selection, 'Selection (beta)')
         tabs.currentChanged.connect(self.setTabFocus)
 

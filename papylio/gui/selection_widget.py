@@ -1,4 +1,5 @@
 import sys
+import json
 from PySide2.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QGridLayout, QTreeView, QApplication, QMainWindow, \
     QPushButton, QTabWidget, QTableWidget, QComboBox, QLineEdit
 from PySide2.QtGui import QStandardItem, QStandardItemModel
@@ -9,6 +10,8 @@ import numpy as np
 class SelectionWidget(QWidget):
     def __init__(self, parent=None):
         super(SelectionWidget, self).__init__(parent)
+
+        self.parent = parent
 
         self.tree_view = QTreeView(self)
         self.model = QStandardItemModel()
@@ -121,8 +124,9 @@ class SelectionWidget(QWidget):
                 item = self.model.item(i)
                 if item.checkState() == Qt.Checked:
                     selection_names.append(self.model.item(i).data())
-            self.file.apply_selections(selection_names)
+            self.file.apply_selections(*selection_names)
             self.refresh_selections()
+            self.parent.update_plots()
 
     @property
     def file(self):
@@ -144,18 +148,19 @@ class SelectionWidget(QWidget):
         self.root.removeRows(0, self.root.rowCount())
         if self.file is not None and '.nc' in self.file.extensions:
             self.setDisabled(False)
-            for name, selection in self.file.selections_dataset.items():
+            for name, selection in self.file.selections.items():
                 if not selection.attrs:
                     row_data = [name[10:], '', '', '', '']
                 else:
                     columns = ['variable', 'channel', 'aggregator', 'operator', 'threshold']
-                    row_data = [selection.attrs[c] for c in columns]
+                    configuration = json.loads(selection.attrs['configuration'])
+                    row_data = [configuration[c] for c in columns]
                 row_data.append(selection.sum().item())
                 items = [QStandardItem(str(d)) for d in row_data]
                 items[0].setCheckable(True)
                 items[0].setData(name)
-                if 'selection_names' in self.file.selected.attrs.keys():
-                    if np.isin(name, self.file.selected.attrs['selection_names']):
+                if 'configuration' in self.file.selected.attrs.keys():
+                    if np.isin(name, json.loads(self.file.selected.attrs['configuration'])):
                         items[0].setCheckState(Qt.Checked)
                     else:
                         items[0].setCheckState(Qt.Unchecked)
