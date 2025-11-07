@@ -70,6 +70,9 @@ def test_parallel_processing_mapping(experiment):
     experiment.files.parallel.mapping.transformation
     experiment.files.parallel.mapping.show()
 
+def test_parallel_processing(experiment):
+    experiment.files.parallel.find_coordinates()
+
 def test_find_molecules(file):
     file.find_coordinates()
 
