@@ -158,7 +158,7 @@ class File:
     @property
     @return_none_when_executed_by_pycharm
     def absoluteFilePath(self):
-        return self.experiment.main_path.joinpath(self.relativeFilePath)
+        return self.relativeFilePath.absolute()
 
     @property
     @return_none_when_executed_by_pycharm
@@ -313,9 +313,9 @@ class File:
                     # It is desirable to raise an AttributeError instead of a KeyError,
                     # as this is used by hasattr for example. Hence the try except.
                     pass
-        # else:
-        #     super().__getattribute__(item)
-        raise AttributeError(f'Attribute {item} not found')
+        else:
+            return super().__getattribute__(item)
+        # raise AttributeError(f'Attribute {item} not found')
 
     def __setattr__(self, name, value):
         super().__setattr__(name, value)
