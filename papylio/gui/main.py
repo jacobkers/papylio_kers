@@ -4,7 +4,7 @@ import platform
 
 import sys
 from PySide2.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QGridLayout, QTreeView, QApplication, QMainWindow, \
-    QPushButton, QTabWidget, QTableWidget, QComboBox, QLineEdit
+    QPushButton, QTabWidget, QTableWidget, QComboBox, QLineEdit, QLabel
 from PySide2.QtGui import QStandardItem, QStandardItemModel, QIcon
 from PySide2.QtCore import Qt
 
@@ -276,12 +276,53 @@ class MainWindow(QMainWindow):
         #map settings:=
         #buttons
         map_buttons_layout = QGridLayout()
+        map_label = QLabel("method:")
         map_method_combobox = QComboBox()
         map_options = ['icp', 'nn']
         map_method_combobox.addItems(map_options)
         map_dist_treshold = QLineEdit()
-        map_buttons_layout.addWidget(map_method_combobox, 0, 0)
-        map_buttons_layout.addWidget(map_dist_treshold, 0, 1)
+        map_dist_treshold.setPlaceholderText("dist_treshold")
+        map_margin = QLineEdit()
+        map_margin.setPlaceholderText("edge_margin")
+
+        #donor mapping:
+        map_donor_label = QLabel("donor_pks")
+        map_donor_method_combobox = QComboBox()
+        map_donor_options = ['local-maximum-auto', 'other']
+        map_donor_method_combobox.addItems(map_donor_options)
+        map_donor_fract_diff = QLineEdit()
+        map_donor_fract_diff.setPlaceholderText("fraction_diff")
+        map_donor_ns_min = QLineEdit()
+        map_donor_ns_min.setPlaceholderText("filt_nbh_min")
+        map_donor_ns_max = QLineEdit()
+        map_donor_ns_max.setPlaceholderText("filt_nbh_max")
+
+        # acceptor mapping:
+        map_acceptor_label = QLabel("acceptor_pks")
+        map_acceptor_method_combobox = QComboBox()
+        map_acceptor_options = ['local-maximum-auto', 'other']
+        map_acceptor_method_combobox.addItems(map_acceptor_options)
+        map_acceptor_fract_diff = QLineEdit()
+        map_acceptor_fract_diff.setPlaceholderText("fraction_diff")
+        map_acceptor_ns_min = QLineEdit()
+        map_acceptor_ns_min.setPlaceholderText("filt_nbh_min")
+        map_acceptor_ns_max = QLineEdit()
+        map_acceptor_ns_max.setPlaceholderText("filt_nbh_max")
+
+        map_buttons_layout.addWidget(map_label, 0, 1)
+        map_buttons_layout.addWidget(map_method_combobox, 0, 2)
+        map_buttons_layout.addWidget(map_dist_treshold, 0, 3)
+        map_buttons_layout.addWidget(map_margin, 0, 4)
+        map_buttons_layout.addWidget(map_donor_label, 1, 0)
+        map_buttons_layout.addWidget(map_donor_method_combobox, 1, 1)
+        map_buttons_layout.addWidget(map_donor_fract_diff, 1, 2)
+        map_buttons_layout.addWidget(map_donor_ns_min, 1, 3)
+        map_buttons_layout.addWidget(map_donor_ns_max, 1, 4)
+        map_buttons_layout.addWidget(map_acceptor_label, 2, 0)
+        map_buttons_layout.addWidget(map_acceptor_method_combobox, 2, 1)
+        map_buttons_layout.addWidget(map_acceptor_fract_diff, 2, 2)
+        map_buttons_layout.addWidget(map_acceptor_ns_min, 2, 3)
+        map_buttons_layout.addWidget(map_acceptor_ns_max, 2, 4)
         #build:
         map_buttons = QWidget()
         map_buttons.setLayout(map_buttons_layout)
