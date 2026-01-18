@@ -272,10 +272,27 @@ class MainWindow(QMainWindow):
         controls_layout = QGridLayout()
         controls_layout.setAlignment(Qt.AlignTop)
 
-        # controls_layout.addWidget(QLabel('Minimum intensity difference'), 0, 0)
-        # mid = QLineEdit(str(self.experiment.configuration['find_coordinates']['peak_finding']['minimum_intensity_difference']))
-        # mid.textChanged.connect(self.midChange)
-        # controls_layout.addWidget(mid, 0, 1)
+
+        #map settings:=
+        #buttons
+        map_buttons_layout = QGridLayout()
+        map_method_combobox = QComboBox()
+        map_options = ['icp', 'nn']
+        map_method_combobox.addItems(map_options)
+        map_dist_treshold = QLineEdit()
+        map_buttons_layout.addWidget(map_method_combobox, 0, 0)
+        map_buttons_layout.addWidget(map_dist_treshold, 0, 1)
+        #build:
+        map_buttons = QWidget()
+        map_buttons.setLayout(map_buttons_layout)
+        #add
+        controls_layout.addWidget(map_buttons)
+
+
+         #controls_layout.addWidget(QLabel('Minimum intensity difference'), 0, 0)
+         #mid = QLineEdit(str(self.experiment.configuration['find_coordinates']['peak_finding']['minimum_intensity_difference']))
+         #mid.textChanged.connect(self.midChange)
+         #controls_layout.addWidget(mid, 0, 1)
 
         perform_mapping_button = QPushButton('Perform mapping')
         perform_mapping_button.clicked.connect(self.perform_mapping)
