@@ -350,15 +350,38 @@ class MainWindow(QMainWindow):
         button_extract_projection_type_options = ['average', 'maximum']
         button_extract_projection_type_combobox.addItems(button_extract_projection_type_options)
 
-#       combo   method: by_channel  # Choose by_channel, average_channels or sum_channels
-#       title: projection_image:
-#           field combo projection_type: average  # Choose average or maximum
-#           field entry frame_range: [0, 20]
-#           field entry illumination: 0  .
+        #method : two grid_pos
+        button_extract_method_title = QLabel("method:")
+        button_extract_method_combobox = QComboBox()
+        button_extract_method_options = ['by_channel', 'average_channels', 'sum_channels']
+        button_extract_method_combobox.addItems(button_extract_method_options)
+        button_extract_method_title = QLabel("projection_image:")
+        button_extract_projection_combobox = QComboBox()
+        button_extract_method_options = ['average', 'maximum']
+        button_extract_projection_combobox.addItems(button_extract_method_options)
+        button_extract_projection_frame_range = QLineEdit()
+        button_extract_projection_frame_range_title = QLabel("frame rate:")
+        button_extract_projection_frame_range.setPlaceholderText("[0, 20]")
+        button_extract_projection_illumination_title = QLabel("illumination:")
+        button_extract_projection_illumination = QLineEdit()
+        button_extract_projection_illumination.setPlaceholderText("0")
+
 #       title: sliding_window:
 #           field combo: use_sliding_window: false
 #           field entry: frame_increment: 20
 #           field entry: minimal_point_separation: 2
+        button_extract_slideW_title = QLabel("sliding window:")
+        button_extract_slideW_UseIt_combobox = QComboBox()
+        button_extract_slideW_UseIt_options = ['True', 'False']
+        button_extract_slideW_UseIt_combobox.addItems(button_extract_slideW_UseIt_options)
+        button_extract_slideW_FrameInc_title = QLabel("frame_increment:")
+        button_extract_slideW_FrameInc_entry = QLineEdit()
+        button_extract_slideW_FrameInc_entry.setPlaceholderText("20")
+        button_extract_slideW_MinSep_title = QLabel("minimal separation:")
+        button_extract_slideW_MinSep_entry = QLineEdit()
+        button_extract_slideW_MinSep_entry.setPlaceholderText("2")
+
+
 #       title peak_finding:
 #           field combo: method: local - maximum - auto
 #           field entry: filter_neighbourhood_size_min: 10  # Optional
@@ -369,10 +392,30 @@ class MainWindow(QMainWindow):
 #            subtitle: coordinates_after_gaussian_fit:  # Optional
 #                field entry: gaussian_width: 3
 
-        # mapping grid layout:
+        # build extraction grid layout:
         extraction_button_grid_layout = QGridLayout()
         extraction_button_grid_layout.addWidget(button_extract_chan_title, 0, 0)
         extraction_button_grid_layout.addWidget(button_extract_chan_combobox, 0, 1)
+        extraction_button_grid_layout.addWidget(button_extract_illum_title, 0, 2)
+        extraction_button_grid_layout.addWidget(button_extract_illum_entry, 0, 3)
+        extraction_button_grid_layout.addWidget(button_extract_projection_type_title,0,4)
+        extraction_button_grid_layout.addWidget(button_extract_projection_type_combobox, 0, 5)
+        extraction_button_grid_layout.addWidget(button_extract_method_title,1,0)
+        extraction_button_grid_layout.addWidget(button_extract_projection_combobox,1,1)
+        extraction_button_grid_layout.addWidget(button_extract_projection_frame_range_title, 1,2)
+        extraction_button_grid_layout.addWidget(button_extract_projection_frame_range,1,3)
+        extraction_button_grid_layout.addWidget(button_extract_projection_illumination_title,1,4)
+        extraction_button_grid_layout.addWidget(button_extract_projection_illumination,1,5)
+        extraction_button_grid_layout.addWidget(button_extract_slideW_title,2,0)
+        extraction_button_grid_layout.addWidget(button_extract_slideW_UseIt_combobox,2,1)
+        extraction_button_grid_layout.addWidget(button_extract_slideW_FrameInc_title,2,2)
+        extraction_button_grid_layout.addWidget(button_extract_slideW_FrameInc_entry,2,3)
+        extraction_button_grid_layout.addWidget(button_extract_slideW_MinSep_title,2,4)
+        extraction_button_grid_layout.addWidget(button_extract_slideW_MinSep_entry,2,5)
+
+
+
+
         extraction_button_grid_layout.setAlignment(Qt.AlignLeft)
         extraction_button_grid = QWidget()
         extraction_button_grid.setLayout(extraction_button_grid_layout)
