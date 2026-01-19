@@ -267,11 +267,8 @@ class MainWindow(QMainWindow):
         self.image = QWidget()
         self.image.setLayout(image_layout)
 
-
-
-
         #map settings
-        #buttons
+        #mapping buttons definition:
         button_map_label = QLabel("method:")
         button_map_method_combobox = QComboBox()
         button_map_options = ['icp', 'nn']
@@ -280,7 +277,6 @@ class MainWindow(QMainWindow):
         button_map_dist_treshold.setPlaceholderText("dist_treshold")
         button_map_margin = QLineEdit()
         button_map_margin.setPlaceholderText("edge_margin")
-
         #donor mapping:
         button_map_donor_label = QLabel("donor_pks")
         button_map_donor_method_combobox = QComboBox()
@@ -292,7 +288,6 @@ class MainWindow(QMainWindow):
         button_map_donor_ns_min.setPlaceholderText("nbh_min")
         button_map_donor_ns_max = QLineEdit()
         button_map_donor_ns_max.setPlaceholderText("nbh_max")
-
         # acceptor mapping:
         button_map_acceptor_label = QLabel("acceptor_pks")
         button_map_acceptor_method_combobox = QComboBox()
@@ -304,12 +299,12 @@ class MainWindow(QMainWindow):
         button_map_acceptor_ns_min.setPlaceholderText("filt_nbh_min")
         button_map_acceptor_ns_max = QLineEdit()
         button_map_acceptor_ns_max.setPlaceholderText("filt_nbh_max")
-        #layout:
+        #mapping grid layout:
         map_buttons_layout = QGridLayout()
-        map_buttons_layout.addWidget(button_map_label, 0, 1)
-        map_buttons_layout.addWidget(button_map_method_combobox, 0, 2)
-        map_buttons_layout.addWidget(button_map_dist_treshold, 0, 3)
-        map_buttons_layout.addWidget(button_map_margin, 0, 4)
+        map_buttons_layout.addWidget(button_map_label, 0, 0)
+        map_buttons_layout.addWidget(button_map_method_combobox, 0, 1)
+        map_buttons_layout.addWidget(button_map_dist_treshold, 0, 2)
+        map_buttons_layout.addWidget(button_map_margin, 0, 3)
         map_buttons_layout.addWidget(button_map_donor_label, 1, 0)
         map_buttons_layout.addWidget(button_map_donor_method_combobox, 1, 1)
         map_buttons_layout.addWidget(button_map_donor_fract_diff, 1, 2)
@@ -342,7 +337,48 @@ class MainWindow(QMainWindow):
 
         #extraction--------------------------------------
         # molecules: spot detection and extraction----------------------------------------------------
-        #buttons:
+#buttons:
+        button_extract_chan_title = QLabel("channels:")
+        button_extract_chan_combobox = QComboBox()
+        button_extract_chan_options = ['donor', 'acceptor']
+        button_extract_chan_combobox.addItems(button_extract_chan_options)
+        button_extract_illum_title = QLabel("illumination:")
+        button_extract_illum_entry = QLineEdit()
+        button_extract_illum_entry.setPlaceholderText("0")
+        button_extract_projection_type_title = QLabel("projection_type:")
+        button_extract_projection_type_combobox = QComboBox()
+        button_extract_projection_type_options = ['average', 'maximum']
+        button_extract_projection_type_combobox.addItems(button_extract_projection_type_options)
+
+#       combo   method: by_channel  # Choose by_channel, average_channels or sum_channels
+#       title: projection_image:
+#           field combo projection_type: average  # Choose average or maximum
+#           field entry frame_range: [0, 20]
+#           field entry illumination: 0  .
+#       title: sliding_window:
+#           field combo: use_sliding_window: false
+#           field entry: frame_increment: 20
+#           field entry: minimal_point_separation: 2
+#       title peak_finding:
+#           field combo: method: local - maximum - auto
+#           field entry: filter_neighbourhood_size_min: 10  # Optional
+#           field entry: : 5  # Optional
+#       title coordinate_optimization:
+#           subtitle: coordinates_within_margin:  # Optional
+#               field entry: margin: 10
+#            subtitle: coordinates_after_gaussian_fit:  # Optional
+#                field entry: gaussian_width: 3
+
+        # mapping grid layout:
+        extraction_button_grid_layout = QGridLayout()
+        extraction_button_grid_layout.addWidget(button_extract_chan_title, 0, 0)
+        extraction_button_grid_layout.addWidget(button_extract_chan_combobox, 0, 1)
+        extraction_button_grid_layout.setAlignment(Qt.AlignLeft)
+        extraction_button_grid = QWidget()
+        extraction_button_grid.setLayout(extraction_button_grid_layout)
+
+
+        #main buttons:
         find_molecules_button = QPushButton('Find coordinates')
         find_molecules_button.clicked.connect(self.find_coordinates)
         extract_traces_button = QPushButton('Extract traces')
@@ -350,6 +386,7 @@ class MainWindow(QMainWindow):
         # collect:
         extraction_controls_layout = QGridLayout()
         extraction_controls_layout.setAlignment(Qt.AlignTop)
+        extraction_controls_layout.addWidget(extraction_button_grid)
         extraction_controls_layout.addWidget(find_molecules_button, 2, 0, 1, 2)
         extraction_controls_layout.addWidget(extract_traces_button, 3, 0, 1, 2)
         # pack in widget:
