@@ -254,13 +254,11 @@ class MainWindow(QMainWindow):
         self.update = True
 
         self.model.itemChanged.connect(self.onItemChange)
-
-
+        #imagery
         self.image_canvas = ImageCanvas(self, width=5, height=4, dpi=100)
 
         # Create toolbar, passing canvas as first parament, parent (self, the MainWindow) as second.
         image_toolbar = NavigationToolbar(self.image_canvas, self)
-
         image_layout = QVBoxLayout()
         image_layout.addWidget(image_toolbar)
         image_layout.addWidget(self.image_canvas)
@@ -269,13 +267,11 @@ class MainWindow(QMainWindow):
         self.image = QWidget()
         self.image.setLayout(image_layout)
 
-        controls_layout = QGridLayout()
-        controls_layout.setAlignment(Qt.AlignTop)
+
 
 
         #map settings:=
         #buttons
-        map_buttons_layout = QGridLayout()
         map_label = QLabel("method:")
         map_method_combobox = QComboBox()
         map_options = ['icp', 'nn']
@@ -308,7 +304,8 @@ class MainWindow(QMainWindow):
         map_acceptor_ns_min.setPlaceholderText("filt_nbh_min")
         map_acceptor_ns_max = QLineEdit()
         map_acceptor_ns_max.setPlaceholderText("filt_nbh_max")
-
+        #layout:
+        map_buttons_layout = QGridLayout()
         map_buttons_layout.addWidget(map_label, 0, 1)
         map_buttons_layout.addWidget(map_method_combobox, 0, 2)
         map_buttons_layout.addWidget(map_dist_treshold, 0, 3)
@@ -326,43 +323,47 @@ class MainWindow(QMainWindow):
         #build:
         map_buttons = QWidget()
         map_buttons.setLayout(map_buttons_layout)
-        #add
-        controls_layout.addWidget(map_buttons)
-
-
-         #controls_layout.addWidget(QLabel('Minimum intensity difference'), 0, 0)
-         #mid = QLineEdit(str(self.experiment.configuration['find_coordinates']['peak_finding']['minimum_intensity_difference']))
-         #mid.textChanged.connect(self.midChange)
-         #controls_layout.addWidget(mid, 0, 1)
-
+        #extra:
         perform_mapping_button = QPushButton('Perform mapping')
         perform_mapping_button.clicked.connect(self.perform_mapping)
-        controls_layout.addWidget(perform_mapping_button, 1, 0, 1, 2)
+        #collect:
+        map_controls_layout = QGridLayout()
+        map_controls_layout.setAlignment(Qt.AlignTop)
+        map_controls_layout.addWidget(map_buttons)
+        map_controls_layout.addWidget(perform_mapping_button, 1, 0, 1, 2)
+        #pack in widget:
+        self.map_controls = QWidget()
+        self.map_controls.setLayout(map_controls_layout)
+        self.map_controls.setMinimumWidth(150)
+        #add to tab:
+        mapping_tab_layout = QHBoxLayout()
+        mapping_tab_layout.addWidget(self.map_controls)
+        mapping_tab_layout.addWidget(self.image)
 
+        #extraction--------------------------------------
+        # molecules: spot detection and extraction----------------------------------------------------
+        #buttons:
         find_molecules_button = QPushButton('Find coordinates')
         find_molecules_button.clicked.connect(self.find_coordinates)
-        controls_layout.addWidget(find_molecules_button, 2, 0, 1, 2)
-
         extract_traces_button = QPushButton('Extract traces')
         extract_traces_button.clicked.connect(self.extract_traces)
-        controls_layout.addWidget(extract_traces_button, 3, 0, 1, 2)
+        # collect:
+        extraction_controls_layout = QGridLayout()
+        extraction_controls_layout.setAlignment(Qt.AlignTop)
+        extraction_controls_layout.addWidget(find_molecules_button, 2, 0, 1, 2)
+        extraction_controls_layout.addWidget(extract_traces_button, 3, 0, 1, 2)
+        # pack in widget:
+        self.extraction_controls = QWidget()
 
-        self.controls = QWidget()
-        self.controls.setLayout(controls_layout)
-        self.controls.setMinimumWidth(200)
-
-
-        extraction_layout = QHBoxLayout()
-        extraction_layout.addWidget(self.image)
-        extraction_layout.addWidget(self.controls)
-
-
-
+        self.extraction_controls.setLayout(extraction_controls_layout)
+        self.extraction_controls.setMinimumWidth(150)
+        #add to tab:
+        extraction_tab_layout = QHBoxLayout()
+        extraction_tab_layout.addWidget(self.extraction_controls)
 
         # self.selection = QTableWidget()
         # self.selection.setRowCount(5)
         # self.selection.setColumnCount(4)
-
 
         tabs = QTabWidget()
         tabs.setTabPosition(QTabWidget.North)
@@ -370,8 +371,12 @@ class MainWindow(QMainWindow):
         tabs.setDocumentMode(True)
 
         tab1 = QWidget(self)
-        tab1.setLayout(extraction_layout)
-        tabs.addTab(tab1, 'Movie')
+        tab1.setLayout(mapping_tab_layout)
+        tabs.addTab(tab1, 'Mapping')
+        tab2 = QWidget(self)
+        tab2.setLayout(extraction_tab_layout)
+        tabs.addTab(tab2, 'Extraction')
+
         self.traces = TracePlotWindow(parent=self, width=4, height=3, show=False)
         tabs.addTab(self.traces, 'Traces')
         self.selection = SelectionWidget(parent=self)
