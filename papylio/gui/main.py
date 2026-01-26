@@ -269,10 +269,12 @@ class MainWindow(QMainWindow):
 
         #map settings
         #mapping buttons definition:
-        button_map_label = QLabel("method:")
-        button_map_method_combobox = QComboBox()
-        button_map_options = ['icp', 'nn']
-        button_map_method_combobox.addItems(button_map_options)
+        self.button_map_label = QLabel("method:")
+        self.button_map_method_combobox = QComboBox()
+        self.button_map_options = ['icp', 'nn', 'foo']
+        self.button_map_method_combobox.addItems(self.button_map_options)
+
+
         button_map_dist_treshold = QLineEdit()
         button_map_dist_treshold.setPlaceholderText("dist_treshold")
         button_map_margin = QLineEdit()
@@ -301,8 +303,8 @@ class MainWindow(QMainWindow):
         button_map_acceptor_ns_max.setPlaceholderText("filt_nbh_max")
         #mapping grid layout:
         map_buttons_layout = QGridLayout()
-        map_buttons_layout.addWidget(button_map_label, 0, 0)
-        map_buttons_layout.addWidget(button_map_method_combobox, 0, 1)
+        map_buttons_layout.addWidget(self.button_map_label, 0, 0)
+        map_buttons_layout.addWidget(self.button_map_method_combobox, 0, 1)
         map_buttons_layout.addWidget(button_map_dist_treshold, 0, 2)
         map_buttons_layout.addWidget(button_map_margin, 0, 3)
         map_buttons_layout.addWidget(button_map_donor_label, 1, 0)
@@ -504,10 +506,12 @@ class MainWindow(QMainWindow):
     def perform_mapping(self, t):
         print(t)
         selected_files = self.experiment.selectedFiles
-        #read in default config:
+
+        #jk-read in a default config and change one value:
         panel_config= self.experiment.configuration['mapping']
-        #for now, change one value
-        panel_config['method']='foo'
+        panel_method = self.button_map_method_combobox.currentText()
+        panel_config['method']=panel_method
+
         if selected_files:
             selected_files.serial.perform_mapping(**panel_config)
             self.image_canvas.refresh()
