@@ -1,0 +1,101 @@
+
+from PySide2.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QGridLayout, QTreeView, QApplication, QMainWindow, \
+    QPushButton, QComboBox, QLineEdit, QLabel
+from PySide2.QtCore import Qt
+
+import matplotlib as mpl
+import numpy as np
+
+class MappingWidget(QWidget):
+    def __init__(self, parent=None):
+        super(MappingWidget, self).__init__(parent)
+        self.parent = parent
+
+
+
+        #map settings
+        #mapping buttons definition:
+        self.button_map_label = QLabel("method:")
+        self.button_map_method_combobox = QComboBox()
+        self.button_map_options = ['icp', 'nn', 'foo']
+        self.button_map_method_combobox.addItems(self.button_map_options)
+
+
+        button_map_dist_treshold = QLineEdit()
+        button_map_dist_treshold.setPlaceholderText("dist_treshold")
+        button_map_margin = QLineEdit()
+        button_map_margin.setPlaceholderText("edge_margin")
+        #donor mapping:
+        button_map_donor_label = QLabel("donor_pks")
+        button_map_donor_method_combobox = QComboBox()
+        button_map_donor_options = ['local-maximum-auto', 'other']
+        button_map_donor_method_combobox.addItems(button_map_donor_options)
+        button_map_donor_fract_diff = QLineEdit()
+        button_map_donor_fract_diff.setPlaceholderText("fract._diff")
+        button_map_donor_ns_min = QLineEdit()
+        button_map_donor_ns_min.setPlaceholderText("nbh_min")
+        button_map_donor_ns_max = QLineEdit()
+        button_map_donor_ns_max.setPlaceholderText("nbh_max")
+        # acceptor mapping:
+        button_map_acceptor_label = QLabel("acceptor_pks")
+        button_map_acceptor_method_combobox = QComboBox()
+        button_map_acceptor_options = ['local-maximum-auto', 'other']
+        button_map_acceptor_method_combobox.addItems(button_map_acceptor_options)
+        button_map_acceptor_fract_diff = QLineEdit()
+        button_map_acceptor_fract_diff.setPlaceholderText("fraction_diff")
+        button_map_acceptor_ns_min = QLineEdit()
+        button_map_acceptor_ns_min.setPlaceholderText("filt_nbh_min")
+        button_map_acceptor_ns_max = QLineEdit()
+        button_map_acceptor_ns_max.setPlaceholderText("filt_nbh_max")
+        #mapping grid layout:
+        map_buttons_layout = QGridLayout()
+        map_buttons_layout.addWidget(self.button_map_label, 0, 0)
+        map_buttons_layout.addWidget(self.button_map_method_combobox, 0, 1)
+        map_buttons_layout.addWidget(button_map_dist_treshold, 0, 2)
+        map_buttons_layout.addWidget(button_map_margin, 0, 3)
+        map_buttons_layout.addWidget(button_map_donor_label, 1, 0)
+        map_buttons_layout.addWidget(button_map_donor_method_combobox, 1, 1)
+        map_buttons_layout.addWidget(button_map_donor_fract_diff, 1, 2)
+        map_buttons_layout.addWidget(button_map_donor_ns_min, 1, 3)
+        map_buttons_layout.addWidget(button_map_donor_ns_max, 1, 4)
+        map_buttons_layout.addWidget(button_map_acceptor_label, 2, 0)
+        map_buttons_layout.addWidget(button_map_acceptor_method_combobox, 2, 1)
+        map_buttons_layout.addWidget(button_map_acceptor_fract_diff, 2, 2)
+        map_buttons_layout.addWidget(button_map_acceptor_ns_min, 2, 3)
+        map_buttons_layout.addWidget(button_map_acceptor_ns_max, 2, 4)
+        #build:
+        map_buttons = QWidget()
+        map_buttons.setLayout(map_buttons_layout)
+        #extra:
+        perform_mapping_button = QPushButton('Perform mapping')
+        perform_mapping_button.clicked.connect(self.perform_mapping)
+        #collect:
+        map_controls_layout = QGridLayout()
+        map_controls_layout.setAlignment(Qt.AlignTop)
+        map_controls_layout.addWidget(map_buttons)
+        map_controls_layout.addWidget(perform_mapping_button, 1, 0, 1, 2)
+        #pack in widget:
+        self.map_controls = QWidget()
+        self.map_controls.setLayout(map_controls_layout)
+        self.map_controls.setMinimumWidth(150)
+        #add to tab:
+        mapping_tab_layout = QHBoxLayout()
+        mapping_tab_layout.addWidget(self.map_controls)
+
+        self.setLayout(mapping_tab_layout)
+
+    def perform_mapping(self, t):
+        print(t)
+        selected_files = self.experiment.selectedFiles
+
+        #jk-read in a default config and change one value:
+        panel_config= self.experiment.configuration['mapping']
+        panel_method = self.button_map_method_combobox.currentText()
+        panel_config['method']=panel_method
+
+        if selected_files:
+            selected_files.serial.perform_mapping(**panel_config)
+            self.image_canvas.refresh()
+            plt.show()
+
+
