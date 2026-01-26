@@ -504,8 +504,12 @@ class MainWindow(QMainWindow):
     def perform_mapping(self, t):
         print(t)
         selected_files = self.experiment.selectedFiles
+        #read in default config:
+        panel_config= self.experiment.configuration['mapping']
+        #for now, change one value
+        panel_config['method']='foo'
         if selected_files:
-            selected_files.serial.perform_mapping()
+            selected_files.serial.perform_mapping(**panel_config)
             self.image_canvas.refresh()
             plt.show()
 
