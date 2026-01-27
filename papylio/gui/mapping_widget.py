@@ -3,15 +3,13 @@ from PySide2.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QGridLayout, QT
     QPushButton, QComboBox, QLineEdit, QLabel
 from PySide2.QtCore import Qt
 
-import matplotlib as mpl
-import numpy as np
+import matplotlib.pyplot as plt
+
 
 class MappingWidget(QWidget):
     def __init__(self, parent=None):
         super(MappingWidget, self).__init__(parent)
         self.parent = parent
-
-
 
         #map settings
         #mapping buttons definition:
@@ -20,11 +18,11 @@ class MappingWidget(QWidget):
         self.button_map_options = ['icp', 'nn', 'foo']
         self.button_map_method_combobox.addItems(self.button_map_options)
 
-
         button_map_dist_treshold = QLineEdit()
         button_map_dist_treshold.setPlaceholderText("dist_treshold")
         button_map_margin = QLineEdit()
         button_map_margin.setPlaceholderText("edge_margin")
+
         #donor mapping:
         button_map_donor_label = QLabel("donor_pks")
         button_map_donor_method_combobox = QComboBox()
@@ -86,16 +84,16 @@ class MappingWidget(QWidget):
 
     def perform_mapping(self, t):
         print(t)
-        selected_files = self.experiment.selectedFiles
+        selected_files = self.parent.experiment.selectedFiles
 
         #jk-read in a default config and change one value:
-        panel_config= self.experiment.configuration['mapping']
+        panel_config= self.parent.experiment.configuration['mapping']
         panel_method = self.button_map_method_combobox.currentText()
         panel_config['method']=panel_method
 
         if selected_files:
             selected_files.serial.perform_mapping(**panel_config)
-            self.image_canvas.refresh()
+            self.parent.image_canvas.refresh()
             plt.show()
 
 

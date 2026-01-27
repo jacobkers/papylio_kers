@@ -273,6 +273,7 @@ class MainWindow(QMainWindow):
         self.image.setLayout(image_layout)
 
 
+
         #extraction--------------------------------------
         # molecules: spot detection and extraction----------------------------------------------------
 #buttons:
