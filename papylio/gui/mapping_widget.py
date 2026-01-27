@@ -69,29 +69,22 @@ class MappingWidget(QWidget):
 
 
         #add below buttons under 'advanced':---------------------------------------------------
+        advanced_layout = QGridLayout()
+        advanced_layout.addWidget(button_map_dist_treshold, 1, 0)
+        advanced_layout.addWidget(button_map_margin, 1, 1)
 
-        if 1:
-            advanced_layout = QGridLayout()
-            advanced_layout.addWidget(button_map_dist_treshold, 1, 0)
-            advanced_layout.addWidget(button_map_margin, 1, 1)
+        advanced_layout.addWidget(button_map_donor_label, 2, 0)
+        advanced_layout.addWidget(button_map_donor_method_combobox, 2, 1)
+        advanced_layout.addWidget(button_map_donor_fract_diff, 2, 2)
+        advanced_layout.addWidget(button_map_donor_ns_min, 2, 3)
+        advanced_layout.addWidget(button_map_donor_ns_max, 2, 4)
 
-            advanced_layout.addWidget(button_map_donor_label, 2, 0)
-            advanced_layout.addWidget(button_map_donor_method_combobox, 2, 1)
-            advanced_layout.addWidget(button_map_donor_fract_diff, 2, 2)
-            advanced_layout.addWidget(button_map_donor_ns_min, 2, 3)
-            advanced_layout.addWidget(button_map_donor_ns_max, 2, 4)
-
-            advanced_layout.addWidget(button_map_acceptor_label, 3, 0)
-            advanced_layout.addWidget(button_map_acceptor_method_combobox, 3, 1)
-            advanced_layout.addWidget(button_map_acceptor_fract_diff, 3, 2)
-            advanced_layout.addWidget(button_map_acceptor_ns_min, 3, 3)
-            advanced_layout.addWidget(button_map_acceptor_ns_max, 3, 4)
-        else:
-            advanced_layout = QVBoxLayout()
-            advanced_layout.addWidget(QLabel("Advanced option A"))
-            advanced_layout.addWidget(QLabel("Advanced option B"))
-
-
+        advanced_layout.addWidget(button_map_acceptor_label, 3, 0)
+        advanced_layout.addWidget(button_map_acceptor_method_combobox, 3, 1)
+        advanced_layout.addWidget(button_map_acceptor_fract_diff, 3, 2)
+        advanced_layout.addWidget(button_map_acceptor_ns_min, 3, 3)
+        advanced_layout.addWidget(button_map_acceptor_ns_max, 3, 4)
+       
 
         #build panel layout:
         map_buttons = QWidget()

@@ -10,7 +10,6 @@ from PySide2.QtCore import Qt
 
 import matplotlib as mpl
 
-
 from matplotlib.backends.backend_qtagg import (
     FigureCanvas, NavigationToolbar2QT as NavigationToolbar)
 
