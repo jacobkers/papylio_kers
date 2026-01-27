@@ -84,7 +84,7 @@ class MappingWidget(QWidget):
         advanced_layout.addWidget(button_map_acceptor_fract_diff, 3, 2)
         advanced_layout.addWidget(button_map_acceptor_ns_min, 3, 3)
         advanced_layout.addWidget(button_map_acceptor_ns_max, 3, 4)
-       
+
 
         #build panel layout:
         map_buttons = QWidget()
