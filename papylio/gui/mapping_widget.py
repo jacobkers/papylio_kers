@@ -7,6 +7,8 @@ import matplotlib.pyplot as plt
 
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from papylio.gui.advanced_widget import Expander
+
 
 class MappingWidget(QWidget):
     def __init__(self, parent=None):
@@ -30,6 +32,7 @@ class MappingWidget(QWidget):
         self.button_map_method_combobox = QComboBox()
         self.button_map_options = ['icp', 'nn', 'foo']
         self.button_map_method_combobox.addItems(self.button_map_options)
+
 
         button_map_dist_treshold = QLineEdit()
         button_map_dist_treshold.setPlaceholderText("dist_treshold")
@@ -60,37 +63,62 @@ class MappingWidget(QWidget):
         button_map_acceptor_ns_max.setPlaceholderText("filt_nbh_max")
         #mapping grid layout:
         map_buttons_layout = QGridLayout()
+        map_buttons_layout.setAlignment(Qt.AlignLeft)
         map_buttons_layout.addWidget(self.button_map_label, 0, 0)
         map_buttons_layout.addWidget(self.button_map_method_combobox, 0, 1)
-        map_buttons_layout.addWidget(button_map_dist_treshold, 0, 2)
-        map_buttons_layout.addWidget(button_map_margin, 0, 3)
-        map_buttons_layout.addWidget(button_map_donor_label, 1, 0)
-        map_buttons_layout.addWidget(button_map_donor_method_combobox, 1, 1)
-        map_buttons_layout.addWidget(button_map_donor_fract_diff, 1, 2)
-        map_buttons_layout.addWidget(button_map_donor_ns_min, 1, 3)
-        map_buttons_layout.addWidget(button_map_donor_ns_max, 1, 4)
-        map_buttons_layout.addWidget(button_map_acceptor_label, 2, 0)
-        map_buttons_layout.addWidget(button_map_acceptor_method_combobox, 2, 1)
-        map_buttons_layout.addWidget(button_map_acceptor_fract_diff, 2, 2)
-        map_buttons_layout.addWidget(button_map_acceptor_ns_min, 2, 3)
-        map_buttons_layout.addWidget(button_map_acceptor_ns_max, 2, 4)
-        #build:
+
+
+        #add below buttons under 'advanced':---------------------------------------------------
+
+        if 1:
+            advanced_layout = QGridLayout()
+            advanced_layout.addWidget(button_map_dist_treshold, 1, 0)
+            advanced_layout.addWidget(button_map_margin, 1, 1)
+
+            advanced_layout.addWidget(button_map_donor_label, 2, 0)
+            advanced_layout.addWidget(button_map_donor_method_combobox, 2, 1)
+            advanced_layout.addWidget(button_map_donor_fract_diff, 2, 2)
+            advanced_layout.addWidget(button_map_donor_ns_min, 2, 3)
+            advanced_layout.addWidget(button_map_donor_ns_max, 2, 4)
+
+            advanced_layout.addWidget(button_map_acceptor_label, 3, 0)
+            advanced_layout.addWidget(button_map_acceptor_method_combobox, 3, 1)
+            advanced_layout.addWidget(button_map_acceptor_fract_diff, 3, 2)
+            advanced_layout.addWidget(button_map_acceptor_ns_min, 3, 3)
+            advanced_layout.addWidget(button_map_acceptor_ns_max, 3, 4)
+        else:
+            advanced_layout = QVBoxLayout()
+            advanced_layout.addWidget(QLabel("Advanced option A"))
+            advanced_layout.addWidget(QLabel("Advanced option B"))
+
+
+
+        #build panel layout:
         map_buttons = QWidget()
         map_buttons.setLayout(map_buttons_layout)
+
+        map_advanced = Expander("Advanced")
+        map_advanced.setContentLayout(advanced_layout)
+
         #extra:
         perform_mapping_button = QPushButton('Perform mapping')
         perform_mapping_button.setToolTip("Map selected file(s) using above settings")
         perform_mapping_button.clicked.connect(self.perform_mapping)
+
         #collect:
         map_controls_layout = QGridLayout()
         map_controls_layout.setAlignment(Qt.AlignTop)
-        map_controls_layout.addWidget(map_buttons)
-        map_controls_layout.addWidget(perform_mapping_button, 1, 0, 1, 2)
+        map_controls_layout.addWidget(map_buttons,0,0)
+        map_controls_layout.addWidget(map_advanced,1,0)  # test!
+        map_controls_layout.addWidget(perform_mapping_button,3,0)
+
+
         #pack in widget:
         self.map_controls = QWidget()
         self.map_controls.setLayout(map_controls_layout)
         self.map_controls.setMinimumWidth(150)
-        #add to tab:
+
+        #add all to tab:
         mapping_tab_layout = QHBoxLayout()
         mapping_tab_layout.addWidget(self.map_controls)
         mapping_tab_layout.addWidget(self.map_overlay_image)
@@ -109,7 +137,6 @@ class MappingWidget(QWidget):
         panel_config= self.parent.experiment.configuration['mapping']
         panel_method = self.button_map_method_combobox.currentText()
         panel_config['method']=panel_method
-
 
         if selected_files:
             selected_files.serial.perform_mapping(**panel_config)
