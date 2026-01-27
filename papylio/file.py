@@ -1298,6 +1298,7 @@ class File:
 
         self.use_mapping_for_all_files()
 
+
     def show_mapping_in_image(self, axis=None, save=True):
         if not hasattr(self, 'mapping') or self.mapping is None:
             raise RuntimeError('File does not contain a mapping.')

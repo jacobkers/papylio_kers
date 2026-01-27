@@ -5,11 +5,24 @@ from PySide2.QtCore import Qt
 
 import matplotlib.pyplot as plt
 
+from matplotlib.figure import Figure
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 
 class MappingWidget(QWidget):
     def __init__(self, parent=None):
         super(MappingWidget, self).__init__(parent)
         self.parent = parent
+
+        # imagery
+        self.fig1 = Figure(figsize=(5, 4))
+        self.map_overlay_image_canvas = FigureCanvas(self.fig1)
+        map_overlay_image_layout = QVBoxLayout()
+        map_overlay_image_layout.addWidget(self.map_overlay_image_canvas)
+
+        self.map_overlay_image = QWidget()
+        self.map_overlay_image.setLayout(map_overlay_image_layout)
+        self.map_overlay_image.setToolTip("To be added: the overlay image result that now pops up")
+
 
         #map settings
         #mapping buttons definition:
@@ -66,6 +79,7 @@ class MappingWidget(QWidget):
         map_buttons.setLayout(map_buttons_layout)
         #extra:
         perform_mapping_button = QPushButton('Perform mapping')
+        perform_mapping_button.setToolTip("Map selected file(s) using above settings")
         perform_mapping_button.clicked.connect(self.perform_mapping)
         #collect:
         map_controls_layout = QGridLayout()
@@ -79,11 +93,16 @@ class MappingWidget(QWidget):
         #add to tab:
         mapping_tab_layout = QHBoxLayout()
         mapping_tab_layout.addWidget(self.map_controls)
+        mapping_tab_layout.addWidget(self.map_overlay_image)
+
 
         self.setLayout(mapping_tab_layout)
 
     def perform_mapping(self, t):
         print(t)
+        self.fig1.clear()
+        ax1 = self.fig1.add_subplot(111)
+
         selected_files = self.parent.experiment.selectedFiles
 
         #jk-read in a default config and change one value:
@@ -91,9 +110,12 @@ class MappingWidget(QWidget):
         panel_method = self.button_map_method_combobox.currentText()
         panel_config['method']=panel_method
 
+
         if selected_files:
             selected_files.serial.perform_mapping(**panel_config)
-            self.parent.image_canvas.refresh()
+            #jk-somehow fetch the overlay here and remove plt.show
             plt.show()
+            ax1.imshow([[1, 2],[3, 4]])
+            self.map_overlay_image_canvas.draw_idle()
 
 
