@@ -132,15 +132,17 @@ class MappingWidget(QWidget):
         panel_method = self.button_map_method_combobox.currentText()
         panel_config['method']=panel_method
 
+        plot_file = selected_files[0]
+        plot_file.mapping.show_mapping_transformation(axis=ax1)
 
+        self.map_overlay_image_canvas.draw_idle()
 
         if selected_files:
             selected_files.serial.perform_mapping(**panel_config)
             #jk-somehow fetch the overlay here and remove plt.show
-            plot_file = selected_files[0]
-            plot_file.mapping.show_mapping_transformation(axis=ax1)
+
             #plt.show()
             #ax1.imshow([[1, 2],[3, 4]])
-            self.map_overlay_image_canvas.draw_idle()
+
 
 
