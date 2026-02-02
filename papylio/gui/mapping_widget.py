@@ -6,9 +6,14 @@ from PySide2.QtCore import Qt
 import matplotlib.pyplot as plt
 
 from matplotlib.figure import Figure
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+
 from papylio.gui.advanced_widget import Expander
+from papylio.gui.common_layouts_widget import ImageCanvas
 import matchpoint as mp
+
+#from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.backends.backend_qtagg import (
+    FigureCanvas, NavigationToolbar2QT as NavigationToolbar)
 
 
 class MappingWidget(QWidget):
@@ -25,6 +30,17 @@ class MappingWidget(QWidget):
         self.map_overlay_image = QWidget()
         self.map_overlay_image.setLayout(map_overlay_image_layout)
         self.map_overlay_image.setToolTip("To be added: the overlay image result that now pops up")
+
+        # imagery
+        self.map_image_canvas = ImageCanvas(self, width=4, height=3, dpi=100)
+        map_image_toolbar = NavigationToolbar(self.map_image_canvas, self)
+        map_image_layout = QVBoxLayout()
+        map_image_layout.addWidget(map_image_toolbar)
+        map_image_layout.addWidget(self.map_image_canvas)
+
+        # Create a placeholder widget to hold our toolbar and canvas.
+        self.map_image = QWidget()
+        self.map_image.setLayout(map_image_layout)
 
 
         #map settings
@@ -95,7 +111,7 @@ class MappingWidget(QWidget):
         map_advanced.setContentLayout(advanced_layout)
 
         #extra:
-        perform_mapping_button = QPushButton('Perform mapping')
+        perform_mapping_button = QPushButton('Map it')
         perform_mapping_button.setToolTip("Map selected file(s) using above settings")
         perform_mapping_button.clicked.connect(self.perform_mapping)
 
@@ -115,6 +131,7 @@ class MappingWidget(QWidget):
         #add all to tab:
         mapping_tab_layout = QHBoxLayout()
         mapping_tab_layout.addWidget(self.map_controls)
+        mapping_tab_layout.addWidget(self.map_image)
         mapping_tab_layout.addWidget(self.map_overlay_image)
 
 
@@ -139,10 +156,7 @@ class MappingWidget(QWidget):
 
         if selected_files:
             selected_files.serial.perform_mapping(**panel_config)
-            #jk-somehow fetch the overlay here and remove plt.show
-
-            #plt.show()
-            #ax1.imshow([[1, 2],[3, 4]])
+            self.map_image_canvas.refresh()
 
 
 

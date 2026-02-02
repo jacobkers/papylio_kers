@@ -7,7 +7,6 @@ from PySide2.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QGridLayout, QT
     QPushButton, QTabWidget, QTableWidget, QComboBox, QLineEdit, QLabel
 from PySide2.QtGui import QStandardItem, QStandardItemModel, QIcon
 from PySide2.QtCore import Qt
-
 import matplotlib as mpl
 
 from matplotlib.backends.backend_qtagg import (
@@ -406,7 +405,6 @@ class MainWindow(QMainWindow):
         refresh_button = QPushButton('Refresh')
         refresh_button.clicked.connect(self.refresh)
         experiment_layout.addWidget(refresh_button)
-
         experiment_layout.addWidget(self.tree)
 
         layout = QHBoxLayout()
@@ -416,7 +414,6 @@ class MainWindow(QMainWindow):
         widget = QWidget()
         widget.setLayout(layout)
         self.setCentralWidget(widget)
-
         self.show()
 
         # self.experiment = Experiment(
