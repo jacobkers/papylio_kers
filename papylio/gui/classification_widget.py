@@ -8,6 +8,10 @@ from PySide2.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout, 
 from PySide2.QtGui import QStandardItem, QStandardItemModel
 from PySide2.QtCore import Qt
 
+import matplotlib as mpl
+from matplotlib.backends.backend_qtagg import (
+    FigureCanvas, NavigationToolbar2QT as NavigationToolbar)
+
 from papylio.analysis.classification_simple import classify_threshold
 from papylio.analysis.hidden_markov_modelling import classify_hmm
 
@@ -33,8 +37,7 @@ class ClassificationWidget(QWidget):
         help_button = QPushButton('Help!')
         feedback_and_info_layout.addWidget(help_button)
 
-        dummy_button = QPushButton('dummy result')
-        feedback_and_info_layout.addWidget(dummy_button)
+
 
         form = QFormLayout()
         main_layout.addLayout(form)
@@ -107,9 +110,22 @@ class ClassificationWidget(QWidget):
 
         self.method_forms = {}  # method_name -> (widget, inputs)
 
+        # imagery
+        self.classification_image_canvas = ImageCanvas_temp(self, width=4, height=3, dpi=100)
+        classification_image_layout = QVBoxLayout()
+        classification_image_layout.addWidget(self.classification_image_canvas)
+
+        self.classification_imagery = QWidget()
+        self.classification_imagery.setLayout(classification_image_layout)
+        self.classification_imagery.setToolTip("show an image reflecting the effect of classifiers")
+        feedback_and_info_layout.addWidget(self.classification_imagery)
+
         #self.setLayout(main_layout)
         main_panel=QWidget()
         main_panel.setLayout(main_layout)
+
+
+
 
         feedback_and_info=QWidget()
         feedback_and_info.setLayout(feedback_and_info_layout)
@@ -568,4 +584,13 @@ class ClassificationWidget(QWidget):
     #     self.file.add_selection(variable, channel, aggregator, operator, threshold)
     #     self.refresh_selections()
 
+#transfer / delete this later when merging w/ mapping
+class ImageCanvas_temp(FigureCanvas):
+    def __init__(self, parent=None, width=14, height=7, dpi=100):
+        self.figure = mpl.figure.Figure(figsize=(width, height), dpi=dpi, constrained_layout=True)  # , figsize=(2, 2))
+        super().__init__(self.figure)
+        self.parent = parent
 
+        # self.axis = self.figure.gca()
+
+        self._file = None
