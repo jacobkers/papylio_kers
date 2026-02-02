@@ -22,17 +22,18 @@ class MappingWidget(QWidget):
         self.parent = parent
 
         # imagery
-        self.fig1 = Figure(figsize=(5, 4))
+        self.fig1 = Figure(figsize=(4, 3))
         self.map_overlay_image_canvas = FigureCanvas(self.fig1)
         map_overlay_image_layout = QVBoxLayout()
         map_overlay_image_layout.addWidget(self.map_overlay_image_canvas)
 
         self.map_overlay_image = QWidget()
         self.map_overlay_image.setLayout(map_overlay_image_layout)
-        self.map_overlay_image.setToolTip("To be added: the overlay image result that now pops up")
+        self.map_overlay_image.setToolTip("overlay image shows result of mapping")
 
         # imagery
         self.map_image_canvas = ImageCanvas(self, width=4, height=3, dpi=100)
+        self.map_image_canvas.setToolTip("shows raw image (1st of multiple selection)")
         map_image_toolbar = NavigationToolbar(self.map_image_canvas, self)
         map_image_layout = QVBoxLayout()
         map_image_layout.addWidget(map_image_toolbar)
@@ -157,6 +158,7 @@ class MappingWidget(QWidget):
         if selected_files:
             selected_files.serial.perform_mapping(**panel_config)
             self.map_image_canvas.refresh()
+
 
 
 
