@@ -25,22 +25,34 @@ class ClassificationWidget(QWidget):
         self.methods = {}
         self._file = None# name -> function
 
+        panel_layout=QHBoxLayout(self)
+
         main_layout = QVBoxLayout(self)
+
+        feedback_and_info_layout = QVBoxLayout(self)
+        help_button = QPushButton('Help!')
+        feedback_and_info_layout.addWidget(help_button)
+
+        dummy_button = QPushButton('dummy result')
+        feedback_and_info_layout.addWidget(dummy_button)
 
         form = QFormLayout()
         main_layout.addLayout(form)
 
         # --- Classification name input ---
         self.name_edit = QLineEdit()
+        self.name_edit.setToolTip("add any relevant label")
         self.name_edit.setPlaceholderText("e.g. HMM")
         form.addRow("Name:", self.name_edit)
 
         # --- Variable selector ---
         self.variable_selector = QComboBox()
+        self.variable_selector.setToolTip("Choose trace type")
         form.addRow("Variable:", self.variable_selector)
 
         # --- Method selector ---
         self.method_selector = QComboBox()
+        self.method_selector.setToolTip("Choose classifier")
         self.method_selector.currentTextChanged.connect(self._update_method_panel)
         form.addRow("Method:", self.method_selector)
 
@@ -94,7 +106,19 @@ class ClassificationWidget(QWidget):
         self.clear_button.clicked.connect(self._clear_results)
 
         self.method_forms = {}  # method_name -> (widget, inputs)
-        self.setLayout(main_layout)
+
+        #self.setLayout(main_layout)
+        main_panel=QWidget()
+        main_panel.setLayout(main_layout)
+
+        feedback_and_info=QWidget()
+        feedback_and_info.setLayout(feedback_and_info_layout)
+
+
+        panel_layout.addWidget(main_panel)
+        panel_layout.addWidget(feedback_and_info)
+
+        self.setLayout(panel_layout)
 
         self.register_method('threshold', classify_threshold)
         self.register_method('hmm', classify_hmm)
