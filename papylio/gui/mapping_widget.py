@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 
 from matplotlib.figure import Figure
 
-from papylio.gui.advanced_widget import Expander, ImageCanvas
+from papylio.gui.common_layouts_widget import Expander, ImageCanvas
 import matchpoint as mp
 
 #from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
