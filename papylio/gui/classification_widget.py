@@ -369,13 +369,13 @@ class ClassificationWidget(QWidget):
 
     def show_help(self):
         help_text = help_text = """\
-                Classification
+                Classification Rules
                 
-                Rules
                 -----
-                • Rules act via thresholding or Hidden Markov Modeling (HMM)
+                • User can add 'classification rules', listed as single lines below
+                • A rule acts via thresholding or Hidden Markov Modeling (HMM)
                 • A rule labels each point with a numeric classification
-                • Labels are user-defined in the column “states”
+                • Labels can be user-defined in the column “states”
                 • Negative numbers always mean “reject point”
                 • Rules are stacked: each new rule applies only to non-rejected points
                 • Total classification is the result of applying rules in listed order
@@ -387,16 +387,32 @@ class ClassificationWidget(QWidget):
                 1) Threshold to reject bleached points        → labels [-1, 0]
                 2) HMM on remaining points                   → labels [-1, 0, 1]
                 3) Threshold to exclude early red-laser off   → labels [-2]
-                
-                Settings example
-                ----------------
-                threshold: tbd
-                HMM:        tbd
-                
-                Note
+                                
+                Note:To preserve labels assigned by (2)HMM with follow up rule (3), 
+                use only add rejection labels to 'states, e.g. [-2]
                 ----
-                Rule 3 applies only a rejection label.
-                This preserves the labels assigned by rule 2.
+                
+                Settings examples
+                ----------------
+                threshold: 
+                    name: Tres_1
+                    variable: FRET (must be single-channel)
+                    method: threshold
+                    options:
+                        threshold: 0
+                        rolling: mean
+                        window size: 5
+                HMM
+                    name: HMM
+                    variable: intensity_total (must be single-channel)
+                    method: hmm
+                    options:
+                        n_states:2
+                        treshold_state_mean:0
+                        level: molecule (or file)
+                        seed: 0
+                    
+                
                 """
 
 
