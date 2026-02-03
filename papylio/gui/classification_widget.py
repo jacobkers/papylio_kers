@@ -5,16 +5,14 @@ from PySide2.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout, 
     QTreeView, QMainWindow, QMessageBox, QDialog, QTextEdit
 )
 
-
 from PySide2.QtGui import QStandardItem, QStandardItemModel
 from PySide2.QtCore import Qt
 
-import matplotlib as mpl
-from matplotlib.backends.backend_qtagg import (
-    FigureCanvas, NavigationToolbar2QT as NavigationToolbar)
+
 
 from papylio.analysis.classification_simple import classify_threshold
 from papylio.analysis.hidden_markov_modelling import classify_hmm
+from papylio.gui.common_layouts import ImageCanvas, HelpDialog
 
 import numpy as np
 import inspect
@@ -113,7 +111,7 @@ class ClassificationWidget(QWidget):
         self.method_forms = {}  # method_name -> (widget, inputs)
 
         # imagery
-        self.classification_image_canvas = ImageCanvas_temp(self, width=4, height=3, dpi=100)
+        self.classification_image_canvas = ImageCanvas(self, width=4, height=3, dpi=100)
         classification_image_layout = QVBoxLayout()
         classification_image_layout.addWidget(self.classification_image_canvas)
 
@@ -370,9 +368,41 @@ class ClassificationWidget(QWidget):
         self.file.apply_classifications(**apply_classifications_configuration)
 
     def show_help(self):
-        dialog = HelpDialog(self)
+        help_text = help_text = """\
+                Classification
+                
+                Rules
+                -----
+                • Rules act via thresholding or Hidden Markov Modeling (HMM)
+                • A rule labels each point with a numeric classification
+                • Labels are user-defined in the column “states”
+                • Negative numbers always mean “reject point”
+                • Rules are stacked: each new rule applies only to non-rejected points
+                • Total classification is the result of applying rules in listed order
+                • Application is only to the first selected movie
+                • Checking or unchecking rules updates the stored classification
+                
+                Rationale example (labels in brackets)
+                -------------------------------------
+                1) Threshold to reject bleached points        → labels [-1, 0]
+                2) HMM on remaining points                   → labels [-1, 0, 1]
+                3) Threshold to exclude early red-laser off   → labels [-2]
+                
+                Settings example
+                ----------------
+                threshold: tbd
+                HMM:        tbd
+                
+                Note
+                ----
+                Rule 3 applies only a rejection label.
+                This preserves the labels assigned by rule 2.
+                """
+
+
+        self.help_dialog = HelpDialog(self, help_text)
         #dialog.exec_()  # modal
-        dialog.show()
+        self.help_dialog.show()
 
 
 
@@ -591,51 +621,3 @@ class ClassificationWidget(QWidget):
     #     self.file.add_selection(variable, channel, aggregator, operator, threshold)
     #     self.refresh_selections()
 
-#transfer / delete this later when merging w/ mapping
-class ImageCanvas_temp(FigureCanvas):
-    def __init__(self, parent=None, width=14, height=7, dpi=100):
-        self.figure = mpl.figure.Figure(figsize=(width, height), dpi=dpi, constrained_layout=True)  # , figsize=(2, 2))
-        super().__init__(self.figure)
-        self.parent = parent
-
-        # self.axis = self.figure.gca()
-
-        self._file = None
-
-
-
-class HelpDialog(QDialog):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setWindowTitle("Help")
-        self.resize(700, 600)
-
-        layout = QVBoxLayout(self)
-
-        text = QTextEdit()
-        text.setReadOnly(True)
-        text.setPlainText(
-            "Classification\n\n"
-            " * Rules act via thresholding or Hidden Markov Modeling (HMM)\n\n"
-            " * A rule labels each point with a 'classification', just a number \n\n"
-            " * Labels are defined by the user for easy distinction, in the column 'states'\n\n"
-            " * Negative numbers always mean 'reject point'\n\n"
-            " * Rules are stacked: each new rule is applied on non-rejected section of former\n\n"
-            " * Total classification is result of rule application in order of listing\n\n" 
-            " * Aplication is only to first selected movie\n\n"
-            " * Checking or unchecking rules updates the stored classification\n\n"
-            "Rationale example [+ labels]:\n\n"
-            "1) use threshold to reject bleached points, labels [-1,0]\n\n"
-            "2) use HMM on remainder to find states [-1,0,1]\n\n"
-            "3) use threshold afterwards to exclude early red-laser off [-2]\n\n"
-            "settings example:\n\n"
-            "    threshold: tbd\n\n"
-            "    HMM: tbd\n\n"
-            "Note that rule 3 only applies a rejection label. This preserves the labels of rule 2.\n\n"
-        )
-
-        close_button = QPushButton("Close")
-        close_button.clicked.connect(self.accept)
-
-        layout.addWidget(text)
-        layout.addWidget(close_button)
