@@ -111,7 +111,7 @@ class ClassificationWidget(QWidget):
         self.method_forms = {}  # method_name -> (widget, inputs)
 
         # imagery
-        self.classification_image_canvas = ImageCanvas(self, width=4, height=3, dpi=100)
+        self.classification_image_canvas = ImageCanvas(self, width=2, height=2, dpi=100)
         classification_image_layout = QVBoxLayout()
         classification_image_layout.addWidget(self.classification_image_canvas)
 
