@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 
 from matplotlib.figure import Figure
 
+from papylio import File
 from papylio.gui.common_layouts import Expander, ImageCanvas, HelpDialog
 import matchpoint as mp
 
@@ -19,6 +20,8 @@ class MappingWidget(QWidget):
     def __init__(self, parent=None):
         super(MappingWidget, self).__init__(parent)
         self.parent = parent
+
+        self.parent.model.itemChanged.connect(self.onItemChange)
 
         # imagery
         self.fig1 = Figure(figsize=(4, 3))
@@ -33,6 +36,7 @@ class MappingWidget(QWidget):
         # imagery
         self.map_image_canvas = ImageCanvas(self, width=4, height=3, dpi=100)
         self.map_image_canvas.setToolTip("shows raw image (1st of multiple selection)")
+
         map_image_toolbar = NavigationToolbar(self.map_image_canvas, self)
         map_image_layout = QVBoxLayout()
         map_image_layout.addWidget(map_image_toolbar)
@@ -49,14 +53,12 @@ class MappingWidget(QWidget):
         self.button_map_method_combobox = QComboBox()
         self.button_map_options = ['icp', 'nn']
         self.button_map_method_combobox.addItems(self.button_map_options)
-
-
+        self.button_map_dist_treshold = QLineEdit()
+        self.button_map_dist_treshold.setPlaceholderText("dist_treshold")
+        self.button_map_margin = QLineEdit()
+        self.button_map_margin.setPlaceholderText("edge_margin")
 
         # add below buttons under 'advanced':---------------------------------------------------
-        button_map_dist_treshold = QLineEdit()
-        button_map_dist_treshold.setPlaceholderText("dist_treshold")
-        button_map_margin = QLineEdit()
-        button_map_margin.setPlaceholderText("edge_margin")
 
         #donor mapping:
         button_map_donor_label = QLabel("donor_pks")
@@ -80,18 +82,17 @@ class MappingWidget(QWidget):
         button_map_acceptor_ns_min.setPlaceholderText("filt_nbh_min")
         button_map_acceptor_ns_max = QLineEdit()
         button_map_acceptor_ns_max.setPlaceholderText("filt_nbh_max")
-        #mapping grid layout:
+
+        #basic mapping grid layout:
         map_buttons_layout = QGridLayout()
         map_buttons_layout.setAlignment(Qt.AlignLeft)
         map_buttons_layout.addWidget(self.button_map_label, 0, 0)
         map_buttons_layout.addWidget(self.button_map_method_combobox, 0, 1)
+        map_buttons_layout.addWidget(self.button_map_dist_treshold, 0, 2)
 
-
-
+        # advanced mapping grid layout:
         advanced_layout = QGridLayout()
-        advanced_layout.addWidget(button_map_dist_treshold, 1, 0)
-        advanced_layout.addWidget(button_map_margin, 1, 1)
-
+        advanced_layout.addWidget(self.button_map_margin, 1, 1)
         advanced_layout.addWidget(button_map_donor_label, 2, 0)
         advanced_layout.addWidget(button_map_donor_method_combobox, 2, 1)
         advanced_layout.addWidget(button_map_donor_fract_diff, 2, 2)
@@ -142,6 +143,31 @@ class MappingWidget(QWidget):
 
         self.setLayout(mapping_tab_layout)
 
+    def update_plots(self):
+        selected_files = self.parent.experiment.selectedFiles + [None]
+        self.map_image_canvas.file = selected_files[0]
+         #if selected_files[0] is not None:
+         #     self.traces.dataset = selected_files[0].dataset
+         #      self.selection.file = selected_files[0]
+         #else:
+         #     self.traces.dataset = None
+         #      self.selection.file = None
+
+    def onItemChange(self, item):
+        if isinstance(item.data(), File):
+            file = item.data()
+            file.isSelected = (True if item.checkState() == Qt.Checked else False)
+            print(f'{file}: {file.isSelected}')
+
+        else:
+            self.update = False
+            for i in range(item.rowCount()):
+                item.child(i).setCheckState(item.checkState())
+            self.update = True
+
+        if self.update:
+            self.update_plots()
+
     def perform_mapping(self, t):
         print(t)
         self.fig1.clear()
@@ -151,8 +177,14 @@ class MappingWidget(QWidget):
 
         #jk-read in a default config and change one value:
         panel_config= self.parent.experiment.configuration['mapping']
-        panel_method = self.button_map_method_combobox.currentText()
-        panel_config['method']=panel_method
+
+        panel_config['method']= self.button_map_method_combobox.currentText()
+        panel_config['distance_threshold']= self.button_map_dist_treshold.text
+        panel_config['coordinates_within_margin'] = self.button_map_margin.text
+
+
+
+
 
         plot_file = selected_files[0]
         plot_file.mapping.show_mapping_transformation(axis=ax1)
@@ -161,18 +193,50 @@ class MappingWidget(QWidget):
 
         if selected_files:
             selected_files.serial.perform_mapping(**panel_config)
+            self.update_plots()
             self.map_image_canvas.refresh()
 
     def show_help(self):
         help_text = help_text = """\
                 Mapping
 
-                -----
+                -------------------------------------------------------
                 • select file(s) of interest for mapping in left panel
                 • adjust main settings
                 • adjust 'advanced' settings
-                
-                Settings description
+                -------------------------------------------------------
+                Settings description Brackets: [options], first value is default
+                Basic:
+                • mapping:
+                    method[icp or nn]: choose how pairs are found between source and target
+                        -icp='iterative_closest_point':           
+                        -nn= 'nearest_neighbour': two-way nearest neighbor within distance treshold 
+                    -direct= 'direct_match': map 1:1 
+                    distance_threshold[3]: beyond this, no 'nn' pairs are considered
+                    transformation_type['polynomial',...]
+                    - 'linear' or 'affine': affine transform using skimage.transform.AffineTransform
+                        - 'similarity': similarity transform using skimage.transform.SimilarityTransform
+                        - 'nonlinear': polynomial transform corresponding to the IDL polywarp transform
+                        - 'polynomial': polynomial transform using skimage.transform.PolynomialTransform
+                    initial_translation: ['width/2', n_pixels]: this is the initial shift for chosen mapping method
+               
+                --------------------------------------------------------
+                Advanced: 
+                • peak_finding: choose how spots are detected per donor or acceptor channel
+                    donor:
+                    method[local-maximum-auto, ]: choose how peaks are detected
+                    filter_neighbourhood_size_min[10]: choose 
+                    filter_neighbourhood_size_max: 5
+                    acceptor:
+                    method: local-maximum-auto
+                    filter_neighbourhood_size_min: 10
+                    filter_neighbourhood_size_max: 5
+                • coordinate_optimization:
+                    coordinates_after_gaussian_fit:
+                    gaussian_width: 5
+                    coordinates_within_margin:
+                    margin: 10
+
                 """
 
 
