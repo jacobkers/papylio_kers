@@ -336,7 +336,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(tabs)
 
         super_layout = QVBoxLayout()
-        self.traces = TracePlotWindow(parent=self, width=4, height=3, show=False)
+        self.traces = TracePlotWindow(parent=self, width=4, height=5, show=False)
         super_layout.addWidget(self.traces)
 
         super_layout.addLayout(layout)
