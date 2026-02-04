@@ -10,7 +10,7 @@ from matplotlib.backends.backend_qtagg import (
 
 from PySide2.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QToolButton,
-    QLabel, QSizePolicy, QGridLayout
+    QLabel, QSizePolicy, QGridLayout, QPushButton, QTextEdit
 )
 from PySide2.QtCore import Qt
 import sys
@@ -76,7 +76,7 @@ class Expander(QWidget):
         self.content.setLayout(content_layout)
 
 class HelpDialog(QDialog):
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, help_text=""):
         super().__init__(parent)
         self.setWindowTitle("Help")
         self.resize(700, 600)
@@ -85,25 +85,7 @@ class HelpDialog(QDialog):
 
         text = QTextEdit()
         text.setReadOnly(True)
-        text.setPlainText(
-            "Classification\n\n"
-            " * Rules act via thresholding or Hidden Markov Modeling (HMM)\n\n"
-            " * A rule labels each point with a 'classification', just a number \n\n"
-            " * Labels are defined by the user for easy distinction, in the column 'states'\n\n"
-            " * Negative numbers always mean 'reject point'\n\n"
-            " * Rules are stacked: each new rule is applied on non-rejected section of former\n\n"
-            " * Total classification is result of rule application in order of listing\n\n" 
-            " * Aplication is only to first selected movie\n\n"
-            " * Checking or unchecking rules updates the stored classification\n\n"
-            "Rationale example [+ labels]:\n\n"
-            "1) use threshold to reject bleached points, labels [-1,0]\n\n"
-            "2) use HMM on remainder to find states [-1,0,1]\n\n"
-            "3) use threshold afterwards to exclude early red-laser off [-2]\n\n"
-            "settings example:\n\n"
-            "    threshold: tbd\n\n"
-            "    HMM: tbd\n\n"
-            "Note that rule 3 only applies a rejection label. This preserves the labels of rule 2.\n\n"
-        )
+        text.setPlainText(help_text)
 
         close_button = QPushButton("Close")
         close_button.clicked.connect(self.accept)
