@@ -18,6 +18,7 @@ import papylio as pp
 from papylio import Experiment, File
 from papylio.trace_plot import TracePlotWindow
 from papylio.gui.selection_widget import SelectionWidget
+from papylio.gui.classification_widget import ClassificationWidget
 
 # class TreeNode:
 #     def __init__(self, node_object, parent=None):
@@ -317,6 +318,9 @@ class MainWindow(QMainWindow):
 
         self.selection = SelectionWidget(parent=self)
         tabs.addTab(self.selection, 'Selection (beta)')
+        self.classification = ClassificationWidget(parent=self)
+        self.classification.classificationChanged.connect(self.update_plots)
+        tabs.addTab(self.classification, 'Classification (beta)')
         tabs.currentChanged.connect(self.setTabFocus)
 
         experiment_layout = QVBoxLayout()
@@ -407,9 +411,11 @@ class MainWindow(QMainWindow):
         if selected_files[0] is not None:
             self.traces.dataset = selected_files[0].dataset
             self.selection.file = selected_files[0]
+            self.classification.file = selected_files[0]
         else:
             self.traces.dataset = None
             self.selection.file = None
+            self.classification.file = None
 
     def addExperiment(self, experiment):
 
