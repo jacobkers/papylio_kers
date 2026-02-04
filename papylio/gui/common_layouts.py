@@ -10,7 +10,9 @@ from matplotlib.backends.backend_qtagg import (
 
 from PySide2.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QToolButton,
-    QLabel, QSizePolicy, QGridLayout, QDialog,QTextEdit
+    QLabel, QSizePolicy, QGridLayout, QDialog, QPushButton, QTextEdit
+
+
 )
 from PySide2.QtCore import Qt
 import sys
