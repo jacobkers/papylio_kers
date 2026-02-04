@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 
 from matplotlib.figure import Figure
 
-from papylio.gui.common_layouts import Expander, ImageCanvas
+from papylio.gui.common_layouts import Expander, ImageCanvas, HelpDialog
 import matchpoint as mp
 
 #from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
@@ -44,13 +44,15 @@ class MappingWidget(QWidget):
 
 
         #map settings
-        #mapping buttons definition:
+        #main mapping buttons definition:
         self.button_map_label = QLabel("method:")
         self.button_map_method_combobox = QComboBox()
-        self.button_map_options = ['icp', 'nn', 'foo']
+        self.button_map_options = ['icp', 'nn']
         self.button_map_method_combobox.addItems(self.button_map_options)
 
 
+
+        # add below buttons under 'advanced':---------------------------------------------------
         button_map_dist_treshold = QLineEdit()
         button_map_dist_treshold.setPlaceholderText("dist_treshold")
         button_map_margin = QLineEdit()
@@ -85,7 +87,7 @@ class MappingWidget(QWidget):
         map_buttons_layout.addWidget(self.button_map_method_combobox, 0, 1)
 
 
-        #add below buttons under 'advanced':---------------------------------------------------
+
         advanced_layout = QGridLayout()
         advanced_layout.addWidget(button_map_dist_treshold, 1, 0)
         advanced_layout.addWidget(button_map_margin, 1, 1)
@@ -114,6 +116,9 @@ class MappingWidget(QWidget):
         perform_mapping_button = QPushButton('Map it')
         perform_mapping_button.setToolTip("Map selected file(s) using above settings")
         perform_mapping_button.clicked.connect(self.perform_mapping)
+        help_button = QPushButton('Help!')
+        help_button.clicked.connect(self.show_help)
+
 
         #collect:
         map_controls_layout = QGridLayout()
@@ -121,7 +126,7 @@ class MappingWidget(QWidget):
         map_controls_layout.addWidget(map_buttons,0,0)
         map_controls_layout.addWidget(map_advanced,1,0)  # test!
         map_controls_layout.addWidget(perform_mapping_button,3,0)
-
+        map_controls_layout.addWidget(help_button)
 
         #pack in widget:
         self.map_controls = QWidget()
@@ -158,6 +163,20 @@ class MappingWidget(QWidget):
             selected_files.serial.perform_mapping(**panel_config)
             self.map_image_canvas.refresh()
 
+    def show_help(self):
+        help_text = help_text = """\
+                Mapping
+
+                -----
+                • select file(s) of interest for mapping in left panel
+                • adjust main settings
+                • adjust 'advanced' settings
+                
+                Settings description
+                """
 
 
+        self.help_dialog = HelpDialog(self, help_text)
+        # dialog.exec_()  # modal
+        self.help_dialog.show()
 
