@@ -124,9 +124,6 @@ class ClassificationWidget(QWidget):
         main_panel=QWidget()
         main_panel.setLayout(main_layout)
 
-
-
-
         feedback_and_info=QWidget()
         feedback_and_info.setLayout(feedback_and_info_layout)
 
