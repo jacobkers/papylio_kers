@@ -182,15 +182,9 @@ class MappingWidget(QWidget):
         panel_config['distance_threshold']= self.button_map_dist_treshold.text
         panel_config['coordinates_within_margin'] = self.button_map_margin.text
 
-
-
-
-
         plot_file = selected_files[0]
         plot_file.mapping.show_mapping_transformation(axis=ax1)
-
         self.map_overlay_image_canvas.draw_idle()
-
         if selected_files:
             selected_files.serial.perform_mapping(**panel_config)
             self.update_plots()
