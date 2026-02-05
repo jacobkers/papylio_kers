@@ -4,13 +4,14 @@ import platform
 
 import sys
 from PySide2.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QGridLayout, QTreeView, QApplication, QMainWindow, \
-    QPushButton, QTabWidget, QTableWidget, QComboBox, QLineEdit
+    QPushButton, QTabWidget, QTableWidget, QComboBox, QLineEdit, QLabel
 from PySide2.QtGui import QStandardItem, QStandardItemModel, QIcon
 from PySide2.QtCore import Qt
-
 import matplotlib as mpl
+
 from matplotlib.backends.backend_qtagg import (
     FigureCanvas, NavigationToolbar2QT as NavigationToolbar)
+
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -18,9 +19,11 @@ import papylio as pp
 from papylio import Experiment, File
 from papylio.trace_plot import TracePlotWindow
 from papylio.gui.selection_widget import SelectionWidget
-from papylio.gui.kinetics_widget import KineticsWidget
-
 from papylio.gui.classification_widget import ClassificationWidget
+from papylio.gui.mapping_widget import MappingWidget
+from papylio.gui.kinetics_widget import KineticsWidget
+from papylio.gui.common_layouts import ImageCanvas, HelpDialog
+
 
 # class TreeNode:
 #     def __init__(self, node_object, parent=None):
@@ -258,12 +261,11 @@ class MainWindow(QMainWindow):
 
         self.model.itemChanged.connect(self.onItemChange)
 
-
+        # imagery (currently goes to extraction tab)
         self.image_canvas = ImageCanvas(self, width=5, height=4, dpi=100)
 
         # Create toolbar, passing canvas as first parament, parent (self, the MainWindow) as second.
         image_toolbar = NavigationToolbar(self.image_canvas, self)
-
         image_layout = QVBoxLayout()
         image_layout.addWidget(image_toolbar)
         image_layout.addWidget(self.image_canvas)
@@ -272,51 +274,130 @@ class MainWindow(QMainWindow):
         self.image = QWidget()
         self.image.setLayout(image_layout)
 
-        controls_layout = QGridLayout()
-        controls_layout.setAlignment(Qt.AlignTop)
 
-        # controls_layout.addWidget(QLabel('Minimum intensity difference'), 0, 0)
-        # mid = QLineEdit(str(self.experiment.configuration['find_coordinates']['peak_finding']['minimum_intensity_difference']))
-        # mid.textChanged.connect(self.midChange)
-        # controls_layout.addWidget(mid, 0, 1)
 
-        perform_mapping_button = QPushButton('Perform mapping')
-        perform_mapping_button.clicked.connect(self.perform_mapping)
-        controls_layout.addWidget(perform_mapping_button, 1, 0, 1, 2)
+        #extraction--------------------------------------
+        # molecules: spot detection and extraction----------------------------------------------------
+#buttons:
+        button_extract_chan_title = QLabel("channels:")
+        button_extract_chan_combobox = QComboBox()
+        button_extract_chan_options = ['donor', 'acceptor']
+        button_extract_chan_combobox.addItems(button_extract_chan_options)
+        button_extract_illum_title = QLabel("illumination:")
+        button_extract_illum_entry = QLineEdit()
+        button_extract_illum_entry.setPlaceholderText("0")
+        button_extract_projection_type_title = QLabel("projection_type:")
+        button_extract_projection_type_combobox = QComboBox()
+        button_extract_projection_type_options = ['average', 'maximum']
+        button_extract_projection_type_combobox.addItems(button_extract_projection_type_options)
 
+        #method : two grid_pos
+        button_extract_method_title = QLabel("method:")
+        button_extract_method_combobox = QComboBox()
+        button_extract_method_options = ['by_channel', 'average_channels', 'sum_channels']
+        button_extract_method_combobox.addItems(button_extract_method_options)
+        button_extract_method_title = QLabel("projection_image:")
+        button_extract_projection_combobox = QComboBox()
+        button_extract_method_options = ['average', 'maximum']
+        button_extract_projection_combobox.addItems(button_extract_method_options)
+        button_extract_projection_frame_range = QLineEdit()
+        button_extract_projection_frame_range_title = QLabel("frame rate:")
+        button_extract_projection_frame_range.setPlaceholderText("[0, 20]")
+        button_extract_projection_illumination_title = QLabel("illumination:")
+        button_extract_projection_illumination = QLineEdit()
+        button_extract_projection_illumination.setPlaceholderText("0")
+
+#       title: sliding_window:
+#           field combo: use_sliding_window: false
+#           field entry: frame_increment: 20
+#           field entry: minimal_point_separation: 2
+        button_extract_slideW_title = QLabel("sliding window:")
+        button_extract_slideW_UseIt_combobox = QComboBox()
+        button_extract_slideW_UseIt_options = ['True', 'False']
+        button_extract_slideW_UseIt_combobox.addItems(button_extract_slideW_UseIt_options)
+        button_extract_slideW_FrameInc_title = QLabel("frame_increment:")
+        button_extract_slideW_FrameInc_entry = QLineEdit()
+        button_extract_slideW_FrameInc_entry.setPlaceholderText("20")
+        button_extract_slideW_MinSep_title = QLabel("minimal separation:")
+        button_extract_slideW_MinSep_entry = QLineEdit()
+        button_extract_slideW_MinSep_entry.setPlaceholderText("2")
+
+
+#       title peak_finding:
+#           field combo: method: local - maximum - auto
+#           field entry: filter_neighbourhood_size_min: 10  # Optional
+#           field entry: : 5  # Optional
+#       title coordinate_optimization:
+#           subtitle: coordinates_within_margin:  # Optional
+#               field entry: margin: 10
+#            subtitle: coordinates_after_gaussian_fit:  # Optional
+#                field entry: gaussian_width: 3
+
+        # build extraction grid layout:
+        extraction_button_grid_layout = QGridLayout()
+        extraction_button_grid_layout.addWidget(button_extract_chan_title, 0, 0)
+        extraction_button_grid_layout.addWidget(button_extract_chan_combobox, 0, 1)
+        extraction_button_grid_layout.addWidget(button_extract_illum_title, 0, 2)
+        extraction_button_grid_layout.addWidget(button_extract_illum_entry, 0, 3)
+        extraction_button_grid_layout.addWidget(button_extract_projection_type_title,0,4)
+        extraction_button_grid_layout.addWidget(button_extract_projection_type_combobox, 0, 5)
+        extraction_button_grid_layout.addWidget(button_extract_method_title,1,0)
+        extraction_button_grid_layout.addWidget(button_extract_projection_combobox,1,1)
+        extraction_button_grid_layout.addWidget(button_extract_projection_frame_range_title, 1,2)
+        extraction_button_grid_layout.addWidget(button_extract_projection_frame_range,1,3)
+        extraction_button_grid_layout.addWidget(button_extract_projection_illumination_title,1,4)
+        extraction_button_grid_layout.addWidget(button_extract_projection_illumination,1,5)
+        extraction_button_grid_layout.addWidget(button_extract_slideW_title,2,0)
+        extraction_button_grid_layout.addWidget(button_extract_slideW_UseIt_combobox,2,1)
+        extraction_button_grid_layout.addWidget(button_extract_slideW_FrameInc_title,2,2)
+        extraction_button_grid_layout.addWidget(button_extract_slideW_FrameInc_entry,2,3)
+        extraction_button_grid_layout.addWidget(button_extract_slideW_MinSep_title,2,4)
+        extraction_button_grid_layout.addWidget(button_extract_slideW_MinSep_entry,2,5)
+
+
+
+
+        extraction_button_grid_layout.setAlignment(Qt.AlignLeft)
+        extraction_button_grid = QWidget()
+        extraction_button_grid.setLayout(extraction_button_grid_layout)
+
+
+        #main buttons:
         find_molecules_button = QPushButton('Find coordinates')
         find_molecules_button.clicked.connect(self.find_coordinates)
-        controls_layout.addWidget(find_molecules_button, 2, 0, 1, 2)
-
         extract_traces_button = QPushButton('Extract traces')
         extract_traces_button.clicked.connect(self.extract_traces)
-        controls_layout.addWidget(extract_traces_button, 3, 0, 1, 2)
+        # collect:
+        extraction_controls_layout = QGridLayout()
+        extraction_controls_layout.setAlignment(Qt.AlignTop)
+        extraction_controls_layout.addWidget(extraction_button_grid)
+        extraction_controls_layout.addWidget(find_molecules_button, 2, 0, 1, 2)
+        extraction_controls_layout.addWidget(extract_traces_button, 3, 0, 1, 2)
+        # pack in widget:
+        self.extraction_controls = QWidget()
 
-        self.controls = QWidget()
-        self.controls.setLayout(controls_layout)
-        self.controls.setMinimumWidth(200)
-
-
-        extraction_layout = QHBoxLayout()
-        extraction_layout.addWidget(self.image)
-        extraction_layout.addWidget(self.controls)
-
-
-
+        self.extraction_controls.setLayout(extraction_controls_layout)
+        self.extraction_controls.setMinimumWidth(150)
+        #add to tab:
+        extraction_tab_layout = QHBoxLayout()
+        extraction_tab_layout.addWidget(self.extraction_controls)
+        extraction_tab_layout.addWidget(self.image)
 
         # self.selection = QTableWidget()
         # self.selection.setRowCount(5)
         # self.selection.setColumnCount(4)
-
 
         tabs = QTabWidget()
         tabs.setTabPosition(QTabWidget.North)
         tabs.setMovable(False)
         tabs.setDocumentMode(True)
 
-        tab1 = QWidget(self)
-        tab1.setLayout(extraction_layout)
-        tabs.addTab(tab1, 'Movie')
+        self.mapping=MappingWidget(parent=self)
+        tabs.addTab(self.mapping, 'Mapping')
+        tab2 = QWidget(self)
+        tab2.setLayout(extraction_tab_layout)
+        tabs.addTab(tab2, 'Extraction')
+
         self.traces = TracePlotWindow(parent=self, width=4, height=3, show=False)
         tabs.addTab(self.traces, 'Traces')
         self.selection = SelectionWidget(parent=self)
@@ -333,17 +414,18 @@ class MainWindow(QMainWindow):
         refresh_button = QPushButton('Refresh')
         refresh_button.clicked.connect(self.refresh)
         experiment_layout.addWidget(refresh_button)
-
         experiment_layout.addWidget(self.tree)
+
 
         layout = QHBoxLayout()
         layout.addLayout(experiment_layout)
         layout.addWidget(tabs)
 
+
+
         widget = QWidget()
         widget.setLayout(layout)
         self.setCentralWidget(widget)
-
         self.show()
 
         # self.experiment = Experiment(
@@ -365,14 +447,6 @@ class MainWindow(QMainWindow):
         input = int(input)
         self.experiment.configuration['find_coordinates']['peak_finding']['minimum_intensity_difference'] = input
         self.experiment.configuration.save()
-
-    def perform_mapping(self, t):
-        print(t)
-        selected_files = self.experiment.selectedFiles
-        if selected_files:
-            selected_files.serial.perform_mapping()
-            self.image_canvas.refresh()
-            plt.show()
 
     def find_coordinates(self):
         selected_files = self.experiment.selectedFiles
@@ -477,37 +551,6 @@ class MainWindow(QMainWindow):
         self.root.removeRows(0, 1)
         self.experiment = Experiment(self.experiment.main_path)
         self.addExperiment(self.experiment)
-
-
-class ImageCanvas(FigureCanvas):
-    def __init__(self, parent=None, width=14, height=7, dpi=100):
-        self.figure = mpl.figure.Figure(figsize=(width, height), dpi=dpi, constrained_layout=True)  # , figsize=(2, 2))
-        super().__init__(self.figure)
-        self.parent = parent
-
-        # self.axis = self.figure.gca()
-
-        self._file = None
-
-    @property
-    def file(self):
-        return self._file
-
-    @file.setter
-    def file(self, file):
-        if file is not None and file is not self._file:
-            self._file = file
-            self.refresh()
-        elif file is None:
-            self._file = None
-            self.figure.clf()
-            self.draw()
-
-    def refresh(self):
-        self.figure.clf()
-        self._file.movie.determine_spatial_background_correction(use_existing=True)
-        self._file.show_coordinates_in_image(figure=self.figure)
-        self.draw()
 
 
 if __name__ == '__main__':
