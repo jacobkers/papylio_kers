@@ -51,7 +51,7 @@ class KineticsWidget(QWidget):
 
         #main
         dwell_action_button = QPushButton('Get Dwells')
-        dwell_action_button.clicked.connect(self.perform_mapping)
+        dwell_action_button.clicked.connect(self.get_kinetics)
         dwell_help_button = QPushButton('Help!')
         dwell_help_button.clicked.connect(self.show_dwell_help)
 
