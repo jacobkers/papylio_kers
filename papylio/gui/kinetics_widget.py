@@ -45,9 +45,24 @@ class KineticsWidget(QWidget):
             )
         )
 
+
+
+
         #main
-        dwell_times_graph_layout = QHBoxLayout()
-        dwell_times_graph_layout.addWidget(box1)
+        dwell_action_button = QPushButton('Get Dwells')
+        dwell_help_button = QPushButton('Help!')
+        extract_traces_button.clicked.connect(self.extract_traces)
+
+        dwell_controls_layout = QVBoxLayout()
+        dwell_controls_layout.addWidget(dwell_action_button, 3, 0, 1, 2)
+        dwell_controls_layout.addWidget(dwell_help_button, 3, 0, 1, 2)
+
+        dwell_controls = QWidget()
+        dwell_controls.setLayout(dwell_controls_layout)
+
+        dwell_times_tab_layout = QHBoxLayout()
+        dwell_times_tab_layout.addWidget(dwell_controls)
+        dwell_times_tab_layout.addWidget(box1)
 
         #other
         other_graph_layout = QHBoxLayout()
@@ -60,7 +75,7 @@ class KineticsWidget(QWidget):
         tabs.setDocumentMode(True)
 
         tab1 = QWidget(self)
-        tab1.setLayout(dwell_times_graph_layout)
+        tab1.setLayout(dwell_times_tab_layout)
         tabs.addTab(tab1, 'Dwell Time')
         tab2 = QWidget(self)
         tab2.setLayout(other_graph_layout)
