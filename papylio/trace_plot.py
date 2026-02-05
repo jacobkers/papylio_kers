@@ -29,7 +29,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 from pathlib2 import Path
 
-from PySide2.QtWidgets import QMainWindow, QPushButton, QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QCheckBox, QLabel
+from PySide2.QtWidgets import (QMainWindow, QPushButton, QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QCheckBox, QLabel,
+                               QTableWidget, QTableWidgetItem, QHeaderView, QTreeView, QStyledItemDelegate)
+from PySide2.QtGui import QStandardItemModel, QStandardItem, QColor
 from PySide2.QtGui import QKeySequence
 from PySide2.QtCore import Qt
 
@@ -45,13 +47,43 @@ from matplotlib.backends.backend_qt5agg import (
 from matplotlib.figure import Figure
 
 
+#TODO
+# - Change function input per plot variable?
+# - Add colorblind colors
+# - Save settings to dataset (or is this already done?)
+
+
 class TracePlotWindow(QWidget):
-    def __init__(self, dataset=None, plot_variables=['intensity', 'FRET'],
-                 ylims=[(0, 35000), (0, 1)], colours=[('g', 'r'), ('b')], width=14, height=None, save_path=None, parent=None,
-                 show=True):
+    def __init__(self, dataset=None,
+                 plot_settings=None,
+                 width=14, height=None, save_path=None, parent=None,
+                 show=True, split_illuminations=False, **kwargs):
+
+        if plot_settings is None:
+            plot_settings = {'intensity': {'active': True, 'plot_range': (0, 10000), 'color': ('g', 'r')},
+                             'FRET': {'active': True, 'plot_range': (-0.05, 1.05), 'color': ('b')}}
+
+        # To accomodate old arguments
+        if 'plot_variables' in kwargs:
+            plot_settings = {}
+            for plot_variable, ylim, color in zip(kwargs['plot_variables'], kwargs['ylims'], kwargs['colours']):
+                plot_settings[plot_variable] = dict(active=True, plot_range=ylim, color=color)
+            import warnings
+            warnings.simplefilter("always", DeprecationWarning)
+
+            warnings.warn(
+                "Use of `plot_variables`, `ylims` and `colours` arguments is depricated,"
+                "use `plot_settings` instead, "
+                "e.g. `plot_settings = {'intensity': {'active': True, 'plot_range': (0, 10000), 'color': ('g', 'r')}, "
+                "'FRET': {'active': True, 'plot_range': (-0.05, 1.05), 'color': ('b')}}`",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+
+        self.split_illuminations = split_illuminations
 
         if height is None:
-            height = max(len(plot_variables) * 3.5, 9)
+            height = max(len(plot_settings) * 3.5, 9)
 
         from papylio.experiment import get_QApplication
         #TODO: Use selection only if it is present.
@@ -63,16 +95,12 @@ class TracePlotWindow(QWidget):
 
         self.setWindowTitle("Traces")
 
-        self.plot_variables = plot_variables
-        self.ylims = ylims
-        self.colours = colours
-
         if save_path is None:
             self.save_path = save_path
         else:
             self.save_path = Path(save_path)
 
-        self._dataset = dataset
+        # self._dataset = dataset
 
         self.canvas = TracePlotCanvas(self, width=width, height=height, dpi=100)
 
@@ -110,21 +138,30 @@ class TracePlotWindow(QWidget):
         layout.addLayout(layout_bar)
         layout.addWidget(self.canvas)
 
-        self.setLayout(layout)
+        # self.setLayout(layout)
         # Create a placeholder widget to hold our toolbar and canvas.
         # widget = QWidget()
         # widget.setLayout(layout)
         # self.setCentralWidget(widget)
 
+        self.plot_configuration = PlotConfiguration(parent=self, initial_plot_settings=plot_settings)
+        self.plot_configuration.setMinimumWidth(250)
+
+        layout_main = QHBoxLayout()
+        layout_main.addLayout(layout, stretch=4)
+        layout_main.addWidget(self.plot_configuration, stretch=1)
+        self.setLayout(layout_main)
+
         self.dataset = dataset
 
         if show:
             self.show()
-
             app.exec_()
 
+        self.setFocus()
+
     def deactivate_line_edit(self):
-        self.molecule_index_field.clearFocus()  # Clear the focus from the line edit
+            self.molecule_index_field.clearFocus()  # Clear the focus from the line edit
 
     @property
     def dataset(self):
@@ -134,13 +171,38 @@ class TracePlotWindow(QWidget):
     def dataset(self, value):
         if value is not None and (hasattr(value, 'frame') or hasattr(value, 'time')):
             self._dataset = value
-            self.canvas.init_plot_artists()
+            if self.split_illuminations:
+                self.perform_split_illuminations()
+            self.plot_configuration.dataset = self._dataset
             self.set_selection()
             self.setDisabled(False)
         else:
             self._dataset = None
             self.setDisabled(True)
         self.molecule_index = 0
+
+    def perform_split_illuminations(self):
+        illuminations_in_file = np.unique(self._dataset.illumination)
+        if len(illuminations_in_file) > 1:
+            for plot_variable in ['intensity_total', 'intensity', 'FRET']:
+                if plot_variable in self._dataset:
+                    # plot_variable_index = plot_variables.index(plot_variable)
+                    for j, illumination_index in enumerate(illuminations_in_file):
+                        name = f'{plot_variable}_i{illumination_index}'
+                        self._dataset[name] = self._dataset[plot_variable].sel(frame=self._dataset.illumination == illumination_index)
+                        # plot_variables.insert(plot_variable_index + j + 1, name)
+                        # if j > 0:
+                        #     ylims.insert(plot_variable_index + j, ylims[plot_variable_index])
+                        #     colours.insert(plot_variable_index + j, colours[plot_variable_index])
+                        if 'plot_settings' in self.dataset[plot_variable].attrs:
+                            self._dataset[name].attrs['plot_settings'] = self._dataset[plot_variable].attrs['plot_settings']
+                        else:
+                            self._dataset[name].attrs['plot_settings'] = dict(active=True)
+                    if 'plot_settings' not in self._dataset[plot_variable].attrs:
+                        self._dataset[plot_variable].attrs['plot_settings'] = {}
+                    self._dataset[plot_variable].attrs['plot_settings']['active'] = False
+                    # plot_variables.pop(plot_variable_index)
+                    self._dataset = self._dataset.drop_vars(plot_variable)
 
     @property
     def selection_state(self):
@@ -238,15 +300,239 @@ class TracePlotWindow(QWidget):
     #     print('test')
 
 
+class PlotConfiguration(QWidget):
+    def __init__(self, parent, initial_plot_settings=None):
+
+        super().__init__(parent=parent)
+
+        self.view = QTreeView()
+        self.model = QStandardItemModel()
+        self.model.setHorizontalHeaderLabels(["Variable", ""])
+        self.view.setColumnWidth(0, 200)
+
+        self.model.itemChanged.connect(self._on_item_change)
+
+        self.view.setModel(self.model)
+        self.view.setAlternatingRowColors(True)
+        self.view.setRootIsDecorated(True)
+        self.view.header().setStretchLastSection(True)
+
+        self._dataset = None
+        self._trace_variables = []
+
+        layout = QVBoxLayout(self)
+        layout.addWidget(self.view)
+
+        if initial_plot_settings is not None:
+            for trace_variable in initial_plot_settings.keys():
+                self._add_trace_variable_to_list(trace_variable, initial_plot_settings[trace_variable])
+
+    @property
+    def dataset(self):
+        return self._dataset
+
+    @dataset.setter
+    def dataset(self, dataset):
+        self._dataset = dataset
+        self._trace_variables_dataset = [name for name, da in self.parent()._dataset.data_vars.items() if
+                                        da.dims and da.dims[0] == "molecule" and da.dims[-1] == "frame"]
+        # if 'intensity' in self._trace_variables_dataset:
+        #     self._trace_variables_dataset.insert(0, 'intensity_total')
+        trace_variables_new = [v for v in self._trace_variables_dataset if v not in self._trace_variables]
+        # self._trace_variables += trace_variables_new
+
+        self._init_plot_settings_from_dataset()
+        # self._fill_trace_variable_list()
+        for trace_variable in trace_variables_new:
+            self._add_trace_variable_to_list(trace_variable, self.dataset[trace_variable].attrs['plot_settings'])
+
+        self._enable_dataset_variables()
+        self.parent().canvas.plot_variables = self.plot_variables_active
+
+        self.parent().setFocus()
+
+    def _enable_trace_variable(self, variable):
+        self.model.blockSignals(True)
+        for row in range(self.model.rowCount()):
+            item = self.model.item(row, 0)
+            if item.text() == variable:
+                item.setFlags(item.flags() | Qt.ItemIsEnabled)
+        self.model.blockSignals(False)
+
+    def _disable_trace_variable(self, variable):
+        self.model.blockSignals(True)
+        for row in range(self.model.rowCount()):
+            item = self.model.item(row, 0)
+            if item.text() == variable:
+                item.setFlags(item.flags() & ~Qt.ItemIsEnabled)
+        self.model.blockSignals(False)
+
+    def _disable_all_rows(self):
+        self.model.blockSignals(True)
+        for row in range(self.model.rowCount()):
+            item = self.model.item(row, 0)
+            item.setFlags(item.flags() & ~Qt.ItemIsEnabled)
+        self.model.blockSignals(False)
+
+    def _enable_dataset_variables(self):
+        self._disable_all_rows()
+        for var in self._trace_variables_dataset:
+            self._enable_trace_variable(var)
+
+    def _get_plot_settings_from_treeview(self):
+        plot_settings = {}
+        for row in range(self.model.rowCount()):
+            item = self.model.item(row, 0)
+            variable = item.text()
+            active = bool(item.checkState())
+            plot_range = tuple(float(item.child(i,1).text()) for i in [0,1])
+            color = tuple(item.child(2,1).text().replace(' ', '').split(','))
+            plot_settings[variable] = dict(active=active, plot_range=plot_range, color=color)
+        return plot_settings
+
+
+    def _init_plot_settings_from_dataset(self):
+        plot_settings = self._get_plot_settings_from_treeview()
+
+        for var in self._trace_variables_dataset:
+            # self.dataset[var].attrs['plot_settings'] = {'plot_range': [0, 3500], 'color': ['g', 'r']}
+            if var not in plot_settings:
+                if 'plot_settings' in self.dataset[var].attrs:
+                    plot_settings[var] = self.dataset[var].attrs['plot_settings']
+                else:
+                    plot_settings[var] = {}
+
+            if 'active' not in plot_settings[var]:
+                if var in ['intensity', 'FRET']:
+                    plot_settings[var]['active'] = True
+                else:
+                    plot_settings[var]['active'] = False
+
+            # Plot range text
+            if 'plot_range' not in plot_settings[var]:
+                if 'FRET' in var:
+                    plot_settings[var]['plot_range'] = (-0.05, 1.05)
+                elif 'classification' in var:
+                    plot_settings[var]['plot_range'] = (self.dataset[var].min().round().item()-0.5,
+                                                        self.dataset[var].max().round().item()+0.5)
+                else:
+                    plot_settings[var]['plot_range'] = (self.dataset[var].min().round().item(),
+                                                        self.dataset[var].max().round().item())
+
+            # Color column
+            if 'color' not in plot_settings[var]:
+                if 'channel' in self.dataset[var].dims:
+                    plot_settings[var]['color'] = (('g','r') + ('k',)*10)[0:len(self.dataset.channel)]
+                elif 'FRET' in var:
+                    plot_settings[var]['color'] = ('b',)
+                else:
+                    plot_settings[var]['color'] = ('k',)
+
+            self.dataset[var].attrs['plot_settings'] = plot_settings[var]
+
+
+    @property
+    def plot_variables_active(self):
+        return [var for var in self._trace_variables if var in self._trace_variables_dataset and self.dataset[var].attrs['plot_settings']['active']]
+
+    # def _fill_trace_variable_list(self):
+
+
+    def _add_trace_variable_to_list(self, plot_variable, plot_settings):
+        self._trace_variables.append(plot_variable)
+
+        name_item = QStandardItem(plot_variable)
+        name_item.setEditable(False)
+        name_item.setCheckable(True)
+        if plot_settings['active']:
+            name_item.setCheckState(Qt.Checked)
+        else:
+            name_item.setCheckState(Qt.Unchecked)
+
+        self.model.appendRow(name_item)
+
+        plot_range = plot_settings['plot_range']
+        plot_range_low_item = QStandardItem(str(plot_range[0]))
+        plot_range_low_item.setEditable(True)
+        plot_range_high_item = QStandardItem(str(plot_range[1]))
+        plot_range_high_item.setEditable(True)
+
+        color_string = ', '.join(plot_settings['color'])
+        color_item = QStandardItem(color_string)
+        color_item.setEditable(True)
+
+        plot_range_low_text_item = QStandardItem("Y min")
+        plot_range_low_text_item.setEditable(False)
+
+        plot_range_high_text_item = QStandardItem("Y max")
+        plot_range_high_text_item.setEditable(False)
+
+        color_text_item = QStandardItem("Color(s)")
+        color_text_item.setEditable(False)
+
+        name_item.appendRow([plot_range_low_text_item, plot_range_low_item])
+        name_item.appendRow([plot_range_high_text_item, plot_range_high_item])
+        name_item.appendRow([color_text_item, color_item])
+
+    def _on_item_change(self, item):
+        # self._get_plot_settings_from_treeview()
+        if item.column() == 0:
+            variable_name = item.model().item(item.row(), 0).text()
+            state = item.checkState()
+            self.dataset[variable_name].attrs['plot_settings']['active'] = bool(state)
+            self.parent().canvas.plot_variables = self.plot_variables_active
+            self.parent().molecule = self.parent().molecule
+        elif item.column() == 1:
+            variable_name = item.model().item(item.parent().row(), 0).text()
+            if item.row() in [0, 1]:
+                plot_range = tuple(float(item.parent().child(i,1).text()) for i in [0,1])
+                self.dataset[variable_name].attrs['plot_settings']['plot_range'] = plot_range
+                self.parent().canvas.set_plot_range(variable_name, plot_range)
+                self.parent().molecule = self.parent().molecule
+            elif item.row() == 2:
+                color = tuple(item.text().replace(' ','').split(','))
+                self.dataset[variable_name].attrs['plot_settings']['color'] = color
+                self.parent().canvas.set_plot_color(variable_name, color)
+
+        self.parent().setFocus()
+
+
 class TracePlotCanvas(FigureCanvasQTAgg):
     # Kader om plot als geselecteerd
     # Autosave function
     def __init__(self, parent=None, width=14, height=7, dpi=100):
-        self.figure = matplotlib.figure.Figure(figsize=(width, height), dpi=dpi, constrained_layout=True)  # , figsize=(2, 2))
+        self.figure = matplotlib.figure.Figure(figsize=(width, height), dpi=dpi, constrained_layout=False, tight_layout=True)  # , figsize=(2, 2))
+        # self.figure.subplots_adjust(top=0.95, left=0.05, right=0.95, bottom=0.05, hspace=0.05, wspace=0.05)
         super().__init__(self.figure)
         self.parent_window = parent
-        plot_variables = self.parent_window.plot_variables
 
+        self._molecule = None
+
+        self._plot_variables = []
+
+    def _remove_blit_manager(self):
+        if hasattr(self, "bm"):
+            try:
+                self.mpl_disconnect(self.bm.cid)
+            except Exception:
+                pass
+            del self.bm
+
+    @property
+    def plot_variables(self):
+        return self._plot_variables
+
+    @plot_variables.setter
+    def plot_variables(self, plot_variables):
+        self._plot_variables = plot_variables
+        self.init_plots()
+
+    def init_plots(self):
+        # Remove current blitmanager
+        self._remove_blit_manager()
+
+        self.figure.clf()
+        plot_variables = self.plot_variables
         grid = self.figure.add_gridspec(len(plot_variables), 2, width_ratios=[10, 1]) #, height_ratios=(2, 7),
                          # left=0.1, right=0.9, bottom=0.1, top=0.9,
                          # wspace=0.05, hspace=0.05)
@@ -260,54 +546,38 @@ class TracePlotCanvas(FigureCanvasQTAgg):
 
             if i > 0:
                 plot.sharex(self.plot_axes[plot_variables[0]])
-                # histogram.sharex(self.histogram_axes[plot_variables[0]])
+                histogram.sharex(self.histogram_axes[plot_variables[0]])
 
-            plot.set_ylim(self.parent_window.ylims[i])
-            plot.set_ylabel(plot_variable)
+            if i < len(plot_variables) - 1:
+                plot.tick_params(labelbottom=False)
+                histogram.tick_params(labelbottom=False)
+
+            plot_settings = self.parent_window.dataset[plot_variable].attrs['plot_settings']
+
+            plot.set_ylim(plot_settings['plot_range'])
+            plot.set_ylabel(plot_variable[0].upper() + plot_variable[1:].replace('_', '\n'))
 
             histogram.get_yaxis().set_visible(False)
 
             self.plot_axes[plot_variable] = plot
             self.histogram_axes[plot_variable] = histogram
 
-
-        # self.intensity_plot = self.figure.add_subplot(grid[0, 0])
-        # self.FRET_plot = self.figure.add_subplot(grid[1, 0], sharex=self.intensity_plot)
-        # self.intensity_histogram = self.figure.add_subplot(grid[0, 1], sharey=self.intensity_plot)
-        # self.FRET_histogram = self.figure.add_subplot(grid[1, 1], sharex=self.intensity_histogram, sharey=self.FRET_plot)
-
-        # self.figure = plt.Figure(dpi=dpi, figsize=(2,2))
-        #
-        # self.axis = self.figure.gca()
-
-        #self.figure, self.axes = mpl.figure.Figure().subplots(2,1)
-
-
-
-        self._molecule = None
-
         self.plot_artists = {}
         self.histogram_artists = {}
 
+        # self.draw()
 
-    def show_artists(self, show, draw=True):
-        for artists in self.plot_artists.values():
-            for artist in artists:
-                artist.set_alpha(int(show))
-        for artists in self.histogram_artists.values():
-            for artist in artists:
-                for bar in artist:
-                    bar.set_alpha(int(show)*0.5)
-        if draw:
-            self.draw()
+        #self.figure, self.axes = mpl.figure.Figure().subplots(2,1)
 
     def init_plot_artists(self):
-        for i, plot_variable in enumerate(self.parent_window.plot_variables):
+        self._remove_blit_manager()
+        for i, plot_variable in enumerate(self.plot_variables):
+            # self.plot_axes[plot_variable].cla()
             data_array = self.parent_window.dataset[plot_variable]
 
             # For excluding nan values
-            dims_wihtout_frame = set(data_array.dims).difference({'frame'})
-            frame_not_nan = ~data_array.isnull().all(dim=dims_wihtout_frame)
+            dims_without_frame = set(data_array.dims).difference({'frame'})
+            frame_not_nan = ~data_array.isnull().all(dim=dims_without_frame)
             data_array = data_array.sel(frame=frame_not_nan)
 
             if 'time' in self.parent_window.dataset.coords.keys():
@@ -315,24 +585,26 @@ class TracePlotCanvas(FigureCanvasQTAgg):
             else:
                 x = data_array.frame  # self.parent_window.dataset.frame[frame_not_nan]
             self.plot_artists[plot_variable] = self.plot_axes[plot_variable].plot(x, data_array.sel(molecule=0).T)
+
+            plot_settings = self.parent_window.dataset[plot_variable].attrs['plot_settings']
+
             if i == 0:
-                self.title_artist = self.plot_axes[plot_variable].set_title('')
+                self.title_artist = self.plot_axes[plot_variable].set_title('Init')
             for j, plot_artist in enumerate(self.plot_artists[plot_variable]):
-                plot_artist.set_color(self.parent_window.colours[i][j])
+                plot_artist.set_color(plot_settings['color'][j])
             # molecule.intensity.plot.line(x='frame', ax=self.plot_axes[plot_variable], color=self.parent_window.colours[i])
             self.histogram_artists[plot_variable] = self.histogram_axes[plot_variable].hist(data_array.sel(molecule=0).T,
                                                                                             bins=50,
                                                                                             orientation='horizontal',
                                                                                             # range=self.plot_axes[
                                                                                             #     plot_variable].get_ylim(),
-                                                                                            range=self.parent_window.ylims[i],
-                                                                                            color=
-                                                                                            self.parent_window.colours[
-                                                                                                i], alpha=0.5)[2]
+                                                                                            range=plot_settings['plot_range'],
+                                                                                            color=plot_settings['color'],
+                                                                                            alpha=0.5)[2]
             if not isinstance(self.histogram_artists[plot_variable], list):
                 self.histogram_artists[plot_variable] = [self.histogram_artists[plot_variable]]
 
-            if i == len(self.parent_window.plot_variables) - 1:
+            if i == len(self.plot_variables) - 1:
                 if 'time' in self.parent_window.dataset.coords.keys():
                     self.plot_axes[plot_variable].set_xlabel(f'Time ({self.parent_window.dataset.time.units})')
                 else:
@@ -353,8 +625,21 @@ class TracePlotCanvas(FigureCanvasQTAgg):
         artists = [self.title_artist] + \
                   [a for b in self.plot_artists.values() for a in b] + \
                   [a for c in self.histogram_artists.values() for b in c for a in b]
+
         self.bm = BlitManager(self, artists)
         self.draw()
+        self.show_artists(show=True, draw=True)
+
+    def show_artists(self, show, draw=True):
+        for artists in self.plot_artists.values():
+            for artist in artists:
+                artist.set_alpha(int(show))
+        for artists in self.histogram_artists.values():
+            for artist in artists:
+                for bar in artist:
+                    bar.set_alpha(int(show)*0.5)
+        if draw:
+            self.draw()
 
     @property
     def molecule(self):
@@ -373,7 +658,6 @@ class TracePlotCanvas(FigureCanvasQTAgg):
         elif molecule is not None and previous_molecule is None:
             self.show_artists(True, draw=False)
 
-
         self._molecule['file'] = self._molecule['file'].astype(str)
 
         # g = molecule.intensity.sel(channel=0).values
@@ -386,7 +670,7 @@ class TracePlotCanvas(FigureCanvasQTAgg):
         # for axis in self.axes:
         #     axis.cla()
 
-        for i, plot_variable in enumerate(self.parent_window.plot_variables):
+        for i, plot_variable in enumerate(self.plot_variables):
             data = np.atleast_2d(molecule[plot_variable])
 
             # For excluding nan values (can go wrong when trace contains nans that are not present in all molecules)
@@ -404,7 +688,8 @@ class TracePlotCanvas(FigureCanvasQTAgg):
             for j in range(len(data)):
                 self.plot_artists[plot_variable][j].set_ydata(data[j])
                 # TODO: When you shift the view, change the y positions of the bars to the new view, if possible. use set_y
-                n, _ = np.histogram(data[j], 50, range=self.parent_window.ylims[i]) # range=self.plot_axes[plot_variable].get_ylim())
+                plot_settings = self.parent_window.dataset[plot_variable].attrs['plot_settings']
+                n, _ = np.histogram(data[j], 50, range=plot_settings['plot_range']) # range=self.plot_axes[plot_variable].get_ylim())
                 for count, artist in zip(n, self.histogram_artists[plot_variable][j]):
                     artist.set_width(count)
 
@@ -427,48 +712,24 @@ class TracePlotCanvas(FigureCanvasQTAgg):
         # tell the blitting manager to do its thing
         self.bm.update()
 
+    def set_plot_range(self, plot_variable, plot_range):
+        self.plot_axes[plot_variable].set_ylim(plot_range[0], plot_range[1])
+        self.init_plot_artists()
+        # self.init_plots() # Perhaps this can be init_plot_artists only, but then probably the blit background needs to be updated.
 
+        # self.draw()  # full redraw
+        # self.bm.on_draw(None)
 
-        # self.axes[0].plot(molecule.intensity.T)
-        # self.axes[1].plot(molecule.E())
-        # self.canvas.draw()
+    def set_plot_color(self, plot_variable, colors):
+        artists = self.plot_artists[plot_variable]
+        for artist, color in zip(artists, colors):
+            artist.set_color(color)
+        artists = self.histogram_artists[plot_variable]
+        for artist, color in zip(artists, colors):
+            for bar in artist:
+                bar.set_facecolor(color)
 
-        # empty_cell = (0, 0)
-        #
-        # donor_checkbox = wx.CheckBox(self, -1, label="Donor", name="Donor")
-        # acceptor_checkbox = wx.CheckBox(self, -1, label="Acceptor", name="Acceptor")
-        #
-        # channel_sizer = wx.FlexGridSizer(2,2, gap=wx.Size(10,0))
-        # channel_sizer.Add(wx.StaticText(self, label="Channels:"), 5, wx.EXPAND, 0)
-        # channel_sizer.Add(donor_checkbox, 1, wx.EXPAND, 0)
-        # channel_sizer.Add(empty_cell, 0, wx.EXPAND, 0)
-        # channel_sizer.Add(acceptor_checkbox, 0, wx.EXPAND, 0)
-        #
-        # average_image_radio_button = wx.RadioButton(self, -1, label="Average image", name="Average image")
-        # maximum_projection_radio_button = wx.RadioButton(self, -1, label="Maximum projection", name="Maximum projection")
-        #
-        # image_type_sizer = wx.FlexGridSizer(2,2, gap=wx.Size(10,0))
-        # image_type_sizer.AddGrowableCol(0,1)
-        # image_type_sizer.AddGrowableCol(1,3)
-        # image_type_sizer.Add(wx.StaticText(self, label="Image type atestat:"), 0, wx.EXPAND, 0)
-        # image_type_sizer.Add(average_image_radio_button, 0, wx.EXPAND, 0)
-        # image_type_sizer.Add(empty_cell, 0, wx.EXPAND, 0)
-        # image_type_sizer.Add(maximum_projection_radio_button, 0, wx.EXPAND, 0)
-        # #
-        # # image_type_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        # # image_type_sizer.Add(wx.StaticText(self, label="Image type:"), 0, wx.EXPAND | wx.ALL, 10)
-        # # image_type_sizer.Add(image_type_combobox, 0, wx.EXPAND | wx.LEFT | wx.RIGHT, 10)
-        #
-        # self.sizer = wx.BoxSizer(wx.VERTICAL)
-        # self.sizer.Add(channel_sizer, 0, wx.EXPAND | wx.ALL, 10)
-        # self.sizer.Add(image_type_sizer, 0, wx.EXPAND | wx.ALL, 10)
-        # self.sizer.Add(wx.Slider(self, -1, value=0, minValue=0, maxValue=100,
-        #                          name='Minimum'), 0, wx.EXPAND | wx.ALL, 10)
-        # self.sizer.Add(wx.Slider(self, -1, value=0, minValue=0, maxValue=100,
-        #                          name='Maximum'), 0, wx.EXPAND | wx.ALL, 10)
-        # self.sizer.Add(wx.Button(self, -1, "Button 1"), 0, wx.EXPAND | wx.ALL, 10)
-        # self.sizer.Add(wx.Button(self, -1, "Button 2"), 0, wx.EXPAND | wx.ALL, 10)
-        # self.SetSizer(self.sizer)
+        self.draw()
 
     def save(self):
         save_path = self.parent_window.save_path
@@ -479,97 +740,6 @@ class TracePlotCanvas(FigureCanvasQTAgg):
             self.figure.savefig(file_path, bbox_inches='tight')
         else:
             raise ValueError('No save_path set')
-
-
-
-
-
-#
-#
-#
-# class TraceAnalysisFrame(QMainWindow):
-#     def __init__(self, parent=None, dataset=None, title='Traces', plot_variables=['intensity', 'FRET'],
-#                  ylims=[(0, 35000), (0, 1)], colours=[('g', 'r'), ('b')], save_path=None):
-#         wx.Frame.__init__(self, parent, title=title, size=(1400, 700))
-#         self.parent = parent
-#         self.dataset = dataset
-#         self.plot_variables = plot_variables
-#         self.ylims = ylims
-#         self.colours = colours
-#
-#         if save_path is None:
-#             self.save_path = save_path
-#         else:
-#             self.save_path = Path(save_path)
-#         #self.Bind(wx.EVT_CLOSE, self.OnClose)
-#         self.trace_panel = TraceAnalysisPanel(parent=self)
-#         # self.control_panel = ControlPanel(parent=self)
-#         self.Bind(wx.EVT_CHAR_HOOK, self.OnNavigationKey)
-#
-#         self.molecule_index = 0
-#
-#         self.Show()
-#
-#     # @property
-#     # def molecules(self):
-#     #     return self._molecules
-#     #
-#     # @molecules.setter
-#     # def molecules(self, molecules):
-#     #     self._molecules = molecules
-#
-#
-#     @property
-#     def molecule_index(self):
-#         return self._molecule_index
-#
-#     @molecule_index.setter
-#     def molecule_index(self, molecule_index):
-#         self._molecule_index = molecule_index
-#         self.molecule = self.dataset.isel(molecule=self.molecule_index)
-#
-#     def next_molecule(self):
-#         if (self.molecule_index+1) < len(self.dataset.molecule):
-#             self.molecule_index += 1
-#
-#     def previous_molecule(self):
-#         if self.molecule_index > 0:
-#             self.molecule_index -= 1
-#
-#     def update_current_molecule(self):
-#         self.molecule_index = self.molecule_index
-#
-#     @property
-#     def molecule(self):
-#         return self.panel.molecule
-#
-#     @molecule.setter
-#     def molecule(self, molecule):
-#         self.trace_panel.molecule = molecule
-#
-#     def OnNavigationKey(self, event):
-#         key_code = event.GetKeyCode()
-#         print(key_code)
-#         if key_code == 316: # Right arrow
-#             self.next_molecule()
-#         elif key_code == 314: # Left arrow
-#             self.previous_molecule()
-#         elif key_code == 32: # Spacebar
-#             self.dataset.selected[dict(molecule=self.molecule_index)] = ~self.dataset.selected[dict(molecule=1)]
-#             self.update_current_molecule()
-#         elif key_code == 83: # S
-#             self.trace_panel.save()
-
-# class ControlPanel(wx.Panel):
-# To file/molecule
-# Selected button changes colour (spacebar)
-# Y-axis limits
-# Classification technique - change classification pannel based on specific technique
-
-# class Threshold_classification_panel
-
-# class HMM_classification_panel
-
 
 class BlitManager:
     def __init__(self, canvas, animated_artists=()):
@@ -651,6 +821,8 @@ class BlitManager:
 #        # self.Bind(wx.EVT_CLOSE, self.OnClose)
 #        self.Show()
 
+
+
 if __name__ == "__main__":
 
     # # Check whether there is already a running QApplication (e.g., if running
@@ -667,12 +839,7 @@ if __name__ == "__main__":
 
 
     import papylio as pp
-    import os, sys
-    mapping_path = Path(os.getcwd()).joinpath('papylio').joinpath('mapping')
-    sys.path.append(mapping_path)
-    print(sys.path)
-    from papylio.experiment import Experiment
-    exp = Experiment(r'D:\SURFdrive\Promotie\Code\Python\traceAnalysis\twoColourExampleData\20141017 - Holliday junction - Copy')
+    exp = pp.Experiment(r'C:\Users\ivoseverins\surfdrive\Promotie\Code\Python\traceAnalysis\twoColourExampleData\20141017 - Holliday junction - Copy')
     ds = exp.files[0].dataset
 
     from PySide2.QtWidgets import QApplication
