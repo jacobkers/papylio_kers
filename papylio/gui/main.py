@@ -18,6 +18,8 @@ import papylio as pp
 from papylio import Experiment, File
 from papylio.trace_plot import TracePlotWindow
 from papylio.gui.selection_widget import SelectionWidget
+from papylio.gui.kinetics_widget import KineticsWidget
+from papylio.gui.common_layouts import ImageCanvas,Expander,HelpDialog
 
 # class TreeNode:
 #     def __init__(self, node_object, parent=None):
