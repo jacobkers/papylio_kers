@@ -7,6 +7,7 @@ from PySide2.QtCore import Qt
 from PySide2.QtWidgets import QWidget, QLabel, QVBoxLayout
 from PySide2.QtGui import QPixmap
 from PySide2.QtCore import Qt
+from papylio.gui.common_layouts import ImageCanvas,Expander,HelpDialog
 
 import numpy as np
 
@@ -51,11 +52,11 @@ class KineticsWidget(QWidget):
         #main
         dwell_action_button = QPushButton('Get Dwells')
         dwell_help_button = QPushButton('Help!')
-        extract_traces_button.clicked.connect(self.extract_traces)
+        dwell_help_button.clicked.connect(self.show_dwell_help)
 
         dwell_controls_layout = QVBoxLayout()
-        dwell_controls_layout.addWidget(dwell_action_button, 3, 0, 1, 2)
-        dwell_controls_layout.addWidget(dwell_help_button, 3, 0, 1, 2)
+        dwell_controls_layout.addWidget(dwell_action_button)
+        dwell_controls_layout.addWidget(dwell_help_button)
 
         dwell_controls = QWidget()
         dwell_controls.setLayout(dwell_controls_layout)
@@ -87,5 +88,24 @@ class KineticsWidget(QWidget):
         kinetics_layout.addWidget(tabs)
         #self.kinetics_widget.setLayout(kinetics_layout)
         self.setLayout(kinetics_layout)
+
+    def show_dwell_help(self):
+        help_text = help_text = """\
+                Dwell Times
+
+                -----
+                • description
+                • ref to docs
+                
+                example 
+                -------------------------------------
+                
+                settings examples
+                ----------------
+                """
+
+        self.help_dialog = HelpDialog(self, help_text)
+        # dialog.exec_()  # modal
+        self.help_dialog.show()
 
 

@@ -19,7 +19,7 @@ from papylio import Experiment, File
 from papylio.trace_plot import TracePlotWindow
 from papylio.gui.selection_widget import SelectionWidget
 from papylio.gui.kinetics_widget import KineticsWidget
-from papylio.gui.common_layouts import ImageCanvas,Expander,HelpDialog
+
 from papylio.gui.classification_widget import ClassificationWidget
 
 # class TreeNode:
@@ -324,6 +324,8 @@ class MainWindow(QMainWindow):
         self.classification = ClassificationWidget(parent=self)
         self.classification.classificationChanged.connect(self.update_plots)
         tabs.addTab(self.classification, 'Classification (beta)')
+        self.kinetics = KineticsWidget(parent=self)
+        tabs.addTab(self.kinetics, 'Kinetics (beta)')
         tabs.currentChanged.connect(self.setTabFocus)
 
         experiment_layout = QVBoxLayout()
