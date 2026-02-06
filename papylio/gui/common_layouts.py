@@ -9,7 +9,7 @@ from matplotlib.backends.backend_qtagg import (
     FigureCanvas)
 
 from PySide2.QtWidgets import (
-    QApplication, QWidget, QVBoxLayout, QToolButton,
+    QApplication, QWidget, QVBoxLayout, QToolButton, QTextBrowser,
     QLabel, QSizePolicy, QGridLayout, QDialog, QPushButton, QTextEdit, QDialog
 )
 from PySide2.QtCore import Qt
@@ -83,12 +83,14 @@ class HelpDialog(QDialog):
 
         layout = QVBoxLayout(self)
 
-        text = QTextEdit()
-        text.setReadOnly(True)
-        text.setPlainText(help_text)
+        self.text = QTextBrowser()
+        self.text.setOpenExternalLinks(True)
+        self.text.setHtml(help_text)
+
+        layout.addWidget(self.text)
 
         close_button = QPushButton("Close")
         close_button.clicked.connect(self.accept)
 
-        layout.addWidget(text)
+        layout.addWidget(self.text)
         layout.addWidget(close_button)

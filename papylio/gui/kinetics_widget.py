@@ -34,6 +34,8 @@ class KineticsWidget(QWidget):
         dwell_help_button = QPushButton('Help!')
         dwell_help_button.clicked.connect(self.show_dwell_help)
 
+        dwell_export_button = QPushButton('Export')
+
         dwell_controls_layout = QVBoxLayout()
         dwell_controls_layout.addWidget(dwell_action_button)
         dwell_controls_layout.addWidget(dwell_help_button)
@@ -44,6 +46,7 @@ class KineticsWidget(QWidget):
         dwell_times_tab_layout = QVBoxLayout()
         dwell_times_tab_layout.addWidget(dwell_controls)
         dwell_times_tab_layout.addWidget(self.dwell_kinetics_canvas)
+        dwell_times_tab_layout.addWidget(dwell_export_button)
 
         #other
         other_graph_layout = QHBoxLayout()
