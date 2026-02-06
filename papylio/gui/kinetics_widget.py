@@ -7,51 +7,30 @@ from PySide2.QtCore import Qt
 from PySide2.QtWidgets import QWidget, QLabel, QVBoxLayout
 from PySide2.QtGui import QPixmap
 from PySide2.QtCore import Qt
+
+from papylio import File
 from papylio.gui.common_layouts import ImageCanvas,Expander,HelpDialog
 
+from matplotlib.figure import Figure
 import numpy as np
+
+from matplotlib.backends.backend_qtagg import (
+    FigureCanvas, NavigationToolbar2QT as NavigationToolbar)
 
 class KineticsWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.parent = parent
 
-        #build fake graphs:------------------------
-        graphs_path = r'C:\Users\jkerssemakers\OneDrive - Delft University of Technology\ChJ_recent\ChJ25_Jacob\2026_01_17 GUI stubs'
-        #graphs_path = r'M:\tnw\bn\alg\Shared\Jacob\ChJ_lab\2026_01_17 GUI stubs'
-        graph1_path = graphs_path + r'\Renee_on_PapylioTest_01.jpeg'
-        graph2_path = graphs_path + r'\Renee_on_PapylioTest_02.jpeg'
-        graph3_path = graphs_path + r'\Renee_on_PapylioTest_03.jpeg'
-        graph4_path = graphs_path + r'\dwell_time analysis.jpg'
-        box1 = QLabel()
-        pixmap = QPixmap(graph4_path)
-        box1.setPixmap(pixmap)
-        box1.setAlignment(Qt.AlignCenter)
-        box1.setPixmap(
-            pixmap.scaled(
-                box1.size(),
-                Qt.KeepAspectRatio,
-                Qt.SmoothTransformation
-            )
-        )
-
-        box2 = QLabel()
-        pixmap = QPixmap(graph2_path)
-        box2.setPixmap(pixmap)
-        box2.setAlignment(Qt.AlignCenter)
-        box2.setPixmap(
-            pixmap.scaled(
-                box2.size(),
-                Qt.KeepAspectRatio,
-                Qt.SmoothTransformation
-            )
-        )
-
+        # imagery
+        self.fig_kinetics = Figure(figsize=(5, 3))
+        self.dwell_kinetics_canvas = FigureCanvas(self.fig_kinetics)
 
 
 
         #main
         dwell_action_button = QPushButton('Get Dwells')
-        if 0: dwell_action_button.clicked.connect(self.get_kinetics)
+        dwell_action_button.clicked.connect(self.perform_dwell_times_sequence)
         dwell_help_button = QPushButton('Help!')
         dwell_help_button.clicked.connect(self.show_dwell_help)
 
@@ -62,13 +41,13 @@ class KineticsWidget(QWidget):
         dwell_controls = QWidget()
         dwell_controls.setLayout(dwell_controls_layout)
 
-        dwell_times_tab_layout = QHBoxLayout()
+        dwell_times_tab_layout = QVBoxLayout()
         dwell_times_tab_layout.addWidget(dwell_controls)
-        dwell_times_tab_layout.addWidget(box1)
+        dwell_times_tab_layout.addWidget(self.dwell_kinetics_canvas)
 
         #other
         other_graph_layout = QHBoxLayout()
-        other_graph_layout.addWidget(box2)
+        #other_graph_layout.addWidget(box2)
 
 
         tabs = QTabWidget()
@@ -90,6 +69,20 @@ class KineticsWidget(QWidget):
         #self.kinetics_widget.setLayout(kinetics_layout)
         self.setLayout(kinetics_layout)
 
+
+
+    def perform_dwell_times_sequence(self):
+        self.fig_kinetics.clear()
+        ax1 = self.fig_kinetics.add_subplot(121)
+
+        selected_files = self.parent.experiment.selectedFiles
+
+        self.dwell_kinetics_canvas.draw_idle()
+        if selected_files:
+            selected_files.serial.determine_dwells_from_classification(variable='FRET', selected=True, inactivate_start_and_end_states=True)
+            selected_files.serial.analyze_dwells(method='histogram_fit', number_of_exponentials=[1, 2])
+            selected_files.serial.plot_dwell_analysis(plot_range=(0, 2), axes=ax1, log=False)
+
     def show_dwell_help(self):
         help_text = help_text = """\
                 Dwell Times
@@ -104,7 +97,6 @@ class KineticsWidget(QWidget):
                 settings examples
                 ----------------
                 """
-
         self.help_dialog = HelpDialog(self, help_text)
         # dialog.exec_()  # modal
         self.help_dialog.show()
