@@ -73,7 +73,7 @@ class KineticsWidget(QWidget):
 
     def perform_dwell_times_sequence(self):
         self.fig_kinetics.clear()
-        ax1 = self.fig_kinetics.add_subplot(121)
+        ax1 = self.fig_kinetics.add_subplot(111)
 
         selected_files = self.parent.experiment.selectedFiles
 
@@ -81,7 +81,7 @@ class KineticsWidget(QWidget):
         if selected_files:
             selected_files.serial.determine_dwells_from_classification(variable='FRET', selected=True, inactivate_start_and_end_states=True)
             selected_files.serial.analyze_dwells(method='histogram_fit', number_of_exponentials=[1, 2])
-            selected_files.serial.plot_dwell_analysis(plot_range=(0, 2), axes=ax1, log=False)
+            selected_files.serial.plot_dwell_analysis(plot_range=(0, 1), axes=ax1, log=False)
 
     def show_dwell_help(self):
         help_text = help_text = """\
