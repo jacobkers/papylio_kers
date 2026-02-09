@@ -192,47 +192,79 @@ class MappingWidget(QWidget):
 
     def show_help(self):
         help_text = help_text = """\
-                Mapping
+               <html>
+                  <body style="font-family: sans-serif; font-size: 10pt;">
+                
+                    <h2>Mapping</h2>
+                
+                    <p>
+                      Mapping links coordinates in the used color channels
+                    </p>
+                
+                    <ul>
+                      <li>adjust main settings</li>
+                      <li>adjust 'advanced' settings</li>
+                      <li>description: [options], first value is default
+                    </ul>
+                
+                    <p>
+                    
+                    <h3>Basic settings</h3>
+                    
+                    <h4>mapping</h4>
+                    mapping: choose how pairs are found between source and target
+                    <ul>
+                      <li><code>method</code> [<code>icp</code> | <code>nn</code>]
+                        <ul>
+                          <li><code>icp</code> = <code>iterative_closest_point</code>>
+                          <li><code>nn</code> = <code>nearest_neighbor</code>: two-way nearest neighbor within a distance threshold</li>
+                          <li><code>direct</code> = <code>direct_match</code>: map points 1:1 
+                          <li><code>distance_threshold[3]</code>: beyond this, no 'nn' pairs are considered
+                          <li><code>transformation_type['polynomial',...]</code>: method to perform link [EDIT]
+                          <ul>
+                             <li><code>'linear' | 'affine'</code> : skimage.transform.AffineTransform
+                             <li><code>'similarity'</code> :  skimage.transform.SimilarityTransform
+                             <li><code> 'nonlinear'</code> :  IDL polywarp transform
+                             <li><code> 'polynomial'</code> : skimage.transform.PolynomialTransform
+                          </ul>
+                          <li><code>initial_translation ['width/2'| n_pixels]/code>: initial shift for chosen mapping method
+                       </ul>
+                   </ul>  
+                     
+                <h3>Advanced settings</h3> 
+                peak_finding: choose how spots are detected per donor or acceptor channel           
+                <ul>                    
+                    <li><code>donor</code>:
+                        <ul>
+                            <li><code> method[local-maximum-auto] </code>
+                            <li><code> filter_neighbourhood_size_min[10]</code> [tbd]
+                            <li><code> filter_neighbourhood_size_max[5]</code> [tbd]
+                        </ul>
+                    <li><code>acceptor</code>:
+                        <ul>
+                        <li><code> method: local-maximum-auto</code>
+                        <li><code> filter_neighbourhood_size_min[10]</code>
+                        <li><code> filter_neighbourhood_size_max[5]</code>
+                        </ul>
+                    <li><code>coordinate_optimization/code>
+                        <ul>
+                            <li> coordinates_after_gaussian_fit: gaussian_width: 5
+                            <li> coordinates_within_margin: margin: 10
+                        </ul>
+    
+                <h3>More help</h3>
+                <p>
+                See the 
+                    <a href="https://papylio.readthedocs.io/en/stable/user_guide/channel_mapping.html">
+                mapping documentation
+                    </a>.
+                </p>
+                   
 
-                -------------------------------------------------------
-                • select file(s) of interest for mapping in left panel
-                • adjust main settings
-                • adjust 'advanced' settings
-                -------------------------------------------------------
-                Settings description Brackets: [options], first value is default
-                Basic:
-                • mapping:
-                    method[icp or nn]: choose how pairs are found between source and target
-                        -icp='iterative_closest_point':           
-                        -nn= 'nearest_neighbour': two-way nearest neighbor within distance treshold 
-                    -direct= 'direct_match': map 1:1 
-                    distance_threshold[3]: beyond this, no 'nn' pairs are considered
-                    transformation_type['polynomial',...]
-                    - 'linear' or 'affine': affine transform using skimage.transform.AffineTransform
-                        - 'similarity': similarity transform using skimage.transform.SimilarityTransform
-                        - 'nonlinear': polynomial transform corresponding to the IDL polywarp transform
-                        - 'polynomial': polynomial transform using skimage.transform.PolynomialTransform
-                    initial_translation: ['width/2', n_pixels]: this is the initial shift for chosen mapping method
-               
-                --------------------------------------------------------
-                Advanced: 
-                • peak_finding: choose how spots are detected per donor or acceptor channel
-                    donor:
-                    method[local-maximum-auto, ]: choose how peaks are detected
-                    filter_neighbourhood_size_min[10]: choose 
-                    filter_neighbourhood_size_max: 5
-                    acceptor:
-                    method: local-maximum-auto
-                    filter_neighbourhood_size_min: 10
-                    filter_neighbourhood_size_max: 5
-                • coordinate_optimization:
-                    coordinates_after_gaussian_fit:
-                    gaussian_width: 5
-                    coordinates_within_margin:
-                    margin: 10
-
+                
+                </body>
+                </html>
                 """
-
 
         self.help_dialog = HelpDialog(self, help_text)
         # dialog.exec_()  # modal

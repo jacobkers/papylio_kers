@@ -79,7 +79,7 @@ class HelpDialog(QDialog):
     def __init__(self, parent=None, help_text=""):
         super().__init__(parent)
         self.setWindowTitle("Help")
-        self.resize(700, 600)
+        self.resize(900, 800)
 
         layout = QVBoxLayout(self)
 

@@ -81,24 +81,44 @@ class KineticsWidget(QWidget):
         selected_files = self.parent.experiment.selectedFiles
 
         self.dwell_kinetics_canvas.draw_idle()
+        #here it would be good to pass button choices: variable, method
         if selected_files:
             selected_files.serial.determine_dwells_from_classification(variable='FRET', selected=True, inactivate_start_and_end_states=True)
             selected_files.serial.analyze_dwells(method='histogram_fit', number_of_exponentials=[1, 2])
             selected_files.serial.plot_dwell_analysis(plot_range=(0, 2), axes=axes, log=False)
 
     def show_dwell_help(self):
-        help_text = help_text = """\
-                Dwell Times
 
-                -----
-                • description
-                • ref to docs
+        help_text = """
+                <html>
+                  <body style="font-family: sans-serif; font-size: 10pt;">
                 
-                example 
-                -------------------------------------
+                    <h2>Dwell Times</h2>
                 
-                settings examples
-                ----------------
+                    <p>
+                      Choose which variable and method should be used for the dwell time analysis.
+                    </p>
+                
+                    <ul>
+                      <li>Select the variable for dwell time extraction</li>
+                      <li>Select the analysis method</li>
+                    </ul>
+                
+                    <p>
+                      For more help, see the
+                      <a href="https://papylio.readthedocs.io/en/stable/user_guide/dwell_time_analysis/index.html">
+                        dwell time analysis documentation
+                      </a>.
+                    </p>
+                
+                    <h3>Example</h3>
+                
+                    <p>
+                      Settings examples can be found in the documentation.
+                    </p>
+                
+                  </body>
+                </html>
                 """
         self.help_dialog = HelpDialog(self, help_text)
         # dialog.exec_()  # modal
