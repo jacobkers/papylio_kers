@@ -2,14 +2,17 @@ import sys
 from PySide2.QtCore import Signal
 from PySide2.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout, QComboBox,
     QLabel, QLineEdit, QPushButton, QFormLayout, QSpinBox, QDoubleSpinBox,
-    QTreeView, QMainWindow, QMessageBox, QCheckBox
+    QTreeView, QMainWindow, QMessageBox, QDialog, QTextEdit
 )
 
 from PySide2.QtGui import QStandardItem, QStandardItemModel
 from PySide2.QtCore import Qt
 
+
+
 from papylio.analysis.classification_simple import classify_threshold
 from papylio.analysis.hidden_markov_modelling import classify_hmm
+from papylio.gui.common_layouts import ImageCanvas, HelpDialog
 
 import numpy as np
 import inspect
@@ -25,22 +28,34 @@ class ClassificationWidget(QWidget):
         self.methods = {}
         self._file = None# name -> function
 
+        panel_layout=QHBoxLayout(self)
+
         main_layout = QVBoxLayout(self)
+
+        feedback_and_info_layout = QVBoxLayout(self)
+        self.help_button = QPushButton('Help!')
+        self.help_button.clicked.connect(self.show_help)
+        feedback_and_info_layout.addWidget(self.help_button)
+
+
 
         form = QFormLayout()
         main_layout.addLayout(form)
 
         # --- Classification name input ---
         self.name_edit = QLineEdit()
+        self.name_edit.setToolTip("add any relevant label")
         self.name_edit.setPlaceholderText("e.g. HMM")
         form.addRow("Name:", self.name_edit)
 
         # --- Variable selector ---
         self.variable_selector = QComboBox()
+        self.variable_selector.setToolTip("Choose trace type")
         form.addRow("Variable:", self.variable_selector)
 
         # --- Method selector ---
         self.method_selector = QComboBox()
+        self.method_selector.setToolTip("Choose classifier")
         self.method_selector.currentTextChanged.connect(self._update_method_panel)
         form.addRow("Method:", self.method_selector)
 
@@ -94,7 +109,29 @@ class ClassificationWidget(QWidget):
         self.clear_button.clicked.connect(self._clear_results)
 
         self.method_forms = {}  # method_name -> (widget, inputs)
-        self.setLayout(main_layout)
+
+        # imagery
+        self.classification_image_canvas = ImageCanvas(self, width=2, height=2, dpi=100)
+        classification_image_layout = QVBoxLayout()
+        classification_image_layout.addWidget(self.classification_image_canvas)
+
+        self.classification_imagery = QWidget()
+        self.classification_imagery.setLayout(classification_image_layout)
+        self.classification_imagery.setToolTip("show an image reflecting the effect of classifiers")
+        feedback_and_info_layout.addWidget(self.classification_imagery)
+
+        #self.setLayout(main_layout)
+        main_panel=QWidget()
+        main_panel.setLayout(main_layout)
+
+        feedback_and_info=QWidget()
+        feedback_and_info.setLayout(feedback_and_info_layout)
+
+
+        panel_layout.addWidget(main_panel)
+        panel_layout.addWidget(feedback_and_info)
+
+        self.setLayout(panel_layout)
 
         self.register_method('threshold', classify_threshold)
         self.register_method('hmm', classify_hmm)
@@ -265,6 +302,7 @@ class ClassificationWidget(QWidget):
             self.setDisabled(True)
 
 
+
     def _clear_results(self):
         self.file.clear_classifications()
         self.refresh_classifications()
@@ -326,10 +364,62 @@ class ClassificationWidget(QWidget):
 
         self.file.apply_classifications(**apply_classifications_configuration)
 
+    def show_help(self):
+        help_text = help_text = """\
+                Classification Rules
+                
+                -----
+                • User can add 'classification rules', listed as single lines below
+                • A rule acts via thresholding or Hidden Markov Modeling (HMM)
+                • A rule labels each point with a numeric classification
+                • Labels can be user-defined in the column “states”
+                • Negative numbers always mean “reject point”
+                • Rules are stacked: each new rule applies only to non-rejected points
+                • Total classification is the result of applying rules in listed order
+                • Application is only to the first selected movie
+                • Checking or unchecking rules updates the stored classification
+                
+                Rationale example (labels in brackets)
+                -------------------------------------
+                1) Threshold to reject bleached points        → labels [-1, 0]
+                2) HMM on remaining points                   → labels [-1, 0, 1]
+                3) Threshold to exclude early red-laser off   → labels [-2]
+                                
+                Note:To preserve labels assigned by (2)HMM with follow up rule (3), 
+                use only add rejection labels to 'states, e.g. [-2]
+                ----
+                
+                Settings examples
+                ----------------
+                threshold: 
+                    name: Tres_1
+                    variable: FRET (must be single-channel)
+                    method: threshold
+                    options:
+                        threshold: 0
+                        rolling: mean
+                        window size: 5
+                HMM
+                    name: HMM
+                    variable: intensity_total (must be single-channel)
+                    method: hmm
+                    options:
+                        n_states:2
+                        treshold_state_mean:0
+                        level: molecule (or file)
+                        seed: 0
+                    
+                
+                """
+
+
+        self.help_dialog = HelpDialog(self, help_text)
+        #dialog.exec_()  # modal
+        self.help_dialog.show()
 
 
 
-    #
+        #
     #
     #     classification_type_combobox = QComboBox()
     #     classification_types = ['threshold', 'filter', 'hmm']
@@ -543,5 +633,4 @@ class ClassificationWidget(QWidget):
     #
     #     self.file.add_selection(variable, channel, aggregator, operator, threshold)
     #     self.refresh_selections()
-
 

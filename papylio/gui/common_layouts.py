@@ -12,6 +12,8 @@ from PySide2.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QToolButton, QTextBrowser,
     QLabel, QSizePolicy, QGridLayout, QDialog, QPushButton, QTextEdit, QDialog
 )
+
+
 from PySide2.QtCore import Qt
 import sys
 
