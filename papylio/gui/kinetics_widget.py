@@ -39,14 +39,15 @@ class KineticsWidget(QWidget):
         dwell_controls_layout = QVBoxLayout()
         dwell_controls_layout.addWidget(dwell_action_button)
         dwell_controls_layout.addWidget(dwell_help_button)
+        dwell_controls_layout.addWidget(dwell_export_button)
 
         dwell_controls = QWidget()
         dwell_controls.setLayout(dwell_controls_layout)
 
-        dwell_times_tab_layout = QVBoxLayout()
+        dwell_times_tab_layout = QHBoxLayout()
         dwell_times_tab_layout.addWidget(dwell_controls)
         dwell_times_tab_layout.addWidget(self.dwell_kinetics_canvas)
-        dwell_times_tab_layout.addWidget(dwell_export_button)
+
 
         #other
         other_graph_layout = QHBoxLayout()
@@ -76,7 +77,7 @@ class KineticsWidget(QWidget):
 
     def perform_dwell_times_sequence(self):
         self.fig_kinetics.clear()
-        axes = self.fig_kinetics.subplots(1, 2, sharex=True)
+        axes = self.fig_kinetics.subplots(2, 1, sharex=True)
 
         selected_files = self.parent.experiment.selectedFiles
 

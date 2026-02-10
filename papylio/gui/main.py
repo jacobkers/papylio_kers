@@ -397,9 +397,6 @@ class MainWindow(QMainWindow):
         tab2 = QWidget(self)
         tab2.setLayout(extraction_tab_layout)
         tabs.addTab(tab2, 'Extraction')
-
-        self.traces = TracePlotWindow(parent=self, width=4, height=3, show=False)
-        tabs.addTab(self.traces, 'Traces')
         self.selection = SelectionWidget(parent=self)
         tabs.addTab(self.selection, 'Selection (beta)')
         self.classification = ClassificationWidget(parent=self)
