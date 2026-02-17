@@ -386,6 +386,9 @@ class MainWindow(QMainWindow):
         extraction_tab_layout = QHBoxLayout()
         extraction_tab_layout.addWidget(self.extraction_controls)
 
+        start_tab_layout=QVBoxLayout()
+        start_tab_layout.addWidget(main_help_button)
+
 
         # self.selection = QTableWidget()
         # self.selection.setRowCount(5)
@@ -397,7 +400,7 @@ class MainWindow(QMainWindow):
         tabs.setDocumentMode(True)
 
         tab0 = QWidget(self)
-        tab0.addWidget(main_help_button)
+        tab0.setLayout(start_tab_layout)
         tabs.addTab(tab0, 'Start')
         self.mapping=MappingWidget(parent=self)
         tabs.addTab(self.mapping, 'Mapping')
@@ -565,19 +568,6 @@ class MainWindow(QMainWindow):
         self.experiment = Experiment(self.experiment.main_path)
         self.addExperiment(self.experiment)
 
-
-if __name__ == '__main__':
-    from multiprocessing import Process, freeze_support
-    freeze_support()
-
-    app = QApplication(sys.argv)
-
-    window = MainWindow()
-    window.show()
-
-    app.exec_()
-
-
     def show_main_help(self):
         help_text = """
                 <html>
@@ -597,7 +587,7 @@ if __name__ == '__main__':
                     <p>
                       For background, see the
                       <a href="https://papylio.readthedocs.io/en/stable/user_guide/index.html">
-                        dwell time analysis documentation
+                        Papylio documentation
                       </a>.
                     </p>
 
@@ -608,7 +598,7 @@ if __name__ == '__main__':
                         <li>Hover over buttons for help notes.</li>
                         <li>Find more detailed info under the 'Help' buttons per tab</li>
                     </ul>
-                      
+
                     </p>
 
                   </body>
@@ -617,3 +607,16 @@ if __name__ == '__main__':
         self.help_dialog = HelpDialog(self, help_text)
         # dialog.exec_()  # modal
         self.help_dialog.show()
+
+if __name__ == '__main__':
+    from multiprocessing import Process, freeze_support
+    freeze_support()
+
+    app = QApplication(sys.argv)
+
+    window = MainWindow()
+    window.show()
+
+    app.exec_()
+
+

@@ -77,7 +77,7 @@ class KineticsWidget(QWidget):
 
     def perform_dwell_times_sequence(self):
         self.fig_kinetics.clear()
-        axes = self.fig_kinetics.subplots(2, 1, sharex=True)
+        axes = self.fig_kinetics.subplots(1, 2, sharex=True)
 
         selected_files = self.parent.experiment.selectedFiles
 

@@ -366,51 +366,61 @@ class ClassificationWidget(QWidget):
 
     def show_help(self):
         help_text = help_text = """\
-                Classification Rules
+                <html>
+                  <body style="font-family: sans-serif; font-size: 10pt;">
                 
-                -----
-                • User can add 'classification rules', listed as single lines below
-                • A rule acts via thresholding or Hidden Markov Modeling (HMM)
-                • A rule labels each point with a numeric classification
-                • Labels can be user-defined in the column “states”
-                • Negative numbers always mean “reject point”
-                • Rules are stacked: each new rule applies only to non-rejected points
-                • Total classification is the result of applying rules in listed order
-                • Application is only to the first selected movie
-                • Checking or unchecking rules updates the stored classification
+                    <h2>Classification</h2>
                 
-                Rationale example (labels in brackets)
-                -------------------------------------
-                1) Threshold to reject bleached points        → labels [-1, 0]
-                2) HMM on remaining points                   → labels [-1, 0, 1]
-                3) Threshold to exclude early red-laser off   → labels [-2]
+                    <p>
+                      Set a point-by-point state classification 
+                    </p>
+                
+                    <ul>
+                        <li>User can add 'classification rules', listed as single lines below</li>
+                        <li>A rule acts via thresholding or Hidden Markov Modeling (HMM)</li>
+                        <li>A rule labels each point with a numeric classification</li>
+                        <li>Labels can be user-defined in the column “states”</li>
+                        <li>Negative numbers always mean “reject point”</li>
+                        <li>Rules are stacked: each new rule applies only to non-rejected points</li>
+                        <li>Total classification is the result of applying rules in listed order</li>
+                        <li>Application is only to the first selected movie</li>
+                        <li>Checking or unchecking rules updates the stored classification</li>
+                    </ul>
+                
+                    <p>
+                      For more help, see the
+                      <a href="https://papylio.readthedocs.io/en/stable/user_guide/trace_classification.html">
+                        classification documentation
+                      </a>.
+                    </p>
+                
+                    <h3>Example with three rules (labels in brackets)</h3>
+                
+                    <p>
+                     <ul>
+                        <li>Threshold to reject bleached points        → labels [-1, 0]</li>
+                        <li>HMM on remaining points                   → labels [-1, 0, 1]</li>
+                        <li>Threshold to exclude early red-laser off   → labels [-2]</li>
+                    </ul> 
+                1) 
+                2) 
+                3) 
                                 
                 Note:To preserve labels assigned by (2)HMM with follow up rule (3), 
                 use only add rejection labels to 'states, e.g. [-2]
-                ----
+                    </p>
                 
-                Settings examples
-                ----------------
-                threshold: 
-                    name: Tres_1
-                    variable: FRET (must be single-channel)
-                    method: threshold
-                    options:
-                        threshold: 0
-                        rolling: mean
-                        window size: 5
-                HMM
-                    name: HMM
-                    variable: intensity_total (must be single-channel)
-                    method: hmm
-                    options:
-                        n_states:2
-                        treshold_state_mean:0
-                        level: molecule (or file)
-                        seed: 0
-                    
-                
+                  </body>
+                </html>
                 """
+
+
+
+
+
+
+
+
 
 
         self.help_dialog = HelpDialog(self, help_text)
