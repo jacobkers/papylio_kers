@@ -39,8 +39,8 @@ class MappingWidget(QWidget):
 
         map_image_toolbar = NavigationToolbar(self.map_image_canvas, self)
         map_image_layout = QVBoxLayout()
-        map_image_layout.addWidget(map_image_toolbar)
-        map_image_layout.addWidget(self.map_image_canvas)
+        #map_image_layout.addWidget(map_image_toolbar)
+        #map_image_layout.addWidget(self.map_image_canvas)
 
         # Create a placeholder widget to hold our toolbar and canvas.
         self.map_image = QWidget()

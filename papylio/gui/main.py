@@ -262,7 +262,7 @@ class MainWindow(QMainWindow):
         self.model.itemChanged.connect(self.onItemChange)
 
         # imagery (currently goes to extraction tab)
-        self.image_canvas = ImageCanvas(self, width=5, height=4, dpi=100)
+        self.image_canvas = ImageCanvas(self, width=4, height=4, dpi=100)
 
         # Create toolbar, passing canvas as first parament, parent (self, the MainWindow) as second.
         image_toolbar = NavigationToolbar(self.image_canvas, self)
@@ -273,7 +273,6 @@ class MainWindow(QMainWindow):
         # Create a placeholder widget to hold our toolbar and canvas.
         self.image = QWidget()
         self.image.setLayout(image_layout)
-
 
 
         #extraction--------------------------------------
@@ -367,6 +366,11 @@ class MainWindow(QMainWindow):
         find_molecules_button.clicked.connect(self.find_coordinates)
         extract_traces_button = QPushButton('Extract traces')
         extract_traces_button.clicked.connect(self.extract_traces)
+
+        main_help_button = QPushButton('Read me')
+        main_help_button.clicked.connect(self.show_main_help)
+
+
         # collect:
         extraction_controls_layout = QGridLayout()
         extraction_controls_layout.setAlignment(Qt.AlignTop)
@@ -381,7 +385,7 @@ class MainWindow(QMainWindow):
         #add to tab:
         extraction_tab_layout = QHBoxLayout()
         extraction_tab_layout.addWidget(self.extraction_controls)
-        extraction_tab_layout.addWidget(self.image)
+
 
         # self.selection = QTableWidget()
         # self.selection.setRowCount(5)
@@ -392,6 +396,9 @@ class MainWindow(QMainWindow):
         tabs.setMovable(False)
         tabs.setDocumentMode(True)
 
+        tab0 = QWidget(self)
+        tab0.addWidget(main_help_button)
+        tabs.addTab(tab0, 'Start')
         self.mapping=MappingWidget(parent=self)
         tabs.addTab(self.mapping, 'Mapping')
         tab2 = QWidget(self)
@@ -413,15 +420,21 @@ class MainWindow(QMainWindow):
         experiment_layout.addWidget(refresh_button)
         experiment_layout.addWidget(self.tree)
 
+        top_layout = QHBoxLayout()
+        self.traces = TracePlotWindow(parent=self, width=4, height=5, show=False)
+        top_layout.addLayout(experiment_layout)
+        top_layout.addWidget(self.image)
+        top_layout.addWidget(self.traces)
 
-        layout = QHBoxLayout()
-        layout.addLayout(experiment_layout)
-        layout.addWidget(tabs)
+
+        #build main panel
+        bottom_layout = QHBoxLayout()
+
+        bottom_layout.addWidget(tabs)
 
         super_layout = QVBoxLayout()
-        self.traces = TracePlotWindow(parent=self, width=4, height=5, show=False)
-        super_layout.addWidget(self.traces)
-        super_layout.addLayout(layout)
+        super_layout.addLayout(top_layout)
+        super_layout.addLayout(bottom_layout)
 
         widget = QWidget()
         widget.setLayout(super_layout)
@@ -563,3 +576,44 @@ if __name__ == '__main__':
     window.show()
 
     app.exec_()
+
+
+    def show_main_help(self):
+        help_text = """
+                <html>
+                  <body style="font-family: sans-serif; font-size: 10pt;">
+
+                    <h2>Welcome</h2>
+
+                    <p>
+                      This gui is based on the Papylio framework
+                    </p>
+
+                    <ul>
+                      <li>Select and view movies and variables in the top panel</li>
+                      <li>Walk the pipeline via the tabs in the bottom panel</li>
+                    </ul>
+
+                    <p>
+                      For background, see the
+                      <a href="https://papylio.readthedocs.io/en/stable/user_guide/index.html">
+                        dwell time analysis documentation
+                      </a>.
+                    </p>
+
+                    <h3>Tips</h3>
+
+                    <p>
+                      <ul>
+                        <li>Hover over buttons for help notes.</li>
+                        <li>Find more detailed info under the 'Help' buttons per tab</li>
+                    </ul>
+                      
+                    </p>
+
+                  </body>
+                </html>
+                """
+        self.help_dialog = HelpDialog(self, help_text)
+        # dialog.exec_()  # modal
+        self.help_dialog.show()
