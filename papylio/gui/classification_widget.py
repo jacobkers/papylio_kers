@@ -2,13 +2,11 @@ import sys
 from PySide2.QtCore import Signal
 from PySide2.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout, QComboBox,
     QLabel, QLineEdit, QPushButton, QFormLayout, QSpinBox, QDoubleSpinBox,
-    QTreeView, QMainWindow, QMessageBox, QDialog, QTextEdit
+    QTreeView, QMainWindow, QMessageBox, QCheckBox
 )
 
 from PySide2.QtGui import QStandardItem, QStandardItemModel
 from PySide2.QtCore import Qt
-
-
 
 from papylio.analysis.classification_simple import classify_threshold
 from papylio.analysis.hidden_markov_modelling import classify_hmm
@@ -29,7 +27,6 @@ class ClassificationWidget(QWidget):
         self._file = None# name -> function
 
         panel_layout=QHBoxLayout(self)
-
         main_layout = QVBoxLayout(self)
 
         feedback_and_info_layout = QVBoxLayout(self)
@@ -44,18 +41,15 @@ class ClassificationWidget(QWidget):
 
         # --- Classification name input ---
         self.name_edit = QLineEdit()
-        self.name_edit.setToolTip("add any relevant label")
         self.name_edit.setPlaceholderText("e.g. HMM")
         form.addRow("Name:", self.name_edit)
 
         # --- Variable selector ---
         self.variable_selector = QComboBox()
-        self.variable_selector.setToolTip("Choose trace type")
         form.addRow("Variable:", self.variable_selector)
 
         # --- Method selector ---
         self.method_selector = QComboBox()
-        self.method_selector.setToolTip("Choose classifier")
         self.method_selector.currentTextChanged.connect(self._update_method_panel)
         form.addRow("Method:", self.method_selector)
 
@@ -109,29 +103,7 @@ class ClassificationWidget(QWidget):
         self.clear_button.clicked.connect(self._clear_results)
 
         self.method_forms = {}  # method_name -> (widget, inputs)
-
-        # imagery
-        self.classification_image_canvas = ImageCanvas(self, width=2, height=2, dpi=100)
-        classification_image_layout = QVBoxLayout()
-        classification_image_layout.addWidget(self.classification_image_canvas)
-
-        self.classification_imagery = QWidget()
-        self.classification_imagery.setLayout(classification_image_layout)
-        self.classification_imagery.setToolTip("show an image reflecting the effect of classifiers")
-        feedback_and_info_layout.addWidget(self.classification_imagery)
-
-        #self.setLayout(main_layout)
-        main_panel=QWidget()
-        main_panel.setLayout(main_layout)
-
-        feedback_and_info=QWidget()
-        feedback_and_info.setLayout(feedback_and_info_layout)
-
-
-        panel_layout.addWidget(main_panel)
-        panel_layout.addWidget(feedback_and_info)
-
-        self.setLayout(panel_layout)
+        self.setLayout(main_layout)
 
         self.register_method('threshold', classify_threshold)
         self.register_method('hmm', classify_hmm)
@@ -302,7 +274,6 @@ class ClassificationWidget(QWidget):
             self.setDisabled(True)
 
 
-
     def _clear_results(self):
         self.file.clear_classifications()
         self.refresh_classifications()
@@ -364,72 +335,10 @@ class ClassificationWidget(QWidget):
 
         self.file.apply_classifications(**apply_classifications_configuration)
 
-    def show_help(self):
-        help_text = help_text = """\
-                <html>
-                  <body style="font-family: sans-serif; font-size: 10pt;">
-                
-                    <h2>Classification</h2>
-                
-                    <p>
-                      Set a point-by-point state classification 
-                    </p>
-                
-                    <ul>
-                        <li>User can add 'classification rules', listed as single lines below</li>
-                        <li>A rule acts via thresholding or Hidden Markov Modeling (HMM)</li>
-                        <li>A rule labels each point with a numeric classification</li>
-                        <li>Labels can be user-defined in the column “states”</li>
-                        <li>Negative numbers always mean “reject point”</li>
-                        <li>Rules are stacked: each new rule applies only to non-rejected points</li>
-                        <li>Total classification is the result of applying rules in listed order</li>
-                        <li>Application is only to the first selected movie</li>
-                        <li>Checking or unchecking rules updates the stored classification</li>
-                    </ul>
-                
-                    <p>
-                      For more help, see the
-                      <a href="https://papylio.readthedocs.io/en/stable/user_guide/trace_classification.html">
-                        classification documentation
-                      </a>.
-                    </p>
-                
-                    <h3>Example with three rules (labels in brackets)</h3>
-                
-                    <p>
-                     <ul>
-                        <li>Threshold to reject bleached points        → labels [-1, 0]</li>
-                        <li>HMM on remaining points                   → labels [-1, 0, 1]</li>
-                        <li>Threshold to exclude early red-laser off   → labels [-2]</li>
-                    </ul> 
-                1) 
-                2) 
-                3) 
-                                
-                Note:To preserve labels assigned by (2)HMM with follow up rule (3), 
-                use only add rejection labels to 'states, e.g. [-2]
-                    </p>
-                
-                  </body>
-                </html>
-                """
 
 
 
-
-
-
-
-
-
-
-        self.help_dialog = HelpDialog(self, help_text)
-        #dialog.exec_()  # modal
-        self.help_dialog.show()
-
-
-
-        #
+    #
     #
     #     classification_type_combobox = QComboBox()
     #     classification_types = ['threshold', 'filter', 'hmm']
@@ -643,4 +552,5 @@ class ClassificationWidget(QWidget):
     #
     #     self.file.add_selection(variable, channel, aggregator, operator, threshold)
     #     self.refresh_selections()
+
 
