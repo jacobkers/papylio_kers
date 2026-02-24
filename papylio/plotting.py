@@ -204,3 +204,81 @@ def show_image_3d(image, figure=None):
     axis.plot_surface(X, Y, image, cmap=cm.coolwarm,
                       linewidth=0, antialiased=False)
 
+
+def wysiwyg_export(fig, filename="visible_export", filetype="csv"):
+#Export the as-seen lines and bars of one or more figure panels
+    axes = fig.get_axes()
+    export_dict = {}
+
+    for panel_index, ax in enumerate(axes, start=1):
+
+        x_min, x_max = ax.get_xlim()
+        y_min, y_max = ax.get_ylim()
+
+        # ---- Lines ----
+        for line_index, line in enumerate(ax.get_lines(), start=1):
+
+            x = np.asarray(line.get_xdata())
+            y = np.asarray(line.get_ydata())
+
+            # safer scientific default: filter only on x
+            mask = (x >= x_min) & (x <= x_max)
+
+            if np.any(mask):
+
+                suffix = f"_panel{panel_index}_line{line_index}"
+
+                export_dict[f"x{suffix}"] = x[mask]
+                export_dict[f"y{suffix}"] = y[mask]
+
+        # ---- Histograms ----
+        for rect in ax.patches:
+
+            x_left = rect.get_x()
+            width = rect.get_width()
+            height = rect.get_height()
+
+            x_center = x_left + width / 2
+
+            if x_center >= x_min and x_center <= x_max:
+
+                suffix = f"_panel{panel_index}_hist"
+
+                export_dict.setdefault(f"bin_center{suffix}", []).append(x_center)
+                export_dict.setdefault(f"count{suffix}", []).append(height)
+
+    if not export_dict:
+        print("No visible data to export.")
+        return
+
+    # Convert lists → arrays
+    for key in export_dict:
+        export_dict[key] = np.array(export_dict[key])
+
+    # Equalize lengths
+    max_len = max(len(v) for v in export_dict.values())
+    for key in export_dict:
+        if len(export_dict[key]) < max_len:
+            pad = max_len - len(export_dict[key])
+            export_dict[key] = np.concatenate(
+                [export_dict[key], np.full(pad, np.nan)]
+            )
+
+    columns = list(export_dict.keys())
+    data = np.column_stack([export_dict[c] for c in columns])
+
+    if filetype == "csv":
+        np.savetxt(f"{filename}.csv",
+                   data,
+                   delimiter=",",
+                   header=",".join(columns),
+                   comments="")
+    elif filetype == "txt":
+        np.savetxt(f"{filename}.txt",
+                   data,
+                   header=" ".join(columns),
+                   comments="")
+    else:
+        raise ValueError("filetype must be 'csv' or 'txt'")
+
+    print(f"Exported visible data from figure '{fig.canvas.get_window_title()}'")

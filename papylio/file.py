@@ -25,7 +25,7 @@ import papylio
 # from papylio.molecule import Molecule
 from papylio.movie.movie import Movie
 from papylio.movie.tif import TifMovie
-from papylio.plotting import histogram
+from papylio.plotting import histogram, wysiwyg_export
 import matchpoint as mp
 from papylio.peak_finding import find_peaks
 from papylio.coordinate_optimization import  coordinates_within_margin, \
@@ -1782,6 +1782,8 @@ class File:
                                         bins=bins, log=log, sharey=sharey, name=name, save_path=save_path)
 
         return axes[0].figure, axes
+    def export_dwell_plots(self):
+
 
     @property
     @return_none_when_executed_by_pycharm

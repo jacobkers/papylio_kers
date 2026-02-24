@@ -75,8 +75,9 @@ class KineticsWidget(QWidget):
         self.setLayout(kinetics_layout)
 
     def export_kinetics(self):
-        self.parent.file.WYSIWYG_export(self.fig_kinetics, "kinetics_export")
         dum=1
+        #WYSIWYG_export(self.fig_kinetics, "kinetics_export")
+
 
     def perform_dwell_times_sequence(self):
         self.fig_kinetics.clear()
