@@ -35,6 +35,7 @@ class KineticsWidget(QWidget):
         dwell_help_button.clicked.connect(self.show_dwell_help)
 
         dwell_export_button = QPushButton('Export')
+        dwell_export_button.clicked.connect(self.export_kinetics)
 
         dwell_controls_layout = QVBoxLayout()
         dwell_controls_layout.addWidget(dwell_action_button)
@@ -73,7 +74,9 @@ class KineticsWidget(QWidget):
         #self.kinetics_widget.setLayout(kinetics_layout)
         self.setLayout(kinetics_layout)
 
-
+    def export_kinetics(self):
+        self.parent.file.WYSIWYG_export(self.fig_kinetics, "kinetics_export")
+        dum=1
 
     def perform_dwell_times_sequence(self):
         self.fig_kinetics.clear()
