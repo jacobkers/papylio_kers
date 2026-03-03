@@ -26,9 +26,18 @@ class KineticsWidget(QWidget):
         self.fig_kinetics = Figure(figsize=(5, 3))
         self.dwell_kinetics_canvas = FigureCanvas(self.fig_kinetics)
 
+        dwell_variable_label=QLabel("variable:")
+        dwell_variable_combobox = QComboBox()
+        dwell_variable_items = ['FRET', 'intensity', '.....']
+        dwell_variable_combobox.addItems( dwell_variable_items)
+        dwell_options_layout=QHBoxLayout()
+        dwell_options_layout.addWidget(dwell_variable_label)
+        dwell_options_layout.addWidget(dwell_variable_combobox)
 
+        dwell_options = QWidget()
+        dwell_options.setLayout(dwell_options_layout)
 
-        #main
+        # main buttons
         dwell_action_button = QPushButton('Get Dwells')
         dwell_action_button.clicked.connect(self.perform_dwell_times_sequence)
         dwell_export_button = QPushButton('Export')
@@ -37,6 +46,7 @@ class KineticsWidget(QWidget):
         dwell_help_button.clicked.connect(self.show_dwell_help)
 
         dwell_controls_layout = QVBoxLayout()
+        #dwell_controls_layout.addWidget(dwell_options)
         dwell_controls_layout.addWidget(dwell_action_button)
         dwell_controls_layout.addWidget(dwell_help_button)
         dwell_controls_layout.addWidget(dwell_export_button)
