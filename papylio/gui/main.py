@@ -243,8 +243,8 @@ class MainWindow(QMainWindow):
             extension = 'ico'
         else:  # macOS or Linux
             extension = "png"
-        self.setWindowIcon(QIcon("icon."+extension))
-        self.setWindowTitle("Papylio v" + pp.__version__ )
+        self.setWindowIcon(QIcon("icon." + extension))
+        self.setWindowTitle("Papylio v" + pp.__version__)
 
         self.tree = QTreeView(self)
         layout = QVBoxLayout()
@@ -274,10 +274,9 @@ class MainWindow(QMainWindow):
         self.image = QWidget()
         self.image.setLayout(image_layout)
 
-
-        #extraction--------------------------------------
+        # extraction--------------------------------------
         # molecules: spot detection and extraction----------------------------------------------------
-#buttons:
+        # buttons:
         button_extract_chan_title = QLabel("channels:")
         button_extract_chan_combobox = QComboBox()
         button_extract_chan_options = ['donor', 'acceptor']
@@ -290,7 +289,7 @@ class MainWindow(QMainWindow):
         button_extract_projection_type_options = ['average', 'maximum']
         button_extract_projection_type_combobox.addItems(button_extract_projection_type_options)
 
-        #method : two grid_pos
+        # method : two grid_pos
         button_extract_method_title = QLabel("method:")
         button_extract_method_combobox = QComboBox()
         button_extract_method_options = ['by_channel', 'average_channels', 'sum_channels']
@@ -306,10 +305,10 @@ class MainWindow(QMainWindow):
         button_extract_projection_illumination = QLineEdit()
         button_extract_projection_illumination.setPlaceholderText("0")
 
-#       title: sliding_window:
-#           field combo: use_sliding_window: false
-#           field entry: frame_increment: 20
-#           field entry: minimal_point_separation: 2
+        #       title: sliding_window:
+        #           field combo: use_sliding_window: false
+        #           field entry: frame_increment: 20
+        #           field entry: minimal_point_separation: 2
         button_extract_slideW_title = QLabel("sliding window:")
         button_extract_slideW_UseIt_combobox = QComboBox()
         button_extract_slideW_UseIt_options = ['True', 'False']
@@ -321,16 +320,15 @@ class MainWindow(QMainWindow):
         button_extract_slideW_MinSep_entry = QLineEdit()
         button_extract_slideW_MinSep_entry.setPlaceholderText("2")
 
-
-#       title peak_finding:
-#           field combo: method: local - maximum - auto
-#           field entry: filter_neighbourhood_size_min: 10  # Optional
-#           field entry: : 5  # Optional
-#       title coordinate_optimization:
-#           subtitle: coordinates_within_margin:  # Optional
-#               field entry: margin: 10
-#            subtitle: coordinates_after_gaussian_fit:  # Optional
-#                field entry: gaussian_width: 3
+        #       title peak_finding:
+        #           field combo: method: local - maximum - auto
+        #           field entry: filter_neighbourhood_size_min: 10  # Optional
+        #           field entry: : 5  # Optional
+        #       title coordinate_optimization:
+        #           subtitle: coordinates_within_margin:  # Optional
+        #               field entry: margin: 10
+        #            subtitle: coordinates_after_gaussian_fit:  # Optional
+        #                field entry: gaussian_width: 3
 
         # build extraction grid layout:
         extraction_button_grid_layout = QGridLayout()
@@ -338,30 +336,26 @@ class MainWindow(QMainWindow):
         extraction_button_grid_layout.addWidget(button_extract_chan_combobox, 0, 1)
         extraction_button_grid_layout.addWidget(button_extract_illum_title, 0, 2)
         extraction_button_grid_layout.addWidget(button_extract_illum_entry, 0, 3)
-        extraction_button_grid_layout.addWidget(button_extract_projection_type_title,0,4)
+        extraction_button_grid_layout.addWidget(button_extract_projection_type_title, 0, 4)
         extraction_button_grid_layout.addWidget(button_extract_projection_type_combobox, 0, 5)
-        extraction_button_grid_layout.addWidget(button_extract_method_title,1,0)
-        extraction_button_grid_layout.addWidget(button_extract_projection_combobox,1,1)
-        extraction_button_grid_layout.addWidget(button_extract_projection_frame_range_title, 1,2)
-        extraction_button_grid_layout.addWidget(button_extract_projection_frame_range,1,3)
-        extraction_button_grid_layout.addWidget(button_extract_projection_illumination_title,1,4)
-        extraction_button_grid_layout.addWidget(button_extract_projection_illumination,1,5)
-        extraction_button_grid_layout.addWidget(button_extract_slideW_title,2,0)
-        extraction_button_grid_layout.addWidget(button_extract_slideW_UseIt_combobox,2,1)
-        extraction_button_grid_layout.addWidget(button_extract_slideW_FrameInc_title,2,2)
-        extraction_button_grid_layout.addWidget(button_extract_slideW_FrameInc_entry,2,3)
-        extraction_button_grid_layout.addWidget(button_extract_slideW_MinSep_title,2,4)
-        extraction_button_grid_layout.addWidget(button_extract_slideW_MinSep_entry,2,5)
-
-
-
+        extraction_button_grid_layout.addWidget(button_extract_method_title, 1, 0)
+        extraction_button_grid_layout.addWidget(button_extract_projection_combobox, 1, 1)
+        extraction_button_grid_layout.addWidget(button_extract_projection_frame_range_title, 1, 2)
+        extraction_button_grid_layout.addWidget(button_extract_projection_frame_range, 1, 3)
+        extraction_button_grid_layout.addWidget(button_extract_projection_illumination_title, 1, 4)
+        extraction_button_grid_layout.addWidget(button_extract_projection_illumination, 1, 5)
+        extraction_button_grid_layout.addWidget(button_extract_slideW_title, 2, 0)
+        extraction_button_grid_layout.addWidget(button_extract_slideW_UseIt_combobox, 2, 1)
+        extraction_button_grid_layout.addWidget(button_extract_slideW_FrameInc_title, 2, 2)
+        extraction_button_grid_layout.addWidget(button_extract_slideW_FrameInc_entry, 2, 3)
+        extraction_button_grid_layout.addWidget(button_extract_slideW_MinSep_title, 2, 4)
+        extraction_button_grid_layout.addWidget(button_extract_slideW_MinSep_entry, 2, 5)
 
         extraction_button_grid_layout.setAlignment(Qt.AlignLeft)
         extraction_button_grid = QWidget()
         extraction_button_grid.setLayout(extraction_button_grid_layout)
 
-
-        #main buttons:
+        # main buttons:
         find_molecules_button = QPushButton('Find coordinates')
         find_molecules_button.clicked.connect(self.find_coordinates)
         extract_traces_button = QPushButton('Extract traces')
@@ -369,7 +363,6 @@ class MainWindow(QMainWindow):
 
         main_help_button = QPushButton('Read me')
         main_help_button.clicked.connect(self.show_main_help)
-
 
         # collect:
         extraction_controls_layout = QGridLayout()
@@ -382,13 +375,12 @@ class MainWindow(QMainWindow):
 
         self.extraction_controls.setLayout(extraction_controls_layout)
         self.extraction_controls.setMinimumWidth(150)
-        #add to tab:
+        # add to tab:
         extraction_tab_layout = QHBoxLayout()
         extraction_tab_layout.addWidget(self.extraction_controls)
 
-        start_tab_layout=QVBoxLayout()
+        start_tab_layout = QVBoxLayout()
         start_tab_layout.addWidget(main_help_button)
-
 
         # self.selection = QTableWidget()
         # self.selection.setRowCount(5)
@@ -396,13 +388,13 @@ class MainWindow(QMainWindow):
 
         tabs = QTabWidget()
         tabs.setTabPosition(QTabWidget.North)
-        tabs.setMovable(False)
+        tabs.setMovable(True)
         tabs.setDocumentMode(True)
 
         tab0 = QWidget(self)
         tab0.setLayout(start_tab_layout)
         tabs.addTab(tab0, 'Start')
-        self.mapping=MappingWidget(parent=self)
+        self.mapping = MappingWidget(parent=self)
         tabs.addTab(self.mapping, 'Mapping')
         tab2 = QWidget(self)
         tab2.setLayout(extraction_tab_layout)
@@ -416,28 +408,41 @@ class MainWindow(QMainWindow):
         tabs.addTab(self.kinetics, 'Kinetics (beta)')
         tabs.currentChanged.connect(self.setTabFocus)
 
+        # refresh & tree
         experiment_layout = QVBoxLayout()
-
         refresh_button = QPushButton('Refresh')
         refresh_button.clicked.connect(self.refresh)
         experiment_layout.addWidget(refresh_button)
         experiment_layout.addWidget(self.tree)
 
-        top_layout = QHBoxLayout()
+        # right side has a viewing pane (top) and
+        # viewing panes
+        top_tabs = QTabWidget()
+        top_tabs.setTabPosition(QTabWidget.North)
+        top_tabs.setMovable(False)
+        top_tabs.setDocumentMode(True)
         self.traces = TracePlotWindow(parent=self, width=4, height=5, show=False)
-        top_layout.addLayout(experiment_layout)
-        top_layout.addWidget(self.image)
-        top_layout.addWidget(self.traces)
+        top_tabs.addTab(self.traces, 'Traces')
+        top_tabs.addTab(self.image, 'Frame')
 
-
-        #build main panel
+        top_layout = QVBoxLayout()
+        top_layout.addWidget(top_tabs)
+        # ... a bottom pane (pipeline)
         bottom_layout = QHBoxLayout()
-
         bottom_layout.addWidget(tabs)
 
-        super_layout = QVBoxLayout()
-        super_layout.addLayout(top_layout)
-        super_layout.addLayout(bottom_layout)
+        # build main panel
+        # full left is file tree
+        left_layout = QVBoxLayout()
+        left_layout.addLayout(experiment_layout)
+
+        right_layout = QVBoxLayout()
+        right_layout.addLayout(top_layout)
+        right_layout.addLayout(bottom_layout)
+
+        super_layout = QHBoxLayout()
+        super_layout.addLayout(left_layout)
+        super_layout.addLayout(right_layout)
 
         widget = QWidget()
         widget.setLayout(super_layout)
@@ -509,14 +514,14 @@ class MainWindow(QMainWindow):
     def addExperiment(self, experiment):
 
         # experiment = Experiment(r'D:\SURFdrive\Promotie\Code\Python\papylio\twoColourExampleData\20141017 - Holliday junction - Copy')
-        #experiment = Experiment(r'C:\Users\ivoseverins\surfdrive\Promotie\Code\Python\papylio\twoColourExampleData\20141017 - Holliday junction - Copy')
+        # experiment = Experiment(r'C:\Users\ivoseverins\surfdrive\Promotie\Code\Python\papylio\twoColourExampleData\20141017 - Holliday junction - Copy')
         self.root.appendRow([
-                QStandardItem(experiment.name),
-                QStandardItem(0),
-            ])
+            QStandardItem(experiment.name),
+            QStandardItem(0),
+        ])
         experimentNode = self.root.child(self.root.rowCount() - 1)
         for file in experiment.files:
-            print('addfile'+file.name)
+            print('addfile' + file.name)
             self.addFile(file, experimentNode)
 
         self.tree.expandAll()
@@ -531,7 +536,7 @@ class MainWindow(QMainWindow):
         for folder in folders:
 
             # Get the folderItems and folder names for the current folderItem
-            nodeItems = [parentItem.child(i) for i in range(parentItem.rowCount())]# if item.type == 'folder']
+            nodeItems = [parentItem.child(i) for i in range(parentItem.rowCount())]  # if item.type == 'folder']
             nodeItemNames = [item.text() for item in nodeItems]
 
             if folder not in nodeItemNames:
@@ -557,7 +562,7 @@ class MainWindow(QMainWindow):
         else:
             item.setCheckState(Qt.Unchecked)
         item.setData(file)
-        #self.FileItems.append(item)
+        # self.FileItems.append(item)
 
         # self.insertDataIntoColumns(item)
 
@@ -608,8 +613,10 @@ class MainWindow(QMainWindow):
         # dialog.exec_()  # modal
         self.help_dialog.show()
 
+
 if __name__ == '__main__':
     from multiprocessing import Process, freeze_support
+
     freeze_support()
 
     app = QApplication(sys.argv)
