@@ -281,4 +281,6 @@ def wysiwyg_export(fig, filename="visible_export", filetype="csv"):
     else:
         raise ValueError("filetype must be 'csv' or 'txt'")
 
+    fig.savefig(filename + '_dwell_time_analysis.png')
+
     print(f"Exported visible data from figure '{fig.canvas.get_window_title()}'")

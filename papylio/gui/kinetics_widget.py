@@ -10,7 +10,7 @@ from PySide2.QtCore import Qt
 
 from papylio import File
 from papylio.gui.common_layouts import ImageCanvas,Expander,HelpDialog
-
+from papylio.plotting import wysiwyg_export
 from matplotlib.figure import Figure
 import numpy as np
 
@@ -31,11 +31,10 @@ class KineticsWidget(QWidget):
         #main
         dwell_action_button = QPushButton('Get Dwells')
         dwell_action_button.clicked.connect(self.perform_dwell_times_sequence)
-        dwell_help_button = QPushButton('Help!')
-        dwell_help_button.clicked.connect(self.show_dwell_help)
-
         dwell_export_button = QPushButton('Export')
         dwell_export_button.clicked.connect(self.export_kinetics)
+        dwell_help_button = QPushButton('Help!')
+        dwell_help_button.clicked.connect(self.show_dwell_help)
 
         dwell_controls_layout = QVBoxLayout()
         dwell_controls_layout.addWidget(dwell_action_button)
@@ -75,9 +74,7 @@ class KineticsWidget(QWidget):
         self.setLayout(kinetics_layout)
 
     def export_kinetics(self):
-        dum=1
-        #WYSIWYG_export(self.fig_kinetics, "kinetics_export")
-
+        wysiwyg_export(self.fig_kinetics, filename="kinetics_export", filetype="csv")
 
     def perform_dwell_times_sequence(self):
         self.fig_kinetics.clear()
@@ -107,6 +104,7 @@ class KineticsWidget(QWidget):
                     <ul>
                       <li>Select the variable for dwell time extraction</li>
                       <li>Select the analysis method</li>
+                      <li>'Export' saves as-seen data from the graph panels to .csv and .png
                     </ul>
                 
                     <p>
