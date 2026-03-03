@@ -1784,6 +1784,7 @@ class File:
         return axes[0].figure, axes
     def export_dwell_plots(self):
 
+        dum=1
 
     @property
     @return_none_when_executed_by_pycharm
