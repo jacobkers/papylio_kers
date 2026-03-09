@@ -1,6 +1,7 @@
 import numpy as np #scientific computing with Python
 import xarray as xr
 import matplotlib.pyplot as plt
+from pathlib import Path
 
 # import matplotlib.patches as patches
 # from matplotlib.collections import PatchCollection
@@ -205,7 +206,7 @@ def show_image_3d(image, figure=None):
                       linewidth=0, antialiased=False)
 
 
-def wysiwyg_export(fig, filename="visible_export", filetype="csv"):
+def wysiwyg_export(fig, filepath, filename, filetype="csv"):
 #Export the as-seen lines and bars of one or more figure panels [ai-generated]
     axes = fig.get_axes()
     export_dict = {}
@@ -266,21 +267,21 @@ def wysiwyg_export(fig, filename="visible_export", filetype="csv"):
 
     columns = list(export_dict.keys())
     data = np.column_stack([export_dict[c] for c in columns])
-
     if filetype == "csv":
-        np.savetxt(f"{filename}.csv",
+        np.savetxt(Path(filepath) / f"{filename}_dwell_time_analysis.csv",
                    data,
                    delimiter=",",
                    header=",".join(columns),
                    comments="")
     elif filetype == "txt":
-        np.savetxt(f"{filename}.txt",
+        np.savetxt(ath(filepath) / f"{filename}_dwell_time_analysis.txt",
                    data,
                    header=" ".join(columns),
                    comments="")
     else:
         raise ValueError("filetype must be 'csv' or 'txt'")
 
-    fig.savefig(filename + '_dwell_time_analysis.png')
+
+    fig.savefig(Path(filepath) / f"{filename}_dwell_time_analysis.png")
 
     print(f"Exported visible data from figure '{fig.canvas.get_window_title()}'")

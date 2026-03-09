@@ -84,7 +84,8 @@ class KineticsWidget(QWidget):
         self.setLayout(kinetics_layout)
 
     def export_kinetics(self):
-        wysiwyg_export(self.fig_kinetics, filename="kinetics_export", filetype="csv")
+        fpath=self.parent.experiment.analysis_path / 'Dwell time analysis'
+        wysiwyg_export(self.fig_kinetics, filepath=fpath,  filename="kinetics_export", filetype="csv")
 
     def perform_dwell_times_sequence(self):
         self.fig_kinetics.clear()
