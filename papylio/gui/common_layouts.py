@@ -2,7 +2,7 @@
 #They are stored here to avoid circular imports -jk
 
 import sys
-from PySide2.QtWidgets import  QApplication
+from PySide2.QtWidgets import  QApplication, QSizePolicy
 import matplotlib as mpl
 
 from matplotlib.backends.backend_qtagg import (
@@ -96,3 +96,10 @@ class HelpDialog(QDialog):
 
         layout.addWidget(self.text)
         layout.addWidget(close_button)
+
+def make_button(text):
+    btn = QPushButton(text)
+    btn.setFixedHeight(40)  # small height
+    btn.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+    btn.setStyleSheet("QPushButton { padding: 2px 6px; font-size: 12px; }")
+    return btn

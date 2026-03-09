@@ -1,15 +1,12 @@
 import sys
 import json
-from PySide2.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QGridLayout, QTreeView, QApplication, QMainWindow, \
-    QPushButton, QTabWidget, QTableWidget, QComboBox, QLineEdit
-from PySide2.QtGui import QStandardItem, QStandardItemModel
-from PySide2.QtCore import Qt
+from PySide2.QtWidgets import QHBoxLayout,  \
+    QPushButton, QTabWidget, QComboBox, QSizePolicy
 from PySide2.QtWidgets import QWidget, QLabel, QVBoxLayout
-from PySide2.QtGui import QPixmap
 from PySide2.QtCore import Qt
 
 from papylio import File
-from papylio.gui.common_layouts import ImageCanvas,Expander,HelpDialog
+from papylio.gui.common_layouts import ImageCanvas,Expander,HelpDialog, make_button
 from papylio.plotting import wysiwyg_export
 from matplotlib.figure import Figure
 import numpy as np
@@ -38,25 +35,27 @@ class KineticsWidget(QWidget):
         dwell_options.setLayout(dwell_options_layout)
 
         # main buttons
-        dwell_action_button = QPushButton('Get Dwells')
+        dwell_action_button = make_button("Get Dwells")
         dwell_action_button.clicked.connect(self.perform_dwell_times_sequence)
-        dwell_export_button = QPushButton('Export')
+        dwell_export_button = make_button('Export')
         dwell_export_button.clicked.connect(self.export_kinetics)
-        dwell_help_button = QPushButton('Help!')
+        dwell_help_button = make_button('Help!')
         dwell_help_button.clicked.connect(self.show_dwell_help)
 
         dwell_controls_layout = QVBoxLayout()
-        #dwell_controls_layout.addWidget(dwell_options)
-        dwell_controls_layout.addWidget(dwell_action_button)
-        dwell_controls_layout.addWidget(dwell_help_button)
-        dwell_controls_layout.addWidget(dwell_export_button)
+        for b in [dwell_action_button,
+                  dwell_export_button,
+                  dwell_help_button]:
+            dwell_controls_layout.addWidget(b, alignment=Qt.AlignRight)
+        # Optional: add stretch at the end to push buttons to the left
+        dwell_controls_layout.addStretch()
 
         dwell_controls = QWidget()
         dwell_controls.setLayout(dwell_controls_layout)
 
         dwell_times_tab_layout = QHBoxLayout()
-        dwell_times_tab_layout.addWidget(dwell_controls)
         dwell_times_tab_layout.addWidget(self.dwell_kinetics_canvas)
+        dwell_times_tab_layout.addWidget(dwell_controls)
 
 
         #other
