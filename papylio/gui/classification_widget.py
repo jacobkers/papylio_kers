@@ -2,13 +2,11 @@ import sys
 from PySide2.QtCore import Signal
 from PySide2.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout, QComboBox,
     QLabel, QLineEdit, QPushButton, QFormLayout, QSpinBox, QDoubleSpinBox,
-    QTreeView, QMainWindow, QMessageBox, QDialog, QTextEdit
+    QTreeView, QMainWindow, QMessageBox, QCheckBox
 )
 
 from PySide2.QtGui import QStandardItem, QStandardItemModel
 from PySide2.QtCore import Qt
-
-
 
 from papylio.analysis.classification_simple import classify_threshold
 from papylio.analysis.hidden_markov_modelling import classify_hmm
@@ -28,20 +26,9 @@ class ClassificationWidget(QWidget):
         self.methods = {}
         self._file = None# name -> function
 
-        panel_layout=QHBoxLayout(self)
-
-        main_layout = QVBoxLayout(self)
-
-        feedback_and_info_layout = QVBoxLayout(self)
-        self.help_button = QPushButton('Help!')
-        self.help_button.clicked.connect(self.show_help)
-        feedback_and_info_layout.addWidget(self.help_button)
-
-
+        main_layout = QHBoxLayout()
 
         form = QFormLayout()
-        main_layout.addLayout(form)
-
         # --- Classification name input ---
         self.name_edit = QLineEdit()
         self.name_edit.setToolTip("add any relevant label")
@@ -69,9 +56,12 @@ class ClassificationWidget(QWidget):
         button_layout = QHBoxLayout()
         self.run_button = QPushButton("Classify")
         self.clear_button = QPushButton("Clear")
-        button_layout.addWidget(self.run_button)
+        self.help_button = QPushButton('Help!')
+        self.help_button.clicked.connect(self.show_help)
+
         button_layout.addWidget(self.clear_button)
-        main_layout.addLayout(button_layout)
+        button_layout.addWidget(self.run_button)
+        button_layout.addWidget(self.help_button)
 
         # Taborder
         # QWidget.setTabOrder(self.name_edit, self.variable_selector)
@@ -80,14 +70,13 @@ class ClassificationWidget(QWidget):
         # QWidget.setTabOrder(self.stack, self.run_button)
         # QWidget.setTabOrder(self.run_button, self.clear_button)
 
-        # --- Results table ---
+        # --- Results table shows a list of classifications made so far---
         self.tree_view = QTreeView(self)
         self.model = QStandardItemModel()
         self.root = self.model
         # self.root = self.model.invisibleRootItem()
         self.model.setHorizontalHeaderLabels(["", "States", "Name", "Method", "Variable", "Select", "Parameters"])
         self.tree_view.setModel(self.model)
-
         self.model.itemChanged.connect(self.on_item_changed)
 
         # --- Column sizing ---
@@ -99,7 +88,17 @@ class ClassificationWidget(QWidget):
         self.tree_view.setColumnWidth(5, 100)   # Select
         self.tree_view.setColumnWidth(6, 250)   # Parameters
 
-        main_layout.addWidget(self.tree_view)
+        #this layout combines the 'form' and the main action buttons
+        form_buttons = QWidget()
+        form_buttons_layout= QVBoxLayout()
+        form_buttons_layout.addLayout(form)
+        form_buttons_layout.addStretch()
+        form_buttons_layout.addLayout(button_layout)
+        form_buttons.setLayout(form_buttons_layout)
+
+
+
+        # main_layout.addLayout(button_layout)
         # self.tree_view.setColumnWidth(0, 150)
         # self.tree_view.setColumnWidth(1,100)
         # self.model.itemChanged.connect(self.on_item_change)
@@ -110,32 +109,14 @@ class ClassificationWidget(QWidget):
 
         self.method_forms = {}  # method_name -> (widget, inputs)
 
-        # imagery
-        self.classification_image_canvas = ImageCanvas(self, width=2, height=2, dpi=100)
-        classification_image_layout = QVBoxLayout()
-        classification_image_layout.addWidget(self.classification_image_canvas)
+        main_layout.addWidget(self.tree_view, stretch=3)
+        main_layout.addWidget(form_buttons, stretch=1)
 
-        self.classification_imagery = QWidget()
-        self.classification_imagery.setLayout(classification_image_layout)
-        self.classification_imagery.setToolTip("show an image reflecting the effect of classifiers")
-        feedback_and_info_layout.addWidget(self.classification_imagery)
+        self.setLayout(main_layout)
 
-        #self.setLayout(main_layout)
-        main_panel=QWidget()
-        main_panel.setLayout(main_layout)
-
-        feedback_and_info=QWidget()
-        feedback_and_info.setLayout(feedback_and_info_layout)
-
-
-        panel_layout.addWidget(main_panel)
-        panel_layout.addWidget(feedback_and_info)
-
-        self.setLayout(panel_layout)
 
         self.register_method('threshold', classify_threshold)
         self.register_method('hmm', classify_hmm)
-
         self.refresh_classifications()
 
     @property
@@ -302,7 +283,6 @@ class ClassificationWidget(QWidget):
             self.setDisabled(True)
 
 
-
     def _clear_results(self):
         self.file.clear_classifications()
         self.refresh_classifications()
@@ -414,22 +394,11 @@ class ClassificationWidget(QWidget):
                 </html>
                 """
 
-
-
-
-
-
-
-
-
-
         self.help_dialog = HelpDialog(self, help_text)
         #dialog.exec_()  # modal
         self.help_dialog.show()
 
-
-
-        #
+    #
     #
     #     classification_type_combobox = QComboBox()
     #     classification_types = ['threshold', 'filter', 'hmm']
@@ -643,4 +612,5 @@ class ClassificationWidget(QWidget):
     #
     #     self.file.add_selection(variable, channel, aggregator, operator, threshold)
     #     self.refresh_selections()
+
 
