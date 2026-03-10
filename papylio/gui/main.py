@@ -449,9 +449,9 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(widget)
         self.show()
 
-        # self.experiment = Experiment(
-        #     r'D:\SURFdrive\Promotie\Code\Python\papylio\twoColourExampleData\20141017 - Holliday junction - Copy')
-        self.experiment = pp.Experiment(main_path, main_window=self)
+        self.experiment = Experiment(
+            r'C:\Users\jkerssemakers\OneDrive - Delft University of Technology\Documents\GitHub\Papylio example dataset')
+        #self.experiment = pp.Experiment(main_path, main_window=self)
         self.addExperiment(self.experiment)
         self.traces.save_path = self.experiment.analysis_path.joinpath('Trace_plots')
 

@@ -37,19 +37,17 @@ class KineticsWidget(QWidget):
 
         # main control buttons
         dwell_controls=build_control_layouts(
-                [make_push_button("Get Dwells", self.perform_dwell_times_sequence),
-                make_push_button('Export',self.export_kinetics),
-                make_push_button('Help',self.show_dwell_help)])
-
+            [make_push_button("Get Dwells", self.perform_dwell_times_sequence,"fit and show dwell times "),
+            make_push_button('Export',self.export_kinetics, "export plot contents"),
+            make_push_button('Help',self.show_dwell_help, None)])
+        #tab layout
         dwell_times_tab_layout = QHBoxLayout()
         dwell_times_tab_layout.addWidget(self.dwell_kinetics_canvas)
         dwell_times_tab_layout.addWidget(dwell_controls)
 
-
         #other
         other_graph_layout = QHBoxLayout()
         #other_graph_layout.addWidget(box2)
-
 
         tabs = QTabWidget()
         tabs.setTabPosition(QTabWidget.North)

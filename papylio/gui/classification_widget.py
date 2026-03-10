@@ -56,7 +56,7 @@ class ClassificationWidget(QWidget):
         button_layout = QHBoxLayout()
         self.run_button = QPushButton("Classify")
         self.clear_button = QPushButton("Clear")
-        self.help_button = QPushButton('Help!')
+        self.help_button = QPushButton('Help')
         self.help_button.clicked.connect(self.show_help)
 
         button_layout.addWidget(self.clear_button)
