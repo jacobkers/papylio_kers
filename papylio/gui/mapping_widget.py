@@ -59,7 +59,6 @@ class MappingWidget(QWidget):
         self.button_map_margin.setPlaceholderText("edge_margin")
 
         # add below buttons under 'advanced':---------------------------------------------------
-
         #donor mapping:
         button_map_donor_label = QLabel("donor_pks")
         button_map_donor_method_combobox = QComboBox()

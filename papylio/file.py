@@ -2079,8 +2079,6 @@ class File:
         # if selected:
         #     dataset = dataset.sel(molecule=dataset['selected'])
 
-
-
         # dataset = self.dataset
         save_path = self.experiment.main_path.joinpath('Trace plots')
         if not save_path.is_dir():

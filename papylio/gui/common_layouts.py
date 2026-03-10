@@ -97,9 +97,24 @@ class HelpDialog(QDialog):
         layout.addWidget(self.text)
         layout.addWidget(close_button)
 
-def make_button(text):
+def make_push_button(text, method):
+    #build a standardized push button
     btn = QPushButton(text)
     btn.setFixedHeight(40)  # small height
     btn.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
     btn.setStyleSheet("QPushButton { padding: 2px 6px; font-size: 12px; }")
+    btn.clicked.connect(method)
     return btn
+
+def build_control_layouts(button_list):
+    #build a standard control panel
+    controls_layout = QVBoxLayout()
+    for b in button_list:
+        controls_layout.addWidget(b, alignment=Qt.AlignRight)
+    # Optional: add stretch at the end to push buttons to the left
+    controls_layout.addStretch()
+    controls = QWidget()
+    controls.setLayout(controls_layout)
+    return controls
+
+

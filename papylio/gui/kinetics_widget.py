@@ -6,7 +6,8 @@ from PySide2.QtWidgets import QWidget, QLabel, QVBoxLayout
 from PySide2.QtCore import Qt
 
 from papylio import File
-from papylio.gui.common_layouts import ImageCanvas,Expander,HelpDialog, make_button
+from papylio.gui.common_layouts import (HelpDialog,
+                                        build_control_layouts, make_push_button)
 from papylio.plotting import wysiwyg_export
 from matplotlib.figure import Figure
 import numpy as np
@@ -34,24 +35,11 @@ class KineticsWidget(QWidget):
         dwell_options = QWidget()
         dwell_options.setLayout(dwell_options_layout)
 
-        # main buttons
-        dwell_action_button = make_button("Get Dwells")
-        dwell_action_button.clicked.connect(self.perform_dwell_times_sequence)
-        dwell_export_button = make_button('Export')
-        dwell_export_button.clicked.connect(self.export_kinetics)
-        dwell_help_button = make_button('Help!')
-        dwell_help_button.clicked.connect(self.show_dwell_help)
-
-        dwell_controls_layout = QVBoxLayout()
-        for b in [dwell_action_button,
-                  dwell_export_button,
-                  dwell_help_button]:
-            dwell_controls_layout.addWidget(b, alignment=Qt.AlignRight)
-        # Optional: add stretch at the end to push buttons to the left
-        dwell_controls_layout.addStretch()
-
-        dwell_controls = QWidget()
-        dwell_controls.setLayout(dwell_controls_layout)
+        # main control buttons
+        dwell_controls=build_control_layouts(
+                [make_push_button("Get Dwells", self.perform_dwell_times_sequence),
+                make_push_button('Export',self.export_kinetics),
+                make_push_button('Help',self.show_dwell_help)])
 
         dwell_times_tab_layout = QHBoxLayout()
         dwell_times_tab_layout.addWidget(self.dwell_kinetics_canvas)
