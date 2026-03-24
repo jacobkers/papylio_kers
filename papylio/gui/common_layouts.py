@@ -4,13 +4,15 @@
 import sys
 from PySide2.QtWidgets import  QApplication, QSizePolicy
 import matplotlib as mpl
+import inspect
+
 
 from matplotlib.backends.backend_qtagg import (
     FigureCanvas)
 
 from PySide2.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout,QToolButton, QTextBrowser,
-    QLabel, QSizePolicy, QGridLayout, QDialog, QPushButton, QTextEdit, QDialog
+    QLabel, QSizePolicy, QGridLayout, QDialog, QPushButton, QTextEdit, QDialog, QLineEdit
 )
 
 
@@ -109,7 +111,7 @@ def make_push_button(text, method, tooltip):
     return btn
 
 def build_control_layouts(button_list):
-    #build a standard control panel
+#controls are a  limited set (up to 5) of main action buttons
     controls_layout = QHBoxLayout()
     for b in button_list:
         controls_layout.addWidget(b, alignment=Qt.AlignBottom)
@@ -119,4 +121,74 @@ def build_control_layouts(button_list):
     controls.setLayout(controls_layout)
     return controls
 
+#below a series of functions to link GUI elements to methods in generic fashion
+def get_parameters(func):
+    # for auto_generating GUI panels:
+    #build a list of parameters for a given function.
+    #NOTE: for nested settings such as in a dict, this will not go deeper
+    sig = inspect.signature(func)
+    params = {}
 
+    for name, p in sig.parameters.items():
+        if p.default is not inspect._empty:
+            params[name] = p.default
+        else:
+            params[name] = None  # or some placeholder
+
+    return params
+
+
+def create_fields(func, layout):
+    # for auto_generating GUI panels:
+    #expand a of parameter fields
+    # using the default values of this functions parameters
+    param_defaults = get_parameters(func)
+    widgets = {}
+
+    for name, default in param_defaults.items():
+        field = QLineEdit()
+        if default is not None:
+            field.setText(str(default))
+
+        layout.addWidget(field)
+        widgets[name] = field
+
+    return widgets
+
+def convert_value(text, default):
+    # for auto_generating GUI panels:
+    # restore type of the default value
+    if default is None:
+        return text  # fallback
+
+    try:
+        return type(default)(text)
+    except Exception:
+        return text
+
+def call_with_widgets(func, widgets, defaults):
+    # for auto_generating GUI panels:
+    # activate the function
+    kwargs = {}
+
+    for name, widget in widgets.items():
+        text = widget.text()
+        default = defaults[name]
+        kwargs[name] = convert_value(text, default)
+
+    return func(**kwargs)
+
+def bind_function_to_gui(func, layout, button):
+    # for auto_generating GUI panels:
+    # link a specified button to calling a function with
+    # auto-generated parameters fields
+    defaults = get_parameters(func)
+    widgets = create_fields(func, layout)
+
+    def on_click():
+        result = call_with_widgets(func, widgets, defaults)
+        print(result)
+
+    button.clicked.connect(on_click)
+
+    return widgets

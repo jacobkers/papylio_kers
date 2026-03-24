@@ -9,7 +9,7 @@ from matplotlib.figure import Figure
 
 from papylio import File
 from papylio.gui.common_layouts import (Expander, ImageCanvas, HelpDialog,
-                                        build_control_layouts,make_push_button)
+                                        build_control_layouts,make_push_button, bind_function_to_gui)
 
 #from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qtagg import (

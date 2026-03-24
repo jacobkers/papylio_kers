@@ -10,7 +10,6 @@ from multiprocessing import Process, freeze_support
 
 def start_gui():
     freeze_support()
-
     app = QApplication(sys.argv)
     from papylio.gui.main import MainWindow
     window = MainWindow()
