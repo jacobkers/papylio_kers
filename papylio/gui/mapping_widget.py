@@ -9,7 +9,7 @@ from matplotlib.figure import Figure
 
 from papylio import File
 from papylio.gui.common_layouts import (Expander, ImageCanvas, HelpDialog,
-                                        build_control_layouts,make_push_button, bind_function_to_gui)
+                                        build_control_layouts,make_push_button, register_method_gen)
 
 #from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qtagg import (
@@ -24,19 +24,16 @@ class MappingWidget(QWidget):
         self.parent.model.itemChanged.connect(self.onItemChange)
 
         # imagery
+        # #--------------------------------------------
         self.fig1 = Figure(figsize=(4, 3))
         self.map_overlay_image_canvas = FigureCanvas(self.fig1)
         map_overlay_image_layout = QVBoxLayout()
         map_overlay_image_layout.addWidget(self.map_overlay_image_canvas)
-
         self.map_overlay_image = QWidget()
         self.map_overlay_image.setLayout(map_overlay_image_layout)
         self.map_overlay_image.setToolTip("overlay image shows result of mapping")
-
-        # imagery
         self.map_image_canvas = ImageCanvas(self, width=4, height=3, dpi=100)
         self.map_image_canvas.setToolTip("shows raw image (1st of multiple selection)")
-
         map_image_toolbar = NavigationToolbar(self.map_image_canvas, self)
         map_image_layout = QVBoxLayout()
 
@@ -45,6 +42,7 @@ class MappingWidget(QWidget):
         self.map_image.setLayout(map_image_layout)
 
         #map settings
+        #-------------------------------------------------------
         #main mapping buttons definition:
         self.button_map_label = QLabel("method:")
         self.button_map_method_combobox = QComboBox()
@@ -104,7 +102,6 @@ class MappingWidget(QWidget):
         #build panel layout:
         map_basics = QWidget()
         map_basics.setLayout(map_basics_layout)
-
         map_advanced = Expander("Advanced")
         map_advanced.setContentLayout(map_advanced_layout)
 
@@ -129,9 +126,10 @@ class MappingWidget(QWidget):
 
         #add all to tab:
         mapping_tab_layout = QHBoxLayout()
+        mapping_tab_layout.addWidget(self.map_controls)
         mapping_tab_layout.addWidget(self.map_image)
         mapping_tab_layout.addWidget(self.map_overlay_image)
-        mapping_tab_layout.addWidget(self.map_controls)
+
 
 
         self.setLayout(mapping_tab_layout)
