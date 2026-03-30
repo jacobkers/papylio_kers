@@ -122,6 +122,7 @@ def build_control_layouts(button_list):
     return controls
 
 #below a series of functions to link GUI elements to methods in generic fashion
+-------------------------------------------------------------------------------
 def get_parameters(func):
     # for auto_generating GUI panels:
     #build a list of parameters for a given function.

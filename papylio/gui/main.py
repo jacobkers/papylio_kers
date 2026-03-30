@@ -224,7 +224,6 @@ class MainWindow(QMainWindow):
     #     # model.setRootPath(QDir.currentPath())
     #
     #
-    #
     #     self.model = TreeModel()
     #
     #     self.tree = QTreeView()

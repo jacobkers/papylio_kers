@@ -39,13 +39,10 @@ class MappingWidget(QWidget):
 
         map_image_toolbar = NavigationToolbar(self.map_image_canvas, self)
         map_image_layout = QVBoxLayout()
-        #map_image_layout.addWidget(map_image_toolbar)
-        #map_image_layout.addWidget(self.map_image_canvas)
 
         # Create a placeholder widget to hold our toolbar and canvas.
         self.map_image = QWidget()
         self.map_image.setLayout(map_image_layout)
-
 
         #map settings
         #main mapping buttons definition:
@@ -70,6 +67,7 @@ class MappingWidget(QWidget):
         button_map_donor_ns_min.setPlaceholderText("nbh_min")
         button_map_donor_ns_max = QLineEdit()
         button_map_donor_ns_max.setPlaceholderText("nbh_max")
+
         # acceptor mapping:
         button_map_acceptor_label = QLabel("acceptor_pks")
         button_map_acceptor_method_combobox = QComboBox()
@@ -103,13 +101,13 @@ class MappingWidget(QWidget):
         map_advanced_layout.addWidget(button_map_acceptor_ns_min, 3, 3)
         map_advanced_layout.addWidget(button_map_acceptor_ns_max, 3, 4)
 
-
         #build panel layout:
         map_basics = QWidget()
         map_basics.setLayout(map_basics_layout)
 
         map_advanced = Expander("Advanced")
         map_advanced.setContentLayout(map_advanced_layout)
+
 
         #main action:
         map_controls = build_control_layouts(
@@ -170,9 +168,8 @@ class MappingWidget(QWidget):
 
         selected_files = self.parent.experiment.selectedFiles
 
-        #jk-read in a default config and change one value:
+        #jk-read in a default configuration and change one value:
         panel_config= self.parent.experiment.configuration['mapping']
-
         panel_config['method']= self.button_map_method_combobox.currentText()
         panel_config['distance_threshold']= self.button_map_dist_treshold.text
         panel_config['coordinates_within_margin'] = self.button_map_margin.text
