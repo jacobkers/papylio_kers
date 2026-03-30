@@ -1,6 +1,6 @@
 
 from PySide2.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QGridLayout, QTreeView, QApplication, QMainWindow, \
-    QPushButton, QComboBox, QLineEdit, QLabel
+    QPushButton, QComboBox, QLineEdit, QLabel, QFormLayout, QDoubleSpinBox,QSpinBox
 from PySide2.QtCore import Qt
 
 import matplotlib.pyplot as plt
@@ -9,17 +9,26 @@ from matplotlib.figure import Figure
 
 from papylio import File
 from papylio.gui.common_layouts import (Expander, ImageCanvas, HelpDialog,
-                                        build_control_layouts,make_push_button, register_method_gen)
+                                        build_control_layouts,make_push_button)
+
+from papylio.peak_finding import (find_peaks_absolute_threshold,
+                                  find_peaks_adaptive_threshold,
+                                  find_peaks_local_maximum,
+                                  find_peaks_local_maximum_auto,
+                                  find_peaks_relative_local_maximum)
 
 #from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qtagg import (
     FigureCanvas, NavigationToolbar2QT as NavigationToolbar)
 
+import inspect
 
 class MappingWidget(QWidget):
     def __init__(self, parent=None):
         super(MappingWidget, self).__init__(parent)
         self.parent = parent
+        self.methods = {}
+        self.method_forms = {}  # method_name -> (widget, inputs)
 
         self.parent.model.itemChanged.connect(self.onItemChange)
 
@@ -40,6 +49,27 @@ class MappingWidget(QWidget):
         # Create a placeholder widget to hold our toolbar and canvas.
         self.map_image = QWidget()
         self.map_image.setLayout(map_image_layout)
+
+
+        #build a flexible form for the donor channel:-------------------------
+        form_donor = QFormLayout()
+        # --- Classification name input ---
+        donor_label = QLabel("Spot detection donor")
+        donor_label.setToolTip("Tune the peak detection for the donor channel")
+        form_donor.addRow(donor_label)
+
+        # --- Method selector ---
+        self.method_selector_donor = QComboBox()
+        self.method_selector_donor.setToolTip("Choose peak_find_method")
+        self.method_selector_donor.currentTextChanged.connect(self._update_method_panel)
+        form_donor.addRow("Method:", self.method_selector_donor)
+
+        # --- Dynamic options container ---
+        self.stack_donor = QWidget()
+        self.stack_donor_layout = QVBoxLayout(self.stack_donor)
+        self.stack_donor_layout.setContentsMargins(0, 0, 0, 0)
+        form_donor.addRow("Options:", self.stack_donor)
+
 
         #map settings
         #-------------------------------------------------------
@@ -79,11 +109,16 @@ class MappingWidget(QWidget):
         button_map_acceptor_ns_max.setPlaceholderText("filt_nbh_max")
 
         #basic mapping grid layout:
-        map_basics_layout = QGridLayout()
+        map_basics_layout = QVBoxLayout()
+
+
+
+
+        map_basics_layout.addLayout(form_donor)
         map_basics_layout.setAlignment(Qt.AlignLeft)
-        map_basics_layout.addWidget(self.button_map_label, 0, 0)
-        map_basics_layout.addWidget(self.button_map_method_combobox, 0, 1)
-        map_basics_layout.addWidget(self.button_map_dist_treshold, 0, 2)
+
+        map_basics_layout.addWidget(self.button_map_label )
+        map_basics_layout.addWidget(self.button_map_method_combobox)
 
         # advanced mapping grid layout:
         map_advanced_layout = QGridLayout()
@@ -133,6 +168,13 @@ class MappingWidget(QWidget):
 
 
         self.setLayout(mapping_tab_layout)
+        #collect peak finding methods for building flexible GUI forms
+        self.register_method('abs_tres', find_peaks_absolute_threshold)
+        self.register_method('adapt_tres', find_peaks_adaptive_threshold)
+        self.register_method('local_max', find_peaks_local_maximum)
+        self.register_method('auto-local_max', find_peaks_local_maximum_auto)
+        self.register_method('rel.local_max', find_peaks_relative_local_maximum)
+
 
     def update_plots(self):
         selected_files = self.parent.experiment.selectedFiles + [None]
@@ -158,6 +200,67 @@ class MappingWidget(QWidget):
 
         if self.update:
             self.update_plots()
+
+    # -------------------------------------------------------------------------
+    # Register methods dynamically and create their forms
+    # -------------------------------------------------------------------------
+    def register_method(self, name, func):
+        """Register a classification method, introspect arguments, and build a form."""
+
+        self.methods[name] = func
+
+        # --- build the form for the function ---
+        form_widget = QWidget()
+        form = QFormLayout(form_widget)
+        inputs = {}
+
+        sig = inspect.signature(func)
+        for param_name, param in sig.parameters.items():
+            if param_name in ['image']:
+                continue
+
+            default = param.default if param.default is not inspect.Parameter.empty else None
+            annotation = param.annotation
+
+            # Pick appropriate input type
+            if annotation == int or isinstance(default, int):
+                widget = QSpinBox()
+                widget.setRange(-1_000_000, 1_000_000)
+                if default is not None:
+                    widget.setValue(default)
+            elif annotation == float or isinstance(default, float):
+                widget = QDoubleSpinBox()
+                widget.setRange(-1e9, 1e9)
+                widget.setDecimals(6)
+                if default is not None:
+                    widget.setValue(default)
+            else:
+                widget = QLineEdit()
+                if default not in (None, inspect.Parameter.empty):
+                    widget.setText(str(default))
+
+            form.addRow(f"{param_name}:", widget)
+            inputs[param_name] = widget
+
+        self.method_forms[name] = (form_widget, inputs)
+        self.method_selector_donor.addItem(name)
+
+        # First registered method becomes default
+        if self.method_selector_donor.count() == 1:
+            self._update_method_panel(name)
+
+    def _update_method_panel(self, name):
+        # Clear the old form
+        for i in reversed(range(self.stack_donor_layout.count())):
+            widget = self.stack_donor_layout.itemAt(i).widget()
+            if widget:
+                widget.setParent(None)
+
+        # Add new form
+        if name in self.method_forms:
+            form_widget, _ = self.method_forms[name]
+            self.stack_donor_layout.addWidget(form_widget)
+
 
     def perform_mapping(self, t):
         print(t)

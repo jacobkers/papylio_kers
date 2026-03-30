@@ -122,69 +122,6 @@ def build_control_layouts(button_list):
     return controls
 
 
-# -------------------------------------------------------------------------
-# Register methods dynamically and create their forms
-# (copied from classification widget with suffix _gen
-# -------------------------------------------------------------------------
-def register_method_gen(self, name, func):
-    """Register a classification method, introspect arguments, and build a form."""
-
-    self.methods[name] = func
-
-    # --- build the form for the function ---
-    form_widget = QWidget()
-    form = QFormLayout(form_widget)
-    inputs = {}
-
-    sig = inspect.signature(func)
-    for param_name, param in sig.parameters.items():
-        if param_name in ['image','traces', 'classification', 'selection']:
-            continue
-
-        default = param.default if param.default is not inspect.Parameter.empty else None
-        annotation = param.annotation
-
-        # Pick appropriate input type
-        if annotation == int or isinstance(default, int):
-            widget = QSpinBox()
-            widget.setRange(-1_000_000, 1_000_000)
-            if default is not None:
-                widget.setValue(default)
-        elif annotation == float or isinstance(default, float):
-            widget = QDoubleSpinBox()
-            widget.setRange(-1e9, 1e9)
-            widget.setDecimals(6)
-            if default is not None:
-                widget.setValue(default)
-        else:
-            widget = QLineEdit()
-            if default not in (None, inspect.Parameter.empty):
-                widget.setText(str(default))
-
-        form.addRow(f"{param_name}:", widget)
-        inputs[param_name] = widget
-
-    self.method_forms[name] = (form_widget, inputs)
-    self.method_selector.addItem(name)
-
-    # First registered method becomes default
-    if self.method_selector.count() == 1:
-        self._update_method_panel_gen(name)
-
-
-def _update_method_panel_gen(self, name):
-    # Clear the old form
-    for i in reversed(range(self.stack_layout.count())):
-        widget = self.stack_layout.itemAt(i).widget()
-        if widget:
-            widget.setParent(None)
-
-    # Add new form
-    if name in self.method_forms:
-        form_widget, _ = self.method_forms[name]
-        self.stack_layout.addWidget(form_widget)
-
-
 #below a series of functions to link GUI elements to Papylio methods in generic fashion
 #Note to self: not sure if we are going to use this
 def get_parameters(func):
