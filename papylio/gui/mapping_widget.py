@@ -58,17 +58,36 @@ class MappingWidget(QWidget):
         donor_label.setToolTip("Tune the peak detection for the donor channel")
         form_donor.addRow(donor_label)
 
-        # --- Method selector ---
+        # --- Method selector donor---
         self.method_selector_donor = QComboBox()
         self.method_selector_donor.setToolTip("Choose peak_find_method")
-        self.method_selector_donor.currentTextChanged.connect(self._update_method_panel)
+        self.method_selector_donor.currentTextChanged.connect(self._update_method_panel_donor)
         form_donor.addRow("Method:", self.method_selector_donor)
 
-        # --- Dynamic options container ---
+        # --- Dynamic options container -donor ---
         self.stack_donor = QWidget()
         self.stack_donor_layout = QVBoxLayout(self.stack_donor)
         self.stack_donor_layout.setContentsMargins(0, 0, 0, 0)
         form_donor.addRow("Options:", self.stack_donor)
+
+        # build a flexible form for the acceptor channel:-------------------------
+        form_acceptor = QFormLayout()
+        # --- Classification name input ---
+        acceptor_label = QLabel("Spot detection acceptor")
+        acceptor_label.setToolTip("Tune the peak detection for the donor channel")
+        form_acceptor.addRow(acceptor_label)
+
+        # --- Method selector acceptor---
+        self.method_selector_acceptor = QComboBox()
+        self.method_selector_acceptor.setToolTip("Choose peak_find_method")
+        self.method_selector_acceptor.currentTextChanged.connect(self._update_method_panel_acceptor)
+        form_acceptor.addRow("Method:", self.method_selector_acceptor)
+
+        # --- Dynamic options container -acceptor ---
+        self.stack_acceptor = QWidget()
+        self.stack_acceptor_layout = QVBoxLayout(self.stack_acceptor)
+        self.stack_acceptor_layout.setContentsMargins(0, 0, 0, 0)
+        form_acceptor.addRow("Options:", self.stack_acceptor)
 
 
         #map settings
@@ -84,37 +103,16 @@ class MappingWidget(QWidget):
         self.button_map_margin.setPlaceholderText("edge_margin")
 
         # add below buttons under 'advanced':---------------------------------------------------
-        #donor mapping:
-        button_map_donor_label = QLabel("donor_pks")
-        button_map_donor_method_combobox = QComboBox()
-        button_map_donor_options = ['local-maximum-auto', 'other']
-        button_map_donor_method_combobox.addItems(button_map_donor_options)
-        button_map_donor_fract_diff = QLineEdit()
-        button_map_donor_fract_diff.setPlaceholderText("fract._diff")
-        button_map_donor_ns_min = QLineEdit()
-        button_map_donor_ns_min.setPlaceholderText("nbh_min")
-        button_map_donor_ns_max = QLineEdit()
-        button_map_donor_ns_max.setPlaceholderText("nbh_max")
-
-        # acceptor mapping:
-        button_map_acceptor_label = QLabel("acceptor_pks")
-        button_map_acceptor_method_combobox = QComboBox()
-        button_map_acceptor_options = ['local-maximum-auto', 'other']
-        button_map_acceptor_method_combobox.addItems(button_map_acceptor_options)
-        button_map_acceptor_fract_diff = QLineEdit()
-        button_map_acceptor_fract_diff.setPlaceholderText("fraction_diff")
-        button_map_acceptor_ns_min = QLineEdit()
-        button_map_acceptor_ns_min.setPlaceholderText("filt_nbh_min")
-        button_map_acceptor_ns_max = QLineEdit()
-        button_map_acceptor_ns_max.setPlaceholderText("filt_nbh_max")
 
         #basic mapping grid layout:
+        #donor_acceptor block
+        donor_acceptor_layout = QHBoxLayout()
+        donor_acceptor_layout.addLayout(form_donor)
+        donor_acceptor_layout.addLayout(form_acceptor)
+
         map_basics_layout = QVBoxLayout()
+        map_basics_layout.addLayout(donor_acceptor_layout)
 
-
-
-
-        map_basics_layout.addLayout(form_donor)
         map_basics_layout.setAlignment(Qt.AlignLeft)
 
         map_basics_layout.addWidget(self.button_map_label )
@@ -165,15 +163,13 @@ class MappingWidget(QWidget):
         mapping_tab_layout.addWidget(self.map_image)
         mapping_tab_layout.addWidget(self.map_overlay_image)
 
-
-
         self.setLayout(mapping_tab_layout)
         #collect peak finding methods for building flexible GUI forms
-        self.register_method('abs_tres', find_peaks_absolute_threshold)
-        self.register_method('adapt_tres', find_peaks_adaptive_threshold)
-        self.register_method('local_max', find_peaks_local_maximum)
-        self.register_method('auto-local_max', find_peaks_local_maximum_auto)
-        self.register_method('rel.local_max', find_peaks_relative_local_maximum)
+        self.register_method('absolute_treshold', find_peaks_absolute_threshold)
+        self.register_method('adaptive_treshold', find_peaks_adaptive_threshold)
+        self.register_method('local_maximum', find_peaks_local_maximum)
+        self.register_method('auto-local_maximum', find_peaks_local_maximum_auto)
+        self.register_method('relative local_maximum', find_peaks_relative_local_maximum)
 
 
     def update_plots(self):
@@ -243,24 +239,37 @@ class MappingWidget(QWidget):
             inputs[param_name] = widget
 
         self.method_forms[name] = (form_widget, inputs)
+
         self.method_selector_donor.addItem(name)
+        self.method_selector_acceptor.addItem(name)
 
         # First registered method becomes default
         if self.method_selector_donor.count() == 1:
-            self._update_method_panel(name)
+            self._update_method_panel_donor(name)
+        if self.method_selector_acceptor.count() == 1:
+            self._update_method_panel_acceptor(name)
 
-    def _update_method_panel(self, name):
+    def _update_method_panel_donor(self, name):
         # Clear the old form
         for i in reversed(range(self.stack_donor_layout.count())):
             widget = self.stack_donor_layout.itemAt(i).widget()
             if widget:
                 widget.setParent(None)
-
         # Add new form
         if name in self.method_forms:
             form_widget, _ = self.method_forms[name]
             self.stack_donor_layout.addWidget(form_widget)
 
+    def _update_method_panel_acceptor(self, name):
+        # Clear the old form
+        for i in reversed(range(self.stack_acceptor_layout.count())):
+            widget = self.stack_acceptor_layout.itemAt(i).widget()
+            if widget:
+                widget.setParent(None)
+        # Add new form
+        if name in self.method_forms:
+            form_widget, _ = self.method_forms[name]
+            self.stack_acceptor_layout.addWidget(form_widget)
 
     def perform_mapping(self, t):
         print(t)
@@ -269,11 +278,17 @@ class MappingWidget(QWidget):
 
         selected_files = self.parent.experiment.selectedFiles
 
+        #jk need to do a mapping here
+        donor_kwargs = 1
+        acceptor_kwargs =1
+
         #jk-read in a default configuration and change one value:
         panel_config= self.parent.experiment.configuration['mapping']
         panel_config['method']= self.button_map_method_combobox.currentText()
         panel_config['distance_threshold']= self.button_map_dist_treshold.text
         panel_config['coordinates_within_margin'] = self.button_map_margin.text
+        panel_config['peak_finding']['donor'] = donor_kwargs
+        panel_config['peak_finding']['acceptor'] = acceptor_kwargs
 
         plot_file = selected_files[0]
         plot_file.mapping.show_mapping_transformation(axis=ax1)

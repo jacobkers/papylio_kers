@@ -1232,7 +1232,7 @@ class File:
         donor_image = self.movie.get_channel(image=image, channel='d')
         acceptor_image = self.movie.get_channel(image=image, channel='a')
         donor_coordinates = find_peaks(image=donor_image,
-                                       **configuration['peak_finding']['donor'])
+                                         **configuration['peak_finding']['donor'])
         if donor_coordinates.size == 0: #should throw a error message to warm no acceptor molecules found
             print('No donor molecules found')
         acceptor_coordinates = find_peaks(image=acceptor_image,
