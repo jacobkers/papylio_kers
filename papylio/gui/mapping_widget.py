@@ -1,6 +1,6 @@
 
 from PySide2.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QGridLayout, QTreeView, QApplication, QMainWindow, \
-    QPushButton, QComboBox, QLineEdit, QLabel, QFormLayout, QDoubleSpinBox,QSpinBox
+    QPushButton, QComboBox, QLineEdit, QLabel, QFormLayout, QDoubleSpinBox,QSpinBox,QFrame
 from PySide2.QtCore import Qt
 
 import matplotlib.pyplot as plt
@@ -27,8 +27,10 @@ class MappingWidget(QWidget):
     def __init__(self, parent=None):
         super(MappingWidget, self).__init__(parent)
         self.parent = parent
-        self.methods = {}
-        self.method_forms = {}  # method_name -> (widget, inputs)
+        self.methods_donor = {}
+        self.method_forms_donor = {}  # method_name -> (widget, inputs)
+        self.methods_acceptor = {}
+        self.method_forms_acceptor = {}  #
 
         self.parent.model.itemChanged.connect(self.onItemChange)
 
@@ -53,56 +55,41 @@ class MappingWidget(QWidget):
 
         #build a flexible form for the donor channel:-------------------------
         form_donor = QFormLayout()
-        # --- Classification name input ---
-        donor_label = QLabel("Spot detection donor")
+        donor_label = QLabel("DONOR spot detection")
         donor_label.setToolTip("Tune the peak detection for the donor channel")
         form_donor.addRow(donor_label)
-
         # --- Method selector donor---
         self.method_selector_donor = QComboBox()
         self.method_selector_donor.setToolTip("Choose peak_find_method")
         self.method_selector_donor.currentTextChanged.connect(self._update_method_panel_donor)
         form_donor.addRow("Method:", self.method_selector_donor)
-
-        # --- Dynamic options container -donor ---
+        # --- Dynamic options container donor ---
         self.stack_donor = QWidget()
         self.stack_donor_layout = QVBoxLayout(self.stack_donor)
         self.stack_donor_layout.setContentsMargins(0, 0, 0, 0)
         form_donor.addRow("Options:", self.stack_donor)
 
+
         # build a flexible form for the acceptor channel:-------------------------
         form_acceptor = QFormLayout()
-        # --- Classification name input ---
-        acceptor_label = QLabel("Spot detection acceptor")
+        acceptor_label = QLabel("ACCEPTOR spot detection ")
         acceptor_label.setToolTip("Tune the peak detection for the donor channel")
         form_acceptor.addRow(acceptor_label)
-
         # --- Method selector acceptor---
         self.method_selector_acceptor = QComboBox()
         self.method_selector_acceptor.setToolTip("Choose peak_find_method")
         self.method_selector_acceptor.currentTextChanged.connect(self._update_method_panel_acceptor)
         form_acceptor.addRow("Method:", self.method_selector_acceptor)
-
         # --- Dynamic options container -acceptor ---
         self.stack_acceptor = QWidget()
         self.stack_acceptor_layout = QVBoxLayout(self.stack_acceptor)
         self.stack_acceptor_layout.setContentsMargins(0, 0, 0, 0)
         form_acceptor.addRow("Options:", self.stack_acceptor)
 
-
-        #map settings
+        #genral map settings
         #-------------------------------------------------------
         #main mapping buttons definition:
-        self.button_map_label = QLabel("method:")
-        self.button_map_method_combobox = QComboBox()
-        self.button_map_options = ['icp', 'nn']
-        self.button_map_method_combobox.addItems(self.button_map_options)
-        self.button_map_dist_treshold = QLineEdit()
-        self.button_map_dist_treshold.setPlaceholderText("dist_treshold")
-        self.button_map_margin = QLineEdit()
-        self.button_map_margin.setPlaceholderText("edge_margin")
 
-        # add below buttons under 'advanced':---------------------------------------------------
 
         #basic mapping grid layout:
         #donor_acceptor block
@@ -110,34 +97,49 @@ class MappingWidget(QWidget):
         donor_acceptor_layout.addLayout(form_donor)
         donor_acceptor_layout.addLayout(form_acceptor)
 
-        map_basics_layout = QVBoxLayout()
-        map_basics_layout.addLayout(donor_acceptor_layout)
 
-        map_basics_layout.setAlignment(Qt.AlignLeft)
 
-        map_basics_layout.addWidget(self.button_map_label )
-        map_basics_layout.addWidget(self.button_map_method_combobox)
+
+
+
+        self.button_map_label = QLabel("method:")
+        self.button_map_method_combobox = QComboBox()
+        self.button_map_options = ['icp', 'nn']
+        self.button_map_method_combobox.addItems(self.button_map_options)
+        self.button_map_dist_treshold = QLineEdit()
+        self.button_map_dist_treshold.setPlaceholderText("distance_treshold")
+        self.button_transformation = QComboBox()
+        self.button_transformation_options = ['polynomial', 'linear', 'nonlinear']
+        self.button_transformation.addItems(self.button_transformation_options)
+        self.button_initial_translation = QComboBox()
+        self.button_initial_translation_options = ['width/2' , [1024,0]]
+        self.button_initial_translation.addItems(self.button_initial_translation_options)
+
+
 
         # advanced mapping grid layout:
-        map_advanced_layout = QGridLayout()
-        map_advanced_layout.addWidget(self.button_map_margin, 1, 1)
-        map_advanced_layout.addWidget(button_map_donor_label, 2, 0)
-        map_advanced_layout.addWidget(button_map_donor_method_combobox, 2, 1)
-        map_advanced_layout.addWidget(button_map_donor_fract_diff, 2, 2)
-        map_advanced_layout.addWidget(button_map_donor_ns_min, 2, 3)
-        map_advanced_layout.addWidget(button_map_donor_ns_max, 2, 4)
-        map_advanced_layout.addWidget(button_map_acceptor_label, 3, 0)
-        map_advanced_layout.addWidget(button_map_acceptor_method_combobox, 3, 1)
-        map_advanced_layout.addWidget(button_map_acceptor_fract_diff, 3, 2)
-        map_advanced_layout.addWidget(button_map_acceptor_ns_min, 3, 3)
-        map_advanced_layout.addWidget(button_map_acceptor_ns_max, 3, 4)
+        frame = QFrame()
+        frame.setFrameShape(QFrame.StyledPanel)
+        frame.setFrameShadow(QFrame.Plain)
+        frame.setLineWidth(2)
+
+
+        map_advanced_layout = QVBoxLayout()
+        map_advanced_layout.setAlignment(Qt.AlignLeft)
+
+        map_advanced2_layout = QFormLayout()
+        map_advanced2_layout.addRow("Method", self.button_map_method_combobox)
+        map_advanced2_layout.addRow("Distance treshold:",self.button_map_dist_treshold)
+        map_advanced2_layout.addRow("Transformation_type:", self.button_transformation)
+        map_advanced2_layout.addRow("Initial_translation:", self.button_initial_translation)
+
+        map_advanced_layout.addLayout(map_advanced2_layout)
+        map_advanced_layout.addLayout(donor_acceptor_layout)
+
 
         #build panel layout:
-        map_basics = QWidget()
-        map_basics.setLayout(map_basics_layout)
         map_advanced = Expander("Advanced")
         map_advanced.setContentLayout(map_advanced_layout)
-
 
         #main action:
         map_controls = build_control_layouts(
@@ -148,7 +150,6 @@ class MappingWidget(QWidget):
         #collect:
         map_controls_layout = QVBoxLayout()
         map_controls_layout.setAlignment(Qt.AlignTop)
-        map_controls_layout.addWidget(map_basics)
         map_controls_layout.addWidget(map_advanced)
         map_controls_layout.addWidget(map_controls)
 
@@ -164,6 +165,7 @@ class MappingWidget(QWidget):
         mapping_tab_layout.addWidget(self.map_overlay_image)
 
         self.setLayout(mapping_tab_layout)
+
         #collect peak finding methods for building flexible GUI forms
         self.register_method('absolute_treshold', find_peaks_absolute_threshold)
         self.register_method('adaptive_treshold', find_peaks_adaptive_threshold)
@@ -201,53 +203,26 @@ class MappingWidget(QWidget):
     # Register methods dynamically and create their forms
     # -------------------------------------------------------------------------
     def register_method(self, name, func):
-        """Register a classification method, introspect arguments, and build a form."""
+        """Register a classification method, introspect arguments,
+        and build a form for the donor channel"""
 
-        self.methods[name] = func
 
-        # --- build the form for the function ---
-        form_widget = QWidget()
-        form = QFormLayout(form_widget)
-        inputs = {}
-
-        sig = inspect.signature(func)
-        for param_name, param in sig.parameters.items():
-            if param_name in ['image']:
-                continue
-
-            default = param.default if param.default is not inspect.Parameter.empty else None
-            annotation = param.annotation
-
-            # Pick appropriate input type
-            if annotation == int or isinstance(default, int):
-                widget = QSpinBox()
-                widget.setRange(-1_000_000, 1_000_000)
-                if default is not None:
-                    widget.setValue(default)
-            elif annotation == float or isinstance(default, float):
-                widget = QDoubleSpinBox()
-                widget.setRange(-1e9, 1e9)
-                widget.setDecimals(6)
-                if default is not None:
-                    widget.setValue(default)
-            else:
-                widget = QLineEdit()
-                if default not in (None, inspect.Parameter.empty):
-                    widget.setText(str(default))
-
-            form.addRow(f"{param_name}:", widget)
-            inputs[param_name] = widget
-
-        self.method_forms[name] = (form_widget, inputs)
-
-        self.method_selector_donor.addItem(name)
-        self.method_selector_acceptor.addItem(name)
-
-        # First registered method becomes default
-        if self.method_selector_donor.count() == 1:
+        #donor-------------------------:
+        form_widget_donor, inputs_donor = build_form(func)
+        self.methods_donor[name] = func
+        self.method_forms_donor[name] = (form_widget_donor, inputs_donor)
+        self.method_selector_donor.addItem(name) #add options to appropriate selector box
+        if self.method_selector_donor.count() == 1: # First registered method becomes default
             self._update_method_panel_donor(name)
-        if self.method_selector_acceptor.count() == 1:
+
+        # acceptor-------------------------:
+        form_widget_acceptor, inputs_acceptor = build_form(func)
+        self.methods_acceptor[name] = func
+        self.method_forms_acceptor[name] = (form_widget_acceptor, inputs_acceptor)
+        self.method_selector_acceptor.addItem(name)  # add options to appropriate selector box
+        if self.method_selector_acceptor.count() == 1:  # First registered method becomes default
             self._update_method_panel_acceptor(name)
+
 
     def _update_method_panel_donor(self, name):
         # Clear the old form
@@ -256,8 +231,8 @@ class MappingWidget(QWidget):
             if widget:
                 widget.setParent(None)
         # Add new form
-        if name in self.method_forms:
-            form_widget, _ = self.method_forms[name]
+        if name in self.method_forms_donor:
+            form_widget, _ = self.method_forms_donor[name]
             self.stack_donor_layout.addWidget(form_widget)
 
     def _update_method_panel_acceptor(self, name):
@@ -267,8 +242,8 @@ class MappingWidget(QWidget):
             if widget:
                 widget.setParent(None)
         # Add new form
-        if name in self.method_forms:
-            form_widget, _ = self.method_forms[name]
+        if name in self.method_forms_acceptor:
+            form_widget, _ = self.method_forms_acceptor[name]
             self.stack_acceptor_layout.addWidget(form_widget)
 
     def perform_mapping(self, t):
@@ -286,7 +261,6 @@ class MappingWidget(QWidget):
         panel_config= self.parent.experiment.configuration['mapping']
         panel_config['method']= self.button_map_method_combobox.currentText()
         panel_config['distance_threshold']= self.button_map_dist_treshold.text
-        panel_config['coordinates_within_margin'] = self.button_map_margin.text
         panel_config['peak_finding']['donor'] = donor_kwargs
         panel_config['peak_finding']['acceptor'] = acceptor_kwargs
 
@@ -378,3 +352,39 @@ class MappingWidget(QWidget):
         # dialog.exec_()  # modal
         self.help_dialog.show()
 
+
+def get_input_type(annotation, default):
+    # Pick appropriate input type
+    if annotation == int or isinstance(default, int):
+        widget = QSpinBox()
+        widget.setRange(-1_000_000, 1_000_000)
+        if default is not None:
+            widget.setValue(default)
+    elif annotation == float or isinstance(default, float):
+        widget = QDoubleSpinBox()
+        widget.setRange(-1e9, 1e9)
+        widget.setDecimals(6)
+        if default is not None:
+            widget.setValue(default)
+    else:
+        widget = QLineEdit()
+        if default not in (None, inspect.Parameter.empty):
+            widget.setText(str(default))
+    return widget
+
+def build_form(func):
+    # --- build the form for the function ---
+    form_widget = QWidget()
+    form = QFormLayout(form_widget)
+    inputs = {}
+    sig = inspect.signature(func)
+    for param_name, param in sig.parameters.items():
+        if param_name in ['image']:
+            continue
+        default = param.default if param.default is not inspect.Parameter.empty else None
+        annotation = param.annotation
+        widget = get_input_type(annotation=annotation, default=default)
+        form.addRow(f"{param_name}:", widget)
+        inputs[param_name] = widget
+
+    return form_widget, inputs

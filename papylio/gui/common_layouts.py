@@ -61,10 +61,7 @@ class Expander(QWidget):
         self.content = QWidget()
         self.content.setVisible(False)
 
-        layout = QGridLayout(self)
-        layout.setSpacing(3)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setContentsMargins(16, 4, 0, 4)
+        layout = QVBoxLayout(self)
         layout.addWidget(self.toggle_button)
         layout.addWidget(self.content)
 
