@@ -54,7 +54,12 @@ class MappingWidget(QWidget):
 
 
         #build a flexible form for the donor channel:-------------------------
-        form_donor = QFormLayout()
+        frame_donor = QFrame()
+        frame_donor.setFrameShape(QFrame.StyledPanel)
+        frame_donor.setFrameShadow(QFrame.Plain)
+        frame_donor.setLineWidth(2)
+
+        form_donor = QFormLayout(frame_donor)
         donor_label = QLabel("DONOR spot detection")
         donor_label.setToolTip("Tune the peak detection for the donor channel")
         form_donor.addRow(donor_label)
@@ -70,8 +75,15 @@ class MappingWidget(QWidget):
         form_donor.addRow("Options:", self.stack_donor)
 
 
+
+
         # build a flexible form for the acceptor channel:-------------------------
-        form_acceptor = QFormLayout()
+        frame_acceptor = QFrame()
+        frame_acceptor.setFrameShape(QFrame.StyledPanel)
+        frame_acceptor.setFrameShadow(QFrame.Plain)
+        frame_acceptor.setLineWidth(2)
+
+        form_acceptor = QFormLayout(frame_acceptor)
         acceptor_label = QLabel("ACCEPTOR spot detection ")
         acceptor_label.setToolTip("Tune the peak detection for the donor channel")
         form_acceptor.addRow(acceptor_label)
@@ -94,8 +106,8 @@ class MappingWidget(QWidget):
         #basic mapping grid layout:
         #donor_acceptor block
         donor_acceptor_layout = QHBoxLayout()
-        donor_acceptor_layout.addLayout(form_donor)
-        donor_acceptor_layout.addLayout(form_acceptor)
+        donor_acceptor_layout.addWidget(frame_donor)
+        donor_acceptor_layout.addWidget(frame_acceptor)
 
 
 
@@ -123,17 +135,17 @@ class MappingWidget(QWidget):
         frame.setFrameShadow(QFrame.Plain)
         frame.setLineWidth(2)
 
-
         map_advanced_layout = QVBoxLayout()
         map_advanced_layout.setAlignment(Qt.AlignLeft)
 
-        map_advanced2_layout = QFormLayout()
+        map_advanced2_layout = QFormLayout(frame)
         map_advanced2_layout.addRow("Method", self.button_map_method_combobox)
         map_advanced2_layout.addRow("Distance treshold:",self.button_map_dist_treshold)
         map_advanced2_layout.addRow("Transformation_type:", self.button_transformation)
         map_advanced2_layout.addRow("Initial_translation:", self.button_initial_translation)
 
-        map_advanced_layout.addLayout(map_advanced2_layout)
+        map_advanced_layout.addWidget(frame)
+        #map_advanced_layout.addLayout(map_advanced2_layout)
         map_advanced_layout.addLayout(donor_acceptor_layout)
 
 
@@ -167,11 +179,13 @@ class MappingWidget(QWidget):
         self.setLayout(mapping_tab_layout)
 
         #collect peak finding methods for building flexible GUI forms
-        self.register_method('absolute_treshold', find_peaks_absolute_threshold)
-        self.register_method('adaptive_treshold', find_peaks_adaptive_threshold)
-        self.register_method('local_maximum', find_peaks_local_maximum)
-        self.register_method('auto-local_maximum', find_peaks_local_maximum_auto)
-        self.register_method('relative local_maximum', find_peaks_relative_local_maximum)
+        self.register_method('local-maximum-auto', find_peaks_local_maximum_auto)  #default  in GUI
+        self.register_method('absolute-threshold', find_peaks_absolute_threshold)
+        self.register_method('adaptive-threshold', find_peaks_adaptive_threshold)
+        self.register_method('local-maximum', find_peaks_local_maximum)
+        self.register_method('relative-local-maximum', find_peaks_relative_local_maximum)
+
+
 
 
     def update_plots(self):
@@ -203,9 +217,8 @@ class MappingWidget(QWidget):
     # Register methods dynamically and create their forms
     # -------------------------------------------------------------------------
     def register_method(self, name, func):
-        """Register a classification method, introspect arguments,
-        and build a form for the donor channel"""
-
+        """Register a peak finding method, introspect arguments,
+        and build forms for donor and acceptor channels"""
 
         #donor-------------------------:
         form_widget_donor, inputs_donor = build_form(func)
@@ -253,11 +266,18 @@ class MappingWidget(QWidget):
 
         selected_files = self.parent.experiment.selectedFiles
 
-        #jk need to do a mapping here
-        donor_kwargs = 1
-        acceptor_kwargs =1
+        #get methods and corresponding parameters
+        #donor:
+        method_name_donor = self.method_selector_donor.currentText()
+        _, inputs_donor = self.method_forms_donor[method_name_donor]
+        method_name_acceptor = self.method_selector_acceptor.currentText()
+        _, inputs_acceptor = self.method_forms_acceptor[method_name_acceptor]
 
-        #jk-read in a default configuration and change one value:
+        # Collect args for peak finding
+        donor_kwargs=build_peak_find_input(method_name_donor, inputs_donor)
+        acceptor_kwargs = build_peak_find_input(method_name_acceptor, inputs_acceptor)
+
+        #jk-read in a default configuration and allocate GUI values:
         panel_config= self.parent.experiment.configuration['mapping']
         panel_config['method']= self.button_map_method_combobox.currentText()
         panel_config['distance_threshold']= self.button_map_dist_treshold.text
@@ -388,3 +408,20 @@ def build_form(func):
         inputs[param_name] = widget
 
     return form_widget, inputs
+
+
+def build_peak_find_input(method_name, inputs):
+    #build input for chosen peak finding method
+    kwargs = {'method': method_name}
+    for pname, widget in inputs.items():
+        if isinstance(widget, (QSpinBox, QDoubleSpinBox)):
+            val = widget.value()
+        else:
+            val = widget.text()
+            try:
+                val = float(val) if "." in val else int(val)
+            except ValueError:
+                pass
+        kwargs[pname] = val
+
+    return kwargs

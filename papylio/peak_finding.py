@@ -122,6 +122,7 @@ def find_peaks_local_maximum_auto(image,
 
     Parameters
     ----------
+    fraction_difference
     image : NxM numpy.ndarray
 
     minimum_intensity_difference : int or float

@@ -445,6 +445,7 @@ class MainWindow(QMainWindow):
 
         widget = QWidget()
         widget.setLayout(super_layout)
+
         self.setCentralWidget(widget)
         self.show()
 
