@@ -9,7 +9,8 @@ from matplotlib.figure import Figure
 
 from papylio import File
 from papylio.gui.common_layouts import (Expander, ImageCanvas, HelpDialog,
-                                        build_control_layouts,make_push_button)
+                                        build_control_layouts,make_push_button,
+                                        build_form,build_parameters_input)
 
 from papylio.peak_finding import (find_peaks_absolute_threshold,
                                   find_peaks_adaptive_threshold,
@@ -274,8 +275,8 @@ class MappingWidget(QWidget):
         _, inputs_acceptor = self.method_forms_acceptor[method_name_acceptor]
 
         # Collect args for peak finding
-        donor_kwargs=build_peak_find_input(method_name_donor, inputs_donor)
-        acceptor_kwargs = build_peak_find_input(method_name_acceptor, inputs_acceptor)
+        donor_kwargs=build_parameters_input(method_name_donor, inputs_donor)
+        acceptor_kwargs = build_parameters_input(method_name_acceptor, inputs_acceptor)
 
         #jk-read in a default configuration and allocate GUI values:
         panel_config= self.parent.experiment.configuration['mapping']
@@ -373,55 +374,3 @@ class MappingWidget(QWidget):
         self.help_dialog.show()
 
 
-def get_input_type(annotation, default):
-    # Pick appropriate input type
-    if annotation == int or isinstance(default, int):
-        widget = QSpinBox()
-        widget.setRange(-1_000_000, 1_000_000)
-        if default is not None:
-            widget.setValue(default)
-    elif annotation == float or isinstance(default, float):
-        widget = QDoubleSpinBox()
-        widget.setRange(-1e9, 1e9)
-        widget.setDecimals(6)
-        if default is not None:
-            widget.setValue(default)
-    else:
-        widget = QLineEdit()
-        if default not in (None, inspect.Parameter.empty):
-            widget.setText(str(default))
-    return widget
-
-def build_form(func):
-    # --- build the form for the function ---
-    form_widget = QWidget()
-    form = QFormLayout(form_widget)
-    inputs = {}
-    sig = inspect.signature(func)
-    for param_name, param in sig.parameters.items():
-        if param_name in ['image']:
-            continue
-        default = param.default if param.default is not inspect.Parameter.empty else None
-        annotation = param.annotation
-        widget = get_input_type(annotation=annotation, default=default)
-        form.addRow(f"{param_name}:", widget)
-        inputs[param_name] = widget
-
-    return form_widget, inputs
-
-
-def build_peak_find_input(method_name, inputs):
-    #build input for chosen peak finding method
-    kwargs = {'method': method_name}
-    for pname, widget in inputs.items():
-        if isinstance(widget, (QSpinBox, QDoubleSpinBox)):
-            val = widget.value()
-        else:
-            val = widget.text()
-            try:
-                val = float(val) if "." in val else int(val)
-            except ValueError:
-                pass
-        kwargs[pname] = val
-
-    return kwargs

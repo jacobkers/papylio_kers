@@ -120,73 +120,56 @@ def build_control_layouts(button_list):
 
 
 #below a series of functions to link GUI elements to Papylio methods in generic fashion
-#Note to self: not sure if we are going to use this
-def get_parameters(func):
-    # for auto_generating GUI panels:
-    #build a list of parameters for a given function.
-    #NOTE: for nested settings such as in a dict, this will not go deeper
-    sig = inspect.signature(func)
-    params = {}
-
-    for name, p in sig.parameters.items():
-        if p.default is not inspect._empty:
-            params[name] = p.default
-        else:
-            params[name] = None  # or some placeholder
-
-    return params
-
-
-def create_fields(func, layout):
-    # for auto_generating GUI panels:
-    #expand a of parameter fields
-    # using the default values of this functions parameters
-    param_defaults = get_parameters(func)
-    widgets = {}
-
-    for name, default in param_defaults.items():
-        field = QLineEdit()
+def get_input_type(annotation, default):
+    # Pick appropriate input type
+    if annotation == int or isinstance(default, int):
+        widget = QSpinBox()
+        widget.setRange(-1_000_000, 1_000_000)
         if default is not None:
-            field.setText(str(default))
+            widget.setValue(default)
+    elif annotation == float or isinstance(default, float):
+        widget = QDoubleSpinBox()
+        widget.setRange(-1e9, 1e9)
+        widget.setDecimals(6)
+        if default is not None:
+            widget.setValue(default)
+    else:
+        widget = QLineEdit()
+        if default not in (None, inspect.Parameter.empty):
+            widget.setText(str(default))
+    return widget
 
-        layout.addWidget(field)
-        widgets[name] = field
+def build_form(func):
+    # --- build the form for the function ---
+    form_widget = QWidget()
+    form = QFormLayout(form_widget)
+    inputs = {}
+    sig = inspect.signature(func)
+    for param_name, param in sig.parameters.items():
+        if param_name in ['image']:
+            continue
+        default = param.default if param.default is not inspect.Parameter.empty else None
+        annotation = param.annotation
+        widget = get_input_type(annotation=annotation, default=default)
+        form.addRow(f"{param_name}:", widget)
+        inputs[param_name] = widget
 
-    return widgets
+    return form_widget, inputs
 
-def convert_value(text, default):
-    # for auto_generating GUI panels:
-    # restore type of the default value
-    if default is None:
-        return text  # fallback
-    try:
-        return type(default)(text)
-    except Exception:
-        return text
 
-def call_with_widgets(func, widgets, defaults):
-    # for auto_generating GUI panels:
-    # activate the function
-    kwargs = {}
+def build_parameters_input(method_name, inputs):
+    #build input for chosen method
+    kwargs = {'method': method_name}
+    for pname, widget in inputs.items():
+        if isinstance(widget, (QSpinBox, QDoubleSpinBox)):
+            val = widget.value()
+        else:
+            val = widget.text()
+            try:
+                val = float(val) if "." in val else int(val)
+            except ValueError:
+                pass
+        kwargs[pname] = val
 
-    for name, widget in widgets.items():
-        text = widget.text()
-        default = defaults[name]
-        kwargs[name] = convert_value(text, default)
+    return kwargs
 
-    return func(**kwargs)
-
-def bind_function_to_gui(func, layout, button):
-    # for auto_generating GUI panels:
-    # link a specified button to calling a function with
-    # auto-generated parameters fields
-    defaults = get_parameters(func)
-    widgets = create_fields(func, layout)
-
-    def on_click():
-        result = call_with_widgets(func, widgets, defaults)
-        print(result)
-
-    button.clicked.connect(on_click)
-
-    return widgets
