@@ -2,7 +2,7 @@
 #They are stored here to avoid circular imports -jk
 
 import sys
-from PySide2.QtWidgets import  QApplication, QSizePolicy
+
 import matplotlib as mpl
 import inspect
 
@@ -10,7 +10,7 @@ import inspect
 from matplotlib.backends.backend_qtagg import (
     FigureCanvas)
 
-from PySide2.QtWidgets import (
+from PySide2.QtWidgets import (QFormLayout, QDoubleSpinBox,QSpinBox,
     QApplication, QWidget, QVBoxLayout, QHBoxLayout,QToolButton, QTextBrowser,
     QLabel, QSizePolicy, QGridLayout, QDialog, QPushButton, QTextEdit, QDialog, QLineEdit
 )

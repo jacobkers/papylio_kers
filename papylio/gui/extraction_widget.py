@@ -5,7 +5,6 @@ from PySide2.QtCore import Qt
 
 import matplotlib.pyplot as plt
 
-from matplotlib.figure import Figure
 
 from papylio import File
 from papylio.gui.common_layouts import (Expander, ImageCanvas, HelpDialog,
@@ -22,36 +21,15 @@ from papylio.peak_finding import (find_peaks_absolute_threshold,
 from matplotlib.backends.backend_qtagg import (
     FigureCanvas, NavigationToolbar2QT as NavigationToolbar)
 
-import inspect
 
-class MappingWidget(QWidget):
+class ExtractionWidget(QWidget):
     def __init__(self, parent=None):
-        super(MappingWidget, self).__init__(parent)
+        super(ExtractionWidget, self).__init__(parent)
         self.parent = parent
         self.methods_donor = {}
         self.method_forms_donor = {}  # method_name -> (widget, inputs)
-        self.methods_acceptor = {}
-        self.method_forms_acceptor = {}  #
 
         self.parent.model.itemChanged.connect(self.onItemChange)
-
-        # imagery
-        # #--------------------------------------------
-        self.fig1 = Figure(figsize=(4, 3))
-        self.map_overlay_image_canvas = FigureCanvas(self.fig1)
-        map_overlay_image_layout = QVBoxLayout()
-        map_overlay_image_layout.addWidget(self.map_overlay_image_canvas)
-        self.map_overlay_image = QWidget()
-        self.map_overlay_image.setLayout(map_overlay_image_layout)
-        self.map_overlay_image.setToolTip("overlay image shows result of mapping")
-        self.map_image_canvas = ImageCanvas(self, width=4, height=3, dpi=100)
-        self.map_image_canvas.setToolTip("shows raw image (1st of multiple selection)")
-        map_image_toolbar = NavigationToolbar(self.map_image_canvas, self)
-        map_image_layout = QVBoxLayout()
-
-        # Create a placeholder widget to hold our toolbar and canvas.
-        self.map_image = QWidget()
-        self.map_image.setLayout(map_image_layout)
 
 
         #build a flexible form for the donor channel:-------------------------
@@ -76,44 +54,13 @@ class MappingWidget(QWidget):
         form_donor.addRow("Options:", self.stack_donor)
 
 
-
-
-        # build a flexible form for the acceptor channel:-------------------------
-        frame_acceptor = QFrame()
-        frame_acceptor.setFrameShape(QFrame.StyledPanel)
-        frame_acceptor.setFrameShadow(QFrame.Plain)
-        frame_acceptor.setLineWidth(2)
-
-        form_acceptor = QFormLayout(frame_acceptor)
-        acceptor_label = QLabel("ACCEPTOR spot detection ")
-        acceptor_label.setToolTip("Tune the peak detection for the donor channel")
-        form_acceptor.addRow(acceptor_label)
-        # --- Method selector acceptor---
-        self.method_selector_acceptor = QComboBox()
-        self.method_selector_acceptor.setToolTip("Choose peak_find_method")
-        self.method_selector_acceptor.currentTextChanged.connect(self._update_method_panel_acceptor)
-        form_acceptor.addRow("Method:", self.method_selector_acceptor)
-        # --- Dynamic options container -acceptor ---
-        self.stack_acceptor = QWidget()
-        self.stack_acceptor_layout = QVBoxLayout(self.stack_acceptor)
-        self.stack_acceptor_layout.setContentsMargins(0, 0, 0, 0)
-        form_acceptor.addRow("Options:", self.stack_acceptor)
-
         #genral map settings
         #-------------------------------------------------------
-        #main mapping buttons definition:
-
-
-        #basic mapping grid layout:
+        #main extraction buttons definition:
+        #basic extraction grid layout:
         #donor_acceptor block
         donor_acceptor_layout = QHBoxLayout()
         donor_acceptor_layout.addWidget(frame_donor)
-        donor_acceptor_layout.addWidget(frame_acceptor)
-
-
-
-
-
 
         self.button_map_label = QLabel("method:")
         self.button_map_method_combobox = QComboBox()
@@ -129,8 +76,7 @@ class MappingWidget(QWidget):
         self.button_initial_translation.addItems(self.button_initial_translation_options)
 
 
-
-        # advanced mapping grid layout:
+        # advanced extraction grid layout:
         frame = QFrame()
         frame.setFrameShape(QFrame.StyledPanel)
         frame.setFrameShadow(QFrame.Plain)
@@ -156,7 +102,7 @@ class MappingWidget(QWidget):
 
         #main action:
         map_controls = build_control_layouts(
-            [make_push_button('Map', self.perform_mapping,"Map selected file(s)"),
+            [make_push_button('Map', self.perform_extraction,"Map selected file(s)"),
              make_push_button('Help', self.show_help, None)])
 
 
@@ -172,12 +118,10 @@ class MappingWidget(QWidget):
         self.map_controls.setMinimumWidth(150)
 
         #add all to tab:
-        mapping_tab_layout = QHBoxLayout()
-        mapping_tab_layout.addWidget(self.map_controls)
-        mapping_tab_layout.addWidget(self.map_image)
-        mapping_tab_layout.addWidget(self.map_overlay_image)
+        extraction_tab_layout = QHBoxLayout()
+        extraction_tab_layout.addWidget(self.map_controls)
 
-        self.setLayout(mapping_tab_layout)
+        self.setLayout(extraction_tab_layout)
 
         #collect peak finding methods for building flexible GUI forms
         self.register_method('local-maximum-auto', find_peaks_local_maximum_auto)  #default  in GUI
@@ -187,17 +131,8 @@ class MappingWidget(QWidget):
         self.register_method('relative-local-maximum', find_peaks_relative_local_maximum)
 
 
-
-
     def update_plots(self):
         selected_files = self.parent.experiment.selectedFiles + [None]
-        self.map_image_canvas.file = selected_files[0]
-         #if selected_files[0] is not None:
-         #     self.traces.dataset = selected_files[0].dataset
-         #      self.selection.file = selected_files[0]
-         #else:
-         #     self.traces.dataset = None
-         #      self.selection.file = None
 
     def onItemChange(self, item):
         if isinstance(item.data(), File):
@@ -229,13 +164,6 @@ class MappingWidget(QWidget):
         if self.method_selector_donor.count() == 1: # First registered method becomes default
             self._update_method_panel_donor(name)
 
-        # acceptor-------------------------:
-        form_widget_acceptor, inputs_acceptor = build_form(func)
-        self.methods_acceptor[name] = func
-        self.method_forms_acceptor[name] = (form_widget_acceptor, inputs_acceptor)
-        self.method_selector_acceptor.addItem(name)  # add options to appropriate selector box
-        if self.method_selector_acceptor.count() == 1:  # First registered method becomes default
-            self._update_method_panel_acceptor(name)
 
 
     def _update_method_panel_donor(self, name):
@@ -249,21 +177,7 @@ class MappingWidget(QWidget):
             form_widget, _ = self.method_forms_donor[name]
             self.stack_donor_layout.addWidget(form_widget)
 
-    def _update_method_panel_acceptor(self, name):
-        # Clear the old form
-        for i in reversed(range(self.stack_acceptor_layout.count())):
-            widget = self.stack_acceptor_layout.itemAt(i).widget()
-            if widget:
-                widget.setParent(None)
-        # Add new form
-        if name in self.method_forms_acceptor:
-            form_widget, _ = self.method_forms_acceptor[name]
-            self.stack_acceptor_layout.addWidget(form_widget)
-
-    def perform_mapping(self, t):
-        print(t)
-        self.fig1.clear()
-        ax1 = self.fig1.add_subplot(111)
+    def perform_extraction(self, t):
 
         selected_files = self.parent.experiment.selectedFiles
 
@@ -279,50 +193,49 @@ class MappingWidget(QWidget):
         acceptor_kwargs = build_parameters_input(method_name_acceptor, inputs_acceptor)
 
         #jk-read in a default configuration and allocate GUI values:
-        panel_config= self.parent.experiment.configuration['mapping']
+        panel_config= self.parent.experiment.configuration['extraction']
         panel_config['method']= self.button_map_method_combobox.currentText()
         panel_config['distance_threshold']= self.button_map_dist_treshold.text
         panel_config['peak_finding']['donor'] = donor_kwargs
         panel_config['peak_finding']['acceptor'] = acceptor_kwargs
 
-        plot_file = selected_files[0]
-        plot_file.mapping.show_mapping_transformation(axis=ax1)
-        self.map_overlay_image_canvas.draw_idle()
         if selected_files:
-            selected_files.serial.perform_mapping(**panel_config)
+            selected_files.serial.perform_extraction(**panel_config)
             self.update_plots()
-            self.map_image_canvas.refresh()
 
     def show_help(self):
         help_text = """
             <html>
               <body style="font-family: sans-serif; font-size: 10pt;">
 
-                <h2>Mapping</h2>
+                <h2>Extraction</h2>
 
                 <p>
-                  Find corresponding XY positions in donor and acceptor channels.
+                  Find spot coordinates and extract traces.
                 </p>
 
                 <ul>
                   <li>run as-is using the defaults</li>
-                  <li>use 'advanced' to change settings </li>
-                  <li>press 'Map' </li>
+                  <li>use 'advanced' to change settings  2</li>
+                  <li>press 'Find coordinates' and 'Extract traces' 3
                 </ul>
 
-                <h3>More help</h3>
                 <p>
-                See the 
-                    <a href="https://papylio.readthedocs.io/en/stable/user_guide/channel_mapping.html">
-                mapping with Papylio
-                    </a>.
+                  For more help, see
+                  <a href="https://papylio.readthedocs.io/en/stable/user_guide/molecule_localization.html">
+                    Molecule Localization in Papylio
+                  </a>.
                 </p>
-                   
 
-                
-                </body>
-                </html>
-                """
+                <h3>Example</h3>
+
+                <p>
+                  Settings examples can be found in the documentation.
+                </p>
+
+              </body>
+            </html>
+            """
 
         self.help_dialog = HelpDialog(self, help_text)
         # dialog.exec_()  # modal
