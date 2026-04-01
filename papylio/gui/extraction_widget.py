@@ -54,20 +54,53 @@ class ExtractionWidget(QWidget):
         form_donor.addRow("Options:", self.stack_donor)
 
 
-        #genral map settings
+        #genral extraction settings
         #-------------------------------------------------------
+        #         #what we want to inspect:
+        #         """"
+        #         find_coordinates:
+        #         channels:
+        #         - donor
+        #         illumination: 0
+        #         projection_type: average
+        #         method: by_channel
+        #         projection_image:
+        #         projection_type: average
+        #         frame_range:
+        #         - 0
+        #         - 20
+        #         illumination: 0
+        #
+        #     sliding_window:
+        #     use_sliding_window: false
+        #     frame_increment: 20
+        #     minimal_point_separation: 2
+        #
+        # peak_finding [inspect]:
+        #     method: local - maximum - auto
+        #     coordinate_optimization:
+        #     coordinates_within_margin:
+        #     margin: 10
+        # coordinates_after_gaussian_fit:
+        #     gaussian_width: 3
+        #     background:
+        #     method: ROI_minimum
+        #     frames_for_background:
+        #     first_frame: 0
+        #     last_frame: 9
+        #         """
         #main extraction buttons definition:
         #basic extraction grid layout:
         #donor_acceptor block
         donor_acceptor_layout = QHBoxLayout()
         donor_acceptor_layout.addWidget(frame_donor)
 
-        self.button_map_label = QLabel("method:")
-        self.button_map_method_combobox = QComboBox()
-        self.button_map_options = ['icp', 'nn']
-        self.button_map_method_combobox.addItems(self.button_map_options)
-        self.button_map_dist_treshold = QLineEdit()
-        self.button_map_dist_treshold.setPlaceholderText("distance_treshold")
+        self.button_extraction_label = QLabel("method:")
+        self.button_extraction_method_combobox = QComboBox()
+        self.button_extraction_options = ['icp', 'nn']
+        self.button_extraction_method_combobox.addItems(self.button_extraction_options)
+        self.button_extraction_dist_treshold = QLineEdit()
+        self.button_extraction_dist_treshold.setPlaceholderText("distance_treshold")
         self.button_transformation = QComboBox()
         self.button_transformation_options = ['polynomial', 'linear', 'nonlinear']
         self.button_transformation.addItems(self.button_transformation_options)
@@ -82,44 +115,51 @@ class ExtractionWidget(QWidget):
         frame.setFrameShadow(QFrame.Plain)
         frame.setLineWidth(2)
 
-        map_advanced_layout = QVBoxLayout()
-        map_advanced_layout.setAlignment(Qt.AlignLeft)
+        extraction_advanced_layout = QVBoxLayout()
+        extraction_advanced_layout.setAlignment(Qt.AlignLeft)
 
-        map_advanced2_layout = QFormLayout(frame)
-        map_advanced2_layout.addRow("Method", self.button_map_method_combobox)
-        map_advanced2_layout.addRow("Distance treshold:",self.button_map_dist_treshold)
-        map_advanced2_layout.addRow("Transformation_type:", self.button_transformation)
-        map_advanced2_layout.addRow("Initial_translation:", self.button_initial_translation)
+        extraction_advanced2_layout = QFormLayout(frame)
+        extraction_advanced2_layout.addRow("Method", self.button_extraction_method_combobox)
+        extraction_advanced2_layout.addRow("Distance treshold:",self.button_extraction_dist_treshold)
+        extraction_advanced2_layout.addRow("Transformation_type:", self.button_transformation)
+        extraction_advanced2_layout.addRow("Initial_translation:", self.button_initial_translation)
 
-        map_advanced_layout.addWidget(frame)
-        #map_advanced_layout.addLayout(map_advanced2_layout)
-        map_advanced_layout.addLayout(donor_acceptor_layout)
+        extraction_advanced_layout.addWidget(frame)
+        extraction_advanced_layout.addLayout(extraction_advanced2_layout)
 
 
         #build panel layout:
-        map_advanced = Expander("Advanced")
-        map_advanced.setContentLayout(map_advanced_layout)
+        extraction_advanced = Expander("Advanced")
+        extraction_advanced.setContentLayout(extraction_advanced_layout)
 
         #main action:
-        map_controls = build_control_layouts(
-            [make_push_button('Map', self.perform_extraction,"Map selected file(s)"),
+        extraction_controls = build_control_layouts(
+            [make_push_button('Find coordinates', self.find_coordinates,"extraction selected file(s)"),
+             make_push_button('Extract traces', self.extract_traces, "extraction selected file(s)"),
              make_push_button('Help', self.show_help, None)])
 
-
         #collect:
-        map_controls_layout = QVBoxLayout()
-        map_controls_layout.setAlignment(Qt.AlignTop)
-        map_controls_layout.addWidget(map_advanced)
-        map_controls_layout.addWidget(map_controls)
+        extraction_controls_layout = QVBoxLayout()
+        extraction_controls_layout.setAlignment(Qt.AlignTop)
+        extraction_controls_layout.addWidget(extraction_advanced)
+        extraction_controls_layout.addWidget(extraction_controls)
 
         #pack in widget:
-        self.map_controls = QWidget()
-        self.map_controls.setLayout(map_controls_layout)
-        self.map_controls.setMinimumWidth(150)
+        self.extraction_controls = QWidget()
+        self.extraction_controls.setLayout(extraction_controls_layout)
+        self.extraction_controls.setMinimumWidth(150)
 
         #add all to tab:
         extraction_tab_layout = QHBoxLayout()
-        extraction_tab_layout.addWidget(self.map_controls)
+        
+        
+        
+        extraction_tab_layout.addWidget(self.extraction_controls)
+
+
+
+
+
 
         self.setLayout(extraction_tab_layout)
 
@@ -194,14 +234,46 @@ class ExtractionWidget(QWidget):
 
         #jk-read in a default configuration and allocate GUI values:
         panel_config= self.parent.experiment.configuration['extraction']
-        panel_config['method']= self.button_map_method_combobox.currentText()
-        panel_config['distance_threshold']= self.button_map_dist_treshold.text
+        panel_config['method']= self.button_extraction_method_combobox.currentText()
+        panel_config['distance_threshold']= self.button_extraction_dist_treshold.text
         panel_config['peak_finding']['donor'] = donor_kwargs
         panel_config['peak_finding']['acceptor'] = acceptor_kwargs
 
         if selected_files:
             selected_files.serial.perform_extraction(**panel_config)
             self.update_plots()
+
+
+    #TODO: added from main, to be edited
+    def find_coordinates(self):
+        selected_files = self.parent.experiment.selectedFiles
+        if selected_files:
+            selected_files.movie.determine_spatial_background_correction(use_existing=True)
+            selected_files.find_coordinates()
+
+            def find_coordinates(self):
+                selected_files = self.experiment.selectedFiles
+                if selected_files:
+                    selected_files.movie.determine_spatial_background_correction(use_existing=True)
+                    selected_files.find_coordinates()
+                    self.image_canvas.refresh()
+                    self.update_plots()
+
+            def extract_traces(self):
+                selected_files = self.experiment.selectedFiles
+                if selected_files:
+                    selected_files.extract_traces()
+                    # self.image_canvas.refresh()
+                    self.update_plots()
+            self.update_plots()
+
+    def extract_traces(self):
+        selected_files = self.parent.experiment.selectedFiles
+        if selected_files:
+            selected_files.extract_traces()
+            # self.image_canvas.refresh()
+            self.update_plots()
+
 
     def show_help(self):
         help_text = """
