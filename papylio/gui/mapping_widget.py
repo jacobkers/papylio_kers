@@ -274,7 +274,7 @@ class MappingWidget(QWidget):
         method_name_acceptor = self.method_selector_acceptor.currentText()
         _, inputs_acceptor = self.method_forms_acceptor[method_name_acceptor]
 
-        # Collect args for peak finding
+        # Collect flexible args for peak finding
         donor_kwargs=build_parameters_input(method_name_donor, inputs_donor)
         acceptor_kwargs = build_parameters_input(method_name_acceptor, inputs_acceptor)
 

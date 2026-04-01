@@ -56,39 +56,6 @@ class ExtractionWidget(QWidget):
 
         #genral extraction settings
         #-------------------------------------------------------
-        #         #what we want to inspect:
-        #         """"
-        #         find_coordinates:
-        #         channels:
-        #         - donor
-        #         illumination: 0
-        #         projection_type: average
-        #         method: by_channel
-        #         projection_image:
-        #         projection_type: average
-        #         frame_range:
-        #         - 0
-        #         - 20
-        #         illumination: 0
-        #
-        #     sliding_window:
-        #     use_sliding_window: false
-        #     frame_increment: 20
-        #     minimal_point_separation: 2
-        #
-        # peak_finding [inspect]:
-        #     method: local - maximum - auto
-        #     coordinate_optimization:
-        #     coordinates_within_margin:
-        #     margin: 10
-        # coordinates_after_gaussian_fit:
-        #     gaussian_width: 3
-        #     background:
-        #     method: ROI_minimum
-        #     frames_for_background:
-        #     first_frame: 0
-        #     last_frame: 9
-        #         """
         #main extraction buttons definition:
         #basic extraction grid layout:
         #donor_acceptor block
