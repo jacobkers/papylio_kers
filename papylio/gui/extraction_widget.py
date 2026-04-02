@@ -26,78 +26,82 @@ class ExtractionWidget(QWidget):
     def __init__(self, parent=None):
         super(ExtractionWidget, self).__init__(parent)
         self.parent = parent
-        self.methods_donor = {}
-        self.method_forms_donor = {}  # method_name -> (widget, inputs)
+        self.methods_spot_detection = {}
+        self.method_forms_spot_detection = {}  # method_name -> (widget, inputs)
 
         self.parent.model.itemChanged.connect(self.onItemChange)
 
 
-        #build a flexible form for the donor channel:-------------------------
-        frame_donor = QFrame()
-        frame_donor.setFrameShape(QFrame.StyledPanel)
-        frame_donor.setFrameShadow(QFrame.Plain)
-        frame_donor.setLineWidth(2)
+        #build a flexible form for the spot_detection channel:-------------------------
+        frame_spot_detection = QFrame()
+        frame_spot_detection.setFrameShape(QFrame.StyledPanel)
+        frame_spot_detection.setFrameShadow(QFrame.Plain)
+        frame_spot_detection.setLineWidth(2)
 
-        form_donor = QFormLayout(frame_donor)
-        donor_label = QLabel("DONOR spot detection")
-        donor_label.setToolTip("Tune the peak detection for the donor channel")
-        form_donor.addRow(donor_label)
-        # --- Method selector donor---
-        self.method_selector_donor = QComboBox()
-        self.method_selector_donor.setToolTip("Choose peak_find_method")
-        self.method_selector_donor.currentTextChanged.connect(self._update_method_panel_donor)
-        form_donor.addRow("Method:", self.method_selector_donor)
-        # --- Dynamic options container donor ---
-        self.stack_donor = QWidget()
-        self.stack_donor_layout = QVBoxLayout(self.stack_donor)
-        self.stack_donor_layout.setContentsMargins(0, 0, 0, 0)
-        form_donor.addRow("Options:", self.stack_donor)
+        form_spot_detection = QFormLayout(frame_spot_detection)
+        spot_detection_label = QLabel("spot_detection")
+        spot_detection_label.setToolTip("Tune spot_detection")
+        form_spot_detection.addRow(spot_detection_label)
+        # --- Method selector spot_detection---
+        self.method_selector_spot_detection = QComboBox()
+        self.method_selector_spot_detection.setToolTip("Choose peak_find_method")
+        self.method_selector_spot_detection.currentTextChanged.connect(self._update_method_panel_spot_detection)
+        form_spot_detection.addRow("Method:", self.method_selector_spot_detection)
+        # --- Dynamic options container spot_detection ---
+        self.stack_spot_detection = QWidget()
+        self.stack_spot_detection_layout = QVBoxLayout(self.stack_spot_detection)
+        self.stack_spot_detection_layout.setContentsMargins(0, 0, 0, 0)
+        form_spot_detection.addRow("Options:", self.stack_spot_detection)
 
 
-        #genral extraction settings
+        #non-dynamic extraction settings
         #-------------------------------------------------------
-        #main extraction buttons definition:
-        #basic extraction grid layout:
-        #donor_acceptor block
-        donor_acceptor_layout = QHBoxLayout()
-        donor_acceptor_layout.addWidget(frame_donor)
-
-        self.button_extraction_label = QLabel("method:")
-        self.button_extraction_method_combobox = QComboBox()
-        self.button_extraction_options = ['icp', 'nn']
-        self.button_extraction_method_combobox.addItems(self.button_extraction_options)
-        self.button_extraction_dist_treshold = QLineEdit()
-        self.button_extraction_dist_treshold.setPlaceholderText("distance_treshold")
-        self.button_transformation = QComboBox()
-        self.button_transformation_options = ['polynomial', 'linear', 'nonlinear']
-        self.button_transformation.addItems(self.button_transformation_options)
-        self.button_initial_translation = QComboBox()
-        self.button_initial_translation_options = ['width/2' , [1024,0]]
-        self.button_initial_translation.addItems(self.button_initial_translation_options)
-
 
         # advanced extraction grid layout:
-        frame = QFrame()
-        frame.setFrameShape(QFrame.StyledPanel)
-        frame.setFrameShadow(QFrame.Plain)
-        frame.setLineWidth(2)
 
-        extraction_advanced_layout = QVBoxLayout()
-        extraction_advanced_layout.setAlignment(Qt.AlignLeft)
 
-        extraction_advanced2_layout = QFormLayout(frame)
-        extraction_advanced2_layout.addRow("Method", self.button_extraction_method_combobox)
-        extraction_advanced2_layout.addRow("Distance treshold:",self.button_extraction_dist_treshold)
-        extraction_advanced2_layout.addRow("Transformation_type:", self.button_transformation)
-        extraction_advanced2_layout.addRow("Initial_translation:", self.button_initial_translation)
+        #this one collects the various settings frames in horizontal fashion
+        advanced_layout = QHBoxLayout()
+        advanced_layout.setAlignment(Qt.AlignLeft)
 
-        extraction_advanced_layout.addWidget(frame)
-        extraction_advanced_layout.addLayout(extraction_advanced2_layout)
+        #first frame: general settings---------------------------------
+        frame_general = QFrame()
+        frame_general.setFrameShape(QFrame.StyledPanel)
+        frame_general.setFrameShadow(QFrame.Plain)
+        frame_general.setLineWidth(2)
+        advanced_general_layout = QFormLayout(frame_general)
+        general_label = QLabel("general ")
+        advanced_general_layout.addRow(general_label)
+        self.button_extract_chan_combobox = QComboBox() #channel
+        button_extract_chan_options = ['donor', 'acceptor']
+        self.button_extract_chan_combobox.addItems(button_extract_chan_options)
+        advanced_general_layout.addRow("channels", self.button_extract_chan_combobox)
+        self.button_extract_illumination_entry = QLineEdit()
+        self.button_extract_illumination_entry.setPlaceholderText("0")
+        advanced_general_layout.addRow("illumination:", self.button_extract_illumination_entry)
+
+        frame_projection = QFrame()
+        frame_projection.setFrameShape(QFrame.StyledPanel)
+        frame_projection.setFrameShadow(QFrame.Plain)
+        frame_projection.setLineWidth(2)
+        advanced_projection_layout = QFormLayout(frame_projection)
+        projection_label = QLabel("projection")
+        advanced_projection_layout.addRow(projection_label)
+        self.button_extract_method_combobox = QComboBox()
+        button_extract_method_options = ['by_channel', 'average_channels', 'sum_channels']
+        self.button_extract_method_combobox.addItems(button_extract_method_options)
+        advanced_projection_layout.addRow("method:", self.button_extract_method_combobox)
+
+        #add general frame to tab layout
+        advanced_layout.addWidget(frame_general)
+        advanced_layout.addWidget(frame_projection)
+        advanced_layout.addWidget(frame_spot_detection)
 
 
         #build panel layout:
         extraction_advanced = Expander("Advanced")
-        extraction_advanced.setContentLayout(extraction_advanced_layout)
+        extraction_advanced.setContentLayout(advanced_layout)
+
 
         #main action:
         extraction_controls = build_control_layouts(
@@ -118,15 +122,7 @@ class ExtractionWidget(QWidget):
 
         #add all to tab:
         extraction_tab_layout = QHBoxLayout()
-        
-        
-        
         extraction_tab_layout.addWidget(self.extraction_controls)
-
-
-
-
-
 
         self.setLayout(extraction_tab_layout)
 
@@ -161,49 +157,49 @@ class ExtractionWidget(QWidget):
     # -------------------------------------------------------------------------
     def register_method(self, name, func):
         """Register a peak finding method, introspect arguments,
-        and build forms for donor and acceptor channels"""
+        and build forms for spot_detection and acceptor channels"""
 
-        #donor-------------------------:
-        form_widget_donor, inputs_donor = build_form(func)
-        self.methods_donor[name] = func
-        self.method_forms_donor[name] = (form_widget_donor, inputs_donor)
-        self.method_selector_donor.addItem(name) #add options to appropriate selector box
-        if self.method_selector_donor.count() == 1: # First registered method becomes default
-            self._update_method_panel_donor(name)
+        #spot_detection-------------------------:
+        form_widget_spot_detection, inputs_spot_detection = build_form(func)
+        self.methods_spot_detection[name] = func
+        self.method_forms_spot_detection[name] = (form_widget_spot_detection, inputs_spot_detection)
+        self.method_selector_spot_detection.addItem(name) #add options to appropriate selector box
+        if self.method_selector_spot_detection.count() == 1: # First registered method becomes default
+            self._update_method_panel_spot_detection(name)
 
 
 
-    def _update_method_panel_donor(self, name):
+    def _update_method_panel_spot_detection(self, name):
         # Clear the old form
-        for i in reversed(range(self.stack_donor_layout.count())):
-            widget = self.stack_donor_layout.itemAt(i).widget()
+        for i in reversed(range(self.stack_spot_detection_layout.count())):
+            widget = self.stack_spot_detection_layout.itemAt(i).widget()
             if widget:
                 widget.setParent(None)
         # Add new form
-        if name in self.method_forms_donor:
-            form_widget, _ = self.method_forms_donor[name]
-            self.stack_donor_layout.addWidget(form_widget)
+        if name in self.method_forms_spot_detection:
+            form_widget, _ = self.method_forms_spot_detection[name]
+            self.stack_spot_detection_layout.addWidget(form_widget)
 
     def perform_extraction(self, t):
 
         selected_files = self.parent.experiment.selectedFiles
 
         #get methods and corresponding parameters
-        #donor:
-        method_name_donor = self.method_selector_donor.currentText()
-        _, inputs_donor = self.method_forms_donor[method_name_donor]
+        #spot_detection:
+        method_name_spot_detection = self.method_selector_spot_detection.currentText()
+        _, inputs_spot_detection = self.method_forms_spot_detection[method_name_spot_detection]
         method_name_acceptor = self.method_selector_acceptor.currentText()
         _, inputs_acceptor = self.method_forms_acceptor[method_name_acceptor]
 
         # Collect args for peak finding
-        donor_kwargs=build_parameters_input(method_name_donor, inputs_donor)
+        spot_detection_kwargs=build_parameters_input(method_name_spot_detection, inputs_spot_detection)
         acceptor_kwargs = build_parameters_input(method_name_acceptor, inputs_acceptor)
 
         #jk-read in a default configuration and allocate GUI values:
         panel_config= self.parent.experiment.configuration['extraction']
         panel_config['method']= self.button_extraction_method_combobox.currentText()
         panel_config['distance_threshold']= self.button_extraction_dist_treshold.text
-        panel_config['peak_finding']['donor'] = donor_kwargs
+        panel_config['peak_finding']['spot_detection'] = spot_detection_kwargs
         panel_config['peak_finding']['acceptor'] = acceptor_kwargs
 
         if selected_files:

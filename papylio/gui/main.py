@@ -84,13 +84,14 @@ class MainWindow(QMainWindow):
         # extraction--------------------------------------
         # molecules: spot detection and extraction----------------------------------------------------
         # buttons:
-        button_extract_chan_title = QLabel("channels:")
-        button_extract_chan_combobox = QComboBox()
-        button_extract_chan_options = ['donor', 'acceptor']
-        button_extract_chan_combobox.addItems(button_extract_chan_options)
-        button_extract_illum_title = QLabel("illumination:")
-        button_extract_illum_entry = QLineEdit()
-        button_extract_illum_entry.setPlaceholderText("0")
+        # button_extract_chan_title = QLabel("channels:")
+        # button_extract_chan_combobox = QComboBox()
+        # button_extract_chan_options = ['donor', 'acceptor']
+        # button_extract_chan_combobox.addItems(button_extract_chan_options)
+
+        # button_extract_illum_title = QLabel("illumination:")
+        # button_extract_illum_entry = QLineEdit()
+        # button_extract_illum_entry.setPlaceholderText("0")
         button_extract_projection_type_title = QLabel("projection_type:")
         button_extract_projection_type_combobox = QComboBox()
         button_extract_projection_type_options = ['average', 'maximum']
@@ -101,6 +102,8 @@ class MainWindow(QMainWindow):
         button_extract_method_combobox = QComboBox()
         button_extract_method_options = ['by_channel', 'average_channels', 'sum_channels']
         button_extract_method_combobox.addItems(button_extract_method_options)
+
+
         button_extract_method_title = QLabel("projection_image:")
         button_extract_projection_combobox = QComboBox()
         button_extract_method_options = ['average', 'maximum']
@@ -111,11 +114,7 @@ class MainWindow(QMainWindow):
         button_extract_projection_illumination_title = QLabel("illumination:")
         button_extract_projection_illumination = QLineEdit()
         button_extract_projection_illumination.setPlaceholderText("0")
-
         #       title: sliding_window:
-        #           field combo: use_sliding_window: false
-        #           field entry: frame_increment: 20
-        #           field entry: minimal_point_separation: 2
         button_extract_slideW_title = QLabel("sliding window:")
         button_extract_slideW_UseIt_combobox = QComboBox()
         button_extract_slideW_UseIt_options = ['True', 'False']
@@ -127,22 +126,12 @@ class MainWindow(QMainWindow):
         button_extract_slideW_MinSep_entry = QLineEdit()
         button_extract_slideW_MinSep_entry.setPlaceholderText("2")
 
-        #       title peak_finding:
-        #           field combo: method: local - maximum - auto
-        #           field entry: filter_neighbourhood_size_min: 10  # Optional
-        #           field entry: : 5  # Optional
-        #       title coordinate_optimization:
-        #           subtitle: coordinates_within_margin:  # Optional
-        #               field entry: margin: 10
-        #            subtitle: coordinates_after_gaussian_fit:  # Optional
-        #                field entry: gaussian_width: 3
-
         # build extraction grid layout:
         extraction_button_grid_layout = QGridLayout()
-        extraction_button_grid_layout.addWidget(button_extract_chan_title, 0, 0)
-        extraction_button_grid_layout.addWidget(button_extract_chan_combobox, 0, 1)
-        extraction_button_grid_layout.addWidget(button_extract_illum_title, 0, 2)
-        extraction_button_grid_layout.addWidget(button_extract_illum_entry, 0, 3)
+        # extraction_button_grid_layout.addWidget(button_extract_chan_title, 0, 0)
+        # extraction_button_grid_layout.addWidget(button_extract_chan_combobox, 0, 1)
+        # extraction_button_grid_layout.addWidget(button_extract_illum_title, 0, 2)
+        # extraction_button_grid_layout.addWidget(button_extract_illum_entry, 0, 3)
         extraction_button_grid_layout.addWidget(button_extract_projection_type_title, 0, 4)
         extraction_button_grid_layout.addWidget(button_extract_projection_type_combobox, 0, 5)
         extraction_button_grid_layout.addWidget(button_extract_method_title, 1, 0)
@@ -203,12 +192,12 @@ class MainWindow(QMainWindow):
         tabs.addTab(tab0, 'Start')
         self.mapping = MappingWidget(parent=self)
         tabs.addTab(self.mapping, 'Mapping')
-        tab2 = QWidget(self)
-        tab2.setLayout(extraction_tab_layout)
-        tabs.addTab(tab2, 'Extraction')
+        # tab2 = QWidget(self)
+        # tab2.setLayout(extraction_tab_layout)
+        # tabs.addTab(tab2, 'Extraction')
 
         self.extraction = ExtractionWidget(parent=self)
-        tabs.addTab(self.extraction, 'Extraction_new')
+        tabs.addTab(self.extraction, 'Extraction')
         self.selection = SelectionWidget(parent=self)
         tabs.addTab(self.selection, 'Selection (beta)')
         self.classification = ClassificationWidget(parent=self)

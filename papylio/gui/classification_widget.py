@@ -374,17 +374,22 @@ class ClassificationWidget(QWidget):
                       </a>.
                     </p>
                 
-                    <h3>Example with three rules (labels in brackets)</h3>
-                
+                    <h3>Example settings 
                     <p>
                      <ul>
-                        <li>Threshold to reject bleached points        → labels [-1, 0]</li>
-                        <li>HMM on remaining points                   → labels [-1, 0, 1]</li>
-                        <li>Threshold to exclude early red-laser off   → labels [-2]</li>
+                        <li>1. threshold: use intensity_total, treshold=0, 'mean', window=3. 
+                                Note: avoid variable 2-channel-intensity. </li>
+                        <li>2. hmm: n_states 2, tres_mean 0, level_molecule, seed=0</li>
+
                     </ul> 
-                1) 
-                2) 
-                3) 
+                    <h3>Applying rules example
+                    <p>
+                     <ul>
+                        <li>1. Threshold to reject bleached points        → labels [-1, 0]</li>
+                        <li>2. HMM on remaining points                   → labels [-1, 0, 1]</li>
+                        <li>3. Threshold to exclude early red-laser off   → labels [-2]</li>
+                    </ul> 
+                
                                 
                 Note:To preserve labels assigned by (2)HMM with follow up rule (3), 
                 use only add rejection labels to 'states, e.g. [-2]
