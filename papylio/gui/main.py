@@ -82,11 +82,6 @@ class MainWindow(QMainWindow):
         self.image.setLayout(image_layout)
 
         # main buttons:
-        #find_molecules_button = QPushButton('Find coordinates')
-        #find_molecules_button.clicked.connect(self.find_coordinates)
-        #extract_traces_button = QPushButton('Extract traces')
-        #extract_traces_button.clicked.connect(self.extract_traces)
-
         main_help_button = QPushButton('Read me')
         main_help_button.clicked.connect(self.show_main_help)
 
@@ -106,12 +101,12 @@ class MainWindow(QMainWindow):
         self.extraction = ExtractionWidget(parent=self)
         tabs.addTab(self.extraction, 'Extraction')
         self.selection = SelectionWidget(parent=self)
-        tabs.addTab(self.selection, 'Selection (beta)')
+        tabs.addTab(self.selection, 'Selection')
         self.classification = ClassificationWidget(parent=self)
         self.classification.classificationChanged.connect(self.update_plots)
-        tabs.addTab(self.classification, 'Classification (beta)')
+        tabs.addTab(self.classification, 'Classification')
         self.kinetics = KineticsWidget(parent=self)
-        tabs.addTab(self.kinetics, 'Kinetics (beta)')
+        tabs.addTab(self.kinetics, 'Kinetics')
         tabs.currentChanged.connect(self.setTabFocus)
 
         # refresh & tree
