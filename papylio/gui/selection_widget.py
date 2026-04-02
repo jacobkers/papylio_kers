@@ -19,8 +19,8 @@ class SelectionWidget(QWidget):
         self.model.setHorizontalHeaderLabels(['Variable', 'Channel', 'Aggregator', 'Operator', 'Threshold', 'Count'])
         self.tree_view.setModel(self.model)
 
-        self.tree_view.setColumnWidth(0, 150)
-        self.tree_view.setColumnWidth(1,100)
+        self.tree_view.setColumnWidth(0, 250)
+        self.tree_view.setColumnWidth(1,250)
 
         self.model.itemChanged.connect(self.on_item_change)
 

@@ -53,18 +53,11 @@ class ExtractionWidget(QWidget):
         self.stack_spot_detection_layout.setContentsMargins(0, 0, 0, 0)
         form_spot_detection.addRow("Options:", self.stack_spot_detection)
 
-
-        #non-dynamic extraction settings
-        #-------------------------------------------------------
-
-        # advanced extraction grid layout:
-
-
         #this one collects the various settings frames in horizontal fashion
         advanced_layout = QHBoxLayout()
         advanced_layout.setAlignment(Qt.AlignLeft)
 
-        #first frame: general settings---------------------------------
+        #general settings box ---------------------------------
         frame_general = QFrame()
         frame_general.setFrameShape(QFrame.StyledPanel)
         frame_general.setFrameShadow(QFrame.Plain)
@@ -73,13 +66,13 @@ class ExtractionWidget(QWidget):
         general_label = QLabel("general ")
         advanced_general_layout.addRow(general_label)
         self.button_extract_chan_combobox = QComboBox() #channel
-        button_extract_chan_options = ['donor', 'acceptor']
-        self.button_extract_chan_combobox.addItems(button_extract_chan_options)
+        self.button_extract_chan_combobox.addItems(['donor', 'acceptor'])
         advanced_general_layout.addRow("channels", self.button_extract_chan_combobox)
-        self.button_extract_illumination_entry = QLineEdit()
-        self.button_extract_illumination_entry.setPlaceholderText("0")
-        advanced_general_layout.addRow("illumination:", self.button_extract_illumination_entry)
+        self.button_extract_illumination_gen = QLineEdit()
+        self.button_extract_illumination_gen.setPlaceholderText("0")
+        advanced_general_layout.addRow("illumination:", self.button_extract_illumination_gen)
 
+        #projection box--------------------------------------
         frame_projection = QFrame()
         frame_projection.setFrameShape(QFrame.StyledPanel)
         frame_projection.setFrameShadow(QFrame.Plain)
@@ -90,13 +83,64 @@ class ExtractionWidget(QWidget):
         self.button_extract_method_combobox = QComboBox()
         button_extract_method_options = ['by_channel', 'average_channels', 'sum_channels']
         self.button_extract_method_combobox.addItems(button_extract_method_options)
-        advanced_projection_layout.addRow("method:", self.button_extract_method_combobox)
+        advanced_projection_layout.addRow("channels:", self.button_extract_method_combobox)
+        self.button_extract_projection_combobox = QComboBox()
+        button_extract_method_options = ['average', 'maximum']
+        self.button_extract_projection_combobox.addItems(button_extract_method_options)
+        advanced_projection_layout.addRow("projection type:", self.button_extract_projection_combobox)
+        self.button_extract_projection_frame_range = QLineEdit()
+        self.button_extract_projection_frame_range.setPlaceholderText("[0, 20]")
+        advanced_projection_layout.addRow("frame range:", self.button_extract_projection_frame_range)
+        self.button_extract_illumination_proj = QLineEdit()
+        self.button_extract_illumination_proj.setPlaceholderText("0")
+        advanced_projection_layout.addRow("illumination:", self.button_extract_illumination_proj)
+
+        #sliding window box-------------------------------
+        frame_sliding_window = QFrame()
+        frame_sliding_window.setFrameShape(QFrame.StyledPanel)
+        frame_sliding_window.setFrameShadow(QFrame.Plain)
+        frame_sliding_window.setLineWidth(2)
+        advanced_sliding_window_layout = QFormLayout(frame_sliding_window)
+        sliding_window_label = QLabel("sliding window")
+        advanced_sliding_window_layout.addRow(sliding_window_label)
+        self.button_extract_slideW_UseIt_combobox = QComboBox()
+        self.button_extract_slideW_UseIt_combobox.addItems(['True', 'False'])
+        advanced_sliding_window_layout.addRow("Use it:", self.button_extract_slideW_UseIt_combobox)
+        self.button_extract_slideW_FrameInc = QLineEdit()
+        self.button_extract_slideW_FrameInc.setPlaceholderText("20")
+        advanced_sliding_window_layout.addRow("frame increment:", self.button_extract_slideW_FrameInc)
+        self.button_extract_slideW_MinSep = QLineEdit()
+        self.button_extract_slideW_MinSep.setPlaceholderText("2")
+        advanced_sliding_window_layout.addRow("minimal separation:", self.button_extract_slideW_MinSep)
+
+        # coordinate optimization box-------------------------------
+        frame_coord_opt = QFrame()
+        frame_coord_opt.setFrameShape(QFrame.StyledPanel)
+        frame_coord_opt.setFrameShadow(QFrame.Plain)
+        frame_coord_opt.setLineWidth(2)
+        advanced_coord_opt_layout = QFormLayout(frame_coord_opt)
+        coord_opt_label = QLabel("coordinate optimization")
+        advanced_coord_opt_layout.addRow(coord_opt_label)
+
+        # extract_traces box-------------------------------
+        frame_extract_traces = QFrame()
+        frame_extract_traces.setFrameShape(QFrame.StyledPanel)
+        frame_extract_traces.setFrameShadow(QFrame.Plain)
+        frame_extract_traces.setLineWidth(2)
+        advanced_extract_traces_layout = QFormLayout(frame_extract_traces)
+        extract_traces_label = QLabel("trace extraction")
+        advanced_extract_traces_layout.addRow(extract_traces_label)
+
+
+
 
         #add general frame to tab layout
         advanced_layout.addWidget(frame_general)
         advanced_layout.addWidget(frame_projection)
+        advanced_layout.addWidget(frame_sliding_window)
         advanced_layout.addWidget(frame_spot_detection)
-
+        advanced_layout.addWidget(frame_coord_opt)
+        advanced_layout.addWidget(frame_extract_traces)
 
         #build panel layout:
         extraction_advanced = Expander("Advanced")

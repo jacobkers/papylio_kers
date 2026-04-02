@@ -75,9 +75,6 @@ class MappingWidget(QWidget):
         self.stack_donor_layout.setContentsMargins(0, 0, 0, 0)
         form_donor.addRow("Options:", self.stack_donor)
 
-
-
-
         # build a flexible form for the acceptor channel:-------------------------
         frame_acceptor = QFrame()
         frame_acceptor.setFrameShape(QFrame.StyledPanel)
@@ -110,11 +107,6 @@ class MappingWidget(QWidget):
         donor_acceptor_layout.addWidget(frame_donor)
         donor_acceptor_layout.addWidget(frame_acceptor)
 
-
-
-
-
-
         self.button_map_label = QLabel("method:")
         self.button_map_method_combobox = QComboBox()
         self.button_map_options = ['icp', 'nn']
@@ -136,7 +128,7 @@ class MappingWidget(QWidget):
         frame.setFrameShadow(QFrame.Plain)
         frame.setLineWidth(2)
 
-        map_advanced_layout = QVBoxLayout()
+        map_advanced_layout = QHBoxLayout()
         map_advanced_layout.setAlignment(Qt.AlignLeft)
 
         map_advanced2_layout = QFormLayout(frame)
