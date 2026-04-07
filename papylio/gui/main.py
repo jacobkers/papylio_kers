@@ -3,8 +3,8 @@ import PySide2
 import platform
 
 import sys
-from PySide2.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QGridLayout, QTreeView, QApplication, QMainWindow, \
-    QPushButton, QTabWidget, QTableWidget, QComboBox, QLineEdit, QLabel
+from PySide2.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QTreeView, QApplication, QMainWindow, \
+    QPushButton, QTabWidget, QSpinBox, QHeaderView
 from PySide2.QtGui import QStandardItem, QStandardItemModel, QIcon
 from PySide2.QtCore import Qt
 import matplotlib as mpl
@@ -59,11 +59,15 @@ class MainWindow(QMainWindow):
         self.model = QStandardItemModel()
         self.root = self.model.invisibleRootItem()
         self.model.setHorizontalHeaderLabels(['Name', 'Count'])
-        self.tree.header().setDefaultSectionSize(180)
+        #self.tree.header().setDefaultSectionSize(180)
+        self.tree.setModel(self.model)
         self.tree.setModel(self.model)
 
-        self.tree.setFocusPolicy(Qt.NoFocus)
-        self.tree.setFixedWidth(256)
+        header = self.tree.header()
+        header.setSectionResizeMode(0, QHeaderView.Stretch)
+        header.setSectionResizeMode(1, QHeaderView.ResizeToContents)
+        self.tree.setColumnHidden(1, True)
+        self.tree.setFixedWidth(400)
         self.update = True
 
         self.model.itemChanged.connect(self.onItemChange)

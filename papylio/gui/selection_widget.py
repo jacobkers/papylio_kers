@@ -1,6 +1,6 @@
 import sys
 import json
-from PySide2.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QGridLayout, QTreeView, QApplication, QMainWindow, \
+from PySide2.QtWidgets import QHeaderView, QWidget, QHBoxLayout, QVBoxLayout, QGridLayout, QTreeView, QApplication, QMainWindow, \
     QPushButton, QTabWidget, QTableWidget, QComboBox, QLineEdit
 from PySide2.QtGui import QStandardItem, QStandardItemModel
 from PySide2.QtCore import Qt
@@ -18,37 +18,14 @@ class SelectionWidget(QWidget):
         self.root = self.model.invisibleRootItem()
         self.model.setHorizontalHeaderLabels(['Variable', 'Channel', 'Aggregator', 'Operator', 'Threshold', 'Count'])
         self.tree_view.setModel(self.model)
+        header = self.tree_view.header()
+        header.setSectionResizeMode(QHeaderView.Stretch)
+        header.setSectionResizeMode(QHeaderView.ResizeToContents)
 
-        self.tree_view.setColumnWidth(0, 250)
-        self.tree_view.setColumnWidth(1,250)
+        #self.tree_view.setColumnWidth(0, 250)
+        #self.tree_view.setColumnWidth(1,250)
 
         self.model.itemChanged.connect(self.on_item_change)
-
-        # variable_item = QStandardItem()
-        # type_item = QStandardItem()
-        # comparison_item = QStandardItem()
-        # value_item = QStandardItem()
-        # add_button_item = QStandardItem()
-        # remove_button_item = QStandardItem()
-        # self.root.appendRow([
-        #     variable_item,
-        #     type_item,
-        #     comparison_item,
-        #     value_item,
-        #     add_button_item,
-        #     remove_button_item,
-        # ])
-        # variable_item.setCheckable(True)
-
-        # parentItem = self.root.child(self.root.rowCount() - 1)
-        # testitem = QStandardItem('10')
-        # selection1 = parentItem.appendRow([
-        #     testitem,
-        # ])
-
-
-
-        #
 
         variable_combobox = QComboBox()
         variables = ['intensity', 'intensity_total', 'FRET']

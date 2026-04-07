@@ -1,6 +1,6 @@
 
 from PySide2.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, \
-    QComboBox, QLineEdit, QLabel, QFormLayout, QFrame
+    QComboBox, QLineEdit, QLabel, QFormLayout
 from PySide2.QtCore import Qt
 
 import matplotlib.pyplot as plt
@@ -10,7 +10,7 @@ from matplotlib.figure import Figure
 from papylio import File
 from papylio.gui.common_layouts import (Expander, ImageCanvas, HelpDialog,
                                         build_control_layouts,make_push_button,
-                                        build_form,build_parameters_input)
+                                        build_form,build_parameters_input, Group_Box)
 
 from papylio.peak_finding import (find_peaks_absolute_threshold,
                                   find_peaks_adaptive_threshold,
@@ -46,7 +46,7 @@ class MappingWidget(QWidget):
         self.map_overlay_image.setToolTip("overlay image shows result of mapping")
         self.map_image_canvas = ImageCanvas(self, width=4, height=3, dpi=100)
         self.map_image_canvas.setToolTip("shows raw image (1st of multiple selection)")
-        map_image_toolbar = NavigationToolbar(self.map_image_canvas, self)
+        #map_image_toolbar = NavigationToolbar(self.map_image_canvas, self)
         map_image_layout = QVBoxLayout()
 
         # Create a placeholder widget to hold our toolbar and canvas.
@@ -55,15 +55,8 @@ class MappingWidget(QWidget):
 
 
         #build a flexible form for the donor channel:-------------------------
-        frame_donor = QFrame()
-        frame_donor.setFrameShape(QFrame.StyledPanel)
-        frame_donor.setFrameShadow(QFrame.Plain)
-        frame_donor.setLineWidth(2)
-
+        frame_donor = Group_Box("Donor Spot Detection")
         form_donor = QFormLayout(frame_donor)
-        donor_label = QLabel("DONOR spot detection")
-        donor_label.setToolTip("Tune the peak detection for the donor channel")
-        form_donor.addRow(donor_label)
         # --- Method selector donor---
         self.method_selector_donor = QComboBox()
         self.method_selector_donor.setToolTip("Choose peak_find_method")
@@ -76,15 +69,8 @@ class MappingWidget(QWidget):
         form_donor.addRow("Options:", self.stack_donor)
 
         # build a flexible form for the acceptor channel:-------------------------
-        frame_acceptor = QFrame()
-        frame_acceptor.setFrameShape(QFrame.StyledPanel)
-        frame_acceptor.setFrameShadow(QFrame.Plain)
-        frame_acceptor.setLineWidth(2)
-
+        frame_acceptor= Group_Box("Acceptor Spot Detection")
         form_acceptor = QFormLayout(frame_acceptor)
-        acceptor_label = QLabel("ACCEPTOR spot detection ")
-        acceptor_label.setToolTip("Tune the peak detection for the donor channel")
-        form_acceptor.addRow(acceptor_label)
         # --- Method selector acceptor---
         self.method_selector_acceptor = QComboBox()
         self.method_selector_acceptor.setToolTip("Choose peak_find_method")
@@ -123,10 +109,7 @@ class MappingWidget(QWidget):
 
 
         # advanced mapping grid layout:
-        frame = QFrame()
-        frame.setFrameShape(QFrame.StyledPanel)
-        frame.setFrameShadow(QFrame.Plain)
-        frame.setLineWidth(2)
+        frame = Group_Box("Common")
 
         map_advanced_layout = QHBoxLayout()
         map_advanced_layout.setAlignment(Qt.AlignLeft)

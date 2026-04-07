@@ -12,12 +12,13 @@ from matplotlib.backends.backend_qtagg import (
 
 from PySide2.QtWidgets import (QFormLayout, QDoubleSpinBox,QSpinBox,
     QApplication, QWidget, QVBoxLayout, QHBoxLayout,QToolButton, QTextBrowser,
-    QLabel, QSizePolicy, QGridLayout, QDialog, QPushButton, QTextEdit, QDialog, QLineEdit
+    QLabel, QSizePolicy, QGroupBox, QGridLayout, QDialog, QPushButton, QTextEdit, QDialog, QLineEdit
 )
 
 
 from PySide2.QtCore import Qt
 import sys
+
 
 class ImageCanvas(FigureCanvas):
     def __init__(self, parent=None, width=14, height=7, dpi=100):
@@ -96,6 +97,23 @@ class HelpDialog(QDialog):
         layout.addWidget(self.text)
         layout.addWidget(close_button)
 
+class Group_Box(QGroupBox):
+    def __init__(self, parent=None, title="title"):
+        super().__init__(parent)
+        self.setStyleSheet("""
+                QGroupBox {
+                    border: 1px solid gray;
+                    border-radius: 3px;
+                    margin-top: 10px;  /* space for title */
+                }
+
+                QGroupBox::title {
+                    subcontrol-origin: margin;
+                    left: 10px;
+                    padding: 0 3px 0 3px;
+                }
+                """)
+
 def make_push_button(text, method, tooltip):
     #build a standardized push button
     btn = QPushButton(text)
@@ -111,7 +129,7 @@ def build_control_layouts(button_list):
 #controls are a  limited set (up to 5) of main action buttons
     controls_layout = QHBoxLayout()
     for b in button_list:
-        controls_layout.addWidget(b, alignment=Qt.AlignBottom)
+        controls_layout.addWidget(b, alignment=Qt.AlignRight)
     # Optional: add stretch at the end to push buttons to the left
     controls_layout.addStretch()
     controls = QWidget()
