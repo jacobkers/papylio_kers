@@ -158,7 +158,7 @@ def get_input_type(annotation, default):
     return widget
 
 def build_form(func):
-    # --- build the form for the function ---
+    # --- build the form for a function ---
     form_widget = QWidget()
     form = QFormLayout(form_widget)
     inputs = {}
