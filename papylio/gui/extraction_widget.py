@@ -237,36 +237,21 @@ class ExtractionWidget(QWidget):
             self.update_plots()
 
 
-    #TODO: added from main, to be edited
+    #TODO: added from main, to be edite
     def find_coordinates(self):
         selected_files = self.parent.experiment.selectedFiles
         if selected_files:
             selected_files.movie.determine_spatial_background_correction(use_existing=True)
             selected_files.find_coordinates()
-
-            def find_coordinates(self):
-                selected_files = self.experiment.selectedFiles
-                if selected_files:
-                    selected_files.movie.determine_spatial_background_correction(use_existing=True)
-                    selected_files.find_coordinates()
-                    self.image_canvas.refresh()
-                    self.update_plots()
-
-            def extract_traces(self):
-                selected_files = self.experiment.selectedFiles
-                if selected_files:
-                    selected_files.extract_traces()
-                    # self.image_canvas.refresh()
-                    self.update_plots()
-            self.update_plots()
+            self.parent.image_canvas.refresh()
+            self.parent.update_plots()
 
     def extract_traces(self):
         selected_files = self.parent.experiment.selectedFiles
         if selected_files:
             selected_files.extract_traces()
             # self.image_canvas.refresh()
-            self.update_plots()
-
+            self.parent.update_plots()
 
     def show_help(self):
         help_text = """
