@@ -245,7 +245,7 @@ class ExtractionWidget(QWidget):
             #write button values to config
             #Note: in future updates, these should be replaced by kwargs passed down to the functions
             self.parent.experiment.configuration['find_coordinates']['channels'][0] = self.button_extract_chan_combobox.currentText()
-            self.parent.experiment.configuration['find_coordinates']['illumination']= int(self.button_extract_illumination_gen.text())
+            self.parent.experiment.configuration['find_coordinates']['illumination']= int(self.button_extract_illumination_gen.value())
 
 
             #to buttons: check following formats; print until equal
