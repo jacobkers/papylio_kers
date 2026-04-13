@@ -249,22 +249,22 @@ class MappingWidget(QWidget):
         method_name_acceptor = self.method_selector_acceptor.currentText()
         _, inputs_acceptor = self.method_forms_acceptor[method_name_acceptor]
 
-        # Collect flexible args for peak finding
+        # reform the chosen method and its args into a kwarg list
         donor_kwargs=build_parameters_input(method_name_donor, inputs_donor)
         acceptor_kwargs = build_parameters_input(method_name_acceptor, inputs_acceptor)
 
         #jk-read in a default configuration and allocate GUI values:
-        panel_config= self.parent.experiment.configuration['mapping']
-        panel_config['method']= self.button_map_method_combobox.currentText()
-        panel_config['distance_threshold']= self.button_map_dist_treshold.text
-        panel_config['peak_finding']['donor'] = donor_kwargs
-        panel_config['peak_finding']['acceptor'] = acceptor_kwargs
+        mapping_config= self.parent.experiment.configuration['mapping']
+        mapping_config['method']= self.button_map_method_combobox.currentText()
+        mapping_config['distance_threshold']= self.button_map_dist_treshold.text
+        mapping_config['peak_finding']['donor'] = donor_kwargs
+        mapping_config['peak_finding']['acceptor'] = acceptor_kwargs
 
         plot_file = selected_files[0]
         plot_file.mapping.show_mapping_transformation(axis=ax1)
         self.map_overlay_image_canvas.draw_idle()
         if selected_files:
-            selected_files.serial.perform_mapping(**panel_config)
+            selected_files.serial.perform_mapping(**mapping_config)
             self.update_plots()
             self.map_image_canvas.refresh()
 
