@@ -77,20 +77,18 @@ class ExtractionWidget(QWidget):
         #note that it is a subsection 'proj_image'
         frame_projection = Group_Box("Projection Image")
         advanced_projection_layout = QFormLayout(frame_projection)
-
-
-
-        self.button_projection_combobox = QComboBox()
-        self.button_projection_combobox.addItems(['average', 'maximum'])
-        advanced_projection_layout.addRow("projection type:", self.button_projection_combobox)
-
-        self.button_projection_frame_range = QLineEdit()
-        self.button_projection_frame_range.setText("[0, 20]")
-        advanced_projection_layout.addRow("frame range:", self.button_projection_frame_range)
-
-        self.button_illumination_proj = QSpinBox()
-        self.button_illumination_proj.setValue(0)
-        advanced_projection_layout.addRow("illumination:", self.button_illumination_proj)
+        #2.1 type
+        self.button_projection_image_type = QComboBox()
+        self.button_projection_image_type.addItems(['average', 'maximum'])
+        advanced_projection_layout.addRow("projection type:", self.button_projection_image_type)
+        #2.2 frame range
+        self.button_projection_image_frame_range = QLineEdit()
+        self.button_projection_image_frame_range.setText("[0, 20]")
+        advanced_projection_layout.addRow("frame range:", self.button_projection_image_frame_range)
+        #2.3 illumination
+        self.button_projection_image_illumination= QSpinBox()
+        self.button_projection_image_illumination.setValue(0)
+        advanced_projection_layout.addRow("illumination:", self.button_projection_image_illumination)
 
         # coordinate optimization box-------------------------------
         frame_coord_opt = Group_Box("Coordinate Optimization")
