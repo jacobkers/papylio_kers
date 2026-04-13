@@ -7,9 +7,9 @@ import matplotlib.pyplot as plt
 
 
 from papylio import File
-from papylio.gui.common_layouts import (Expander, ImageCanvas, HelpDialog,
+from papylio.gui.common_layouts import (Expander, ImageCanvas, HelpDialog,Group_Box,
                                         build_control_layouts,make_push_button,
-                                        build_form,build_parameters_input, Group_Box)
+                                        build_form,build_parameters_input, get_button_value)
 
 from papylio.peak_finding import (find_peaks_absolute_threshold,
                                   find_peaks_adaptive_threshold,
@@ -33,20 +33,7 @@ class ExtractionWidget(QWidget):
 
 
 
-        #build a flexible form for the spot_detection channel:-------------------------
-        group_spot_detection = Group_Box("Spot Detection")
-        form_spot_detection = QFormLayout(group_spot_detection)
 
-        # --- Method selector spot_detection---
-        self.method_selector_spot_detection = QComboBox()
-        self.method_selector_spot_detection.setToolTip("Choose peak_find_method")
-        self.method_selector_spot_detection.currentTextChanged.connect(self._update_method_panel_spot_detection)
-        form_spot_detection.addRow("Method:", self.method_selector_spot_detection)
-        # --- Dynamic options container spot_detection ---
-        self.stack_spot_detection = QWidget()
-        self.stack_spot_detection_layout = QVBoxLayout(self.stack_spot_detection)
-        self.stack_spot_detection_layout.setContentsMargins(0, 0, 0, 0)
-        form_spot_detection.addRow("Options:", self.stack_spot_detection)
 
         #this one collects the various settings frames in horizontal fashion
         advanced_layout = QHBoxLayout()
@@ -60,9 +47,9 @@ class ExtractionWidget(QWidget):
         self.button_general_channel.addItems(['donor', 'acceptor'])
         advanced_general_layout.addRow("channels", self.button_general_channel)
         #1.2 illuminations
-        self.button_general_illumination_gen = QSpinBox()
-        self.button_general_illumination_gen.setValue(0)
-        advanced_general_layout.addRow("illumination:", self.button_general_illumination_gen)
+        self.button_general_illumination = QSpinBox()
+        self.button_general_illumination.setValue(0)
+        advanced_general_layout.addRow("illumination:", self.button_general_illumination)
         #1.3 projection_type:
         self.button_general_projection_type = QComboBox()
         self.button_general_projection_type.addItems(['average', 'maximum'])
@@ -71,7 +58,6 @@ class ExtractionWidget(QWidget):
         self.button_general_method = QComboBox()
         self.button_general_method.addItems(['by_channel', 'average_channels', 'sum_channels'])
         advanced_general_layout.addRow("channels:", self.button_general_method)
-
 
         #2. projection image box--------------------------------------
         #note that it is a subsection 'proj_image'
@@ -90,43 +76,60 @@ class ExtractionWidget(QWidget):
         self.button_projection_image_illumination.setValue(0)
         advanced_projection_layout.addRow("illumination:", self.button_projection_image_illumination)
 
-        # coordinate optimization box-------------------------------
+        #3. peakfinding (dynamic form building)
+        # build a flexible form for the spot_detection channel:-------------------------
+        group_spot_detection = Group_Box("Spot Detection")
+        form_spot_detection = QFormLayout(group_spot_detection)
+        # --- Method selector spot_detection---
+        self.method_selector_spot_detection = QComboBox()
+        self.method_selector_spot_detection.setToolTip("Choose peak_find_method")
+        self.method_selector_spot_detection.currentTextChanged.connect(self._update_method_panel_spot_detection)
+        form_spot_detection.addRow("Method:", self.method_selector_spot_detection)
+        # --- Dynamic options container spot_detection ---
+        self.stack_spot_detection = QWidget()
+        self.stack_spot_detection_layout = QVBoxLayout(self.stack_spot_detection)
+        self.stack_spot_detection_layout.setContentsMargins(0, 0, 0, 0)
+        form_spot_detection.addRow("Options:", self.stack_spot_detection)
+
+        #4. coordinate optimization box-------------------------------
         frame_coord_opt = Group_Box("Coordinate Optimization")
         advanced_coord_opt_layout = QFormLayout(frame_coord_opt)
-        # more buttons to be added here:
-        self.button_coordinates_within_margin = QLineEdit()
-        self.button_coordinates_within_margin.setPlaceholderText("10")
+        #4.1 margin
+        self.button_coordinates_within_margin = QSpinBox()
+        self.button_coordinates_within_margin.setValue(10)
         advanced_coord_opt_layout.addRow("within_margin:",
                                          self.button_coordinates_within_margin)
-        self.button_coordinates_after_gaussian_fit_width = QLineEdit()
-        self.button_coordinates_after_gaussian_fit_width.setPlaceholderText("3")
+        #4.2 Gauss fit width
+        self.button_coordinates_after_gaussian_fit_width = QSpinBox()
+        self.button_coordinates_after_gaussian_fit_width.setValue(3)
         advanced_coord_opt_layout.addRow("gaussian_fit:" ,self.button_coordinates_after_gaussian_fit_width)
 
 
-        # extract_traces box-------------------------------
+        #5. extract_traces box-------------------------------
         frame_extract_traces = Group_Box("Extract Traces")
         advanced_extract_traces_layout = QFormLayout(frame_extract_traces)
-        #channel:
-        self.button_xtr_channel = QComboBox()
-        self.button_xtr_channel.addItems(['all'])
-        advanced_extract_traces_layout.addRow("channel:", self.button_xtr_channel)
-        #mask
-        self.button_mask_size = QLineEdit()
-        self.button_mask_size.setPlaceholderText("11")
-        self.button_mask_size.setToolTip("float number or presets: TIR-T, TIR-V, TIR-S 1.5x 2x2, TIR-S 1x 2x2, BN-TIRF")
-        advanced_extract_traces_layout.addRow("mask size:", self.button_mask_size)
-        #neighbourhood_size: 11
-        self.button_neighbourhood_size= QSpinBox()
-        self.button_neighbourhood_size.setValue(11)
-        advanced_extract_traces_layout.addRow("neighbourhood_size:", self.button_neighbourhood_size)
-
-        self.button_subtract_background = QComboBox()
-        self.button_subtract_background.addItems(['False', 'True'])
-        advanced_extract_traces_layout.addRow("subtract_background:", self.button_subtract_background)
-
-        self.button_correct_illumination = QComboBox()
-        self.button_correct_illumination.addItems(['False', 'True'])
-        advanced_extract_traces_layout.addRow("subtract_background:", self.button_correct_illumination)
+        #5.1 channel:
+        self.button_extract_channel = QComboBox()
+        self.button_extract_channel.addItems(['all'])
+        advanced_extract_traces_layout.addRow("channel:", self.button_extract_channel)
+        #5.2 mask
+        self.button_extract_mask_size = QLineEdit()
+        self.button_extract_mask_size.setPlaceholderText("11")
+        self.button_extract_mask_size.setText("11")
+        self.button_extract_mask_size.setToolTip("float number or presets: TIR-T, TIR-V, TIR-S 1.5x 2x2, TIR-S 1x 2x2, BN-TIRF")
+        advanced_extract_traces_layout.addRow("mask size:", self.button_extract_mask_size)
+        #5.3 neighbourhood_size: 11
+        self.button_extract_neighbourhood_size= QSpinBox()
+        self.button_extract_neighbourhood_size.setValue(11)
+        advanced_extract_traces_layout.addRow("neighbourhood_size:", self.button_extract_neighbourhood_size)
+        #5.4 background
+        self.button_extract_subtract_background = QComboBox()
+        self.button_extract_subtract_background.addItems(['False', 'True'])
+        advanced_extract_traces_layout.addRow("subtract_background:", self.button_extract_subtract_background)
+        #5.5 illumination correction
+        self.button_extract_correct_illumination = QComboBox()
+        self.button_extract_correct_illumination.addItems(['False', 'True'])
+        advanced_extract_traces_layout.addRow("subtract_background:", self.button_extract_correct_illumination)
 
 
         #add general frame to tab layout
@@ -218,31 +221,7 @@ class ExtractionWidget(QWidget):
             form_widget, _ = self.method_forms_spot_detection[name]
             self.stack_spot_detection_layout.addWidget(form_widget)
 
-    def perform_extraction(self, t):
 
-        selected_files = self.parent.experiment.selectedFiles
-
-        #get methods and corresponding parameters
-        #spot_detection:
-        method_name_spot_detection = self.method_selector_spot_detection.currentText()
-        _, inputs_spot_detection = self.method_forms_spot_detection[method_name_spot_detection]
-        method_name_acceptor = self.method_selector_acceptor.currentText()
-        _, inputs_acceptor = self.method_forms_acceptor[method_name_acceptor]
-
-        # Collect args for peak finding
-        spot_detection_kwargs=build_parameters_input(method_name_spot_detection, inputs_spot_detection)
-        acceptor_kwargs = build_parameters_input(method_name_acceptor, inputs_acceptor)
-
-        #jk-read in a default configuration and allocate GUI values:
-        panel_config= self.parent.experiment.configuration['extraction']
-        panel_config['method']= self.button_extraction_method_combobox.currentText()
-        panel_config['distance_threshold']= self.button_extraction_dist_treshold.text
-        panel_config['peak_finding']['spot_detection'] = spot_detection_kwargs
-        panel_config['peak_finding']['acceptor'] = acceptor_kwargs
-
-        if selected_files:
-            selected_files.serial.perform_extraction(**panel_config)
-            self.update_plots()
 
     def find_coordinates(self):
         selected_files = self.parent.experiment.selectedFiles
@@ -252,29 +231,23 @@ class ExtractionWidget(QWidget):
 
             #write button values to config
             #Note: in future updates, these should be replaced by kwargs passed down to the functions
-            self.parent.experiment.configuration['find_coordinates']['channels'][0] = self.button_extract_chan_combobox.currentText()
-            self.parent.experiment.configuration['find_coordinates']['illumination']= int(self.button_extract_illumination_gen.value())
-
+            #1. general
+            self.parent.experiment.configuration['find_coordinates']['channels'][0] = get_button_value(self.button_general_channel)
+            self.parent.experiment.configuration['find_coordinates']['illumination']= get_button_value(self.button_general_illumination)
+            #2.
 
             #to buttons: check following formats; print until equal
-            print(self.button_extract_illumination_gen.text())
-            print(self.parent.experiment.configuration['find_coordinates']['projection_type'])
+            #print(self.button_extract_illumination_gen.text())
+            #print(self.parent.experiment.configuration['find_coordinates']['projection_type'])
 
 
-            #self.parent.experiment.configuration['find_coordinates']['projection_type']
 
-
-            #self.parent.experiment.configuration['find_coordinates']['method']  : by_channel
-            #self.button_projection_channel_combobox
-
-            #self.parent.experiment.configuration['find_coordinates']['projection_image']['projection_type']  : average
-            #self.button_projection_combobox
-
-            #self.parent.experiment.configuration['find_coordinates']['projection_image']['frame_range']: 0 20
-
-            #self.parent.experiment.configuration['find_coordinates']['projection_image']['illumination']: 0
-
-            #peak_finding: similar to mapping (can we put the registry more generic)
+            #peak_finding: similar to mapping widget-----------------
+            # spot_detection for extraction (Gui_box 3):
+            method_name_spot_detection = self.method_selector_spot_detection.currentText()
+            _, inputs_spot_detection = self.method_forms_spot_detection[method_name_spot_detection]
+            # kwargs for peak finding
+            spot_detection_kwargs = build_parameters_input(method_name_spot_detection, inputs_spot_detection)
 
             #coordinate_optimization
 
@@ -284,8 +257,12 @@ class ExtractionWidget(QWidget):
             self.parent.image_canvas.refresh()
             self.parent.update_plots()
 
+
     def extract_traces(self):
         selected_files = self.parent.experiment.selectedFiles
+
+        #here, pass button values to config
+
         if selected_files:
             selected_files.extract_traces()
             # self.image_canvas.refresh()

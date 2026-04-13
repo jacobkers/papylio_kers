@@ -10,7 +10,7 @@ import inspect
 from matplotlib.backends.backend_qtagg import (
     FigureCanvas)
 
-from PySide2.QtWidgets import (QFormLayout, QDoubleSpinBox,QSpinBox,
+from PySide2.QtWidgets import (QFormLayout, QDoubleSpinBox,QSpinBox, QComboBox,
     QApplication, QWidget, QVBoxLayout, QHBoxLayout,QToolButton, QTextBrowser,
     QLabel, QSizePolicy, QGroupBox, QGridLayout, QDialog, QPushButton, QTextEdit, QDialog, QLineEdit
 )
@@ -191,3 +191,15 @@ def build_parameters_input(method_name, inputs):
 
     return kwargs
 
+def get_button_value(widget):
+    if isinstance(widget, QComboBox):
+        button_val = widget.currentText()
+    elif isinstance(widget, (QSpinBox, QDoubleSpinBox)):
+        button_val = widget.value()
+    else:
+        button_val = widget.text()
+        try:
+            button_val = float(val) if "." in val else int(val)
+        except ValueError:
+            pass
+    return button_val
