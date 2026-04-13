@@ -236,11 +236,16 @@ class ExtractionWidget(QWidget):
             selected_files.serial.perform_extraction(**panel_config)
             self.update_plots()
 
-
-    #TODO: added from main, to be edite
     def find_coordinates(self):
         selected_files = self.parent.experiment.selectedFiles
         if selected_files:
+            #get current settings for coordinate finding into a buffer config
+            #find_coordinates_config=self.experiment.configuration['find_coordinates']
+
+            #write button values to config:
+            self.parent.experiment.configuration['find_coordinates']['channels'] = self.button_extract_chan_combobox.currentText()
+
+
             selected_files.movie.determine_spatial_background_correction(use_existing=True)
             selected_files.find_coordinates()
             self.parent.image_canvas.refresh()
