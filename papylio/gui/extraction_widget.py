@@ -58,8 +58,8 @@ class ExtractionWidget(QWidget):
         self.button_extract_chan_combobox = QComboBox() #channel
         self.button_extract_chan_combobox.addItems(['donor', 'acceptor'])
         advanced_general_layout.addRow("channels", self.button_extract_chan_combobox)
-        self.button_extract_illumination_gen = QLineEdit()
-        self.button_extract_illumination_gen.setPlaceholderText("0")
+        self.button_extract_illumination_gen = QSpinBox()
+        self.button_extract_illumination_gen.setValue(0)
         advanced_general_layout.addRow("illumination:", self.button_extract_illumination_gen)
 
         #projection box--------------------------------------
@@ -75,11 +75,11 @@ class ExtractionWidget(QWidget):
         advanced_projection_layout.addRow("projection type:", self.button_projection_combobox)
 
         self.button_projection_frame_range = QLineEdit()
-        self.button_projection_frame_range.setPlaceholderText("[0, 20]")
+        self.button_projection_frame_range.setText("[0, 20]")
         advanced_projection_layout.addRow("frame range:", self.button_projection_frame_range)
 
-        self.button_illumination_proj = QLineEdit()
-        self.button_illumination_proj.setPlaceholderText("0")
+        self.button_illumination_proj = QSpinBox()
+        self.button_illumination_proj.setValue(0)
         advanced_projection_layout.addRow("illumination:", self.button_illumination_proj)
 
         # coordinate optimization box-------------------------------
@@ -242,8 +242,33 @@ class ExtractionWidget(QWidget):
             #get current settings for coordinate finding into a buffer config
             #find_coordinates_config=self.experiment.configuration['find_coordinates']
 
-            #write button values to config:
-            self.parent.experiment.configuration['find_coordinates']['channels'] = self.button_extract_chan_combobox.currentText()
+            #write button values to config
+            #Note: in future updates, these should be replaced by kwargs passed down to the functions
+            self.parent.experiment.configuration['find_coordinates']['channels'][0] = self.button_extract_chan_combobox.currentText()
+            self.parent.experiment.configuration['find_coordinates']['illumination']= int(self.button_extract_illumination_gen.text())
+
+
+            #to buttons: check following formats; print until equal
+            print(self.button_extract_illumination_gen.text())
+            print(self.parent.experiment.configuration['find_coordinates']['projection_type'])
+
+
+            #self.parent.experiment.configuration['find_coordinates']['projection_type']
+
+
+            #self.parent.experiment.configuration['find_coordinates']['method']  : by_channel
+            #self.button_projection_channel_combobox
+
+            #self.parent.experiment.configuration['find_coordinates']['projection_image']['projection_type']  : average
+            #self.button_projection_combobox
+
+            #self.parent.experiment.configuration['find_coordinates']['projection_image']['frame_range']: 0 20
+
+            #self.parent.experiment.configuration['find_coordinates']['projection_image']['illumination']: 0
+
+            #peak_finding: similar to mapping (can we put the registry more generic)
+
+            #coordinate_optimization
 
 
             selected_files.movie.determine_spatial_background_correction(use_existing=True)
