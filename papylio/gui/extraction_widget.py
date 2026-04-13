@@ -52,23 +52,33 @@ class ExtractionWidget(QWidget):
         advanced_layout = QHBoxLayout()
         advanced_layout.setAlignment(Qt.AlignLeft)
 
-        #general settings box ---------------------------------
+        #1 general settings box ---------------------------------
         frame_general = Group_Box("General")
         advanced_general_layout = QFormLayout(frame_general)
-        self.button_extract_chan_combobox = QComboBox() #channel
-        self.button_extract_chan_combobox.addItems(['donor', 'acceptor'])
-        advanced_general_layout.addRow("channels", self.button_extract_chan_combobox)
-        self.button_extract_illumination_gen = QSpinBox()
-        self.button_extract_illumination_gen.setValue(0)
-        advanced_general_layout.addRow("illumination:", self.button_extract_illumination_gen)
+        #1.1 channels:
+        self.button_general_channel = QComboBox()
+        self.button_general_channel.addItems(['donor', 'acceptor'])
+        advanced_general_layout.addRow("channels", self.button_general_channel)
+        #1.2 illuminations
+        self.button_general_illumination_gen = QSpinBox()
+        self.button_general_illumination_gen.setValue(0)
+        advanced_general_layout.addRow("illumination:", self.button_general_illumination_gen)
+        #1.3 projection_type:
+        self.button_general_projection_type = QComboBox()
+        self.button_general_projection_type.addItems(['average', 'maximum'])
+        advanced_general_layout.addRow("projection:", self.button_general_projection_type)
+        #1.4 method:
+        self.button_general_method = QComboBox()
+        self.button_general_method.addItems(['by_channel', 'average_channels', 'sum_channels'])
+        advanced_general_layout.addRow("channels:", self.button_general_method)
 
-        #projection box--------------------------------------
-        frame_projection = Group_Box("Projection")
+
+        #2. projection image box--------------------------------------
+        #note that it is a subsection 'proj_image'
+        frame_projection = Group_Box("Projection Image")
         advanced_projection_layout = QFormLayout(frame_projection)
-        self.button_projection_channel_combobox = QComboBox()
-        button_project_chan_options = ['by_channel', 'average_channels', 'sum_channels']
-        self.button_projection_channel_combobox.addItems(button_project_chan_options)
-        advanced_projection_layout.addRow("channels:", self.button_projection_channel_combobox)
+
+
 
         self.button_projection_combobox = QComboBox()
         self.button_projection_combobox.addItems(['average', 'maximum'])
