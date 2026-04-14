@@ -192,7 +192,7 @@ def build_parameters_input(method_name, inputs):
     return kwargs
 
 def get_button_value(widget):
-    still to add the ast.literal here
+    #TODO: still to add the ast.literal here for example: frames [0 , 20]
     if isinstance(widget, QComboBox):
         button_val = widget.currentText()
     elif isinstance(widget, (QSpinBox, QDoubleSpinBox)):
