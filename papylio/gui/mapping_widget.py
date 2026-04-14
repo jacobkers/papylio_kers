@@ -2,27 +2,19 @@
 from PySide2.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, \
     QComboBox, QLineEdit, QLabel, QFormLayout
 from PySide2.QtCore import Qt
-
-import matplotlib.pyplot as plt
-
 from matplotlib.figure import Figure
-
 from papylio import File
 from papylio.gui.common_layouts import (Expander, ImageCanvas, HelpDialog,
                                         build_control_layouts,make_push_button,
                                         build_form,build_parameters_input, Group_Box)
-
 from papylio.peak_finding import (find_peaks_absolute_threshold,
                                   find_peaks_adaptive_threshold,
                                   find_peaks_local_maximum,
                                   find_peaks_local_maximum_auto,
                                   find_peaks_relative_local_maximum)
-
 #from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qtagg import (
     FigureCanvas, NavigationToolbar2QT as NavigationToolbar)
-
-import inspect
 
 class MappingWidget(QWidget):
     def __init__(self, parent=None):
@@ -53,7 +45,6 @@ class MappingWidget(QWidget):
         self.map_image = QWidget()
         self.map_image.setLayout(map_image_layout)
 
-
         #build a flexible form for the donor channel:-------------------------
         frame_donor = Group_Box("Donor Spot Detection")
         form_donor = QFormLayout(frame_donor)
@@ -82,12 +73,7 @@ class MappingWidget(QWidget):
         self.stack_acceptor_layout.setContentsMargins(0, 0, 0, 0)
         form_acceptor.addRow("Options:", self.stack_acceptor)
 
-        #genral map settings
-        #-------------------------------------------------------
-        #main mapping buttons definition:
 
-
-        #basic mapping grid layout:
         #donor_acceptor block
         donor_acceptor_layout = QHBoxLayout()
         donor_acceptor_layout.addWidget(frame_donor)
@@ -106,24 +92,17 @@ class MappingWidget(QWidget):
         self.button_initial_translation_options = ['width/2' , [1024,0]]
         self.button_initial_translation.addItems(self.button_initial_translation_options)
 
-
-
         # advanced mapping grid layout:
         frame = Group_Box("Common")
-
         map_advanced_layout = QHBoxLayout()
         map_advanced_layout.setAlignment(Qt.AlignLeft)
-
         map_advanced2_layout = QFormLayout(frame)
         map_advanced2_layout.addRow("Method", self.button_map_method_combobox)
         map_advanced2_layout.addRow("Distance treshold:",self.button_map_dist_treshold)
         map_advanced2_layout.addRow("Transformation_type:", self.button_transformation)
         map_advanced2_layout.addRow("Initial_translation:", self.button_initial_translation)
-
         map_advanced_layout.addWidget(frame)
-        #map_advanced_layout.addLayout(map_advanced2_layout)
         map_advanced_layout.addLayout(donor_acceptor_layout)
-
 
         #build panel layout:
         map_advanced = Expander("Advanced")
@@ -133,7 +112,6 @@ class MappingWidget(QWidget):
         map_controls = build_control_layouts(
             [make_push_button('Map', self.perform_mapping,"Map selected file(s)"),
              make_push_button('Help', self.show_help, None)])
-
 
         #collect:
         map_controls_layout = QVBoxLayout()
@@ -160,8 +138,6 @@ class MappingWidget(QWidget):
         self.register_method('adaptive-threshold', find_peaks_adaptive_threshold)
         self.register_method('local-maximum', find_peaks_local_maximum)
         self.register_method('relative-local-maximum', find_peaks_relative_local_maximum)
-
-
 
 
     def update_plots(self):
@@ -211,7 +187,6 @@ class MappingWidget(QWidget):
         self.method_selector_acceptor.addItem(name)  # add options to appropriate selector box
         if self.method_selector_acceptor.count() == 1:  # First registered method becomes default
             self._update_method_panel_acceptor(name)
-
 
     def _update_method_panel_donor(self, name):
         # Clear the old form

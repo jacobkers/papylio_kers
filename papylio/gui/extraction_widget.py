@@ -2,10 +2,6 @@
 from PySide2.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, \
     QComboBox, QLineEdit, QSpinBox, QFormLayout
 from PySide2.QtCore import Qt, Signal
-
-import matplotlib.pyplot as plt
-
-
 from papylio import File
 from papylio.gui.common_layouts import (Expander, ImageCanvas, HelpDialog,Group_Box,
                                         build_control_layouts,make_push_button,
@@ -21,7 +17,6 @@ from papylio.peak_finding import (find_peaks_absolute_threshold,
 from matplotlib.backends.backend_qtagg import (
     FigureCanvas, NavigationToolbar2QT as NavigationToolbar)
 
-
 class ExtractionWidget(QWidget):
     request_tab_change = Signal(int)  # send index of tab to activate
 
@@ -31,12 +26,7 @@ class ExtractionWidget(QWidget):
         self.parent = parent
         self.methods_spot_detection = {}
         self.method_forms_spot_detection = {}  # method_name -> (widget, inputs)
-
         self.parent.model.itemChanged.connect(self.onItemChange)
-
-
-
-
 
         #this one collects the various settings frames in horizontal fashion
         advanced_layout = QHBoxLayout()
@@ -167,9 +157,6 @@ class ExtractionWidget(QWidget):
             self.extract_button,
             make_push_button('Help', self.show_help, None)])
 
-
-
-
         #collect:
         extraction_controls_layout = QVBoxLayout()
         extraction_controls_layout.setAlignment(Qt.AlignRight)
@@ -188,11 +175,11 @@ class ExtractionWidget(QWidget):
         self.setLayout(extraction_tab_layout)
 
         #collect peak finding methods for building flexible GUI forms
-        self.register_method('local-maximum-auto', find_peaks_local_maximum_auto)  #default  in GUI
-        self.register_method('absolute-threshold', find_peaks_absolute_threshold)
-        self.register_method('adaptive-threshold', find_peaks_adaptive_threshold)
-        self.register_method('local-maximum', find_peaks_local_maximum)
-        self.register_method('relative-local-maximum', find_peaks_relative_local_maximum)
+        self.register_method_spot_detection('local-maximum-auto', find_peaks_local_maximum_auto)  #default  in GUI
+        self.register_method_spot_detection('absolute-threshold', find_peaks_absolute_threshold)
+        self.register_method_spot_detection('adaptive-threshold', find_peaks_adaptive_threshold)
+        self.register_method_spot_detection('local-maximum', find_peaks_local_maximum)
+        self.register_method_spot_detection('relative-local-maximum', find_peaks_relative_local_maximum)
 
     def on_extract(self):
         self.top_tabs.setCurrentIndex(0)   # switch to traces tab
@@ -221,7 +208,7 @@ class ExtractionWidget(QWidget):
     # -------------------------------------------------------------------------
     # Register methods dynamically and create their forms
     # -------------------------------------------------------------------------
-    def register_method(self, name, func):
+    def register_method_spot_detection(self, name, func):
         """Register a peak finding method, introspect arguments,
         and build forms for spot_detection and acceptor channels"""
 
@@ -232,7 +219,6 @@ class ExtractionWidget(QWidget):
         self.method_selector_spot_detection.addItem(name) #add options to appropriate selector box
         if self.method_selector_spot_detection.count() == 1: # First registered method becomes default
             self._update_method_panel_spot_detection(name)
-
 
 
     def _update_method_panel_spot_detection(self, name):
@@ -247,17 +233,10 @@ class ExtractionWidget(QWidget):
             self.stack_spot_detection_layout.addWidget(form_widget)
 
 
-
     def find_coordinates(self):
         selected_files = self.parent.experiment.selectedFiles
         if selected_files:
-            #get current settings for coordinate finding into a buffer config
-            #find_coordinates_config=self.experiment.configuration['find_coordinates']
-
             #write button values to config
-            #Note: in future updates, these should be replaced by kwargs passed down to the functions
-
-            #peak_finding: similar to mapping widget-----------------
             # spot_detection for extraction (Gui_box 3):
             method_name_spot_detection = self.method_selector_spot_detection.currentText()
             _, inputs_spot_detection = self.method_forms_spot_detection[method_name_spot_detection]
@@ -266,9 +245,7 @@ class ExtractionWidget(QWidget):
 
             find_coordinates_config=self.pass_buttons_to_config_for_find_coordinates()
             find_coordinates_config['peak_finding'] = spot_detection_kwargs
-
             config_find_coordinates = {**find_coordinates_config}
-
             selected_files.movie.determine_spatial_background_correction(use_existing=True)
             selected_files.find_coordinates(**config_find_coordinates)
             self.parent.image_canvas.refresh()
@@ -276,11 +253,10 @@ class ExtractionWidget(QWidget):
 
     def extract_traces(self):
         selected_files = self.parent.experiment.selectedFiles
-
         #here, pass button values to config
-
+        config_extraction=self.pass_buttons_to_config_for_extraction()
         if selected_files:
-            selected_files.extract_traces()
+            selected_files.extract_traces(**config_extraction)
             # self.image_canvas.refresh()
             self.parent.update_plots()
 
@@ -368,7 +344,7 @@ class ExtractionWidget(QWidget):
         # semi-temporal function to line up classic config with buttons in gui.
         # Later to be replaced by direct kwargs output for 'extraction'
         #5. extract_traces box-------------------------------
-        config_extraction = self.self.parent.experiment.configuration['extraction']
+        config_extraction = self.parent.experiment.configuration['trace_extraction']
         #5.1 channel:
         config_extraction['channel'] = get_button_value(
         self.button_extract_channel)

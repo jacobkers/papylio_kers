@@ -26,22 +26,6 @@ from papylio.gui.kinetics_widget import KineticsWidget
 from papylio.gui.common_layouts import ImageCanvas, HelpDialog
 
 class MainWindow(QMainWindow):
-    # def __init__(self):
-    #     super().__init__()
-    #     # model = QFileSystemModel()
-    #     # model.setRootPath(QDir.currentPath())
-    #
-    #
-    #     self.model = TreeModel()
-    #
-    #     self.tree = QTreeView()
-    #     self.tree.setModel(self.model)
-    #
-    #      #experiment = Experiment(r'C:\Users\ivoseverins\surfdrive\Promotie\Code\Python\papylio\twoColourExampleData\20141017 - Holliday junction - Copy')
-    #     #self.model.addExperiment(experiment)
-    #
-    #     self.setCentralWidget(self.tree)
-
 
     def __init__(self, main_path=None):
         super().__init__()
@@ -173,13 +157,6 @@ class MainWindow(QMainWindow):
             self.image.setFocus()
         if e == 1:
             self.traces.setFocus()
-
-    def extract_traces(self):
-        selected_files = self.experiment.selectedFiles
-        if selected_files:
-            selected_files.extract_traces()
-            # self.image_canvas.refresh()
-            self.update_plots()
 
     def onItemChange(self, item):
         if isinstance(item.data(), File):
@@ -315,9 +292,7 @@ if __name__ == '__main__':
     from multiprocessing import Process, freeze_support
 
     freeze_support()
-
     app = QApplication(sys.argv)
-
     window = MainWindow()
     window.show()
 
