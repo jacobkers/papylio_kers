@@ -1,7 +1,7 @@
 
 from PySide2.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, \
     QComboBox, QLineEdit, QSpinBox, QFormLayout
-from PySide2.QtCore import Qt
+from PySide2.QtCore import Qt, Signal
 
 import matplotlib.pyplot as plt
 
@@ -23,8 +23,11 @@ from matplotlib.backends.backend_qtagg import (
 
 
 class ExtractionWidget(QWidget):
-    def __init__(self, parent=None):
+    request_tab_change = Signal(int)  # send index of tab to activate
+
+    def __init__(self, top_tabs, parent=None):
         super(ExtractionWidget, self).__init__(parent)
+        self.top_tabs = top_tabs
         self.parent = parent
         self.methods_spot_detection = {}
         self.method_forms_spot_detection = {}  # method_name -> (widget, inputs)
@@ -145,10 +148,27 @@ class ExtractionWidget(QWidget):
 
 
         #main action:
-        extraction_controls = build_control_layouts(
-            [make_push_button('Find coordinates', self.find_coordinates,"extraction selected file(s)"),
-             make_push_button('Extract traces', self.extract_traces, "extraction selected file(s)"),
-             make_push_button('Help', self.show_help, None)])
+        self.extract_button = make_push_button(
+            'Extract traces',
+            self.extract_traces,
+            "extraction selected file(s)"
+        )
+        self.extract_button.clicked.connect(self.on_extract) #for tab switching
+
+        self.find_coordinates_button= make_push_button(
+            'Find coordinates',
+            self.find_coordinates,"extraction selected file(s)"
+        )
+        self.find_coordinates_button.clicked.connect(self.on_find_coordinates)  # for tab switching
+
+
+        extraction_controls = build_control_layouts([
+            self.find_coordinates_button,
+            self.extract_button,
+            make_push_button('Help', self.show_help, None)])
+
+
+
 
         #collect:
         extraction_controls_layout = QVBoxLayout()
@@ -174,6 +194,11 @@ class ExtractionWidget(QWidget):
         self.register_method('local-maximum', find_peaks_local_maximum)
         self.register_method('relative-local-maximum', find_peaks_relative_local_maximum)
 
+    def on_extract(self):
+        self.top_tabs.setCurrentIndex(0)   # switch to traces tab
+
+    def on_find_coordinates(self):
+        self.top_tabs.setCurrentIndex(1)   # switch to frame tab
 
     def update_plots(self):
         selected_files = self.parent.experiment.selectedFiles + [None]

@@ -1,7 +1,7 @@
 import sys
 import PySide2
 import platform
-
+from PySide2.QtCore import Signal
 import sys
 from PySide2.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QTreeView, QApplication, QMainWindow, \
     QPushButton, QTabWidget, QSpinBox, QHeaderView
@@ -41,6 +41,7 @@ class MainWindow(QMainWindow):
     #     #self.model.addExperiment(experiment)
     #
     #     self.setCentralWidget(self.tree)
+
 
     def __init__(self, main_path=None):
         super().__init__()
@@ -92,6 +93,16 @@ class MainWindow(QMainWindow):
         start_tab_layout = QVBoxLayout()
         start_tab_layout.addWidget(main_help_button)
 
+        # right side has a viewing pane (top) and
+        # viewing panes
+        self.top_tabs = QTabWidget()
+        self.top_tabs.setTabPosition(QTabWidget.North)
+        self.top_tabs.setMovable(False)
+        self.top_tabs.setDocumentMode(True)
+        self.traces = TracePlotWindow(parent=self, width=4, height=5, show=False)
+        self.top_tabs.addTab(self.traces, 'Traces')
+        self.top_tabs.addTab(self.image, 'Frame')
+
         tabs = QTabWidget()
         tabs.setTabPosition(QTabWidget.North)
         tabs.setMovable(True)
@@ -102,7 +113,7 @@ class MainWindow(QMainWindow):
         tabs.addTab(tab0, 'Start')
         self.mapping = MappingWidget(parent=self)
         tabs.addTab(self.mapping, 'Mapping')
-        self.extraction = ExtractionWidget(parent=self)
+        self.extraction = ExtractionWidget(parent=self, top_tabs=self.top_tabs)
         tabs.addTab(self.extraction, 'Extraction')
         self.selection = SelectionWidget(parent=self)
         tabs.addTab(self.selection, 'Selection')
@@ -120,18 +131,10 @@ class MainWindow(QMainWindow):
         experiment_layout.addWidget(refresh_button)
         experiment_layout.addWidget(self.tree)
 
-        # right side has a viewing pane (top) and
-        # viewing panes
-        top_tabs = QTabWidget()
-        top_tabs.setTabPosition(QTabWidget.North)
-        top_tabs.setMovable(False)
-        top_tabs.setDocumentMode(True)
-        self.traces = TracePlotWindow(parent=self, width=4, height=5, show=False)
-        top_tabs.addTab(self.traces, 'Traces')
-        top_tabs.addTab(self.image, 'Frame')
+
 
         top_layout = QVBoxLayout()
-        top_layout.addWidget(top_tabs)
+        top_layout.addWidget(self.top_tabs)
         # ... a bottom pane (pipeline)
         bottom_layout = QHBoxLayout()
         bottom_layout.addWidget(tabs)
