@@ -192,6 +192,7 @@ def build_parameters_input(method_name, inputs):
     return kwargs
 
 def get_button_value(widget):
+    still to add the ast.literal here
     if isinstance(widget, QComboBox):
         button_val = widget.currentText()
     elif isinstance(widget, (QSpinBox, QDoubleSpinBox)):
@@ -199,7 +200,7 @@ def get_button_value(widget):
     else:
         button_val = widget.text()
         try:
-            button_val = float(val) if "." in val else int(val)
+            button_val = float(button_val) if "." in button_val else int(button_val)
         except ValueError:
             pass
     return button_val
