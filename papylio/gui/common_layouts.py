@@ -5,6 +5,7 @@ import sys
 
 import matplotlib as mpl
 import inspect
+import ast
 
 
 from matplotlib.backends.backend_qtagg import (
@@ -192,15 +193,30 @@ def build_parameters_input(method_name, inputs):
     return kwargs
 
 def get_button_value(widget):
-    #TODO: still to add the ast.literal here for example: frames [0 , 20]
+    #return proper conversion depending on type of entry field
     if isinstance(widget, QComboBox):
         button_val = widget.currentText()
+
     elif isinstance(widget, (QSpinBox, QDoubleSpinBox)):
         button_val = widget.value()
-    else:
-        button_val = widget.text()
+
+    elif isinstance(widget, QLineEdit):
+        text = widget.text().strip()
+
+        # Try list / literal parsing first
         try:
-            button_val = float(button_val) if "." in button_val else int(button_val)
-        except ValueError:
-            pass
+            if text.startswith("[") or text.startswith("(") or text.startswith("{"):
+                button_val = ast.literal_eval(text)
+            else:
+                # Try numeric conversion
+                try:
+                    button_val = int(text)
+                except ValueError:
+                    try:
+                        button_val = float(text)
+                    except ValueError:
+                        button_val = text
+        except (ValueError, SyntaxError):
+            button_val = text
+
     return button_val

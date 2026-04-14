@@ -231,16 +231,6 @@ class ExtractionWidget(QWidget):
 
             #write button values to config
             #Note: in future updates, these should be replaced by kwargs passed down to the functions
-            #1. general
-            self.parent.experiment.configuration['find_coordinates']['channels'][0] = get_button_value(self.button_general_channel)
-            self.parent.experiment.configuration['find_coordinates']['illumination']= get_button_value(self.button_general_illumination)
-            #2.
-
-            #to buttons: check following formats; print until equal
-            #print(self.button_extract_illumination_gen.text())
-            #print(self.parent.experiment.configuration['find_coordinates']['projection_type'])
-
-
 
             #peak_finding: similar to mapping widget-----------------
             # spot_detection for extraction (Gui_box 3):
@@ -249,9 +239,10 @@ class ExtractionWidget(QWidget):
             # kwargs for peak finding
             spot_detection_kwargs = build_parameters_input(method_name_spot_detection, inputs_spot_detection)
 
-            other_config_find_coordinates=self.pass_buttons_to_config_for_find_coordinates()
+            find_coordinates_config=self.pass_buttons_to_config_for_find_coordinates()
+            find_coordinates_config['peak_finding'] = spot_detection_kwargs
 
-            config_find_coordinates = {**other_config_find_coordinates, **spot_detection_kwargs}
+            config_find_coordinates = {**find_coordinates_config}
 
             selected_files.movie.determine_spatial_background_correction(use_existing=True)
             selected_files.find_coordinates(**config_find_coordinates)
@@ -340,10 +331,10 @@ class ExtractionWidget(QWidget):
 
         #4. coordinate optimization box-------------------------------
         #4.1 margin
-        config_find_coordinates['coordinate_optimization'][''] = get_button_value(
+        config_find_coordinates['coordinate_optimization']['coordinates_within_margin']['margin'] = get_button_value(
         self.button_coordinates_within_margin)
         #4.2 Gauss fit width
-        config_find_coordinates['coordinate_optimization']['']  = get_button_value(
+        config_find_coordinates['coordinate_optimization']['coordinates_after_gaussian_fit']['gaussian_width']  = get_button_value(
         self.button_coordinates_after_gaussian_fit_width)
 
         return config_find_coordinates
