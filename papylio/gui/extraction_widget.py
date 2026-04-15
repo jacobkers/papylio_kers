@@ -253,48 +253,11 @@ class ExtractionWidget(QWidget):
             # self.image_canvas.refresh()
             self.parent.update_plots()
 
-    def show_help(self):
-        help_text = """
-            <html>
-              <body style="font-family: sans-serif; font-size: 10pt;">
-
-                <h2>Extraction</h2>
-
-                <p>
-                  Find spot coordinates and extract traces.
-                </p>
-
-                <ul>
-                  <li>run as-is using the defaults</li>
-                  <li>use 'advanced' to change settings  2</li>
-                  <li>press 'Find coordinates' and 'Extract traces' 3
-                </ul>
-
-                <p>
-                  For more help, see
-                  <a href="https://papylio.readthedocs.io/en/stable/user_guide/molecule_localization.html">
-                    Molecule Localization in Papylio
-                  </a>.
-                </p>
-
-                <h3>Example</h3>
-
-                <p>
-                  Settings examples can be found in the documentation.
-                </p>
-
-              </body>
-            </html>
-            """
-
-        self.help_dialog = HelpDialog(self, help_text)
-        # dialog.exec_()  # modal
-        self.help_dialog.show()
 
 
     def pass_buttons_to_config_for_find_coordinates(self):
     #semi-temporal function to line up classic config with buttons in gui.
-    # Later to be replaced by direct kwargs outputfor 'find_coordinates'
+    # Later to be replaced by optional check for existing settings and direct kwargs output for 'find_coordinates'
         config_find_coordinates=self.parent.experiment.configuration['find_coordinates']
         #1.1 channels:
         config_find_coordinates['channels'][0] = get_button_value(
@@ -344,3 +307,41 @@ class ExtractionWidget(QWidget):
 
 
         return config_extraction
+
+    def show_help(self):
+        help_text = """
+            <html>
+              <body style="font-family: sans-serif; font-size: 10pt;">
+
+                <h2>Extraction</h2>
+
+                <p>
+                  Find spot coordinates and extract traces.
+                </p>
+
+                <ul>
+                  <li>run as-is using the defaults</li>
+                  <li>use 'advanced' to change settings  2</li>
+                  <li>press 'Find coordinates' and 'Extract traces' 3
+                </ul>
+
+                <p>
+                  For more help, see
+                  <a href="https://papylio.readthedocs.io/en/stable/user_guide/molecule_localization.html">
+                    Molecule Localization in Papylio
+                  </a>.
+                </p>
+
+                <h3>Example</h3>
+
+                <p>
+                  Settings examples can be found in the documentation.
+                </p>
+
+              </body>
+            </html>
+            """
+
+        self.help_dialog = HelpDialog(self, help_text)
+        # dialog.exec_()  # modal
+        self.help_dialog.show()
