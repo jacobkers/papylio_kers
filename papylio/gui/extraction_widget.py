@@ -6,7 +6,7 @@ from papylio import File
 from papylio.gui.common_layouts import (Expander, ImageCanvas, HelpDialog,Group_Box,
                                         build_control_layouts,make_push_button,
                                         build_form,build_parameters_input, get_button_value)
-
+#for registry:
 from papylio.peak_finding import (find_peaks_absolute_threshold,
                                   find_peaks_adaptive_threshold,
                                   find_peaks_local_maximum,
@@ -101,10 +101,12 @@ class ExtractionWidget(QWidget):
         #5. extract_traces box-------------------------------
         frame_extract_traces = Group_Box("Extract Traces")
         advanced_extract_traces_layout = QFormLayout(frame_extract_traces)
-        #5.1 channel:
-        self.button_extract_channel = QComboBox()
-        self.button_extract_channel.addItems(['all'])
-        advanced_extract_traces_layout.addRow("channel:", self.button_extract_channel)
+        #5.1 obsoletes/not used:
+
+        #background_correction = None,
+        #alpha_correction = None,
+        #gamma_correction = None
+
         #5.2 mask
         self.button_extract_mask_size = QLineEdit()
         self.button_extract_mask_size.setPlaceholderText("11")
@@ -115,15 +117,6 @@ class ExtractionWidget(QWidget):
         self.button_extract_neighbourhood_size= QSpinBox()
         self.button_extract_neighbourhood_size.setValue(11)
         advanced_extract_traces_layout.addRow("neighbourhood_size:", self.button_extract_neighbourhood_size)
-        #5.4 background
-        self.button_extract_subtract_background = QComboBox()
-        self.button_extract_subtract_background.addItems(['False', 'True'])
-        advanced_extract_traces_layout.addRow("subtract_background:", self.button_extract_subtract_background)
-        #5.5 illumination correction
-        self.button_extract_correct_illumination = QComboBox()
-        self.button_extract_correct_illumination.addItems(['False', 'True'])
-        advanced_extract_traces_layout.addRow("subtract_background:", self.button_extract_correct_illumination)
-
 
         #add general frame to tab layout
         advanced_layout.addWidget(frame_general)
@@ -344,21 +337,10 @@ class ExtractionWidget(QWidget):
         # semi-temporal function to line up classic config with buttons in gui.
         # Later to be replaced by direct kwargs output for 'extraction'
         #5. extract_traces box-------------------------------
-        config_extraction = self.parent.experiment.configuration['trace_extraction']
-        #5.1 channel:
-        config_extraction['channel'] = get_button_value(
-        self.button_extract_channel)
-        #5.2 mask
-        config_extraction['mask_size'] = get_button_value(
-        self.button_extract_mask_size)
-        #5.3 neighbourhood_size: 11
-        config_extraction['neighbourhood_size'] = get_button_value(
-        self.button_extract_neighbourhood_size)
-        #5.4 background
-        config_extraction['subtract_background'] = get_button_value(
-        self.button_extract_subtract_background)
-        #5.5 illumination correction
-        config_extraction['correct_illumination'] = get_button_value(
-        self.button_extract_correct_illumination)
+        #config_extraction = self.parent.experiment.configuration['trace_extraction']
+        config_extraction = {'mask_size': get_button_value(
+            self.button_extract_mask_size), 'neighbourhood_size': get_button_value(
+            self.button_extract_neighbourhood_size)}
+
 
         return config_extraction
