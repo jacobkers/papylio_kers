@@ -257,7 +257,7 @@ class ExtractionWidget(QWidget):
 
     def pass_buttons_to_config_for_find_coordinates(self):
     #semi-temporal function to line up classic config with buttons in gui.
-    # Later to be replaced by optional check for existing settings and direct kwargs output for 'find_coordinates'
+        # Later to be replaced by optional check for existing settings and direct kwargs output for 'find_coordinates'
         config_find_coordinates=self.parent.experiment.configuration['find_coordinates']
         #1.1 channels:
         config_find_coordinates['channels'][0] = get_button_value(
