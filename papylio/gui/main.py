@@ -143,9 +143,9 @@ class MainWindow(QMainWindow):
         self.show()
         self.showMaximized()
 
-        self.experiment = Experiment(
-            r'C:\Users\jkerssemakers\OneDrive - Delft University of Technology\Documents\GitHub\Papylio example dataset')
-        #self.experiment = pp.Experiment(main_path, main_window=self)
+        #self.experiment = Experiment(
+        #    r'C:\Users\jkerssemakers\OneDrive - Delft University of Technology\Documents\GitHub\Papylio example dataset')
+        self.experiment = pp.Experiment(main_path, main_window=self)
         self.addExperiment(self.experiment)
         self.traces.save_path = self.experiment.analysis_path.joinpath('Trace_plots')
 
