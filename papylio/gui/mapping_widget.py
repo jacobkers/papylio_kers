@@ -231,17 +231,17 @@ class MappingWidget(QWidget):
         #jk-read in a default configuration and allocate GUI values:
         mapping_config= self.parent.experiment.configuration['mapping']
         mapping_config['method']= self.button_map_method_combobox.currentText()
-        mapping_config['distance_threshold']= self.button_map_dist_treshold.text
+        mapping_config['distance_threshold']= float(self.button_map_dist_treshold.text())
         mapping_config['peak_finding']['donor'] = donor_kwargs
         mapping_config['peak_finding']['acceptor'] = acceptor_kwargs
 
-        plot_file = selected_files[0]
-        plot_file.mapping.show_mapping_transformation(axis=ax1)
         self.map_overlay_image_canvas.draw_idle()
         if selected_files:
+            plot_file = selected_files[0]
             selected_files.serial.perform_mapping(**mapping_config)
             self.update_plots()
             self.map_image_canvas.refresh()
+            plot_file.mapping.show_mapping_transformation(axis=ax1)
 
     def show_help(self):
         help_text = """
