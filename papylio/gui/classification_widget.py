@@ -273,11 +273,13 @@ class ClassificationWidget(QWidget):
         self.root.appendRow(items)
         if 'configuration' in self.file.classification.attrs.keys():
             configuration = json.loads(self.file.classification.attrs['configuration'])
+            self.model.blockSignals(True)
             if name in configuration:
                 items[0].setCheckState(Qt.Checked)
-                # text_edit.setText(str(configuration[name]))
+                items[1].setText(str(configuration[name]).replace('[','').replace(']',''))
             else:
                 items[0].setCheckState(Qt.Unchecked)
+            self.model.blockSignals(False)
 
     def refresh_classifications(self):
         self.root.removeRows(0, self.root.rowCount())
@@ -292,6 +294,7 @@ class ClassificationWidget(QWidget):
     def _clear_results(self):
         self.file.clear_classifications()
         self.refresh_classifications()
+        self.classificationChanged.emit()
 
     def get_checked_classifications(self):
         pass
@@ -304,6 +307,8 @@ class ClassificationWidget(QWidget):
 
         if column in [0, 1]:
             self.apply_classifications()
+            self.classificationChanged.emit()
+
         # name = item.data()  # stored classification name
         # if not name:
         #     return
