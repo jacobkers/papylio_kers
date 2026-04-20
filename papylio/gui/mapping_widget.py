@@ -1,6 +1,6 @@
 
 from PySide2.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, \
-    QComboBox, QLineEdit, QLabel, QFormLayout
+    QComboBox, QSpinBox, QLabel, QFormLayout
 from PySide2.QtCore import Qt
 from matplotlib.figure import Figure
 from papylio import File
@@ -83,8 +83,8 @@ class MappingWidget(QWidget):
         self.button_map_method_combobox = QComboBox()
         self.button_map_options = ['icp', 'nn']
         self.button_map_method_combobox.addItems(self.button_map_options)
-        self.button_map_dist_treshold = QLineEdit()
-        self.button_map_dist_treshold.setPlaceholderText("distance_treshold")
+        self.button_map_dist_treshold = QSpinBox()
+        self.button_map_dist_treshold.setValue(3)
         self.button_transformation = QComboBox()
         self.button_transformation_options = ['polynomial', 'linear', 'nonlinear']
         self.button_transformation.addItems(self.button_transformation_options)
