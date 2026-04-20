@@ -353,8 +353,11 @@ class File:
     @property
     @return_none_when_executed_by_pycharm
     def data_vars(self):
-        with xr.open_dataset(self.absoluteFilePath.with_suffix('.nc'), engine='netcdf4') as dataset:
-            return dataset.data_vars
+        if self.absoluteFilePath.with_suffix('.nc').exists():
+            with xr.open_dataset(self.absoluteFilePath.with_suffix('.nc'), engine='netcdf4') as dataset:
+                return dataset.data_vars
+        else:
+            return xr.Dataset().data_vars
 
     @property
     @return_none_when_executed_by_pycharm
