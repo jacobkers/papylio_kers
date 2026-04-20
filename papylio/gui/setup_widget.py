@@ -18,8 +18,6 @@ from matplotlib.backends.backend_qtagg import (
     FigureCanvas, NavigationToolbar2QT as NavigationToolbar)
 
 class SetUpWidget(QWidget):
-    request_tab_change = Signal(int)  # send index of tab to activate
-
     def __init__(self, top_tabs, parent=None):
         super(ExtractionWidget, self).__init__(parent)
         self.top_tabs = top_tabs
@@ -167,21 +165,6 @@ class SetUpWidget(QWidget):
 
         self.setLayout(extraction_tab_layout)
 
-        #collect peak finding methods for building flexible GUI forms
-        self.register_method_spot_detection('local-maximum-auto', find_peaks_local_maximum_auto)  #default  in GUI
-        self.register_method_spot_detection('absolute-threshold', find_peaks_absolute_threshold)
-        self.register_method_spot_detection('adaptive-threshold', find_peaks_adaptive_threshold)
-        self.register_method_spot_detection('local-maximum', find_peaks_local_maximum)
-        self.register_method_spot_detection('relative-local-maximum', find_peaks_relative_local_maximum)
-
-    def on_extract(self):
-        self.top_tabs.setCurrentIndex(0)   # switch to traces tab
-
-    def on_find_coordinates(self):
-        self.top_tabs.setCurrentIndex(1)   # switch to frame tab
-
-    def update_plots(self):
-        selected_files = self.parent.experiment.selectedFiles + [None]
 
     def onItemChange(self, item):
         if isinstance(item.data(), File):
@@ -198,115 +181,8 @@ class SetUpWidget(QWidget):
         if self.update:
             self.update_plots()
 
-    # -------------------------------------------------------------------------
-    # Register methods dynamically and create their forms
-    # -------------------------------------------------------------------------
-    def register_method_spot_detection(self, name, func):
-        """Register a peak finding method, introspect arguments,
-        and build forms for spot_detection and acceptor channels"""
-
-        #spot_detection-------------------------:
-        form_widget_spot_detection, inputs_spot_detection = build_form(func)
-        self.methods_spot_detection[name] = func
-        self.method_forms_spot_detection[name] = (form_widget_spot_detection, inputs_spot_detection)
-        self.method_selector_spot_detection.addItem(name) #add options to appropriate selector box
-        if self.method_selector_spot_detection.count() == 1: # First registered method becomes default
-            self._update_method_panel_spot_detection(name)
 
 
-    def _update_method_panel_spot_detection(self, name):
-        # Clear the old form
-        for i in reversed(range(self.stack_spot_detection_layout.count())):
-            widget = self.stack_spot_detection_layout.itemAt(i).widget()
-            if widget:
-                widget.setParent(None)
-        # Add new form
-        if name in self.method_forms_spot_detection:
-            form_widget, _ = self.method_forms_spot_detection[name]
-            self.stack_spot_detection_layout.addWidget(form_widget)
-
-
-    def find_coordinates(self):
-        selected_files = self.parent.experiment.selectedFiles
-        if selected_files:
-            #write button values to config
-            # spot_detection for extraction (Gui_box 3):
-            method_name_spot_detection = self.method_selector_spot_detection.currentText()
-            _, inputs_spot_detection = self.method_forms_spot_detection[method_name_spot_detection]
-            # kwargs for peak finding
-            spot_detection_kwargs = build_parameters_input(method_name_spot_detection, inputs_spot_detection)
-
-            find_coordinates_config=self.pass_buttons_to_config_for_find_coordinates()
-            find_coordinates_config['peak_finding'] = spot_detection_kwargs
-            config_find_coordinates = {**find_coordinates_config}
-            selected_files.movie.determine_spatial_background_correction(use_existing=True)
-            selected_files.find_coordinates(**config_find_coordinates)
-            self.parent.image_canvas.refresh()
-            self.parent.update_plots()
-
-    def extract_traces(self):
-        selected_files = self.parent.experiment.selectedFiles
-        #here, pass button values to config
-        config_extraction=self.pass_buttons_to_config_for_extraction()
-        if selected_files:
-            selected_files.extract_traces(**config_extraction)
-            # self.image_canvas.refresh()
-            self.parent.update_plots()
-
-
-
-    def pass_buttons_to_config_for_find_coordinates(self):
-    #semi-temporal function to line up classic config with buttons in gui.
-        # Later to be replaced by optional check for existing settings and direct kwargs output for 'find_coordinates'
-        config_find_coordinates=self.parent.experiment.configuration['find_coordinates']
-        #1.1 channels:
-        config_find_coordinates['channels'][0] = get_button_value(
-            self.button_general_channel)
-        #1.2 illuminations
-        config_find_coordinates['illumination'] = get_button_value(
-            self.button_general_illumination)
-        #1.3 projection_type:
-        config_find_coordinates['projection_type']=get_button_value(
-            self.button_general_projection_type)
-        #1.4 method:
-        config_find_coordinates['method'] = get_button_value(
-            self.button_general_method)
-
-        #2. projection image box--------------------------------------
-        #2.1 type
-        config_find_coordinates['projection_image']['projection_type'] = get_button_value(
-        self.button_projection_image_type)
-        #2.2 frame range
-        config_find_coordinates['projection_image']['frame_range'] = get_button_value(
-        self.button_projection_image_frame_range)
-
-        #2.3 illumination
-        config_find_coordinates['projection_image']['illumination'] = get_button_value(
-        self.button_projection_image_illumination)
-
-        #3. peakfinding (from dynamic form building, see extraction def)
-
-        #4. coordinate optimization box-------------------------------
-        #4.1 margin
-        config_find_coordinates['coordinate_optimization']['coordinates_within_margin']['margin'] = get_button_value(
-        self.button_coordinates_within_margin)
-        #4.2 Gauss fit width
-        config_find_coordinates['coordinate_optimization']['coordinates_after_gaussian_fit']['gaussian_width']  = get_button_value(
-        self.button_coordinates_after_gaussian_fit_width)
-
-        return config_find_coordinates
-
-    def pass_buttons_to_config_for_extraction(self):
-        # semi-temporal function to line up classic config with buttons in gui.
-        # Later to be replaced by direct kwargs output for 'extraction'
-        #5. extract_traces box-------------------------------
-        #config_extraction = self.parent.experiment.configuration['trace_extraction']
-        config_extraction = {'mask_size': get_button_value(
-            self.button_extract_mask_size), 'neighbourhood_size': get_button_value(
-            self.button_extract_neighbourhood_size)}
-
-
-        return config_extraction
 
     def show_help(self):
         help_text = """

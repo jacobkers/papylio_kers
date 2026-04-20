@@ -41,9 +41,10 @@ class KineticsWidget(QWidget):
             make_push_button('Export',self.export_kinetics, "export plot contents"),
             make_push_button('Help',self.show_dwell_help, None)])
         #tab layout
-        dwell_times_tab_layout = QHBoxLayout()
-        dwell_times_tab_layout.addWidget(self.dwell_kinetics_canvas)
+        dwell_times_tab_layout = QVBoxLayout()
         dwell_times_tab_layout.addWidget(dwell_controls)
+        dwell_times_tab_layout.addWidget(self.dwell_kinetics_canvas)
+
 
         #other
         other_graph_layout = QHBoxLayout()

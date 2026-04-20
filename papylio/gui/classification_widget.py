@@ -26,7 +26,7 @@ class ClassificationWidget(QWidget):
         self.methods = {}
         self._file = None# name -> function
 
-        main_layout = QHBoxLayout()
+
 
         form = QFormLayout()
         # --- Classification name input ---
@@ -93,7 +93,6 @@ class ClassificationWidget(QWidget):
         form_buttons_layout= QVBoxLayout()
         form_buttons_layout.addLayout(form)
         form_buttons_layout.addStretch()
-        form_buttons_layout.addLayout(button_layout)
         form_buttons.setLayout(form_buttons_layout)
 
 
@@ -109,8 +108,15 @@ class ClassificationWidget(QWidget):
 
         self.method_forms = {}  # method_name -> (widget, inputs)
 
-        main_layout.addWidget(self.tree_view, stretch=3)
-        main_layout.addWidget(form_buttons, stretch=1)
+        sequence_layout = QHBoxLayout()
+        sequence_layout.addWidget(self.tree_view, stretch=3)
+        sequence_layout.addWidget(form_buttons, stretch=1)
+
+        main_layout = QVBoxLayout()
+        main_layout.addLayout(sequence_layout)
+        main_layout.addLayout(button_layout)
+
+
 
         self.setLayout(main_layout)
 
@@ -374,7 +380,7 @@ class ClassificationWidget(QWidget):
                       </a>.
                     </p>
                 
-                    <h3>Example settings 
+                    <h3>Example settings</h3>
                     <p>
                      <ul>
                         <li>1. threshold: use intensity_total, treshold=0, 'mean', window=3. 
@@ -382,7 +388,7 @@ class ClassificationWidget(QWidget):
                         <li>2. hmm: n_states 2, tres_mean 0, level_molecule, seed=0</li>
 
                     </ul> 
-                    <h3>Applying rules example
+                    <h3>Applying rules example</h3>
                     <p>
                      <ul>
                         <li>1. Threshold to reject bleached points        → labels [-1, 0]</li>

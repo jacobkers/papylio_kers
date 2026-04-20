@@ -43,11 +43,7 @@ class ExtractionWidget(QWidget):
         self.button_general_illumination = QSpinBox()
         self.button_general_illumination.setValue(0)
         advanced_general_layout.addRow("illumination:", self.button_general_illumination)
-        #1.3 projection_type:
-        self.button_general_projection_type = QComboBox()
-        self.button_general_projection_type.addItems(['average', 'maximum'])
-        advanced_general_layout.addRow("projection:", self.button_general_projection_type)
-        #1.4 method:
+        #1.3 method:
         self.button_general_method = QComboBox()
         self.button_general_method.addItems(['by_channel', 'average_channels', 'sum_channels'])
         advanced_general_layout.addRow("channels:", self.button_general_method)
@@ -109,8 +105,8 @@ class ExtractionWidget(QWidget):
 
         #5.2 mask
         self.button_extract_mask_size = QLineEdit()
-        self.button_extract_mask_size.setPlaceholderText("11")
-        self.button_extract_mask_size.setText("11")
+        self.button_extract_mask_size.setPlaceholderText("1")
+        self.button_extract_mask_size.setText("1")
         self.button_extract_mask_size.setToolTip("float number or presets: TIR-T, TIR-V, TIR-S 1.5x 2x2, TIR-S 1x 2x2, BN-TIRF")
         advanced_extract_traces_layout.addRow("mask size:", self.button_extract_mask_size)
         #5.3 neighbourhood_size: 11
@@ -264,9 +260,6 @@ class ExtractionWidget(QWidget):
         #1.2 illuminations
         config_find_coordinates['illumination'] = get_button_value(
             self.button_general_illumination)
-        #1.3 projection_type:
-        config_find_coordinates['projection_type']=get_button_value(
-            self.button_general_projection_type)
         #1.4 method:
         config_find_coordinates['method'] = get_button_value(
             self.button_general_method)
