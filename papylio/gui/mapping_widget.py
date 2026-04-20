@@ -117,7 +117,7 @@ class MappingWidget(QWidget):
         map_controls_layout = QVBoxLayout()
         map_controls_layout.setAlignment(Qt.AlignTop)
         map_controls_layout.addWidget(map_advanced)
-        map_controls_layout.addWidget(map_controls)
+
 
         #pack in widget:
         self.map_controls = QWidget()
@@ -125,10 +125,16 @@ class MappingWidget(QWidget):
         self.map_controls.setMinimumWidth(150)
 
         #add all to tab:
-        mapping_tab_layout = QHBoxLayout()
-        mapping_tab_layout.addWidget(self.map_controls)
-        mapping_tab_layout.addWidget(self.map_image)
-        mapping_tab_layout.addWidget(self.map_overlay_image)
+        mapping_sequence_layout = QHBoxLayout()
+        mapping_sequence_layout.addWidget(self.map_controls)
+        mapping_sequence_layout.addWidget(self.map_image)
+        mapping_sequence_layout.addWidget(self.map_overlay_image)
+
+        #one more
+        mapping_tab_layout=QVBoxLayout()
+        mapping_tab_layout.addWidget(map_controls)
+        mapping_tab_layout.addLayout(mapping_sequence_layout)
+
 
         self.setLayout(mapping_tab_layout)
 

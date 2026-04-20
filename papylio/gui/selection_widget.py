@@ -81,7 +81,7 @@ class SelectionWidget(QWidget):
 
         self.setLayout(selection_layout)
 
-        self.tree_view.setFixedWidth(700)
+        #self.tree_view.setFixedWidth(700)
         #
         # self.add_button = QPushButton('Add')
         # self.add_button.clicked.connect(self.add_selection)

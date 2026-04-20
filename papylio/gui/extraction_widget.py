@@ -152,9 +152,8 @@ class ExtractionWidget(QWidget):
 
         #collect:
         extraction_controls_layout = QVBoxLayout()
-        extraction_controls_layout.setAlignment(Qt.AlignRight)
-        extraction_controls_layout.addWidget(extraction_advanced)
         extraction_controls_layout.addWidget(extraction_controls)
+        extraction_controls_layout.addWidget(extraction_advanced)
 
         #pack in widget:
         self.extraction_controls = QWidget()

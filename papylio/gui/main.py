@@ -85,7 +85,7 @@ class MainWindow(QMainWindow):
         self.top_tabs.setDocumentMode(True)
         self.traces = TracePlotWindow(parent=self, width=4, height=5, show=False)
         self.top_tabs.addTab(self.traces, 'Traces')
-        self.top_tabs.addTab(self.image, 'Frame')
+        self.top_tabs.addTab(self.image, 'Image')
 
         tabs = QTabWidget()
         tabs.setTabPosition(QTabWidget.North)

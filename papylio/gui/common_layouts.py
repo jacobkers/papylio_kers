@@ -118,9 +118,9 @@ class Group_Box(QGroupBox):
 def make_push_button(text, method, tooltip):
     #build a standardized push button
     btn = QPushButton(text)
-    btn.setFixedHeight(40)  # small height
-    btn.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-    btn.setStyleSheet("QPushButton { padding: 2px 6px; font-size: 16px; }")
+    #btn.setFixedHeight(40)  # small height
+    #btn.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+    #btn.setStyleSheet("QPushButton { padding: 2px 6px; font-size: 16px; }")
     btn.clicked.connect(method)
     if tooltip is not None:
         btn.setToolTip(tooltip)
@@ -130,9 +130,9 @@ def build_control_layouts(button_list):
 #controls are a  limited set (up to 5) of main action buttons
     controls_layout = QHBoxLayout()
     for b in button_list:
-        controls_layout.addWidget(b, alignment=Qt.AlignRight)
+        controls_layout.addWidget(b)
     # Optional: add stretch at the end to push buttons to the left
-    controls_layout.addStretch()
+    #controls_layout.addStretch()
     controls = QWidget()
     controls.setLayout(controls_layout)
     return controls
