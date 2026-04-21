@@ -149,12 +149,6 @@ class MappingWidget(QWidget):
     def update_plots(self):
         selected_files = self.parent.experiment.selectedFiles + [None]
         self.map_image_canvas.file = selected_files[0]
-         #if selected_files[0] is not None:
-         #     self.traces.dataset = selected_files[0].dataset
-         #      self.selection.file = selected_files[0]
-         #else:
-         #     self.traces.dataset = None
-         #      self.selection.file = None
 
     def onItemChange(self, item):
         if isinstance(item.data(), File):

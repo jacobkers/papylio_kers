@@ -18,6 +18,7 @@ import numpy as np
 import papylio as pp
 from papylio import Experiment, File
 from papylio.trace_plot import TracePlotWindow
+from papylio.gui.setup_widget import SetUpWidget
 from papylio.gui.selection_widget import SelectionWidget
 from papylio.gui.classification_widget import ClassificationWidget
 from papylio.gui.mapping_widget import MappingWidget
@@ -70,12 +71,7 @@ class MainWindow(QMainWindow):
         self.image = QWidget()
         self.image.setLayout(image_layout)
 
-        # main buttons:
-        main_help_button = QPushButton('Read me')
-        main_help_button.clicked.connect(self.show_main_help)
 
-        start_tab_layout = QVBoxLayout()
-        start_tab_layout.addWidget(main_help_button)
 
         # right side has a viewing pane (top) and
         # viewing panes
@@ -92,9 +88,8 @@ class MainWindow(QMainWindow):
         tabs.setMovable(True)
         tabs.setDocumentMode(True)
 
-        tab0 = QWidget(self)
-        tab0.setLayout(start_tab_layout)
-        tabs.addTab(tab0, 'Start')
+        self.startup=SetUpWidget(parent=self)
+        tabs.addTab(self.startup, 'Start')
         self.mapping = MappingWidget(parent=self)
         tabs.addTab(self.mapping, 'Mapping')
         self.extraction = ExtractionWidget(parent=self, top_tabs=self.top_tabs)
@@ -172,6 +167,18 @@ class MainWindow(QMainWindow):
 
         if self.update:
             self.update_plots()
+            self.update_settings()
+
+    def update_settings(self):
+        #this one should collect the configuration of the first selected file
+        #and pass the contents  to all relevant settings buttons
+        selected_files = self.experiment.selectedFiles + [None]
+        if selected_files[0] is not None:
+            coord_configuration = selected_files[0].coordinates.attrs['configuration']
+            #TODO: pass them to buttons
+            dummy=1
+        else:
+            dummy = None
 
     def update_plots(self):
         selected_files = self.experiment.selectedFiles + [None]
@@ -246,46 +253,6 @@ class MainWindow(QMainWindow):
         self.root.removeRows(0, 1)
         self.experiment = Experiment(self.experiment.main_path)
         self.addExperiment(self.experiment)
-
-    def show_main_help(self):
-        help_text = """
-                <html>
-                  <body style="font-family: sans-serif; font-size: 10pt;">
-
-                    <h2>Welcome</h2>
-
-                    <p>
-                      This gui is based on the Papylio framework
-                    </p>
-
-                    <ul>
-                      <li>Select and view movies and variables in the top panel</li>
-                      <li>Walk the pipeline via the tabs in the bottom panel</li>
-                    </ul>
-
-                    <p>
-                      For background, see the
-                      <a href="https://papylio.readthedocs.io/en/stable/user_guide/index.html">
-                        Papylio documentation
-                      </a>.
-                    </p>
-
-                    <h3>Tips</h3>
-
-                    <p>
-                      <ul>
-                        <li>Hover over buttons for help notes.</li>
-                        <li>Find more detailed info under the 'Help' buttons per tab</li>
-                    </ul>
-
-                    </p>
-
-                  </body>
-                </html>
-                """
-        self.help_dialog = HelpDialog(self, help_text)
-        # dialog.exec_()  # modal
-        self.help_dialog.show()
 
 
 if __name__ == '__main__':

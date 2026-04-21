@@ -174,6 +174,7 @@ class ExtractionWidget(QWidget):
 
     def on_find_coordinates(self):
         self.top_tabs.setCurrentIndex(1)   # switch to frame tab
+        #TODO: emit a signal here to switch top tab
 
     def update_plots(self):
         selected_files = self.parent.experiment.selectedFiles + [None]
