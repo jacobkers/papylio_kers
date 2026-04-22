@@ -174,7 +174,6 @@ class MainWindow(QMainWindow):
             for i in range(item.rowCount()):
                 item.child(i).setCheckState(item.checkState())
             self.update = True
-
         if self.update:
             self.update_plots()
             self.update_settings()

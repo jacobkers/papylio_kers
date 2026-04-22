@@ -62,6 +62,16 @@ class SetUpWidget(QWidget):
                     </ul>
 
                     </p>
+                    
+                    <h3>Known Issues</h3>
+
+                    <p>
+                    For known issues in Papylio, see
+                      <a href="https://github.com/Chirlmin-Joo-lab/papylio/issues">
+                        Papylio Issues
+                      </a>.
+
+                    </p>
 
                   </body>
                 </html>
