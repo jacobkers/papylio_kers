@@ -1,4 +1,5 @@
 
+import json
 from PySide2.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, \
     QComboBox, QLineEdit, QSpinBox, QFormLayout
 from PySide2.QtCore import Qt, Signal
@@ -37,7 +38,7 @@ class ExtractionWidget(QWidget):
         advanced_general_layout = QFormLayout(frame_general)
         #1.1 channels:
         self.button_general_channel = QComboBox()
-        self.button_general_channel.addItems(['donor', 'acceptor'])
+        self.button_general_channel.addItems(['donor', 'acceptor', 'set_test'])
         advanced_general_layout.addRow("channels", self.button_general_channel)
         #1.2 illuminations
         self.button_general_illumination = QSpinBox()
@@ -159,6 +160,7 @@ class ExtractionWidget(QWidget):
 
         self.setLayout(extraction_tab_layout)
 
+
         #collect peak finding methods for building flexible GUI forms
         self.register_method_spot_detection('local-maximum-auto', find_peaks_local_maximum_auto)  #default  in GUI
         self.register_method_spot_detection('absolute-threshold', find_peaks_absolute_threshold)
@@ -234,7 +236,7 @@ class ExtractionWidget(QWidget):
             self.parent.update_plots()
 
     def extract_traces(self):
-        self.request_top_tab_change.emit(0)
+        self.request_top_tab_change.emit(0) #set viewer to 'traces'
         selected_files = self.parent.experiment.selectedFiles
         #here, pass button values to config
         config_extraction=self.pass_buttons_to_config_for_extraction()
@@ -243,6 +245,12 @@ class ExtractionWidget(QWidget):
             # self.image_canvas.refresh()
             self.parent.update_plots()
 
+    def set_buttons_from_selected_file(self):
+        selected_file = self.parent.experiment.selectedFiles[0]
+        configuration = json.loads(selected_file.coordinates.attrs['configuration'])
+        #self.button_general_channel.setCurrentIndex(2)
+        self.button_general_channel.setCurrentText(configuration['channels'][0])
+        print("made it to here!")
 
     def pass_buttons_to_config_for_find_coordinates(self):
     #semi-temporal function to line up classic config with buttons in gui.

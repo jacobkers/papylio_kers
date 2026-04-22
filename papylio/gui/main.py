@@ -27,6 +27,7 @@ from papylio.gui.kinetics_widget import KineticsWidget
 from papylio.gui.common_layouts import ImageCanvas, HelpDialog
 
 class MainWindow(QMainWindow):
+    pass_selected_config_to_gui_fields = Signal(int)  # send index of tab to activate
 
     def __init__(self, main_path=None):
         super().__init__()
@@ -109,7 +110,7 @@ class MainWindow(QMainWindow):
         tabs.addTab(self.kinetics_widget, 'Kinetics')
 
         tabs.currentChanged.connect(self.setTabFocus)
-
+        self.pass_selected_config_to_gui_fields.connect(self.extraction_widget.set_buttons_from_selected_file)
 
 
         # refresh & tree
@@ -140,10 +141,10 @@ class MainWindow(QMainWindow):
         super_layout.addLayout(left_layout)
         super_layout.addLayout(right_layout)
 
-        widget = QWidget()
-        widget.setLayout(super_layout)
+        central_widget = QWidget()
+        central_widget.setLayout(super_layout)
 
-        self.setCentralWidget(widget)
+        self.setCentralWidget(central_widget)
         self.show()
         self.showMaximized()
 
@@ -183,23 +184,20 @@ class MainWindow(QMainWindow):
         #and pass the contents  to all relevant settings buttons
         selected_files = self.experiment.selectedFiles + [None]
         if selected_files[0] is not None:
-            #coord_configuration = selected_files[0].coordinates.attrs['configuration']
-            #TODO: pass config to buttons by sending out a signal (don't do it here)
-            dummy=1
-        else:
-            dummy = None
+            self.pass_selected_config_to_gui_fields.emit(1)
+
 
     def update_plots(self):
         selected_files = self.experiment.selectedFiles + [None]
         self.image_canvas.file = selected_files[0]
         if selected_files[0] is not None:
             self.traces.dataset = selected_files[0].dataset
-            self.selection.file = selected_files[0]
-            self.classification.file = selected_files[0]
+            #self.selection.file = selected_files[0]
+            #self.classification.file = selected_files[0]
         else:
             self.traces.dataset = None
-            self.selection.file = None
-            self.classification.file = None
+            #self.selection.file = None
+            #self.classification.file = None
 
     def addExperiment(self, experiment):
 
@@ -269,8 +267,8 @@ if __name__ == '__main__':
 
     freeze_support()
     app = QApplication(sys.argv)
-    window = MainWindow()
-    window.show()
+    main_window = MainWindow()
+    main_window.show()
 
     app.exec_()
 
