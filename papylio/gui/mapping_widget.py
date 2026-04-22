@@ -1,7 +1,6 @@
-
 from PySide2.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, \
     QComboBox, QSpinBox, QLabel, QFormLayout
-from PySide2.QtCore import Qt
+from PySide2.QtCore import Qt, Signal
 from matplotlib.figure import Figure
 from papylio import File
 from papylio.gui.common_layouts import (Expander, ImageCanvas, HelpDialog,
@@ -17,6 +16,7 @@ from matplotlib.backends.backend_qtagg import (
     FigureCanvas, NavigationToolbar2QT as NavigationToolbar)
 
 class MappingWidget(QWidget):
+    request_top_tab_change = Signal(int)  # send index of tab to activate
     def __init__(self, parent=None):
         super(MappingWidget, self).__init__(parent)
         self.parent = parent
@@ -211,6 +211,7 @@ class MappingWidget(QWidget):
             self.stack_acceptor_layout.addWidget(form_widget)
 
     def perform_mapping(self, t):
+        self.request_top_tab_change.emit(1)
         print(t)
         self.fig1.clear()
         ax1 = self.fig1.add_subplot(111)

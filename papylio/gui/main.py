@@ -83,25 +83,34 @@ class MainWindow(QMainWindow):
         self.top_tabs.addTab(self.traces, 'Traces')
         self.top_tabs.addTab(self.image, 'Image')
 
+
+
         tabs = QTabWidget()
         tabs.setTabPosition(QTabWidget.North)
         tabs.setMovable(True)
         tabs.setDocumentMode(True)
 
-        self.startup=SetUpWidget(parent=self)
-        tabs.addTab(self.startup, 'Start')
-        self.mapping = MappingWidget(parent=self)
-        tabs.addTab(self.mapping, 'Mapping')
-        self.extraction = ExtractionWidget(parent=self, top_tabs=self.top_tabs)
-        tabs.addTab(self.extraction, 'Extraction')
-        self.selection = SelectionWidget(parent=self)
-        tabs.addTab(self.selection, 'Selection')
-        self.classification = ClassificationWidget(parent=self)
-        self.classification.classificationChanged.connect(self.update_plots)
-        tabs.addTab(self.classification, 'Classification')
-        self.kinetics = KineticsWidget(parent=self)
-        tabs.addTab(self.kinetics, 'Kinetics')
+        self.startup_widget=SetUpWidget(parent=self)
+        tabs.addTab(self.startup_widget, 'Start')
+        self.mapping_widget = MappingWidget(parent=self)
+        self.mapping_widget.request_top_tab_change.connect(self.top_tabs.setCurrentIndex)
+        tabs.addTab(self.mapping_widget, 'Mapping')
+        self.extraction_widget = ExtractionWidget(parent=self, top_tabs=self.top_tabs)
+        #tab follows which widget is used:
+        self.extraction_widget.request_top_tab_change.connect(self.top_tabs.setCurrentIndex)
+        tabs.addTab(self.extraction_widget, 'Extraction')
+        self.selection_widget = SelectionWidget(parent=self)
+        tabs.addTab(self.selection_widget, 'Selection')
+        self.classification_widget = ClassificationWidget(parent=self)
+        self.classification_widget.classificationChanged.connect(self.update_plots)
+
+        tabs.addTab(self.classification_widget, 'Classification')
+        self.kinetics_widget = KineticsWidget(parent=self)
+        tabs.addTab(self.kinetics_widget, 'Kinetics')
+
         tabs.currentChanged.connect(self.setTabFocus)
+
+
 
         # refresh & tree
         experiment_layout = QVBoxLayout()
@@ -174,8 +183,8 @@ class MainWindow(QMainWindow):
         #and pass the contents  to all relevant settings buttons
         selected_files = self.experiment.selectedFiles + [None]
         if selected_files[0] is not None:
-            coord_configuration = selected_files[0].coordinates.attrs['configuration']
-            #TODO: pass them to buttons
+            #coord_configuration = selected_files[0].coordinates.attrs['configuration']
+            #TODO: pass config to buttons by sending out a signal (don't do it here)
             dummy=1
         else:
             dummy = None

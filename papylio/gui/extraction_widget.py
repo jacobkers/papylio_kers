@@ -18,11 +18,11 @@ from matplotlib.backends.backend_qtagg import (
     FigureCanvas, NavigationToolbar2QT as NavigationToolbar)
 
 class ExtractionWidget(QWidget):
-    request_tab_change = Signal(int)  # send index of tab to activate
+    request_top_tab_change = Signal(int)  # send index of tab to activate
 
     def __init__(self, top_tabs, parent=None):
         super(ExtractionWidget, self).__init__(parent)
-        self.top_tabs = top_tabs
+        #self.top_tabs = top_tabs
         self.parent = parent
         self.methods_spot_detection = {}
         self.method_forms_spot_detection = {}  # method_name -> (widget, inputs)
@@ -132,14 +132,11 @@ class ExtractionWidget(QWidget):
             self.extract_traces,
             "extraction selected file(s)"
         )
-        self.extract_button.clicked.connect(self.on_extract) #for tab switching
 
         self.find_coordinates_button= make_push_button(
             'Find coordinates',
             self.find_coordinates,"extraction selected file(s)"
         )
-        self.find_coordinates_button.clicked.connect(self.on_find_coordinates)  # for tab switching
-
 
         extraction_controls = build_control_layouts([
             self.find_coordinates_button,
@@ -168,13 +165,6 @@ class ExtractionWidget(QWidget):
         self.register_method_spot_detection('adaptive-threshold', find_peaks_adaptive_threshold)
         self.register_method_spot_detection('local-maximum', find_peaks_local_maximum)
         self.register_method_spot_detection('relative-local-maximum', find_peaks_relative_local_maximum)
-
-    def on_extract(self):
-        self.top_tabs.setCurrentIndex(0)   # switch to traces tab
-
-    def on_find_coordinates(self):
-        self.top_tabs.setCurrentIndex(1)   # switch to frame tab
-        #TODO: emit a signal here to switch top tab
 
     def update_plots(self):
         selected_files = self.parent.experiment.selectedFiles + [None]
@@ -223,6 +213,9 @@ class ExtractionWidget(QWidget):
 
 
     def find_coordinates(self):
+        #switch top_tab:
+        self.request_top_tab_change.emit(1)
+
         selected_files = self.parent.experiment.selectedFiles
         if selected_files:
             #write button values to config
@@ -241,6 +234,7 @@ class ExtractionWidget(QWidget):
             self.parent.update_plots()
 
     def extract_traces(self):
+        self.request_top_tab_change.emit(0)
         selected_files = self.parent.experiment.selectedFiles
         #here, pass button values to config
         config_extraction=self.pass_buttons_to_config_for_extraction()
@@ -248,7 +242,6 @@ class ExtractionWidget(QWidget):
             selected_files.extract_traces(**config_extraction)
             # self.image_canvas.refresh()
             self.parent.update_plots()
-
 
 
     def pass_buttons_to_config_for_find_coordinates(self):
