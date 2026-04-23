@@ -148,9 +148,9 @@ class MainWindow(QMainWindow):
         self.show()
         self.showMaximized()
 
-        #self.experiment = Experiment(
-        #    r'C:\Users\jkerssemakers\OneDrive - Delft University of Technology\Documents\GitHub\Papylio example dataset')
-        self.experiment = pp.Experiment(main_path, main_window=self)
+        self.experiment = Experiment(
+            r'C:\Users\jkerssemakers\OneDrive - Delft University of Technology\Documents\GitHub\Papylio example dataset')
+        #self.experiment = pp.Experiment(main_path, main_window=self)
         self.addExperiment(self.experiment)
         self.traces.save_path = self.experiment.analysis_path.joinpath('Trace_plots')
 
@@ -191,12 +191,12 @@ class MainWindow(QMainWindow):
         self.image_canvas.file = selected_files[0]
         if selected_files[0] is not None:
             self.traces.dataset = selected_files[0].dataset
-            #self.selection.file = selected_files[0]
-            #self.classification.file = selected_files[0]
+            self.selection_widget.file = selected_files[0]
+            self.classification_widget.file = selected_files[0]
         else:
             self.traces.dataset = None
-            #self.selection.file = None
-            #self.classification.file = None
+            self.selection_widget.file = None
+            self.classification_widget.file = None
 
     def addExperiment(self, experiment):
 
