@@ -331,9 +331,10 @@ class ExtractionWidget(QWidget):
                 </p>
 
                 <ul>
-                  <li>run as-is using the defaults</li>
-                  <li>use 'advanced' to change settings  2</li>
-                  <li>press 'Find coordinates' and 'Extract traces' 3
+                  <li>default: press 'Find coordinates' and 'Extract traces' directly</li>
+                  <li>custom: press Ádvanced' and change settings </li>
+                  <li> blue boxes list settings from last run of first selected file </li>
+                  <li> 
                 </ul>
 
                 <p>
