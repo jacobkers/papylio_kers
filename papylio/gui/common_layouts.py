@@ -99,21 +99,35 @@ class HelpDialog(QDialog):
         layout.addWidget(close_button)
 
 class Group_Box(QGroupBox):
-    def __init__(self, parent=None, title="title"):
+    def __init__(self, parent=None, title="title", highlight=False):
         super().__init__(parent)
-        self.setStyleSheet("""
-                QGroupBox {
-                    border: 1px solid gray;
-                    border-radius: 3px;
-                    margin-top: 10px;  /* space for title */
-                }
+        self.setTitle(title)
 
-                QGroupBox::title {
-                    subcontrol-origin: margin;
-                    left: 10px;
-                    padding: 0 3px 0 3px;
-                }
-                """)
+        base_style = """
+        QGroupBox {
+            border: 1px solid gray;
+            border-radius: 3px;
+            margin-top: 10px;  /* space for title */
+        }
+
+        QGroupBox::title {
+            subcontrol-origin: margin;
+            left: 10px;
+            padding: 0 3px 0 3px;
+        }
+        """
+
+        highlight_style = """
+        QGroupBox::title {
+            color: blue;
+            font-weight: bold;
+        }
+        """
+
+        if highlight:
+            self.setStyleSheet(base_style + highlight_style)
+        else:
+            self.setStyleSheet(base_style)
 
 def make_push_button(text, method, tooltip):
     #build a standardized push button
@@ -137,6 +151,14 @@ def build_control_layouts(button_list):
     controls.setLayout(controls_layout)
     return controls
 
+def deep_get_config(d, keys, default=None):
+    #this function is used for linking a saved nested configurations to gui front
+    for key in keys:
+        if isinstance(d, dict):
+            d = d.get(key, default)
+        else:
+            return default
+    return d
 
 #below a series of functions to link GUI elements to Papylio methods in generic fashion
 def get_input_type(annotation, default):

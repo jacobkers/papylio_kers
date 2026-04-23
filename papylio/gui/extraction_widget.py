@@ -6,7 +6,8 @@ from PySide2.QtCore import Qt, Signal
 from papylio import File
 from papylio.gui.common_layouts import (Expander, ImageCanvas, HelpDialog,Group_Box,
                                         build_control_layouts,make_push_button,
-                                        build_form,build_parameters_input, get_button_value)
+                                        build_form,build_parameters_input, get_button_value,
+                                        deep_get_config)
 #for registry:
 from papylio.peak_finding import (find_peaks_absolute_threshold,
                                   find_peaks_adaptive_threshold,
@@ -34,7 +35,7 @@ class ExtractionWidget(QWidget):
         advanced_layout.setAlignment(Qt.AlignLeft)
 
         #1 general settings box ---------------------------------
-        frame_general = Group_Box("General")
+        frame_general = Group_Box(title="General", highlight=True)
         advanced_general_layout = QFormLayout(frame_general)
         #1.1 channels:
         self.button_general_channel = QComboBox()
@@ -51,7 +52,7 @@ class ExtractionWidget(QWidget):
 
         #2. projection image box--------------------------------------
         #note that it is a subsection 'proj_image'
-        frame_projection = Group_Box("Projection Image")
+        frame_projection = Group_Box(title="Projection Image",highlight=True)
         advanced_projection_layout = QFormLayout(frame_projection)
         #2.1 type
         self.button_projection_image_type = QComboBox()
@@ -68,7 +69,7 @@ class ExtractionWidget(QWidget):
 
         #3. peakfinding (dynamic form building)
         # build a flexible form for the spot_detection channel:-------------------------
-        group_spot_detection = Group_Box("Spot Detection")
+        group_spot_detection = Group_Box(title="Spot Detection")
         form_spot_detection = QFormLayout(group_spot_detection)
         # --- Method selector spot_detection---
         self.method_selector_spot_detection = QComboBox()
@@ -82,7 +83,7 @@ class ExtractionWidget(QWidget):
         form_spot_detection.addRow("Options:", self.stack_spot_detection)
 
         #4. coordinate optimization box-------------------------------
-        frame_coord_opt = Group_Box("Coordinate Optimization")
+        frame_coord_opt = Group_Box(title="Coordinate Optimization",highlight=True)
         advanced_coord_opt_layout = QFormLayout(frame_coord_opt)
         #4.1 margin
         self.button_coordinates_within_margin = QSpinBox()
@@ -96,7 +97,7 @@ class ExtractionWidget(QWidget):
 
 
         #5. extract_traces box-------------------------------
-        frame_extract_traces = Group_Box("Extract Traces")
+        frame_extract_traces = Group_Box(title="Extract Traces")
         advanced_extract_traces_layout = QFormLayout(frame_extract_traces)
         #5.1 obsoletes/not used:
 
@@ -246,59 +247,75 @@ class ExtractionWidget(QWidget):
             self.parent.update_plots()
 
     def set_buttons_from_selected_file(self):
+        #this function loads the settings used earlier for the primary file
+        # currently the first of selected) and passes these to the appropriate GUI button
         selected_file = self.parent.experiment.selectedFiles[0]
-        configuration = json.loads(selected_file.coordinates.attrs['configuration'])
-        #self.button_general_channel.setCurrentIndex(2)
-        self.button_general_channel.setCurrentText(configuration['channels'][0])
-        print("made it to here!")
+        config_str = selected_file.coordinates.attrs.get('configuration')
+
+        if config_str is not None:
+            file_config = json.loads(config_str)
+            #1. general
+            self.button_general_channel.setCurrentText(repr(deep_get_config(file_config, ['channels'])))
+            self.button_general_illumination.setValue(deep_get_config(file_config, ["illumination"]))
+            self.button_general_method.setCurrentText(deep_get_config(file_config, ["method"]))
+            #2. projection
+            self.button_projection_image_type.setCurrentText(repr(deep_get_config(file_config,["projection_image", "projection_type"])))
+            self.button_projection_image_frame_range.setText(repr(deep_get_config(file_config,["projection_image", "frame_range"])))
+            self.button_projection_image_illumination.setValue(deep_get_config(file_config,["projection_image", "illumination"]))
+
+            #3. peak finding:-------------------------
+            # TODO find out how w/dynamic : (probably need to re-set box first based on method, then allocate by input index
+            #"peak_finding": {
+            #"peak_finding"    "method": "local-maximum-auto",
+            #"peak_finding"    "fraction_difference": 0.5,
+            #"peak_finding"    "filter_neighbourhood_size_min": 10,
+            #"peak_finding"    "filter_neighbourhood_size_max": 5
+
+            # 4. coordinate optimization box-------------------------------
+            self.button_coordinates_within_margin.setValue(deep_get_config(file_config,
+                ["coordinate_optimization","coordinates_within_margin", "margin"]))
+            self.button_coordinates_after_gaussian_fit_width.setValue(deep_get_config(file_config,
+                ["coordinate_optimization", "coordinates_after_gaussian_fit", "gaussian_width"]))
+
 
     def pass_buttons_to_config_for_find_coordinates(self):
-    #semi-temporal function to line up classic config with buttons in gui.
-        # Later to be replaced by optional check for existing settings and direct kwargs output for 'find_coordinates'
+    #line up 'classic config' with buttons in gui.
         config_find_coordinates=self.parent.experiment.configuration['find_coordinates']
-        #1.1 channels:
+        #TODO: remove this pre-loading of config
+        #1. general box:
         config_find_coordinates['channels'][0] = get_button_value(
             self.button_general_channel)
-        #1.2 illuminations
         config_find_coordinates['illumination'] = get_button_value(
             self.button_general_illumination)
-        #1.4 method:
         config_find_coordinates['method'] = get_button_value(
             self.button_general_method)
 
         #2. projection image box--------------------------------------
-        #2.1 type
         config_find_coordinates['projection_image']['projection_type'] = get_button_value(
         self.button_projection_image_type)
-        #2.2 frame range
         config_find_coordinates['projection_image']['frame_range'] = get_button_value(
         self.button_projection_image_frame_range)
-
-        #2.3 illumination
         config_find_coordinates['projection_image']['illumination'] = get_button_value(
         self.button_projection_image_illumination)
 
         #3. peakfinding (from dynamic form building, see extraction def)
+        #TODO : how to link file-loaded settings to a dynamic container?
 
         #4. coordinate optimization box-------------------------------
-        #4.1 margin
         config_find_coordinates['coordinate_optimization']['coordinates_within_margin']['margin'] = get_button_value(
         self.button_coordinates_within_margin)
-        #4.2 Gauss fit width
         config_find_coordinates['coordinate_optimization']['coordinates_after_gaussian_fit']['gaussian_width']  = get_button_value(
         self.button_coordinates_after_gaussian_fit_width)
 
         return config_find_coordinates
 
     def pass_buttons_to_config_for_extraction(self):
-        # semi-temporal function to line up classic config with buttons in gui.
         # Later to be replaced by direct kwargs output for 'extraction'
         #5. extract_traces box-------------------------------
         #config_extraction = self.parent.experiment.configuration['trace_extraction']
         config_extraction = {'mask_size': get_button_value(
             self.button_extract_mask_size), 'neighbourhood_size': get_button_value(
             self.button_extract_neighbourhood_size)}
-
 
         return config_extraction
 
