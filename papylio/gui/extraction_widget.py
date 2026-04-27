@@ -39,16 +39,16 @@ class ExtractionWidget(QWidget):
         advanced_general_layout = QFormLayout(frame_general)
         #1.1 channels:
         self.button_general_channel = QComboBox()
-        self.button_general_channel.addItems(['donor', 'acceptor', 'set_test'])
+        self.button_general_channel.addItems(['donor', 'acceptor'])
         advanced_general_layout.addRow("channels", self.button_general_channel)
         #1.2 illuminations
         self.button_general_illumination = QSpinBox()
         self.button_general_illumination.setValue(0)
         advanced_general_layout.addRow("illumination:", self.button_general_illumination)
-        #1.3 method:
-        self.button_general_method = QComboBox()
-        self.button_general_method.addItems(['by_channel', 'average_channels', 'sum_channels'])
-        advanced_general_layout.addRow("channels:", self.button_general_method)
+        #1.3 method (discarded):
+        #self.button_general_method = QComboBox()
+        #self.button_general_method.addItems(['by_channel', 'average_channels', 'sum_channels'])
+        #advanced_general_layout.addRow("channels:", self.button_general_method)
 
         #2. projection image box--------------------------------------
         #note that it is a subsection 'proj_image'
@@ -257,7 +257,7 @@ class ExtractionWidget(QWidget):
             #1. general
             self.button_general_channel.setCurrentText(repr(deep_get_config(file_config, ['channels'])))
             self.button_general_illumination.setValue(deep_get_config(file_config, ["illumination"]))
-            self.button_general_method.setCurrentText(deep_get_config(file_config, ["method"]))
+            #self.button_general_method.setCurrentText(deep_get_config(file_config, ["method"]))
             #2. projection
             self.button_projection_image_type.setCurrentText(repr(deep_get_config(file_config,["projection_image", "projection_type"])))
             self.button_projection_image_frame_range.setText(repr(deep_get_config(file_config,["projection_image", "frame_range"])))
@@ -287,8 +287,8 @@ class ExtractionWidget(QWidget):
             self.button_general_channel)
         config_find_coordinates['illumination'] = get_button_value(
             self.button_general_illumination)
-        config_find_coordinates['method'] = get_button_value(
-            self.button_general_method)
+        #config_find_coordinates['method'] = get_button_value(
+            #self.button_general_method)
 
         #2. projection image box--------------------------------------
         config_find_coordinates['projection_image']['projection_type'] = get_button_value(
