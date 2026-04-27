@@ -36,6 +36,7 @@ class ExtractionWidget(QWidget):
 
         #1 general settings box ---------------------------------
         frame_general = Group_Box(title="General", highlight=True)
+        frame_general.setToolTip('blue box: settings from last run selected file')
         advanced_general_layout = QFormLayout(frame_general)
         #1.1 channels:
         self.button_general_channel = QComboBox()
@@ -53,6 +54,7 @@ class ExtractionWidget(QWidget):
         #2. projection image box--------------------------------------
         #note that it is a subsection 'proj_image'
         frame_projection = Group_Box(title="Projection Image",highlight=True)
+        frame_projection.setToolTip('blue box: settings from last run selected file')
         advanced_projection_layout = QFormLayout(frame_projection)
         #2.1 type
         self.button_projection_image_type = QComboBox()
@@ -84,6 +86,7 @@ class ExtractionWidget(QWidget):
 
         #4. coordinate optimization box-------------------------------
         frame_coord_opt = Group_Box(title="Coordinate Optimization",highlight=True)
+        frame_coord_opt.setToolTip('blue box: settings from last run selected file')
         advanced_coord_opt_layout = QFormLayout(frame_coord_opt)
         #4.1 margin
         self.button_coordinates_within_margin = QSpinBox()
@@ -255,11 +258,12 @@ class ExtractionWidget(QWidget):
         if config_str is not None:
             file_config = json.loads(config_str)
             #1. general
-            self.button_general_channel.setCurrentText(repr(deep_get_config(file_config, ['channels'])))
+            #note: below button value-to-get was stored as single-element-list
+            self.button_general_channel.setCurrentText((deep_get_config(file_config, ['channels'])[0]))
             self.button_general_illumination.setValue(deep_get_config(file_config, ["illumination"]))
             #self.button_general_method.setCurrentText(deep_get_config(file_config, ["method"]))
             #2. projection
-            self.button_projection_image_type.setCurrentText(repr(deep_get_config(file_config,["projection_image", "projection_type"])))
+            self.button_projection_image_type.setCurrentText(deep_get_config(file_config,["projection_image", "projection_type"]))
             self.button_projection_image_frame_range.setText(repr(deep_get_config(file_config,["projection_image", "frame_range"])))
             self.button_projection_image_illumination.setValue(deep_get_config(file_config,["projection_image", "illumination"]))
 
