@@ -46,7 +46,7 @@ class MappingWidget(QWidget):
         self.map_image.setLayout(map_image_layout)
 
         #build a flexible form for the donor channel:-------------------------
-        frame_donor = Group_Box("Donor Spot Detection")
+        frame_donor = Group_Box(title="Donor Spot Detection")
         form_donor = QFormLayout(frame_donor)
         # --- Method selector donor---
         self.method_selector_donor = QComboBox()
@@ -60,7 +60,7 @@ class MappingWidget(QWidget):
         form_donor.addRow("Options:", self.stack_donor)
 
         # build a flexible form for the acceptor channel:-------------------------
-        frame_acceptor= Group_Box("Acceptor Spot Detection")
+        frame_acceptor= Group_Box(title="Acceptor Spot Detection")
         form_acceptor = QFormLayout(frame_acceptor)
         # --- Method selector acceptor---
         self.method_selector_acceptor = QComboBox()
@@ -93,7 +93,7 @@ class MappingWidget(QWidget):
         self.button_initial_translation.addItems(self.button_initial_translation_options)
 
         # advanced mapping grid layout:
-        frame = Group_Box("Common")
+        frame = Group_Box(title="Common")
         map_advanced_layout = QHBoxLayout()
         map_advanced_layout.setAlignment(Qt.AlignLeft)
         map_advanced2_layout = QFormLayout(frame)
@@ -132,9 +132,8 @@ class MappingWidget(QWidget):
 
         #one more
         mapping_tab_layout=QVBoxLayout()
-        mapping_tab_layout.addWidget(map_controls)
         mapping_tab_layout.addLayout(mapping_sequence_layout)
-
+        mapping_tab_layout.addWidget(map_controls)
 
         self.setLayout(mapping_tab_layout)
 

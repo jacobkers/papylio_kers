@@ -21,14 +21,38 @@ class SetUpWidget(QWidget):
     def __init__(self, parent=None):
         super(SetUpWidget, self).__init__(parent)
 
+        # 1 movie settings box ---------------------------------
+        frame_movie = Group_Box(title="Movie", highlight=True)
+        frame_movie.setToolTip('setting these requires reloading: press refresh')
+        movie_setup_layout = QFormLayout(frame_movie)
+        # 1.1 channels:
+        self.button_movie_rotation = QSpinBox()
+        self.button_movie_rotation.setValue(1)
+        self.button_movie_rotation.setToolTip('press refresh to have effect')
+        movie_setup_layout.addRow("movie rotation", self.button_movie_rotation)
+
+        advanced_layout = QHBoxLayout()
+        advanced_layout.setAlignment(Qt.AlignRight)
+        advanced_layout.addWidget(frame_movie)
+
+        # build panel layout:
+        setup_advanced = Expander("Advanced")
+        setup_advanced.setContentLayout(advanced_layout)
+
         self.parent = parent
         start_help_button = build_control_layouts([
             make_push_button('Read Me', self.show_main_help, None)])
 
+        #TODO: if a refresh: self.pass_buttons_to_config_for_find_coordinates()
+
         start_tab_layout = QVBoxLayout()
+        start_tab_layout.addWidget(setup_advanced)
         start_tab_layout.addWidget(start_help_button)
         self.setLayout(start_tab_layout)
 
+    def pass_buttons_to_config_for_setup(self):
+    #line up 'classic config' with buttons in gui.
+        self.configuration['movie']['rot90']=self.button_movie_rotation
 
     def show_main_help(self):
         help_text = """
@@ -47,7 +71,7 @@ class SetUpWidget(QWidget):
                     </ul>
 
                     <p>
-                      For background, see the
+                      For background, see
                       <a href="https://papylio.readthedocs.io/en/stable/user_guide/index.html">
                         Papylio documentation
                       </a>.

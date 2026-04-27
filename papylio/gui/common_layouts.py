@@ -141,12 +141,15 @@ def make_push_button(text, method, tooltip):
     return btn
 
 def build_control_layouts(button_list):
-#controls are a  limited set (up to 5) of main action buttons
     controls_layout = QHBoxLayout()
+
+    # Push everything to the right
+    controls_layout.addStretch()
+
     for b in button_list:
+        b.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         controls_layout.addWidget(b)
-    # Optional: add stretch at the end to push buttons to the left
-    #controls_layout.addStretch()
+
     controls = QWidget()
     controls.setLayout(controls_layout)
     return controls

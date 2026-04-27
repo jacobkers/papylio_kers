@@ -10,7 +10,7 @@ from PySide2.QtCore import Qt
 
 from papylio.analysis.classification_simple import classify_threshold
 from papylio.analysis.hidden_markov_modelling import classify_hmm
-from papylio.gui.common_layouts import ImageCanvas, HelpDialog
+from papylio.gui.common_layouts import ImageCanvas, HelpDialog, build_control_layouts
 
 import numpy as np
 import inspect
@@ -53,15 +53,15 @@ class ClassificationWidget(QWidget):
         form.addRow("Options:", self.stack)
 
         # --- Buttons ---
-        button_layout = QHBoxLayout()
+
+        #button_layout = QHBoxLayout()
         self.run_button = QPushButton("Classify")
         self.clear_button = QPushButton("Clear")
         self.help_button = QPushButton('Help')
         self.help_button.clicked.connect(self.show_help)
 
-        button_layout.addWidget(self.clear_button)
-        button_layout.addWidget(self.run_button)
-        button_layout.addWidget(self.help_button)
+        button_widget = build_control_layouts([self.clear_button,self.run_button ,self.help_button])
+
 
         # Taborder
         # QWidget.setTabOrder(self.name_edit, self.variable_selector)
@@ -114,8 +114,7 @@ class ClassificationWidget(QWidget):
 
         main_layout = QVBoxLayout()
         main_layout.addLayout(sequence_layout)
-        main_layout.addLayout(button_layout)
-
+        main_layout.addWidget(button_widget)
 
 
         self.setLayout(main_layout)

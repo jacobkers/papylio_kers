@@ -5,7 +5,11 @@ from PySide2.QtWidgets import QHeaderView, QWidget, QHBoxLayout, QVBoxLayout, QG
 from PySide2.QtGui import QStandardItem, QStandardItemModel
 from PySide2.QtCore import Qt
 
+
 import numpy as np
+
+from papylio.gui.common_layouts import build_control_layouts
+
 
 class SelectionWidget(QWidget):
     def __init__(self, parent=None):
@@ -65,30 +69,18 @@ class SelectionWidget(QWidget):
         apply_to_selected_files_button.clicked.connect(self.apply_to_selected_files)
 
 
-        self.add_selection_layout = QHBoxLayout()
-        # self.add_selection_layout.addWidget(variable_combobox,1)
-        # self.add_selection_layout.addWidget(channel_combobox,1)
-        # self.add_selection_layout.addWidget(aggregator_combobox,1)
-        # self.add_selection_layout.addWidget(operator_combobox,1)
-        # self.add_selection_layout.addWidget(threshold_lineedit,1)
-        self.add_selection_layout.addWidget(add_button)
-        self.add_selection_layout.addWidget(clear_button)
-        self.add_selection_layout.addWidget(apply_to_selected_files_button)
+        self.add_selection_layout = build_control_layouts([add_button,clear_button,apply_to_selected_files_button])
+
+
+        #self.add_selection_layout = QHBoxLayout()
+        #self.add_selection_layout.addWidget(add_button)
+        #self.add_selection_layout.addWidget(clear_button)
+        #self.add_selection_layout.addWidget(apply_to_selected_files_button)
 
         selection_layout = QVBoxLayout()
         selection_layout.addWidget(self.tree_view)
-        selection_layout.addLayout(self.add_selection_layout)
-
+        selection_layout.addWidget(self.add_selection_layout)
         self.setLayout(selection_layout)
-
-        #self.tree_view.setFixedWidth(700)
-        #
-        # self.add_button = QPushButton('Add')
-        # self.add_button.clicked.connect(self.add_selection)
-        # selection_layout = QVBoxLayout()
-        # selection_layout.addWidget(self.tree_view)
-        # selection_layout.addWidget(self.add_button)
-
         self.setLayout(selection_layout)
 
         self.update_final_selection = True

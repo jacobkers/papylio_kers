@@ -179,8 +179,8 @@ class MainWindow(QMainWindow):
             self.update_settings()
 
     def update_settings(self):
-        #this one should collect the configuration of the first selected file
-        #and pass the contents  to all relevant settings buttons
+        #this collects the configuration of the first selected file
+        #and passes the contents  to all relevant settings buttons
         selected_files = self.experiment.selectedFiles + [None]
         if selected_files[0] is not None:
             self.pass_selected_config_to_gui_fields.emit(1)
@@ -259,7 +259,6 @@ class MainWindow(QMainWindow):
         self.root.removeRows(0, 1)
         self.experiment = Experiment(self.experiment.main_path)
         self.addExperiment(self.experiment)
-
 
 if __name__ == '__main__':
     from multiprocessing import Process, freeze_support

@@ -30,9 +30,7 @@ class ExtractionWidget(QWidget):
         self.method_forms_spot_detection = {}  # method_name -> (widget, inputs)
         self.parent.model.itemChanged.connect(self.onItemChange)
 
-        #this one collects the various settings frames in horizontal fashion
-        advanced_layout = QHBoxLayout()
-        advanced_layout.setAlignment(Qt.AlignLeft)
+
 
         #1 general settings box ---------------------------------
         frame_general = Group_Box(title="General", highlight=True)
@@ -120,6 +118,9 @@ class ExtractionWidget(QWidget):
         advanced_extract_traces_layout.addRow("neighbourhood_size:", self.button_extract_neighbourhood_size)
 
         #add general frame to tab layout
+        # this one collects the various settings frames in horizontal fashion
+        advanced_layout = QHBoxLayout()
+        advanced_layout.setAlignment(Qt.AlignLeft)
         advanced_layout.addWidget(frame_general)
         advanced_layout.addWidget(frame_projection)
         advanced_layout.addWidget(group_spot_detection)
@@ -150,8 +151,8 @@ class ExtractionWidget(QWidget):
 
         #collect:
         extraction_controls_layout = QVBoxLayout()
-        extraction_controls_layout.addWidget(extraction_controls)
         extraction_controls_layout.addWidget(extraction_advanced)
+        extraction_controls_layout.addWidget(extraction_controls)
 
         #pack in widget:
         self.extraction_controls = QWidget()
