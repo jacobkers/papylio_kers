@@ -43,16 +43,15 @@ class SetUpWidget(QWidget):
         start_help_button = build_control_layouts([
             make_push_button('Read Me', self.show_main_help, None)])
 
-        #TODO: if a refresh: self.pass_buttons_to_config_for_find_coordinates()
-
         start_tab_layout = QVBoxLayout()
-        start_tab_layout.addWidget(setup_advanced)
+        #TODO: development: keep invisible as long as it doesn't function:
+        #start_tab_layout.addWidget(setup_advanced)
         start_tab_layout.addWidget(start_help_button)
         self.setLayout(start_tab_layout)
 
     def pass_buttons_to_config_for_setup(self):
     #line up 'classic config' with buttons in gui.
-        self.configuration['movie']['rot90']=self.button_movie_rotation
+        self.parent.experiment.configuration['movie']['rot90']=get_button_value(self.button_movie_rotation)
 
     def show_main_help(self):
         help_text = """

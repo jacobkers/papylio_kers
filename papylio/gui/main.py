@@ -28,6 +28,7 @@ from papylio.gui.common_layouts import ImageCanvas, HelpDialog
 
 class MainWindow(QMainWindow):
     pass_selected_config_to_gui_fields = Signal(int)  # send index of tab to activate
+    pass_setup_to_config_on_refresh = Signal(int)
 
     def __init__(self, main_path=None):
         super().__init__()
@@ -91,8 +92,8 @@ class MainWindow(QMainWindow):
         tabs.setMovable(True)
         tabs.setDocumentMode(True)
 
-        self.startup_widget=SetUpWidget(parent=self)
-        tabs.addTab(self.startup_widget, 'Start')
+        self.setup_widget=SetUpWidget(parent=self)
+        tabs.addTab(self.setup_widget, 'Start')
         self.mapping_widget = MappingWidget(parent=self)
         self.mapping_widget.request_top_tab_change.connect(self.top_tabs.setCurrentIndex)
         tabs.addTab(self.mapping_widget, 'Mapping')
@@ -110,8 +111,9 @@ class MainWindow(QMainWindow):
         tabs.addTab(self.kinetics_widget, 'Kinetics')
 
         tabs.currentChanged.connect(self.setTabFocus)
-        self.pass_selected_config_to_gui_fields.connect(self.extraction_widget.set_buttons_from_selected_file)
 
+        self.pass_selected_config_to_gui_fields.connect(self.extraction_widget.set_buttons_from_selected_file)
+        self.pass_setup_to_config_on_refresh.connect(self.setup_widget.pass_buttons_to_config_for_setup)
 
         # refresh & tree
         experiment_layout = QVBoxLayout()
@@ -148,9 +150,9 @@ class MainWindow(QMainWindow):
         self.show()
         self.showMaximized()
 
-        self.experiment = Experiment(
-            r'C:\Users\jkerssemakers\OneDrive - Delft University of Technology\Documents\GitHub\Papylio example dataset')
-        #self.experiment = pp.Experiment(main_path, main_window=self)
+        #self.experiment = Experiment(
+        #    r'C:\Users\jkerssemakers\OneDrive - Delft University of Technology\Documents\GitHub\Papylio example dataset')
+        self.experiment = pp.Experiment(main_path, main_window=self)
         self.addExperiment(self.experiment)
         self.traces.save_path = self.experiment.analysis_path.joinpath('Trace_plots')
 
@@ -256,6 +258,8 @@ class MainWindow(QMainWindow):
         return item
 
     def refresh(self):
+        #TODO: pass settings from setup widget to config before doing this one
+        self.pass_setup_to_config_on_refresh.emit(1)
         self.root.removeRows(0, 1)
         self.experiment = Experiment(self.experiment.main_path)
         self.addExperiment(self.experiment)
