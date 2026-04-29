@@ -1,11 +1,12 @@
 
 from PySide2.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, \
-    QComboBox, QLineEdit, QSpinBox, QFormLayout
+    QComboBox, QLineEdit, QSpinBox, QFormLayout, QButtonGroup, QRadioButton, QLabel, QMessageBox
 from PySide2.QtCore import Qt, Signal
 from papylio import File
 from papylio.gui.common_layouts import (Expander, HelpDialog,Group_Box,
                                         build_control_layouts,make_push_button,
                                         build_form,build_parameters_input, get_button_value)
+from papylio.movie.movie import Channel
 #for registry:
 from papylio.peak_finding import (find_peaks_absolute_threshold,
                                   find_peaks_adaptive_threshold,
@@ -32,8 +33,30 @@ class SetUpWidget(QWidget):
         self.button_movie_rotation.setRange(-3, 3)
         self.button_movie_rotation.setValue(0)
         self.button_movie_rotation.valueChanged.connect(self.pass_buttons_to_config_for_setup)
-        self.button_movie_rotation.setToolTip('press refresh to have effect')
+        self.button_movie_rotation.setToolTip('If changed, remove all analyzed data and projection images')
         movie_setup_layout.addRow("Rotation", self.button_movie_rotation)
+        # movie_setup_layout.addRow("", QLabel("If changed, remove all analyzed data and projection images"))
+
+        self.number_of_channels_selector_1 = QRadioButton("1")
+        self.number_of_channels_selector_1.setToolTip('This needs to be manually set every time on reopening the gui')
+
+        self.number_of_channels_selector_2 = QRadioButton("2")
+        self.number_of_channels_selector_2.setChecked(True)
+        self.number_of_channels_selector_2.setToolTip('This needs to be manually set every time on reopening the gui')
+
+        self.channel_selector = QButtonGroup()
+        self.channel_selector.addButton(self.number_of_channels_selector_1, 1)
+        self.channel_selector.addButton(self.number_of_channels_selector_2, 2)
+        # self.channel_selector.setToolTip("Choose number of channels")
+        self.channel_selector.buttonClicked.connect(self.on_channel_selection_changed)
+
+        channel_layout = QHBoxLayout()
+        channel_layout.setContentsMargins(0, 0, 0, 0)
+        channel_layout.addWidget(self.number_of_channels_selector_1)
+        channel_layout.addWidget(self.number_of_channels_selector_2)
+
+        movie_setup_layout.addRow("Number of channels", channel_layout)
+
 
         advanced_layout = QHBoxLayout()
         advanced_layout.setAlignment(Qt.AlignLeft)
@@ -90,8 +113,21 @@ class SetUpWidget(QWidget):
         self.experiment.configuration['movie']['rot90'] = value
         self.experiment.configuration.save()
         self.experiment.files.movie.rot90 = value
+
+        QMessageBox.warning(self, "Rotation change", "Please delete all previously generated projection images and analysis datasets")
         # self.file.movie.rot90 = self.button_movie_rotation.value()
 
+    def on_channel_selection_changed(self, button):
+        id = self.channel_selector.id(button)
+        if id == 1:
+            for file in self.experiment.files:
+                file.movie.channels = [Channel(file.movie, 'green', 'g', other_names=['donor', 'd'])]
+                file.movie.channel_arrangement = [[[0, ]]]
+        if id == 2:
+            for file in self.experiment.files:
+                file.movie.channels = [Channel(file.movie, 'green', 'g', other_names=['donor', 'd']),
+                                       Channel(file.movie, 'red', 'r', other_names=['acceptor', 'a'])]
+                file.movie.channel_arrangement = [[[0, 1]]]
     def show_main_help(self):
         help_text = """
                 <html>
