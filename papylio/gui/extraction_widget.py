@@ -35,7 +35,7 @@ class ExtractionWidget(QWidget):
         advanced_general_layout = QFormLayout(frame_general)
         #1.1 channels:
         self.button_general_channel = QComboBox()
-        self.button_general_channel.addItems(['donor', 'acceptor'])
+        self.button_general_channel.addItems(['donor', 'acceptor', 'both'])
         advanced_general_layout.addRow("channels", self.button_general_channel)
         #1.2 illuminations
         self.button_general_illumination = QSpinBox()
@@ -256,7 +256,12 @@ class ExtractionWidget(QWidget):
             file_config = json.loads(config_str)
             #1. general
             #note: below button value-to-get was stored as single-element-list
-            self.button_general_channel.setCurrentText((deep_get_config(file_config, ['channels'])[0]))
+
+            channels = deep_get_config(file_config, ['channels'])
+            if len(channels) == 2:
+                self.button_general_channel.setCurrentText('both')
+            else:
+                self.button_general_channel.setCurrentText((deep_get_config(file_config, ['channels'])[0]))
             self.button_general_illumination.setValue(deep_get_config(file_config, ["illumination"]))
             #self.button_general_method.setCurrentText(deep_get_config(file_config, ["method"]))
             #2. projection
@@ -284,8 +289,13 @@ class ExtractionWidget(QWidget):
         config_find_coordinates=self.parent.experiment.configuration['find_coordinates']
         #TODO: remove this pre-loading of config
         #1. general box:
-        config_find_coordinates['channels'][0] = get_button_value(
-            self.button_general_channel)
+        channels = get_button_value(self.button_general_channel)
+        if channels == 'both':
+            config_find_coordinates['channels'] = ['donor', 'acceptor']
+            config_find_coordinates['method'] = 'sum_channels'
+        else:
+            config_find_coordinates['channels'] = [channels]
+            config_find_coordinates['method'] = 'by_channel'
         config_find_coordinates['illumination'] = get_button_value(
             self.button_general_illumination)
         #config_find_coordinates['method'] = get_button_value(
