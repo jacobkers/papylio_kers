@@ -3,7 +3,7 @@ from PySide2.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, \
     QComboBox, QLineEdit, QSpinBox, QFormLayout
 from PySide2.QtCore import Qt, Signal
 from papylio import File
-from papylio.gui.common_layouts import (Expander, ImageCanvas, HelpDialog,Group_Box,
+from papylio.gui.common_layouts import (Expander, HelpDialog,Group_Box,
                                         build_control_layouts,make_push_button,
                                         build_form,build_parameters_input, get_button_value)
 #for registry:
@@ -21,37 +21,76 @@ class SetUpWidget(QWidget):
     def __init__(self, parent=None):
         super(SetUpWidget, self).__init__(parent)
 
+        # self.parent = parent
+
         # 1 movie settings box ---------------------------------
         frame_movie = Group_Box(title="Movie", highlight=True)
         frame_movie.setToolTip('setting these requires reloading: press refresh')
         movie_setup_layout = QFormLayout(frame_movie)
         # 1.1 channels:
         self.button_movie_rotation = QSpinBox()
-        self.button_movie_rotation.setValue(1)
+        self.button_movie_rotation.setRange(-3, 3)
+        self.button_movie_rotation.setValue(0)
+        self.button_movie_rotation.valueChanged.connect(self.pass_buttons_to_config_for_setup)
         self.button_movie_rotation.setToolTip('press refresh to have effect')
-        movie_setup_layout.addRow("movie rotation", self.button_movie_rotation)
+        movie_setup_layout.addRow("Rotation", self.button_movie_rotation)
 
         advanced_layout = QHBoxLayout()
-        advanced_layout.setAlignment(Qt.AlignRight)
+        advanced_layout.setAlignment(Qt.AlignLeft)
         advanced_layout.addWidget(frame_movie)
 
         # build panel layout:
-        setup_advanced = Expander("Advanced")
-        setup_advanced.setContentLayout(advanced_layout)
+        # setup_advanced = Expander("Advanced")
+        # setup_advanced.setContentLayout(advanced_layout)
 
-        self.parent = parent
         start_help_button = build_control_layouts([
             make_push_button('Read Me', self.show_main_help, None)])
 
         start_tab_layout = QVBoxLayout()
         #TODO: development: keep invisible as long as it doesn't function:
-        #start_tab_layout.addWidget(setup_advanced)
+        # start_tab_layout.addWidget(setup_advanced)
+        start_tab_layout.addLayout(advanced_layout)
+        start_tab_layout.addStretch()
         start_tab_layout.addWidget(start_help_button)
         self.setLayout(start_tab_layout)
 
-    def pass_buttons_to_config_for_setup(self):
+        self.file = None
+        self.experiment = None
+
+    @property
+    def file(self):
+        return self._file
+
+    @file.setter
+    def file(self, file):
+        self._file = file
+        # if file is None:
+        #     self.setDisabled(True)
+        # else:
+        #     self.setDisabled(False)
+        #     self.update_button_settings()
+
+    @property
+    def experiment(self):
+        return self._experiment
+
+    @experiment.setter
+    def experiment(self, experiment):
+        self._experiment = experiment
+        if experiment is not None:
+            self.update_button_settings()
+
+    def update_button_settings(self):
+        self.button_movie_rotation.blockSignals(True)
+        self.button_movie_rotation.setValue(self.experiment.configuration['movie']['rot90'])
+        self.button_movie_rotation.blockSignals(False)
+
+    def pass_buttons_to_config_for_setup(self, value):
     #line up 'classic config' with buttons in gui.
-        self.parent.experiment.configuration['movie']['rot90']=get_button_value(self.button_movie_rotation)
+        self.experiment.configuration['movie']['rot90'] = value
+        self.experiment.configuration.save()
+        self.experiment.files.movie.rot90 = value
+        # self.file.movie.rot90 = self.button_movie_rotation.value()
 
     def show_main_help(self):
         help_text = """

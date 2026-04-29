@@ -4,7 +4,7 @@ from PySide2.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, \
     QComboBox, QLineEdit, QSpinBox, QFormLayout
 from PySide2.QtCore import Qt, Signal
 from papylio import File
-from papylio.gui.common_layouts import (Expander, ImageCanvas, HelpDialog,Group_Box,
+from papylio.gui.common_layouts import (Expander, HelpDialog,Group_Box,
                                         build_control_layouts,make_push_button,
                                         build_form,build_parameters_input, get_button_value,
                                         deep_get_config)
@@ -28,9 +28,6 @@ class ExtractionWidget(QWidget):
         self.parent = parent
         self.methods_spot_detection = {}
         self.method_forms_spot_detection = {}  # method_name -> (widget, inputs)
-        self.parent.model.itemChanged.connect(self.onItemChange)
-
-
 
         #1 general settings box ---------------------------------
         frame_general = Group_Box(title="General", highlight=True)
@@ -128,8 +125,8 @@ class ExtractionWidget(QWidget):
         advanced_layout.addWidget(frame_extract_traces)
 
         #build panel layout:
-        extraction_advanced = Expander("Advanced")
-        extraction_advanced.setContentLayout(advanced_layout)
+        # extraction_advanced = Expander("Advanced")
+        # extraction_advanced.setContentLayout(advanced_layout)
 
 
         #main action:
@@ -151,20 +148,23 @@ class ExtractionWidget(QWidget):
 
         #collect:
         extraction_controls_layout = QVBoxLayout()
-        extraction_controls_layout.addWidget(extraction_advanced)
+        # extraction_controls_layout.addWidget(extraction_advanced)
+        extraction_controls_layout.addLayout(advanced_layout, stretch=0)
+        extraction_controls_layout.addStretch(1)
         extraction_controls_layout.addWidget(extraction_controls)
 
-        #pack in widget:
-        self.extraction_controls = QWidget()
-        self.extraction_controls.setLayout(extraction_controls_layout)
-        self.extraction_controls.setMinimumWidth(150)
+        # #pack in widget:
+        # self.extraction_controls = QWidget()
+        # self.extraction_controls.setLayout(extraction_controls_layout)
+        # self.extraction_controls.setMinimumWidth(150)
+        #
+        # #add all to tab:
+        # extraction_tab_layout = QHBoxLayout()
+        # extraction_tab_layout.addWidget(self.extraction_controls)
+        #
+        # self.setLayout(extraction_tab_layout)
 
-        #add all to tab:
-        extraction_tab_layout = QHBoxLayout()
-        extraction_tab_layout.addWidget(self.extraction_controls)
-
-        self.setLayout(extraction_tab_layout)
-
+        self.setLayout(extraction_controls_layout)
 
         #collect peak finding methods for building flexible GUI forms
         self.register_method_spot_detection('local-maximum-auto', find_peaks_local_maximum_auto)  #default  in GUI
@@ -173,23 +173,19 @@ class ExtractionWidget(QWidget):
         self.register_method_spot_detection('local-maximum', find_peaks_local_maximum)
         self.register_method_spot_detection('relative-local-maximum', find_peaks_relative_local_maximum)
 
-    def update_plots(self):
-        selected_files = self.parent.experiment.selectedFiles + [None]
+        self.file = None
 
-    def onItemChange(self, item):
-        if isinstance(item.data(), File):
-            file = item.data()
-            file.isSelected = (True if item.checkState() == Qt.Checked else False)
-            print(f'{file}: {file.isSelected}')
+    @property
+    def file(self):
+        return self._file
 
+    @file.setter
+    def file(self, file):
+        self._file = file
+        if file is None:
+            self.setDisabled(True)
         else:
-            self.update = False
-            for i in range(item.rowCount()):
-                item.child(i).setCheckState(item.checkState())
-            self.update = True
-
-        if self.update:
-            self.update_plots()
+            self.setDisabled(False)
 
     # -------------------------------------------------------------------------
     # Register methods dynamically and create their forms
@@ -237,7 +233,7 @@ class ExtractionWidget(QWidget):
             config_find_coordinates = {**find_coordinates_config}
             selected_files.movie.determine_spatial_background_correction(use_existing=True)
             selected_files.find_coordinates(**config_find_coordinates)
-            self.parent.image_canvas.refresh()
+            self.parent.image.image_canvas.refresh()
             self.parent.update_plots()
 
     def extract_traces(self):

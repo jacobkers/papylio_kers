@@ -10,7 +10,7 @@ from PySide2.QtCore import Qt
 
 from papylio.analysis.classification_simple import classify_threshold
 from papylio.analysis.hidden_markov_modelling import classify_hmm
-from papylio.gui.common_layouts import ImageCanvas, HelpDialog, build_control_layouts
+from papylio.gui.common_layouts import HelpDialog, build_control_layouts
 
 import numpy as np
 import inspect
@@ -60,7 +60,7 @@ class ClassificationWidget(QWidget):
         self.help_button = QPushButton('Help')
         self.help_button.clicked.connect(self.show_help)
 
-        button_widget = build_control_layouts([self.clear_button,self.run_button ,self.help_button])
+        button_widget = build_control_layouts([self.clear_button, self.run_button ,self.help_button])
 
 
         # Taborder
@@ -89,11 +89,12 @@ class ClassificationWidget(QWidget):
         self.tree_view.setColumnWidth(6, 250)   # Parameters
 
         #this layout combines the 'form' and the main action buttons
-        form_buttons = QWidget()
-        form_buttons_layout= QVBoxLayout()
+        # form_buttons = QWidget()
+        form_buttons_layout = QVBoxLayout()
         form_buttons_layout.addLayout(form)
-        form_buttons_layout.addStretch()
-        form_buttons.setLayout(form_buttons_layout)
+        form_buttons_layout.addStretch(1)
+        form_buttons_layout.addWidget(button_widget)
+        # form_buttons.setLayout(form_buttons_layout)
 
 
 
@@ -106,19 +107,17 @@ class ClassificationWidget(QWidget):
         self.run_button.clicked.connect(self._run_classification)
         self.clear_button.clicked.connect(self._clear_results)
 
+
+        # sequence_layout = QHBoxLayout()
+        # sequence_layout.addWidget(self.tree_view)#, stretch=3)
+        # sequence_layout.addWidget(form_buttons, stretch=1)
+
+        main_layout = QHBoxLayout()
+        main_layout.addWidget(self.tree_view, stretch=3)
+        main_layout.addLayout(form_buttons_layout, stretch=1)
+
         self.method_forms = {}  # method_name -> (widget, inputs)
-
-        sequence_layout = QHBoxLayout()
-        sequence_layout.addWidget(self.tree_view, stretch=3)
-        sequence_layout.addWidget(form_buttons, stretch=1)
-
-        main_layout = QVBoxLayout()
-        main_layout.addLayout(sequence_layout)
-        main_layout.addWidget(button_widget)
-
-
         self.setLayout(main_layout)
-
 
         self.register_method('threshold', classify_threshold)
         self.register_method('hmm', classify_hmm)

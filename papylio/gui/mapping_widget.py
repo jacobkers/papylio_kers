@@ -3,7 +3,7 @@ from PySide2.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, \
 from PySide2.QtCore import Qt, Signal
 from matplotlib.figure import Figure
 from papylio import File
-from papylio.gui.common_layouts import (Expander, ImageCanvas, HelpDialog,
+from papylio.gui.common_layouts import (Expander, HelpDialog,
                                         build_control_layouts,make_push_button,
                                         build_form,build_parameters_input, Group_Box)
 from papylio.peak_finding import (find_peaks_absolute_threshold,
@@ -11,6 +11,7 @@ from papylio.peak_finding import (find_peaks_absolute_threshold,
                                   find_peaks_local_maximum,
                                   find_peaks_local_maximum_auto,
                                   find_peaks_relative_local_maximum)
+from papylio.gui.image_widget import ImageCanvas
 #from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qtagg import (
     FigureCanvas, NavigationToolbar2QT as NavigationToolbar)
@@ -24,8 +25,6 @@ class MappingWidget(QWidget):
         self.method_forms_donor = {}  # method_name -> (widget, inputs)
         self.methods_acceptor = {}
         self.method_forms_acceptor = {}  #
-
-        self.parent.model.itemChanged.connect(self.onItemChange)
 
         # imagery
         # #--------------------------------------------
@@ -132,7 +131,7 @@ class MappingWidget(QWidget):
 
         #one more
         mapping_tab_layout=QVBoxLayout()
-        mapping_tab_layout.addLayout(mapping_sequence_layout)
+        mapping_tab_layout.addLayout(mapping_sequence_layout, stretch=1)
         mapping_tab_layout.addWidget(map_controls)
 
         self.setLayout(mapping_tab_layout)
@@ -144,25 +143,20 @@ class MappingWidget(QWidget):
         self.register_method('local-maximum', find_peaks_local_maximum)
         self.register_method('relative-local-maximum', find_peaks_relative_local_maximum)
 
+        self.file = None
 
-    def update_plots(self):
-        selected_files = self.parent.experiment.selectedFiles + [None]
-        self.map_image_canvas.file = selected_files[0]
+    @property
+    def file(self):
+        return self._file
 
-    def onItemChange(self, item):
-        if isinstance(item.data(), File):
-            file = item.data()
-            file.isSelected = (True if item.checkState() == Qt.Checked else False)
-            print(f'{file}: {file.isSelected}')
-
+    @file.setter
+    def file(self, file):
+        self._file = file
+        if file is None:
+            self.setDisabled(True)
         else:
-            self.update = False
-            for i in range(item.rowCount()):
-                item.child(i).setCheckState(item.checkState())
-            self.update = True
-
-        if self.update:
-            self.update_plots()
+            self.setDisabled(False)
+            self.map_image_canvas.file = file
 
     # -------------------------------------------------------------------------
     # Register methods dynamically and create their forms

@@ -81,7 +81,7 @@ class SelectionWidget(QWidget):
         selection_layout.addWidget(self.tree_view)
         selection_layout.addWidget(self.add_selection_layout)
         self.setLayout(selection_layout)
-        self.setLayout(selection_layout)
+        # self.setLayout(selection_layout)
 
         self.update_final_selection = True
         self._file = None

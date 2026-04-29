@@ -7,7 +7,6 @@ from PySide2.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QTreeView, QApp
     QPushButton, QTabWidget, QSpinBox, QHeaderView
 from PySide2.QtGui import QStandardItem, QStandardItemModel, QIcon
 from PySide2.QtCore import Qt
-import matplotlib as mpl
 
 from matplotlib.backends.backend_qtagg import (
     FigureCanvas, NavigationToolbar2QT as NavigationToolbar)
@@ -24,7 +23,8 @@ from papylio.gui.classification_widget import ClassificationWidget
 from papylio.gui.mapping_widget import MappingWidget
 from papylio.gui.extraction_widget import ExtractionWidget
 from papylio.gui.kinetics_widget import KineticsWidget
-from papylio.gui.common_layouts import ImageCanvas, HelpDialog
+from papylio.gui.common_layouts import HelpDialog
+from papylio.gui.image_widget import ImageWidget, ImageCanvas
 
 class MainWindow(QMainWindow):
     pass_selected_config_to_gui_fields = Signal(int)  # send index of tab to activate
@@ -60,21 +60,6 @@ class MainWindow(QMainWindow):
 
         self.model.itemChanged.connect(self.onItemChange)
 
-        # imagery (currently goes to extraction tab)
-        self.image_canvas = ImageCanvas(self, width=4, height=4, dpi=100)
-
-        # Create toolbar, passing canvas as first parament, parent (self, the MainWindow) as second.
-        image_toolbar = NavigationToolbar(self.image_canvas, self)
-        image_layout = QVBoxLayout()
-        image_layout.addWidget(image_toolbar)
-        image_layout.addWidget(self.image_canvas)
-
-        # Create a placeholder widget to hold our toolbar and canvas.
-        self.image = QWidget()
-        self.image.setLayout(image_layout)
-
-
-
         # right side has a viewing pane (top) and
         # viewing panes
         self.top_tabs = QTabWidget()
@@ -82,17 +67,16 @@ class MainWindow(QMainWindow):
         self.top_tabs.setMovable(False)
         self.top_tabs.setDocumentMode(True)
         self.traces = TracePlotWindow(parent=self, width=4, height=5, show=False)
+        self.image = ImageWidget(parent=self)
         self.top_tabs.addTab(self.traces, 'Traces')
         self.top_tabs.addTab(self.image, 'Image')
-
-
 
         tabs = QTabWidget()
         tabs.setTabPosition(QTabWidget.North)
         tabs.setMovable(True)
         tabs.setDocumentMode(True)
 
-        self.setup_widget=SetUpWidget(parent=self)
+        self.setup_widget = SetUpWidget(parent=self)
         tabs.addTab(self.setup_widget, 'Start')
         self.mapping_widget = MappingWidget(parent=self)
         self.mapping_widget.request_top_tab_change.connect(self.top_tabs.setCurrentIndex)
@@ -114,6 +98,9 @@ class MainWindow(QMainWindow):
 
         self.pass_selected_config_to_gui_fields.connect(self.extraction_widget.set_buttons_from_selected_file)
         self.pass_setup_to_config_on_refresh.connect(self.setup_widget.pass_buttons_to_config_for_setup)
+
+        self.tab_widgets = [self.image, self.traces, self.setup_widget, self.mapping_widget, self.extraction_widget,
+                            self.selection_widget, self.classification_widget, self.kinetics_widget]
 
         # refresh & tree
         experiment_layout = QVBoxLayout()
@@ -154,6 +141,7 @@ class MainWindow(QMainWindow):
         #    r'C:\Users\jkerssemakers\OneDrive - Delft University of Technology\Documents\GitHub\Papylio example dataset')
         self.experiment = pp.Experiment(main_path, main_window=self)
         self.addExperiment(self.experiment)
+        self.setup_widget.experiment = self.experiment
         self.traces.save_path = self.experiment.analysis_path.joinpath('Trace_plots')
 
     def keyPressEvent(self, e):
@@ -187,18 +175,19 @@ class MainWindow(QMainWindow):
         if selected_files[0] is not None:
             self.pass_selected_config_to_gui_fields.emit(1)
 
-
     def update_plots(self):
         selected_files = self.experiment.selectedFiles + [None]
-        self.image_canvas.file = selected_files[0]
-        if selected_files[0] is not None:
-            self.traces.dataset = selected_files[0].dataset
-            self.selection_widget.file = selected_files[0]
-            self.classification_widget.file = selected_files[0]
-        else:
-            self.traces.dataset = None
-            self.selection_widget.file = None
-            self.classification_widget.file = None
+        for widget in self.tab_widgets:
+            widget.file = selected_files[0]
+        # self.image.file = selected_files[0]
+        # if selected_files[0] is not None:
+        #     self.traces.file = selected_files[0]
+        #     self.selection_widget.file = selected_files[0]
+        #     self.classification_widget.file = selected_files[0]
+        # else:
+        #     self.traces.file = None
+        #     self.selection_widget.file = None
+        #     self.classification_widget.file = None
 
     def addExperiment(self, experiment):
 

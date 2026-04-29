@@ -163,6 +163,8 @@ class TracePlotWindow(QWidget):
             self.show()
             app.exec_()
 
+        self._file = None
+
         self.setFocus()
 
     def closeEvent(self, event: QCloseEvent):
@@ -183,6 +185,18 @@ class TracePlotWindow(QWidget):
 
     def deactivate_line_edit(self):
             self.molecule_index_field.clearFocus()  # Clear the focus from the line edit
+
+    @property
+    def file(self):
+        return self._file
+
+    @file.setter
+    def file(self, file):
+        self._file = file
+        if file is None:
+            self.dataset = None
+        else:
+            self.dataset = file.dataset
 
     @property
     def dataset(self):
