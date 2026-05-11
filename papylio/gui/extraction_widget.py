@@ -217,7 +217,7 @@ class ExtractionWidget(QWidget):
 
     def find_coordinates(self):
         #switch top_tab:
-        self.request_top_tab_change.emit(1)
+        self.request_top_tab_change.emit(0)
 
         selected_files = self.parent.experiment.selectedFiles
         if selected_files:
@@ -237,7 +237,7 @@ class ExtractionWidget(QWidget):
             self.parent.update_plots()
 
     def extract_traces(self):
-        self.request_top_tab_change.emit(0) #set viewer to 'traces'
+        self.request_top_tab_change.emit(1) #set viewer to 'traces'
         selected_files = self.parent.experiment.selectedFiles
         #here, pass button values to config
         config_extraction=self.pass_buttons_to_config_for_extraction()

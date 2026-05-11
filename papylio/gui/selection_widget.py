@@ -3,7 +3,7 @@ import json
 from PySide2.QtWidgets import QHeaderView, QWidget, QHBoxLayout, QVBoxLayout, QGridLayout, QTreeView, QApplication, QMainWindow, \
     QPushButton, QTabWidget, QTableWidget, QComboBox, QLineEdit
 from PySide2.QtGui import QStandardItem, QStandardItemModel
-from PySide2.QtCore import Qt
+from PySide2.QtCore import Qt, Signal
 
 
 import numpy as np
@@ -12,6 +12,7 @@ from papylio.gui.common_layouts import build_control_layouts
 
 
 class SelectionWidget(QWidget):
+    request_top_tab_change = Signal(int)  # send index of tab to activate
     def __init__(self, parent=None):
         super(SelectionWidget, self).__init__(parent)
 
@@ -216,6 +217,7 @@ class SelectionWidget(QWidget):
         # self.tree_view.setIndexWidget(remove_button_item.index(), remove_button)
 
     def apply_to_selected_files(self):
+        self.request_top_tab_change.emit(2)
         self.file.copy_selections_to_selected_files()
 
     def generate_selection(self, variable, channel, aggregator, operator, threshold):

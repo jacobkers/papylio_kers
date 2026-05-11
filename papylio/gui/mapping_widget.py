@@ -204,7 +204,7 @@ class MappingWidget(QWidget):
             self.stack_acceptor_layout.addWidget(form_widget)
 
     def perform_mapping(self, t):
-        self.request_top_tab_change.emit(1)
+        self.request_top_tab_change.emit(0)
         print(t)
         self.fig1.clear()
         ax1 = self.fig1.add_subplot(111)
@@ -233,7 +233,7 @@ class MappingWidget(QWidget):
         if selected_files:
             plot_file = selected_files[0]
             selected_files.serial.perform_mapping(**mapping_config)
-            self.update_plots()
+            #self.parent.update_plots()
             self.map_image_canvas.refresh()
             plot_file.mapping.show_mapping_transformation(axis=ax1)
 

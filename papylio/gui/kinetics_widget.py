@@ -21,8 +21,8 @@ class KineticsWidget(QWidget):
         self.parent = parent
 
         # imagery
-        self.fig_kinetics = Figure(figsize=(5, 3))
-        self.dwell_kinetics_canvas = FigureCanvas(self.fig_kinetics)
+        self.fig_dwell_times = Figure(figsize=(5, 3))
+        self.dwell_kinetics_canvas = FigureCanvas(self.fig_dwell_times)
 
         dwell_variable_label=QLabel("variable:")
         dwell_variable_combobox = QComboBox()
@@ -85,11 +85,11 @@ class KineticsWidget(QWidget):
 
     def export_kinetics(self):
         fpath=self.parent.experiment.analysis_path / 'Dwell time analysis'
-        wysiwyg_export(self.fig_kinetics, filepath=fpath,  filename="kinetics_export", filetype="csv")
+        wysiwyg_export(self.fig_dwell_times, filepath=fpath,  filename="kinetics_export", filetype="csv")
 
     def perform_dwell_times_sequence(self):
-        self.fig_kinetics.clear()
-        axes = self.fig_kinetics.subplots(1, 2, sharex=True)
+        self.fig_dwell_times.clear()
+        axes = self.fig_dwell_times.subplots(1, 2, sharex=True)
 
         selected_files = self.parent.experiment.selectedFiles
 

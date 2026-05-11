@@ -68,32 +68,42 @@ class MainWindow(QMainWindow):
         self.top_tabs.setDocumentMode(True)
         self.traces = TracePlotWindow(parent=self, width=4, height=5, show=False)
         self.image = ImageWidget(parent=self)
-        self.top_tabs.addTab(self.traces, 'Traces')
+        self.histograms=QWidget()
+        self.kinetics_results = QWidget()
         self.top_tabs.addTab(self.image, 'Image')
+        self.top_tabs.addTab(self.traces, 'Traces')
+        self.top_tabs.addTab(self.histograms, 'Histograms')
+
 
         tabs = QTabWidget()
         tabs.setTabPosition(QTabWidget.North)
         tabs.setMovable(True)
         tabs.setDocumentMode(True)
 
+        # tab are set to which bottom widget is used:
         self.setup_widget = SetUpWidget(parent=self)
         tabs.addTab(self.setup_widget, 'Start')
+        #mapping:
         self.mapping_widget = MappingWidget(parent=self)
         self.mapping_widget.request_top_tab_change.connect(self.top_tabs.setCurrentIndex)
         tabs.addTab(self.mapping_widget, 'Mapping')
+        #extraction:
         self.extraction_widget = ExtractionWidget(parent=self, top_tabs=self.top_tabs)
-        #tab follows which widget is used:
         self.extraction_widget.request_top_tab_change.connect(self.top_tabs.setCurrentIndex)
         tabs.addTab(self.extraction_widget, 'Extraction')
+        #selection:
         self.selection_widget = SelectionWidget(parent=self)
+        self.selection_widget.request_top_tab_change.emit(2)
         tabs.addTab(self.selection_widget, 'Selection')
+        self.selection_widget.request_top_tab_change.connect(self.top_tabs.setCurrentIndex)
+        #classification:
         self.classification_widget = ClassificationWidget(parent=self)
         self.classification_widget.classificationChanged.connect(self.update_plots)
-
+        self.classification_widget.request_top_tab_change.connect(self.top_tabs.setCurrentIndex)
         tabs.addTab(self.classification_widget, 'Classification')
+        #time analysis:
         self.kinetics_widget = KineticsWidget(parent=self)
         tabs.addTab(self.kinetics_widget, 'Kinetics')
-
         tabs.currentChanged.connect(self.setTabFocus)
 
         self.pass_selected_config_to_gui_fields.connect(self.extraction_widget.set_buttons_from_selected_file)

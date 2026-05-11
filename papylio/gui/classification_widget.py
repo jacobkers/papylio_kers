@@ -6,7 +6,7 @@ from PySide2.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout, 
 )
 
 from PySide2.QtGui import QStandardItem, QStandardItemModel
-from PySide2.QtCore import Qt
+from PySide2.QtCore import Qt, Signal
 
 from papylio.analysis.classification_simple import classify_threshold
 from papylio.analysis.hidden_markov_modelling import classify_hmm
@@ -18,6 +18,7 @@ import json
 import typing
 
 class ClassificationWidget(QWidget):
+    request_top_tab_change = Signal(int)  # send index of tab to activate
     classificationChanged = Signal()
 
     def __init__(self, parent=None):
@@ -204,6 +205,7 @@ class ClassificationWidget(QWidget):
             self.stack_layout.addWidget(form_widget)
 
     def _run_classification(self):
+        self.request_top_tab_change.emit(2)
         method_name = self.method_selector.currentText()
         if not method_name:
             QMessageBox.warning(self, "No method", "Please select a classification method.")
