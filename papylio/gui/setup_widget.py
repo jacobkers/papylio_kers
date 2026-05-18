@@ -25,7 +25,7 @@ class SetUpWidget(QWidget):
         # self.parent = parent
 
         # 1 movie settings box ---------------------------------
-        frame_movie = Group_Box(title="Movie", highlight=True)
+        frame_movie = Group_Box(title="Movie", highlight=False)
         frame_movie.setToolTip('setting these requires reloading: press refresh')
         movie_setup_layout = QFormLayout(frame_movie)
         # 1.1 channels:

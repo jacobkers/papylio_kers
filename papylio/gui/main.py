@@ -109,8 +109,6 @@ class MainWindow(QMainWindow):
         experiment_layout.addWidget(refresh_button)
         experiment_layout.addWidget(self.tree)
 
-
-
         top_layout = QVBoxLayout()
         top_layout.addWidget(self.top_tabs)
         # ... a bottom pane (pipeline)

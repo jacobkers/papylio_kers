@@ -1,16 +1,15 @@
-import sys
-import json
+#import sys
+#import json
 from PySide2.QtWidgets import QHBoxLayout,  \
-    QPushButton, QTabWidget, QComboBox, QSizePolicy
-from PySide2.QtWidgets import QWidget, QLabel, QVBoxLayout
+    QPushButton, QTabWidget, QComboBox, QFormLayout, QWidget, QLabel, QVBoxLayout
 from PySide2.QtCore import Qt
 
-from papylio import File
-from papylio.gui.common_layouts import (HelpDialog,
+#from papylio import File
+from papylio.gui.common_layouts import (HelpDialog, Group_Box,
                                         build_control_layouts, make_push_button)
 from papylio.plotting import wysiwyg_export
 from matplotlib.figure import Figure
-import numpy as np
+#import numpy as np
 
 from matplotlib.backends.backend_qtagg import (
     FigureCanvas, NavigationToolbar2QT as NavigationToolbar)
@@ -21,29 +20,45 @@ class KineticsWidget(QWidget):
         self.parent = parent
 
         # imagery
-        self.fig_kinetics = Figure(figsize=(5, 3))
+        self.fig_kinetics = Figure(figsize=(12, 3))
         self.dwell_kinetics_canvas = FigureCanvas(self.fig_kinetics)
 
-        dwell_variable_label=QLabel("variable:")
-        dwell_variable_combobox = QComboBox()
+        #tuning:
+        frame_dwell_options = Group_Box(title="Dwell times options", highlight=False)
+        frame_dwell_options_layout = QFormLayout(frame_dwell_options)
+        #dwell_variable_label=QLabel("variable:")
+        self.dwell_variable_combobox = QComboBox()
         dwell_variable_items = ['FRET', 'intensity', '.....']
-        dwell_variable_combobox.addItems( dwell_variable_items)
-        dwell_options_layout=QHBoxLayout()
-        dwell_options_layout.addWidget(dwell_variable_label)
-        dwell_options_layout.addWidget(dwell_variable_combobox)
+        self.dwell_variable_combobox.addItems(dwell_variable_items)
+        frame_dwell_options_layout .addRow("variable:",
+                                         self.dwell_variable_combobox)
 
-        dwell_options = QWidget()
-        dwell_options.setLayout(dwell_options_layout)
+
+        #dwell_options_layout=QVBoxLayout()
+        #dwell_options_layout.addWidget(dwell_variable_label)
+        #dwell_options_layout.addWidget(dwell_variable_combobox)
+
+        #dwell_options = QWidget()
+        #dwell_options.setLayout(dwell_options_layout)
 
         # main control buttons
         dwell_controls=build_control_layouts(
             [make_push_button("Get Dwells", self.perform_dwell_times_sequence,"fit and show dwell times "),
             make_push_button('Export',self.export_kinetics, "export plot contents"),
             make_push_button('Help',self.show_dwell_help, None)])
+
+        #tune panel on the right
+
+        dwell_panel_layout=QVBoxLayout()
+        dwell_panel_layout.setAlignment(Qt.AlignRight)
+        dwell_panel_layout.addWidget(frame_dwell_options)
+        dwell_panel_layout.addWidget(dwell_controls)
+
         #tab layout
-        dwell_times_tab_layout = QVBoxLayout()
+        dwell_times_tab_layout = QHBoxLayout()
         dwell_times_tab_layout.addWidget(self.dwell_kinetics_canvas)
-        dwell_times_tab_layout.addWidget(dwell_controls)
+        dwell_times_tab_layout.addLayout(dwell_panel_layout)
+
 
 
         #other
