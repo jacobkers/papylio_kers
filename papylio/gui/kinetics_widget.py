@@ -20,8 +20,8 @@ class KineticsWidget(QWidget):
         self.parent = parent
 
         # imagery
-        self.fig_kinetics = Figure(figsize=(14, 3))
-        self.dwell_kinetics_canvas = FigureCanvas(self.fig_kinetics)
+        self.fig_dwell_times = Figure(figsize=(14, 3))
+        self.dwell_kinetics_canvas = FigureCanvas(self.fig_dwell_times)
 
         #tuning:
         frame_dwell_options = Group_Box(title="Dwell-time analysis options", highlight=False)
