@@ -7,7 +7,7 @@ import platform
 from PySide2.QtCore import Signal
 import sys
 from PySide2.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QTreeView, QApplication, QMainWindow, \
-    QPushButton, QTabWidget, QSpinBox, QHeaderView
+    QPushButton, QTabWidget, QHeaderView
 from PySide2.QtGui import QStandardItem, QStandardItemModel, QIcon
 from PySide2.QtCore import Qt
 
@@ -121,8 +121,6 @@ class MainWindow(QMainWindow):
         refresh_button.clicked.connect(self.refresh)
         experiment_layout.addWidget(refresh_button)
         experiment_layout.addWidget(self.tree)
-
-
 
         top_layout = QVBoxLayout()
         top_layout.addWidget(self.top_tabs)

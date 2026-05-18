@@ -25,8 +25,22 @@ class SetUpWidget(QWidget):
         # self.parent = parent
 
         # 1 movie settings box ---------------------------------
-        frame_movie = Group_Box(title="Movie", highlight=True)
+        frame_movie = Group_Box(title="Movie", highlight=False)
         frame_movie.setToolTip('setting these requires reloading: press refresh')
+        frame_movie.setStyleSheet("""
+        QGroupBox {
+            border: 2px solid red;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+        
+        QGroupBox::title {
+            subcontrol-origin: margin;
+            left: 10px;
+            padding: 0 3px 0 3px;
+        }
+        """)
+
         movie_setup_layout = QFormLayout(frame_movie)
         # 1.1 channels:
         self.button_movie_rotation = QSpinBox()
@@ -114,7 +128,7 @@ class SetUpWidget(QWidget):
         self.experiment.configuration.save()
         self.experiment.files.movie.rot90 = value
 
-        QMessageBox.warning(self, "Rotation change", "Please delete all previously generated projection images and analysis datasets")
+        QMessageBox.warning(self, "Rotation change", "One-time-only: Please delete all previously generated projection images and analysis datasets, then re-start GUI")
         # self.file.movie.rot90 = self.button_movie_rotation.value()
 
     def on_channel_selection_changed(self, button):
@@ -151,7 +165,7 @@ class SetUpWidget(QWidget):
                       </a>.
                     </p>
 
-                    <h3>Tips</h3>
+                    <h3>General tips</h3>
 
                     <p>
                       <ul>
@@ -161,6 +175,25 @@ class SetUpWidget(QWidget):
 
                     </p>
                     
+                    <h3>Start</h3>
+                    <p>
+                      Settings in this panel require extra actions, 
+                      such as deleting files manually and re-loading (='refresh').
+                      For changing settings for a file:
+                    </p>
+                    
+                    
+                    
+                    <p>
+                      <ul>
+                        <li>Delete all previously generated projection images</li>
+                        <li>Delete all previously generated related .nc datasets</li>
+                        <li>Delete all previously generated 'analysis' datasets</li>
+                        <li>Delete the previously generated 'config.yml' file</li>
+                        <li>Re-start the GUI</li>
+                        <li>Before selecting the file, change settings</li>
+                        
+                    </ul>
                     <h3>Known Issues</h3>
 
                     <p>
