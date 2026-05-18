@@ -1,11 +1,11 @@
 #import sys
 #import json
 from PySide2.QtWidgets import QHBoxLayout,  \
-    QPushButton, QTabWidget, QComboBox, QFormLayout, QWidget, QLabel, QVBoxLayout
+    QPushButton, QTabWidget, QComboBox, QFormLayout, QWidget, QLabel, QVBoxLayout, QSpinBox
 from PySide2.QtCore import Qt
 
 #from papylio import File
-from papylio.gui.common_layouts import (HelpDialog, Group_Box,
+from papylio.gui.common_layouts import (HelpDialog, Group_Box, get_button_value,
                                         build_control_layouts, make_push_button)
 from papylio.plotting import wysiwyg_export
 from matplotlib.figure import Figure
@@ -20,19 +20,35 @@ class KineticsWidget(QWidget):
         self.parent = parent
 
         # imagery
-        self.fig_kinetics = Figure(figsize=(12, 3))
+        self.fig_kinetics = Figure(figsize=(14, 3))
         self.dwell_kinetics_canvas = FigureCanvas(self.fig_kinetics)
 
         #tuning:
-        frame_dwell_options = Group_Box(title="Dwell times options", highlight=False)
+        frame_dwell_options = Group_Box(title="Dwell-time analysis options", highlight=False)
         frame_dwell_options_layout = QFormLayout(frame_dwell_options)
-        #dwell_variable_label=QLabel("variable:")
+
+
+        #method:
+        self.dwell_method_combobox = QComboBox()
+        dwell_method_items = ['histogram_fit', 'cdf_fit', 'maximum_likelihood_estimation','.....']
+        self.dwell_method_combobox.setToolTip('choose method to find dwell times')
+        self.dwell_method_combobox.addItems(dwell_method_items)
+
+        frame_dwell_options_layout.addRow("method:",
+                                          self.dwell_method_combobox)
+        #exponentials:
+        self.button_multiple_exponents = QSpinBox()
+        self.button_multiple_exponents.setToolTip('choose number of exponents for multiple-exponent-fit (>1)')
+        self.button_multiple_exponents.setValue(2)
+        frame_dwell_options_layout.addRow("multiple exponents:", self.button_multiple_exponents)
+
+        # variable to be used for level averaging:
         self.dwell_variable_combobox = QComboBox()
+        self.dwell_variable_combobox.setToolTip('use averaged value of variable dwells to allocate to states')
         dwell_variable_items = ['FRET', 'intensity', '.....']
         self.dwell_variable_combobox.addItems(dwell_variable_items)
-        frame_dwell_options_layout .addRow("variable:",
-                                         self.dwell_variable_combobox)
-
+        frame_dwell_options_layout.addRow("variable_to_average:",
+                                          self.dwell_variable_combobox)
 
         #dwell_options_layout=QVBoxLayout()
         #dwell_options_layout.addWidget(dwell_variable_label)
@@ -75,7 +91,7 @@ class KineticsWidget(QWidget):
         tabs.addTab(tab1, 'Dwell Time')
         tab2 = QWidget(self)
         tab2.setLayout(other_graph_layout)
-        tabs.addTab(tab2, 'Other')
+        #tabs.addTab(tab2, 'Other')
 
 
         self.kinetics_widget = QWidget()
@@ -110,10 +126,14 @@ class KineticsWidget(QWidget):
 
         self.dwell_kinetics_canvas.draw_idle()
         #here it would be good to pass button choices: variable, method
+        variable=get_button_value(self.dwell_variable_combobox)
+        method=get_button_value(self.dwell_method_combobox)
+        N_exponents=get_button_value(self.button_multiple_exponents)
+
         if selected_files:
-            selected_files.serial.determine_dwells_from_classification(variable='FRET', selected=True, inactivate_start_and_end_states=True)
-            selected_files.serial.analyze_dwells(method='histogram_fit', number_of_exponentials=[1, 2])
-            selected_files.serial.plot_dwell_analysis(plot_range=(0, 2), axes=axes, log=False)
+            selected_files.serial.determine_dwells_from_classification(variable=variable, selected=True, inactivate_start_and_end_states=True)
+            selected_files.serial.analyze_dwells(method=method, number_of_exponentials=[1, N_exponents])
+            selected_files.serial.plot_dwell_analysis(plot_range=(0, N_exponents), axes=axes, log=False)
 
     def show_dwell_help(self):
 

@@ -4,7 +4,7 @@ import platform
 from PySide2.QtCore import Signal
 import sys
 from PySide2.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QTreeView, QApplication, QMainWindow, \
-    QPushButton, QTabWidget, QSpinBox, QHeaderView
+    QPushButton, QTabWidget, QHeaderView
 from PySide2.QtGui import QStandardItem, QStandardItemModel, QIcon
 from PySide2.QtCore import Qt
 

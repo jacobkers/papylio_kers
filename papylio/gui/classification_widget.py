@@ -37,7 +37,7 @@ class ClassificationWidget(QWidget):
 
         # --- Variable selector ---
         self.variable_selector = QComboBox()
-        self.variable_selector.setToolTip("Choose trace type")
+        self.variable_selector.setToolTip("Choose trace type, except 'intensity'")
         form.addRow("Variable:", self.variable_selector)
 
         # --- Method selector ---
@@ -391,6 +391,7 @@ class ClassificationWidget(QWidget):
                         <li>2. hmm: n_states 2, tres_mean 0, level_molecule, seed=0</li>
 
                     </ul> 
+                    
                     <h3>Applying rules example</h3>
                     <p>
                      <ul>
@@ -399,9 +400,13 @@ class ClassificationWidget(QWidget):
                         <li>3. Threshold to exclude early red-laser off   → labels [-2]</li>
                     </ul> 
                 
-                                
-                Note:To preserve labels assigned by (2)HMM with follow up rule (3), 
-                use only add rejection labels to 'states, e.g. [-2]
+                   <h3>Notes</h3>
+                    <p>
+                     <ul>
+                        <li>1. To preserve labels assigned by (2)HMM with follow up rule (3), 
+                           use only add rejection labels to 'states, e.g. [-2]</li>
+                        <li>2. use only one-dimensional variable (i.e, not 'intensity') </li>
+                    </ul>               
                     </p>
                 
                   </body>
