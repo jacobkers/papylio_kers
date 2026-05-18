@@ -26,6 +26,7 @@ from papylio.gui.classification_widget import ClassificationWidget
 from papylio.gui.mapping_widget import MappingWidget
 from papylio.gui.extraction_widget import ExtractionWidget
 from papylio.gui.kinetics_widget import KineticsWidget
+from papylio.gui.histogram_widget import HistogramWidget
 from papylio.gui.common_layouts import HelpDialog
 from papylio.gui.image_widget import ImageWidget, ImageCanvas
 
@@ -71,7 +72,7 @@ class MainWindow(QMainWindow):
         self.top_tabs.setDocumentMode(True)
         self.traces = TracePlotWindow(parent=self, width=4, height=5, show=False)
         self.image = ImageWidget(parent=self)
-        self.histograms=QWidget()
+        self.histograms=HistogramWidget(parent=self)
         self.kinetics_results = QWidget()
         self.top_tabs.addTab(self.image, 'Image')
         self.top_tabs.addTab(self.traces, 'Traces')
@@ -112,7 +113,7 @@ class MainWindow(QMainWindow):
         self.pass_selected_config_to_gui_fields.connect(self.extraction_widget.set_buttons_from_selected_file)
         self.pass_setup_to_config_on_refresh.connect(self.setup_widget.pass_buttons_to_config_for_setup)
 
-        self.tab_widgets = [self.image, self.traces, self.setup_widget, self.mapping_widget, self.extraction_widget,
+        self.tab_widgets = [self.image, self.histograms, self.traces, self.setup_widget, self.mapping_widget, self.extraction_widget,
                             self.selection_widget, self.classification_widget, self.kinetics_widget]
 
         # refresh & tree
