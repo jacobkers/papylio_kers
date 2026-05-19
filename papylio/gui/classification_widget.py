@@ -396,19 +396,20 @@ class ClassificationWidget(QWidget):
                     
                     <h3>Applying rules example</h3>
                     <p>
-                     <ul>
-                        <li>1. Threshold to reject bleached points        → labels [-1, 0]</li>
-                        <li>2. HMM on remaining points                   → labels [-1, 0, 1]</li>
-                        <li>3. Threshold to exclude early red-laser off   → labels [-2]</li>
-                    </ul> 
-                
+                         <ul>
+                            <li>1. Threshold to reject bleached points        → labels [-1, 0]</li>
+                            <li>2. HMM on remaining points                   → labels [-1, 0, 1]</li>
+                            <li>3. Threshold to exclude early red-laser off   → labels [-2]</li>
+                         </ul> 
+                         Tip: To preserve labels assigned by step 2.(HMM) with follow up step 3, 
+                               use only lower minus labels (=rejection0 to 'states', e.g. [-2]
+                    </p>
                    <h3>Notes</h3>
                     <p>
-                     <ul>
-                        <li>1. To preserve labels assigned by (2)HMM with follow up rule (3), 
-                           use only add rejection labels to 'states, e.g. [-2]</li>
-                        <li>2. use only one-dimensional variable (i.e, not 'intensity') </li>
-                    </ul>               
+                         <ul>
+                            <li> A cleared or adapted rule is only visible in the 'traces'-tab after restarting the GUI </li>
+                            <li> Use only one-dimensional variable (i.e, not 'intensity') </li>
+                         </ul>               
                     </p>
                 
                   </body>

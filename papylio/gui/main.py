@@ -26,7 +26,7 @@ from papylio.gui.classification_widget import ClassificationWidget
 from papylio.gui.mapping_widget import MappingWidget
 from papylio.gui.extraction_widget import ExtractionWidget
 from papylio.gui.kinetics_widget import KineticsWidget
-from papylio.gui.histogram_widget_V2 import HistogramWidget
+from papylio.gui.histogram_widget import HistogramWidget
 from papylio.gui.common_layouts import HelpDialog
 from papylio.gui.image_widget import ImageWidget, ImageCanvas
 
@@ -97,9 +97,8 @@ class MainWindow(QMainWindow):
         tabs.addTab(self.extraction_widget, 'Extraction')
         #selection:
         self.selection_widget = SelectionWidget(parent=self)
-        self.selection_widget.request_top_tab_change.emit(2)
-        tabs.addTab(self.selection_widget, 'Selection')
         self.selection_widget.request_top_tab_change.connect(self.top_tabs.setCurrentIndex)
+        tabs.addTab(self.selection_widget, 'Selection')
         #classification:
         self.classification_widget = ClassificationWidget(parent=self)
         self.classification_widget.classificationChanged.connect(self.update_plots)

@@ -14,7 +14,6 @@ import numpy as np
 import matplotlib as mpl
 from matplotlib.backends.backend_qtagg import (FigureCanvas, NavigationToolbar2QT as NavigationToolbar)
 
-
 class HistogramWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -41,7 +40,7 @@ class HistogramWidget(QWidget):
         # tab layout
         histogram_tab_layout = QHBoxLayout()
         histogram_tab_layout.addWidget(self.histogram_canvas)
-        histogram_tab_layout.addLayout(histogram_panel_layout)
+        #histogram_tab_layout.addLayout(histogram_panel_layout)
 
         # other
         other_graph_layout = QHBoxLayout()
@@ -121,5 +120,11 @@ class HistogramCanvas(FigureCanvas):
         #test_file = selected_files[0]
         bins = [i * 0.01 for i in range(200)]
         self.file.show_histogram(variable='FRET', axis=axes[0], bins=bins)
-        # self.file.show_coordinates_in_image(figure=self.figure)
+
+        self.file.histogram_2D_intensity_per_channel(
+            ax=axes[1],
+            bins=50,
+            show_marginal=False
+        )
+
         self.draw()

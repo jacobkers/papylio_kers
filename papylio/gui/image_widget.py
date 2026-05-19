@@ -1,16 +1,6 @@
-import sys
 import json
-from PySide2.QtWidgets import QHBoxLayout,  \
-    QPushButton, QTabWidget, QComboBox, QSizePolicy
 from PySide2.QtWidgets import QWidget, QLabel, QVBoxLayout
-from PySide2.QtCore import Qt
-
-from papylio import File
-from papylio.gui.common_layouts import (HelpDialog,
-                                        build_control_layouts, make_push_button)
-from papylio.plotting import wysiwyg_export
 from matplotlib.figure import Figure
-import numpy as np
 import matplotlib as mpl
 from matplotlib.backends.backend_qtagg import (FigureCanvas, NavigationToolbar2QT as NavigationToolbar)
 
