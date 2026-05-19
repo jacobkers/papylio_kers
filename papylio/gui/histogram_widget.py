@@ -85,9 +85,15 @@ class HistogramCanvas_1D(FigureCanvas):
 
     @file.setter
     def file(self, file):
-        if file is not None and file is not self._file:
-            self._file = file
-            self.refresh()
+        #TODO: this condition should be expanded: file.data (?) should exist
+        if file is not None and file is not self._file and file.dataset is not None:
+            if file.dataset.FRET is not None:
+                self._file = file
+                self.refresh()
+            else:
+                self._file = None
+                self.figure.clf()
+                self.draw()
         elif file is None:
             self._file = None
             self.figure.clf()
@@ -115,9 +121,15 @@ class HistogramCanvas_2D(FigureCanvas):
 
     @file.setter
     def file(self, file):
-        if file is not None and file is not self._file:
-            self._file = file
-            self.refresh()
+        # TODO: this condition should be expanded: file.data (?) should exist
+        if file is not None and file is not self._file and file.dataset is not None:
+            if file.dataset.FRET is not None:
+                self._file = file
+                self.refresh()
+            else:
+                self._file = None
+                self.figure.clf()
+                self.draw()
         elif file is None:
             self._file = None
             self.figure.clf()

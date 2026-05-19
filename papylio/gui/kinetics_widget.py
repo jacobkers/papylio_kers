@@ -129,11 +129,11 @@ class KineticsWidget(QWidget):
         variable=get_button_value(self.dwell_variable_combobox)
         method=get_button_value(self.dwell_method_combobox)
         N_exponents=get_button_value(self.button_multiple_exponents)
-
+        plot_range=5
         if selected_files:
             selected_files.serial.determine_dwells_from_classification(variable=variable, selected=True, inactivate_start_and_end_states=True)
             selected_files.serial.analyze_dwells(method=method, number_of_exponentials=[1, N_exponents])
-            selected_files.serial.plot_dwell_analysis(plot_range=(0, N_exponents), axes=axes, log=False)
+            selected_files.serial.plot_dwell_analysis(plot_range=(0, plot_range), axes=axes, log=False)
 
     def show_dwell_help(self):
 
