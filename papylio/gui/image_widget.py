@@ -47,9 +47,6 @@ class ImageCanvas(FigureCanvas):
                                         constrained_layout=True)  # , figsize=(2, 2))
         super().__init__(self.figure)
         self.parent = parent
-
-        # self.axis = self.figure.gca()
-
         self._file = None
 
     @property

@@ -83,7 +83,7 @@ class HistogramWidget(QWidget):
         fpath=self.parent.experiment.analysis_path / 'Histograms'
         wysiwyg_export(self.fig_histogram, filepath=fpath,  filename="histogram_export", filetype="csv")
 
-    def perform_histogram_times_sequence(self):
+    def refresh_histogram(self):
         self.fig_histogram.clear()
         axes = self.fig_histogram.subplots(1, 2, sharex=True)
 
@@ -92,51 +92,14 @@ class HistogramWidget(QWidget):
         self.histogram_canvas.draw_idle()
 
         if selected_files:
-            #TODO: here, perform the histogram function (possibly bot 1D and 2D)
+            #TODO: here, perform the histogram function (possibly both 1D and 2D)
             test_file=selected_files[0]
             bins = [i * 0.01 for i in range(200)]
-            test_file.show_histogram('FRET', bins=bins)  #axis=axes[0]?
+            test_file.show_histogram(variable='FRET', axis=axes[0], bins=bins)
             #---UNDER CONSTRUCTION-------
             #selected_files.serial.determine_dwells_from_classification(variable=variable, selected=True, inactivate_start_and_end_states=True)
             #selected_files.serial.analyze_dwells(method=method, number_of_exponentials=[1, N_exponents])
             #selected_files.serial.plot_histogram_analysis(plot_range=(0, N_exponents), axes=axes, log=False)
 
-    def show_histogram_help(self):
-
-        help_text = """
-                <html>
-                  <body style="font-family: sans-serif; font-size: 10pt;">
-                
-                    <h2>Dwell Times</h2>
-                
-                    <p>
-                      Choose which variable and method should be used for the dwell time analysis.
-                    </p>
-                
-                    <ul>
-                      <li>Select the variable for dwell time extraction</li>
-                      <li>Select the analysis method</li>
-                      <li>'Export' saves as-seen data from the graph panels to .csv and .png
-                    </ul>
-                
-                    <p>
-                      For more help, see the
-                      <a href="https://papylio.readthedocs.io/en/stable/user_guide/histogram_time_analysis/index.html">
-                        dwell time analysis documentation
-                      </a>.
-                    </p>
-                
-                    <h3>Example</h3>
-                
-                    <p>
-                      Settings examples can be found in the documentation.
-                    </p>
-                
-                  </body>
-                </html>
-                """
-        self.help_dialog = HelpDialog(self, help_text)
-        # dialog.exec_()  # modal
-        self.help_dialog.show()
 
 

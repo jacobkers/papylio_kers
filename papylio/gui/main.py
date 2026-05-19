@@ -26,7 +26,7 @@ from papylio.gui.classification_widget import ClassificationWidget
 from papylio.gui.mapping_widget import MappingWidget
 from papylio.gui.extraction_widget import ExtractionWidget
 from papylio.gui.kinetics_widget import KineticsWidget
-from papylio.gui.histogram_widget import HistogramWidget
+from papylio.gui.histogram_widget_V2 import HistogramWidget
 from papylio.gui.common_layouts import HelpDialog
 from papylio.gui.image_widget import ImageWidget, ImageCanvas
 
