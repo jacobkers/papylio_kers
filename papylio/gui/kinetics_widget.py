@@ -42,6 +42,13 @@ class KineticsWidget(QWidget):
         self.button_multiple_exponents.setValue(2)
         frame_dwell_options_layout.addRow("multiple exponents:", self.button_multiple_exponents)
 
+        # plot_range:
+        self.button_plot_range = QSpinBox()
+        self.button_plot_range.setToolTip('choose plot range (s)')
+        self.button_plot_range.setValue(4)
+        frame_dwell_options_layout.addRow("plot_range:", self.button_plot_range)
+
+
         # variable to be used for level averaging:
         self.dwell_variable_combobox = QComboBox()
         self.dwell_variable_combobox.setToolTip('use averaged value of variable dwells to allocate to states')
@@ -129,7 +136,7 @@ class KineticsWidget(QWidget):
         variable=get_button_value(self.dwell_variable_combobox)
         method=get_button_value(self.dwell_method_combobox)
         N_exponents=get_button_value(self.button_multiple_exponents)
-        plot_range=5
+        plot_range=get_button_value(self.button_plot_range)
         if selected_files:
             selected_files.serial.determine_dwells_from_classification(variable=variable, selected=True, inactivate_start_and_end_states=True)
             selected_files.serial.analyze_dwells(method=method, number_of_exponentials=[1, N_exponents])
