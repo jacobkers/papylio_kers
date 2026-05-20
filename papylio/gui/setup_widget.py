@@ -169,10 +169,12 @@ class SetUpWidget(QWidget):
 
                     <p>
                       <ul>
-                        <li>Hover over box for settings source.</li>
+                        <li>Hover over box for settings source [1]. </li>
                         <li>Hover over buttons for help notes.</li>
                         <li>Find more detailed info under the 'Help' buttons per tab</li>
                     </ul>
+                    
+                    [1] Note: as-loaded settings may have different sources. All used settings can be found per movie in the corresponding .log files
 
                     </p>
                     

@@ -8,8 +8,8 @@ from PySide2.QtCore import Qt, Signal
 
 import numpy as np
 
-from papylio.gui.common_layouts import build_control_layouts
-
+from papylio.gui.common_layouts import (HelpDialog, Group_Box, get_button_value,
+                                        build_control_layouts, make_push_button)
 
 class SelectionWidget(QWidget):
     request_top_tab_change = Signal(int)  # send index of tab to activate
@@ -69,8 +69,9 @@ class SelectionWidget(QWidget):
         apply_to_selected_files_button = QPushButton('Apply to selected files')
         apply_to_selected_files_button.clicked.connect(self.apply_to_selected_files)
 
+        help_button = make_push_button('Help',self.show_dwell_help, None)
 
-        self.add_selection_layout = build_control_layouts([add_button,clear_button,apply_to_selected_files_button])
+        self.add_selection_layout = build_control_layouts([add_button,clear_button,apply_to_selected_files_button, help_button])
 
 
         #self.add_selection_layout = QHBoxLayout()
@@ -235,6 +236,49 @@ class SelectionWidget(QWidget):
 
         self.file.create_selection(variable, channel, aggregator, operator, threshold)
         self.refresh_selections()
+
+    def show_dwell_help(self):
+        help_text = """
+                <html>
+                  <body style="font-family: sans-serif; font-size: 10pt;">
+
+                    <h2>Trace selection</h2>
+
+                    <p>
+                      Build and apply rules to accept or reject per trace
+                    </p>
+                    
+                    <p>
+                    <ol>
+                      <li> Select one ore more file</li>
+                      <li> If rules were already stored for the first file, they are listed</li>
+                      <li> Press 'Add' to build a new rule</li>
+                      <li> Fill in the rule's fields </li>
+                      <li> Press 'Apply' : the counts for this rule are listed </li>
+                      <li> Activate one or more rules by checking the box on the left </li>
+                      <li> Press 'Apply to selected files' to effect the rule(s) </li>
+                      <li> Total trace count is listed </li>
+                      <li> Inspect selected and unselected traces in the 'Traces' top tab </li>
+                      <li> Press 'Clear All' to clean up </li>
+                    </ul>
+                    
+                    Tip: In the 'image' tab, selected (green) and unselected (red) molecules are listed. To display a newly applied  selection: refresh, or unselect & select file 
+                    
+                    </p>
+
+                    <p>
+                      For background, see
+                      <a href="https://papylio.readthedocs.io/en/stable/user_guide/trace_selection.html">
+                        Trace selection.
+                      </a>
+                    </p>
+
+                  </body>
+                </html>
+                """
+        self.help_dialog = HelpDialog(self, help_text)
+        # dialog.exec_()  # modal
+        self.help_dialog.show()
 
 
 

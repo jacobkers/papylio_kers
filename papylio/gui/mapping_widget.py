@@ -109,7 +109,7 @@ class MappingWidget(QWidget):
         #build panel layout:
         #map_advanced = Expander("Advanced")
         map_advanced = QWidget()
-        map_advanced.setContentLayout(map_advanced_layout)
+        map_advanced.setLayout(map_advanced_layout)
 
         #main action:
         map_controls = build_control_layouts(
@@ -255,8 +255,8 @@ class MappingWidget(QWidget):
                 <ol>
                   <li> check if a .MAPPING file already exists. If not, or renew:</li>
                   <li> select a movie suitable for mapping</li>
-                  <li> if wished: use 'advanced' to change settings </li>
                   <li> hover over group boxes to inspect settings source </li>
+                  <li> adapt settings if wished </li>
                   <li> press 'Map' </li>
                 </ul>
 
