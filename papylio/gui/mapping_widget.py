@@ -46,6 +46,7 @@ class MappingWidget(QWidget):
 
         #build a flexible form for the donor channel:-------------------------
         frame_donor = Group_Box(title="Donor Spot Detection")
+        frame_donor.setToolTip('settings source: function defaults of selected method')
         form_donor = QFormLayout(frame_donor)
         # --- Method selector donor---
         self.method_selector_donor = QComboBox()
@@ -60,6 +61,7 @@ class MappingWidget(QWidget):
 
         # build a flexible form for the acceptor channel:-------------------------
         frame_acceptor= Group_Box(title="Acceptor Spot Detection")
+        frame_acceptor.setToolTip('settings source: function defaults of selected method')
         form_acceptor = QFormLayout(frame_acceptor)
         # --- Method selector acceptor---
         self.method_selector_acceptor = QComboBox()
@@ -93,6 +95,7 @@ class MappingWidget(QWidget):
 
         # advanced mapping grid layout:
         frame = Group_Box(title="Common")
+        frame.setToolTip('settings source: hardwired here in GUI')
         map_advanced_layout = QHBoxLayout()
         map_advanced_layout.setAlignment(Qt.AlignLeft)
         map_advanced2_layout = QFormLayout(frame)
@@ -104,7 +107,8 @@ class MappingWidget(QWidget):
         map_advanced_layout.addLayout(donor_acceptor_layout)
 
         #build panel layout:
-        map_advanced = Expander("Advanced")
+        #map_advanced = Expander("Advanced")
+        map_advanced = QWidget()
         map_advanced.setContentLayout(map_advanced_layout)
 
         #main action:
@@ -248,10 +252,12 @@ class MappingWidget(QWidget):
                   Find corresponding XY positions in donor and acceptor channels.
                 </p>
 
-                <ul>
-                  <li>run as-is using the defaults</li>
-                  <li>use 'advanced' to change settings </li>
-                  <li>press 'Map' </li>
+                <ol>
+                  <li> check if a .MAPPING file already exists. If not, or renew:</li>
+                  <li> select a movie suitable for mapping</li>
+                  <li> if wished: use 'advanced' to change settings </li>
+                  <li> hover over group boxes to inspect settings source </li>
+                  <li> press 'Map' </li>
                 </ul>
 
                 <h3>More help</h3>

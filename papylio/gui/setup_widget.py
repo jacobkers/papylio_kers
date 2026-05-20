@@ -26,10 +26,10 @@ class SetUpWidget(QWidget):
 
         # 1 movie settings box ---------------------------------
         frame_movie = Group_Box(title="Movie", highlight=False)
-        frame_movie.setToolTip('setting these requires reloading: press refresh')
+        frame_movie.setToolTip('"User alert: see help or pop-up. Settings source: local config.yml')
         frame_movie.setStyleSheet("""
         QGroupBox {
-            border: 2px solid red;
+            border: 1px solid red;
             border-radius: 5px;
             margin-top: 10px;
         }
@@ -81,7 +81,7 @@ class SetUpWidget(QWidget):
         # setup_advanced.setContentLayout(advanced_layout)
 
         start_help_button = build_control_layouts([
-            make_push_button('Read Me', self.show_main_help, None)])
+            make_push_button('Help', self.show_main_help, None)])
 
         start_tab_layout = QVBoxLayout()
         #TODO: development: keep invisible as long as it doesn't function:
@@ -128,7 +128,7 @@ class SetUpWidget(QWidget):
         self.experiment.configuration.save()
         self.experiment.files.movie.rot90 = value
 
-        QMessageBox.warning(self, "Rotation change", "One-time-only: Please delete all previously generated projection images and analysis datasets, then re-start GUI")
+        QMessageBox.warning(self, "Rotation change", "User alert: please first unselect all files, then delete all previously generated projection images [*ave*.tif] and datafiles [.nc]. See also 'Help'")
         # self.file.movie.rot90 = self.button_movie_rotation.value()
 
     def on_channel_selection_changed(self, button):
@@ -169,31 +169,13 @@ class SetUpWidget(QWidget):
 
                     <p>
                       <ul>
+                        <li>Hover over box for settings source.</li>
                         <li>Hover over buttons for help notes.</li>
                         <li>Find more detailed info under the 'Help' buttons per tab</li>
                     </ul>
 
                     </p>
                     
-                    <h3>Start</h3>
-                    <p>
-                      Settings in this panel require extra actions, 
-                      such as deleting files manually and re-loading (='refresh').
-                      For changing settings for a file:
-                    </p>
-                    
-                    
-                    
-                    <p>
-                      <ul>
-                        <li>Delete all previously generated projection images</li>
-                        <li>Delete all previously generated related .nc datasets</li>
-                        <li>Delete all previously generated 'analysis' datasets</li>
-                        <li>Delete the previously generated 'config.yml' file</li>
-                        <li>Re-start the GUI</li>
-                        <li>Before selecting the file, change settings</li>
-                        
-                    </ul>
                     <h3>Known Issues</h3>
 
                     <p>
@@ -202,6 +184,21 @@ class SetUpWidget(QWidget):
                         Papylio Issues
                       </a>.
 
+                    
+                    <h3>This tab (Start)</h3>
+                    <p>
+                      Settings in this panel require extra actions to take effect: 
+                    </p>
+
+                    <p>
+                      <ol>
+                        <li> Delete all previously generated projection images [*ave*.tif] </li>
+                        <li> Delete all previously generated related data files [.nc]</li>
+                        <li> Change settings (immediately written to config.yml)</li>
+                        <li> Unselect-select or 'refresh' </li>
+                      </ol>
+                    </p>
+                    
                     </p>
 
                   </body>

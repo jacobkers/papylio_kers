@@ -30,8 +30,8 @@ class ExtractionWidget(QWidget):
         self.method_forms_spot_detection = {}  # method_name -> (widget, inputs)
 
         #1 general settings box ---------------------------------
-        frame_general = Group_Box(title="General", highlight=True)
-        frame_general.setToolTip('blue box: settings from last run selected file')
+        frame_general = Group_Box(title="General", highlight=False)
+        frame_general.setToolTip('settings source: last run selected primary file')
         advanced_general_layout = QFormLayout(frame_general)
         #1.1 channels:
         self.button_general_channel = QComboBox()
@@ -48,8 +48,8 @@ class ExtractionWidget(QWidget):
 
         #2. projection image box--------------------------------------
         #note that it is a subsection 'proj_image'
-        frame_projection = Group_Box(title="Projection Image",highlight=True)
-        frame_projection.setToolTip('blue box: settings from last run selected file')
+        frame_projection = Group_Box(title="Projection Image",highlight=False)
+        frame_projection.setToolTip('settings source: last run selected primary file')
         advanced_projection_layout = QFormLayout(frame_projection)
         #2.1 type
         self.button_projection_image_type = QComboBox()
@@ -67,6 +67,7 @@ class ExtractionWidget(QWidget):
         #3. peakfinding (dynamic form building)
         # build a flexible form for the spot_detection channel:-------------------------
         group_spot_detection = Group_Box(title="Spot Detection")
+        group_spot_detection.setToolTip('settings source: function defaults of selected method')
         form_spot_detection = QFormLayout(group_spot_detection)
         # --- Method selector spot_detection---
         self.method_selector_spot_detection = QComboBox()
@@ -80,8 +81,8 @@ class ExtractionWidget(QWidget):
         form_spot_detection.addRow("Options:", self.stack_spot_detection)
 
         #4. coordinate optimization box-------------------------------
-        frame_coord_opt = Group_Box(title="Coordinate Optimization",highlight=True)
-        frame_coord_opt.setToolTip('blue box: settings from last run selected file')
+        frame_coord_opt = Group_Box(title="Coordinate Optimization",highlight=False)
+        frame_coord_opt.setToolTip('settings source: hardwired here in GUI')
         advanced_coord_opt_layout = QFormLayout(frame_coord_opt)
         #4.1 margin
         self.button_coordinates_within_margin = QSpinBox()
@@ -96,6 +97,7 @@ class ExtractionWidget(QWidget):
 
         #5. extract_traces box-------------------------------
         frame_extract_traces = Group_Box(title="Extract Traces")
+        frame_extract_traces.setToolTip('settings source: hardwired here in GUI')
         advanced_extract_traces_layout = QFormLayout(frame_extract_traces)
         #5.1 obsoletes/not used:
 
@@ -133,12 +135,12 @@ class ExtractionWidget(QWidget):
         self.extract_button = make_push_button(
             'Extract traces',
             self.extract_traces,
-            "extraction selected file(s)"
+            "extraction of traces (multiple file select)"
         )
 
         self.find_coordinates_button= make_push_button(
             'Find coordinates',
-            self.find_coordinates,"extraction selected file(s)"
+            self.find_coordinates,"finding of coordinates (multiple file select)"
         )
 
         extraction_controls = build_control_layouts([
@@ -341,11 +343,14 @@ class ExtractionWidget(QWidget):
                   Find spot coordinates and extract traces.
                 </p>
 
-                <ul>
-                  <li>default: press 'Find coordinates' and 'Extract traces' directly</li>
-                  <li>custom: press Ádvanced' and change settings </li>
-                  <li> blue boxes list settings from last run of first selected file </li>
-                  <li> 
+                <ol>
+                  <li> select one or more files </li>
+                  <li> hover over group boxes to inspect settings source </li>
+                  <li> adapt settings if wished </li>
+                  <li> press 'Find coordinates' </li>
+                  <li> press 'Extract traces' </li>
+                  <li> progress can be seen in Python console </li>
+                  
                 </ul>
 
                 <p>
