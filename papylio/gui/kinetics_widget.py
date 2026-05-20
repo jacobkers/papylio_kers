@@ -45,7 +45,7 @@ class KineticsWidget(QWidget):
         # plot_range:
         self.button_plot_range = QSpinBox()
         self.button_plot_range.setToolTip('choose plot range (s)')
-        self.button_plot_range.setValue(4)
+        self.button_plot_range.setValue(2)
         frame_dwell_options_layout.addRow("plot_range:", self.button_plot_range)
 
 
@@ -121,9 +121,9 @@ class KineticsWidget(QWidget):
         else:
             self.setDisabled(False)
 
-    def export_kinetics(self):
+    def export_kinetics(self,file):
         fpath=self.parent.experiment.analysis_path / 'Dwell time analysis'
-        wysiwyg_export(self.fig_dwell_times, filepath=fpath,  filename="kinetics_export", filetype="csv")
+        wysiwyg_export(self.fig_dwell_times, filepath=fpath,  filename=self.file.name +"_kinetics_export", filetype="txt")
 
     def perform_dwell_times_sequence(self):
         self.fig_dwell_times.clear()
@@ -140,7 +140,7 @@ class KineticsWidget(QWidget):
         if selected_files:
             selected_files.serial.determine_dwells_from_classification(variable=variable, selected=True, inactivate_start_and_end_states=True)
             selected_files.serial.analyze_dwells(method=method, number_of_exponentials=[1, N_exponents])
-            selected_files.serial.plot_dwell_analysis(plot_range=(0, plot_range), axes=axes, log=False)
+            selected_files.serial.plot_dwell_analysis(plot_range=(0, plot_range), axes=axes, log=False, save_path=None)
 
     def show_dwell_help(self):
 

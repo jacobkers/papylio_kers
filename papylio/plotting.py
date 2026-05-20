@@ -2,6 +2,7 @@ import numpy as np #scientific computing with Python
 import xarray as xr
 import matplotlib.pyplot as plt
 from pathlib import Path
+import pandas as pd
 
 # import matplotlib.patches as patches
 # from matplotlib.collections import PatchCollection
@@ -265,23 +266,26 @@ def wysiwyg_export(fig, filepath, filename, filetype="csv"):
                 [export_dict[key], np.full(pad, np.nan)]
             )
 
-    columns = list(export_dict.keys())
-    data = np.column_stack([export_dict[c] for c in columns])
+    df = pd.DataFrame(export_dict)
+
     if filetype == "csv":
-        np.savetxt(Path(filepath) / f"{filename}_dwell_time_analysis.csv",
-                   data,
-                   delimiter=",",
-                   header=",".join(columns),
-                   comments="")
+        df.to_csv(
+            Path(filepath) / f"{filename}_dwell_time_analysis.csv",
+            index=False,
+            float_format="%.10g"
+        )
+
     elif filetype == "txt":
-        np.savetxt(ath(filepath) / f"{filename}_dwell_time_analysis.txt",
-                   data,
-                   header=" ".join(columns),
-                   comments="")
+        df.to_csv(
+            Path(filepath) / f"{filename}_dwell_time_analysis.txt",
+            sep="\t",
+            index=False,
+            float_format="%.10g"
+        )
     else:
         raise ValueError("filetype must be 'csv' or 'txt'")
 
-
-    fig.savefig(Path(filepath) / f"{filename}_dwell_time_analysis.png")
+    fig.savefig(Path(filepath) / f"{filename}_dwell_time_analysis.svg")
+    fig.savefig(Path(filepath) / f"{filename}_dwell_time_analysis.jpg")
 
     print(f"Exported visible data from figure '{fig.canvas.get_window_title()}'")
