@@ -18,21 +18,31 @@ class HistogramWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.parent = parent
+        self.fig_histogram_1D_FRET = Figure(figsize=(14, 3))
+        self.histogram_canvas_1D_FRET = HistogramCanvas_1D(
+            self.fig_histogram_1D_FRET,
+            variable='FRET',
+            bins=[i * 0.01 for i in range(200)]
+        )
 
-        self.fig_histogram_1D = Figure(figsize=(14, 3))
-        self.histogram_canvas_1D = HistogramCanvas_1D(self.fig_histogram_1D)
+        self.fig_histogram_1D_Intensity = Figure(figsize=(14, 3))
+        self.histogram_canvas_1D_Intensity = HistogramCanvas_1D(
+            self.fig_histogram_1D_Intensity,
+            variable='intensity',
+            bins=200
+        )
 
         self.fig_histogram_2D = Figure(figsize=(14, 3))
         self.histogram_canvas_2D = HistogramCanvas_2D(self.fig_histogram_2D)
 
         # tab layout
         histogram_tab_layout = QHBoxLayout()
-        histogram_tab_layout.addWidget(self.histogram_canvas_1D)
-        histogram_tab_layout.addWidget(self.histogram_canvas_2D)
+        histogram_tab_layout.addWidget(self.histogram_canvas_1D_Intensity)
+        histogram_tab_layout.addWidget(self.histogram_canvas_1D_FRET)
 
         # other
         other_graph_layout = QHBoxLayout()
-        # other_graph_layout.addWidget(box2)
+        other_graph_layout.addWidget(self.histogram_canvas_2D)
 
         tabs = QTabWidget()
         tabs.setTabPosition(QTabWidget.North)
@@ -63,21 +73,27 @@ class HistogramWidget(QWidget):
 
     @file.setter
     def file(self, file):
-        self.histogram_canvas_1D.file = file
+        self.histogram_canvas_1D_FRET.file = file
+        self.histogram_canvas_1D_Intensity.file = file
         self.histogram_canvas_2D.file = file
         if file is None:
             self.setDisabled(True)
         else:
             self.setDisabled(False)
 
-
 class HistogramCanvas_1D(FigureCanvas):
-    def __init__(self, parent=None, width=14, height=7, dpi=100):
-        self.fig_histogram_1D= mpl.figure.Figure(figsize=(width, height), dpi=dpi,
+    def __init__(self, figure=None, parent=None, width=14, height=7, dpi=100, variable='FRET',bins=100):
+
+        if figure is None:
+            figure = mpl.figure.Figure(figsize=(width, height), dpi=dpi,
                                         constrained_layout=True)  # , figsize=(2, 2))
+        self.fig_histogram_1D = figure
+
         super().__init__(self.fig_histogram_1D)
         self.parent = parent
         self._file = None
+        self.variable = variable
+        self.bins=bins
 
     @property
     def file(self):
@@ -85,26 +101,30 @@ class HistogramCanvas_1D(FigureCanvas):
 
     @file.setter
     def file(self, file):
-        #TODO: this condition should be expanded: file.data (?) should exist
         if file is not None and file is not self._file and file.dataset is not None:
-            if file.dataset.FRET is not None:
+
+            # use getattr so variable can change dynamically
+            if getattr(file.dataset, self.variable) is not None:
                 self._file = file
                 self.refresh()
             else:
                 self._file = None
                 self.figure.clf()
                 self.draw()
+
         elif file is None:
             self._file = None
             self.figure.clf()
             self.draw()
 
     def refresh(self):
-        #1D-histogram
         self.fig_histogram_1D.clear()
         axis = self.fig_histogram_1D.subplots(1, 1, sharex=True)
-        bins = [i * 0.01 for i in range(200)]
-        self.file.show_histogram(variable='FRET', axis=axis, bins=bins)
+        self.file.show_histogram(
+            variable=self.variable,
+            axis=axis,
+            bins=self.bins
+        )
         self.draw()
 
 class HistogramCanvas_2D(FigureCanvas):
