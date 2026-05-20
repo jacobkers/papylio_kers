@@ -159,7 +159,7 @@ class ClassificationWidget(QWidget):
 
         sig = inspect.signature(func)
         for param_name, param in sig.parameters.items():
-            if param_name in ['traces', 'classification', 'selection', 'seed','n_states']:
+            if param_name in ['traces', 'classification', 'selection', 'seed','n_states', 'threshold_state_mean']:
                 continue
 
             default = param.default if param.default is not inspect.Parameter.empty else None
