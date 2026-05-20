@@ -149,7 +149,7 @@ class ClassificationWidget(QWidget):
     # -------------------------------------------------------------------------
     def register_method(self, name, func):
         """Register a classification method, introspect arguments, and build a form."""
-
+        #TODO: expand exclusion list per method to avoid listing irrelevant entries
         self.methods[name] = func
 
         # --- build the form for the function ---
@@ -159,7 +159,7 @@ class ClassificationWidget(QWidget):
 
         sig = inspect.signature(func)
         for param_name, param in sig.parameters.items():
-            if param_name in ['traces', 'classification', 'selection']:
+            if param_name in ['traces', 'classification', 'selection', 'seed','n_states']:
                 continue
 
             default = param.default if param.default is not inspect.Parameter.empty else None
