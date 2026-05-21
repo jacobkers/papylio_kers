@@ -37,12 +37,14 @@ class HistogramWidget(QWidget):
 
         # tab layout
         histogram_tab_layout = QHBoxLayout()
+        histogram_tab_layout.addWidget(self.histogram_canvas_2D)
         histogram_tab_layout.addWidget(self.histogram_canvas_1D_Intensity)
         histogram_tab_layout.addWidget(self.histogram_canvas_1D_FRET)
 
+
         # other
         other_graph_layout = QHBoxLayout()
-        other_graph_layout.addWidget(self.histogram_canvas_2D)
+
 
         tabs = QTabWidget()
         tabs.setTabPosition(QTabWidget.North)
