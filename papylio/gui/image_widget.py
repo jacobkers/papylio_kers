@@ -32,6 +32,12 @@ class ImageWidget(QWidget):
             self.setDisabled(False)
 
 class ImageCanvas(FigureCanvas):
+    """Image canvas widget.
+
+    This class defines the canvas used to display images in the Papylio
+    GUI. It is responsible for rendering the image data and updating the
+    display when the underlying data changes.
+    """
     def __init__(self, parent=None, width=14, height=7, dpi=100):
         self.figure = mpl.figure.Figure(figsize=(width, height), dpi=dpi,
                                         constrained_layout=True)  # , figsize=(2, 2))
