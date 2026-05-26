@@ -1,5 +1,7 @@
-#!/usr/bin/env python
-# coding: utf-8
+"""Main GUI application and image canvas widget.
+
+Defines the main application window and image canvas used by the Papylio GUI.
+"""
 
 import sys
 import PySide2
@@ -31,6 +33,12 @@ from papylio.gui.common_layouts import HelpDialog
 from papylio.gui.image_widget import ImageWidget, ImageCanvas
 
 class MainWindow(QMainWindow):
+    """Main application window.
+
+    This class defines the main window of the Papylio GUI, including the
+    file tree, image canvas, and various control widgets for
+    interacting with the data and configuring the experiment.
+    """
     pass_selected_config_to_gui_fields = Signal(int)  # send index of tab to activate
     pass_setup_to_config_on_refresh = Signal(int)
 
@@ -263,6 +271,7 @@ class MainWindow(QMainWindow):
         self.root.removeRows(0, 1)
         self.experiment = Experiment(self.experiment.main_path)
         self.addExperiment(self.experiment)
+
 
 if __name__ == '__main__':
     from multiprocessing import Process, freeze_support

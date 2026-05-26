@@ -1,3 +1,8 @@
+"""GUI widget for molecule selection and filtering.
+
+Provides a small Qt widget used in the GUI to create and apply selections to molecule datasets.
+"""
+
 import sys
 import json
 from PySide2.QtWidgets import QHeaderView, QWidget, QHBoxLayout, QVBoxLayout, QGridLayout, QTreeView, QApplication, QMainWindow, \
@@ -12,7 +17,10 @@ from papylio.gui.common_layouts import (HelpDialog, Group_Box, get_button_value,
                                         build_control_layouts, make_push_button)
 
 class SelectionWidget(QWidget):
+    """Widget for selecting and filtering molecules in the dataset."""
+
     request_top_tab_change = Signal(int)  # send index of tab to activate
+
     def __init__(self, parent=None):
         super(SelectionWidget, self).__init__(parent)
 
@@ -89,6 +97,12 @@ class SelectionWidget(QWidget):
         self._file = None
 
     def on_item_change(self, item):
+        """Handle change events for selection checkboxes and apply selections to file.
+
+        When a checkbox is toggled this method collects all checked selection names
+        and asks the associated `File` object to apply those selections, then refreshes
+        the UI and requests a plot refresh from the parent window.
+        """
         if self.update_final_selection:
             selection_names = []
             for i in range(self.model.rowCount()):
@@ -101,10 +115,18 @@ class SelectionWidget(QWidget):
 
     @property
     def file(self):
+        """Return the currently associated File object for this widget."""
         return self._file
 
     @file.setter
     def file(self, file):
+        """Set the current File object and refresh selections UI.
+
+        Parameters
+        ----------
+        file : papylio.file.File
+            File instance whose selections should be managed by this widget.
+        """
         self._file = file
         self.update_final_selection = False
         self.refresh_selections()
@@ -112,10 +134,12 @@ class SelectionWidget(QWidget):
         # self.refresh_add_panel()
 
     def clear_selections(self):
+        """Clear all selections on the current file and update the UI."""
         self.file.clear_selections()
         self.refresh_selections()
 
     def refresh_selections(self):
+        """Refresh the widget's list of available selections from the current file."""
         self.root.removeRows(0, self.root.rowCount())
         if self.file is not None and '.nc' in self.file.extensions:
             self.setDisabled(False)
@@ -151,6 +175,7 @@ class SelectionWidget(QWidget):
             self.setDisabled(True)
 
     def add_selection(self):
+        """Insert an empty selection row in the UI for user editing."""
         items = [QStandardItem(None) for _ in range(self.root.columnCount())]
         row_index = self.root.rowCount()-3
         # self.root.appendRow(items)
@@ -158,6 +183,7 @@ class SelectionWidget(QWidget):
         self.update_selection(row_index=row_index)
 
     def update_selection(self, row_index):
+        """Populate widgets for a selection row so the user can edit parameters."""
         i = row_index
 
         # row_items = self.root.takeRow(i)
@@ -218,6 +244,8 @@ class SelectionWidget(QWidget):
         # self.tree_view.setIndexWidget(remove_button_item.index(), remove_button)
 
     def apply_to_selected_files(self):
+        """Copy the current file's selections to all selected files."""
+
         self.request_top_tab_change.emit(2)
         self.file.copy_selections_to_selected_files()
 
@@ -298,8 +326,6 @@ class SelectionWidget(QWidget):
             #     add_button_item,
             #     remove_button_item,
             # ])
-
-
         #     if selection.attrs
     #         name_item = QStandardItem(selection.selection.item()[10:].replace('_',' ').capitalize())
     #         count_item = QStandardItem(str(selection.sum('molecule').item()))

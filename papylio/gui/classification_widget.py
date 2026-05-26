@@ -1,3 +1,8 @@
+"""GUI widgets for classification selection and management.
+
+Contains Qt widgets used for creating and applying classifications to traces within the GUI.
+"""
+
 import sys
 from PySide2.QtCore import Signal
 from PySide2.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout, QComboBox,
@@ -18,6 +23,7 @@ import json
 import typing
 
 class ClassificationWidget(QWidget):
+    """Widget for managing and applying molecule classifications."""
     request_top_tab_change = Signal(int)  # send index of tab to activate
     classificationChanged = Signal()
 
@@ -126,6 +132,7 @@ class ClassificationWidget(QWidget):
 
     @property
     def file(self):
+        """Get the currently selected file."""
         return self._file
 
     @file.setter
@@ -244,6 +251,7 @@ class ClassificationWidget(QWidget):
             return
 
     def add_classification(self, name, classification):
+        """Add a classification to the results tree view."""
         if not classification.attrs:
             row_data = ['', '', name[len('classification_'):], '', '', '', '']
         else:
@@ -282,6 +290,7 @@ class ClassificationWidget(QWidget):
             self.model.blockSignals(False)
 
     def refresh_classifications(self):
+        """Refresh the list of available classifications from the file."""
         self.root.removeRows(0, self.root.rowCount())
         if self.file is not None and '.nc' in self.file.extensions:
             self.setDisabled(False)
@@ -297,6 +306,7 @@ class ClassificationWidget(QWidget):
         self.classificationChanged.emit()
 
     def get_checked_classifications(self):
+        """Return list of checked classification names."""
         pass
 
     def on_item_changed(self, item):
@@ -334,6 +344,7 @@ class ClassificationWidget(QWidget):
 
 
     def apply_classifications(self):
+        """Apply the checked classifications to the current file."""
         apply_classifications_configuration = {}
         for row in range(self.model.rowCount()):
             item_checkbox = self.model.item(row, 0)
@@ -634,5 +645,4 @@ class ClassificationWidget(QWidget):
     #
     #     self.file.add_selection(variable, channel, aggregator, operator, threshold)
     #     self.refresh_selections()
-
 
