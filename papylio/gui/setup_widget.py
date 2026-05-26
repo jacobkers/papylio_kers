@@ -142,6 +142,7 @@ class SetUpWidget(QWidget):
                 file.movie.channels = [Channel(file.movie, 'green', 'g', other_names=['donor', 'd']),
                                        Channel(file.movie, 'red', 'r', other_names=['acceptor', 'a'])]
                 file.movie.channel_arrangement = [[[0, 1]]]
+
     def show_main_help(self):
         help_text = """
                 <html>

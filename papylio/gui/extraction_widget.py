@@ -240,9 +240,11 @@ class ExtractionWidget(QWidget):
 
     def extract_traces(self):
         self.request_top_tab_change.emit(1) #set viewer to 'traces'
+        #TODO: Better to pass the experiment directly to this widget, instead of going through the parent. Also adjust in other places.
+
         selected_files = self.parent.experiment.selectedFiles
         #here, pass button values to config
-        config_extraction=self.pass_buttons_to_config_for_extraction()
+        config_extraction = self.pass_buttons_to_config_for_extraction()
         if selected_files:
             selected_files.extract_traces(**config_extraction)
             # self.image_canvas.refresh()

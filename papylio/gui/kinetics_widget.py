@@ -121,8 +121,8 @@ class KineticsWidget(QWidget):
         else:
             self.setDisabled(False)
 
-    def export_kinetics(self,file):
-        fpath=self.parent.experiment.analysis_path / 'Dwell time analysis'
+    def export_kinetics(self, file):
+        fpath = self.parent.experiment.analysis_path / 'Dwell time analysis'
         wysiwyg_export(self.fig_dwell_times, filepath=fpath,  filename=self.file.name +"_kinetics_export", filetype="txt")
 
     def perform_dwell_times_sequence(self):

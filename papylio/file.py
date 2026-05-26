@@ -465,8 +465,11 @@ class File:
     @return_none_when_executed_by_pycharm
     def data_vars(self):
         """Return the data variables of the netCDF dataset."""
-        with xr.open_dataset(self.absoluteFilePath.with_suffix('.nc'), engine='netcdf4') as dataset:
-            return dataset.data_vars
+        if self.absoluteFilePath.with_suffix('.nc').exists():
+            with xr.open_dataset(self.absoluteFilePath.with_suffix('.nc'), engine='netcdf4') as dataset:
+                return dataset.data_vars
+        else:
+            return xr.Dataset().data_vars
 
     @property
     @return_none_when_executed_by_pycharm
@@ -1484,7 +1487,7 @@ class File:
         donor_image = self.movie.get_channel(image=image, channel='d')
         acceptor_image = self.movie.get_channel(image=image, channel='a')
         donor_coordinates = find_peaks(image=donor_image,
-                                         **configuration['peak_finding']['donor'])
+                                       **configuration['peak_finding']['donor'])
         if donor_coordinates.size == 0: #should throw a error message to warm no acceptor molecules found
             print('No donor molecules found')
         acceptor_coordinates = find_peaks(image=acceptor_image,
@@ -1560,7 +1563,6 @@ class File:
         self.show_mapping_in_image()
 
         self.use_mapping_for_all_files()
-
 
     def show_mapping_in_image(self, axis=None, save=True):
         """
@@ -2549,25 +2551,12 @@ class File:
         """
         dataset = self.dataset
 
-        # selected_original = self.selected
-        # dataset['selected'] = selected_original
-        # if selected:
-        #     dataset = dataset.sel(molecule=dataset['selected'])
-
-        # dataset = self.dataset
         save_path = self.experiment.main_path.joinpath('Trace plots')
         if not save_path.is_dir():
             save_path.mkdir()
 
         from papylio.trace_plot import TracePlotWindow
         TracePlotWindow(dataset=dataset, split_illuminations=split_illuminations, save_path=save_path, **kwargs)
-        if selected:
-            selected_original[dict(molecule=selected_original)] = dataset.selected
-        else:
-            selected_original = dataset.selected
-
-        # We could also save the whole dataset, but since currently only alterations are made to selected.
-        selected_original.to_netcdf(self.absoluteFilePath.with_suffix('.nc'), engine='netcdf4', mode='a')
 
 
 def calculate_intensity_total(intensity):

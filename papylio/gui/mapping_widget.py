@@ -1,6 +1,7 @@
 from PySide2.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, \
     QComboBox, QSpinBox, QLabel, QFormLayout
 from PySide2.QtCore import Qt, Signal
+import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
 from papylio import File
 from papylio.gui.common_layouts import (Expander, HelpDialog,
@@ -34,9 +35,9 @@ class MappingWidget(QWidget):
         map_overlay_image_layout.addWidget(self.map_overlay_image_canvas)
         self.map_overlay_image = QWidget()
         self.map_overlay_image.setLayout(map_overlay_image_layout)
-        self.map_overlay_image.setToolTip("overlay image shows result of mapping")
+        self.map_overlay_image.setToolTip("Overlay image shows result of mapping")
         self.map_image_canvas = ImageCanvas(self, width=4, height=3, dpi=100)
-        self.map_image_canvas.setToolTip("shows raw image (1st of multiple selection)")
+        self.map_image_canvas.setToolTip("Shows raw image (1st of multiple selection)")
         #map_image_toolbar = NavigationToolbar(self.map_image_canvas, self)
         map_image_layout = QVBoxLayout()
 
@@ -46,7 +47,7 @@ class MappingWidget(QWidget):
 
         #build a flexible form for the donor channel:-------------------------
         frame_donor = Group_Box(title="Donor Spot Detection")
-        frame_donor.setToolTip('settings source: function defaults of selected method')
+        frame_donor.setToolTip('Settings source: function defaults of selected method')
         form_donor = QFormLayout(frame_donor)
         # --- Method selector donor---
         self.method_selector_donor = QComboBox()
@@ -61,7 +62,7 @@ class MappingWidget(QWidget):
 
         # build a flexible form for the acceptor channel:-------------------------
         frame_acceptor= Group_Box(title="Acceptor Spot Detection")
-        frame_acceptor.setToolTip('settings source: function defaults of selected method')
+        frame_acceptor.setToolTip('Settings source: function defaults of selected method')
         form_acceptor = QFormLayout(frame_acceptor)
         # --- Method selector acceptor---
         self.method_selector_acceptor = QComboBox()
@@ -223,13 +224,13 @@ class MappingWidget(QWidget):
         _, inputs_acceptor = self.method_forms_acceptor[method_name_acceptor]
 
         # reform the chosen method and its args into a kwarg list
-        donor_kwargs=build_parameters_input(method_name_donor, inputs_donor)
+        donor_kwargs = build_parameters_input(method_name_donor, inputs_donor)
         acceptor_kwargs = build_parameters_input(method_name_acceptor, inputs_acceptor)
 
         #jk-read in a default configuration and allocate GUI values:
-        mapping_config= self.parent.experiment.configuration['mapping']
+        mapping_config = self.parent.experiment.configuration['mapping']
         mapping_config['method']= self.button_map_method_combobox.currentText()
-        mapping_config['distance_threshold']= float(self.button_map_dist_treshold.text())
+        mapping_config['distance_threshold'] = float(self.button_map_dist_treshold.text())
         mapping_config['peak_finding']['donor'] = donor_kwargs
         mapping_config['peak_finding']['acceptor'] = acceptor_kwargs
 
@@ -240,6 +241,7 @@ class MappingWidget(QWidget):
             self.parent.update_plots()
             self.map_image_canvas.refresh()
             plot_file.mapping.show_mapping_transformation(axis=ax1)
+            plt.show()
 
     def show_help(self):
         help_text = """

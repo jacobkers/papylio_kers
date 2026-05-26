@@ -61,7 +61,6 @@ class MainWindow(QMainWindow):
         self.model.setHorizontalHeaderLabels(['Name', 'Count'])
         #self.tree.header().setDefaultSectionSize(180)
         self.tree.setModel(self.model)
-        self.tree.setModel(self.model)
 
         header = self.tree.header()
         header.setSectionResizeMode(0, QHeaderView.Stretch)
@@ -89,7 +88,7 @@ class MainWindow(QMainWindow):
 
         tabs = QTabWidget()
         tabs.setTabPosition(QTabWidget.North)
-        tabs.setMovable(True)
+        tabs.setMovable(False)
         tabs.setDocumentMode(True)
 
         # tab are set to which bottom widget is used:
@@ -156,8 +155,6 @@ class MainWindow(QMainWindow):
         self.show()
         self.showMaximized()
 
-        #self.experiment = Experiment(
-        #    r'C:\Users\jkerssemakers\OneDrive - Delft University of Technology\Documents\GitHub\Papylio example dataset')
         self.experiment = pp.Experiment(main_path, main_window=self)
         self.addExperiment(self.experiment)
         self.setup_widget.experiment = self.experiment
@@ -209,9 +206,6 @@ class MainWindow(QMainWindow):
         #     self.classification_widget.file = None
 
     def addExperiment(self, experiment):
-
-        # experiment = Experiment(r'D:\SURFdrive\Promotie\Code\Python\papylio\twoColourExampleData\20141017 - Holliday junction - Copy')
-        # experiment = Experiment(r'C:\Users\ivoseverins\surfdrive\Promotie\Code\Python\papylio\twoColourExampleData\20141017 - Holliday junction - Copy')
         self.root.appendRow([
             QStandardItem(experiment.name),
             QStandardItem(0),

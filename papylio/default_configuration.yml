@@ -3,7 +3,7 @@ files:
   excluded_names: [_ave, _max, _corrections, _dwells, _dwell_analysis, darkfield, flatfield, _sequencing_data, _sequencing_match]
   excluded_paths: [Analysis, Sequencing data, Results]
 movie:
-    rot90: 1 # Needs to be set before loading the experiment
+    rot90: 0 # Needs to be set before loading the experiment
     # For TIR-T, V and ObjTIR, check the image orientation setting of the measurement software (Solis or MetaMorph).
 # compute_image:  # no longer used. See show_movie>>frames_for_show_movie
 #  number_of_frames: all

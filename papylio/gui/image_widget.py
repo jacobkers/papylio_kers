@@ -62,7 +62,7 @@ class ImageCanvas(FigureCanvas):
     def refresh(self):
         self.figure.clf()
         self.file.movie.determine_spatial_background_correction(use_existing=True)
-        if self.file.coordinates is not None:
+        if self.file.coordinates is not None and 'configuration' in self.file.coordinates.attrs:
             self.file.experiment.configuration['projection_image'] = json.loads(self.file.coordinates.attrs['configuration'])['projection_image']
         self.file.show_coordinates_in_image(figure=self.figure)
         self.draw()

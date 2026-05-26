@@ -21,8 +21,8 @@ class HistogramWidget(QWidget):
         self.fig_histogram_1D_FRET = Figure(figsize=(14, 3))
         self.histogram_canvas_1D_FRET = HistogramCanvas_1D(
             self.fig_histogram_1D_FRET,
-            variable='FRET',
-            bins=[i * 0.01 for i in range(200)]
+            variable = 'FRET',
+            bins = np.arange(-0.05, 1.06, 0.01)
         )
 
         self.fig_histogram_1D_Intensity = Figure(figsize=(14, 3))
@@ -32,12 +32,12 @@ class HistogramWidget(QWidget):
             bins=200
         )
 
-        self.fig_histogram_2D = Figure(figsize=(14, 3))
-        self.histogram_canvas_2D = HistogramCanvas_2D(self.fig_histogram_2D)
+        # self.fig_histogram_2D = Figure(figsize=(14, 3))
+        # self.histogram_canvas_2D = HistogramCanvas_2D(self.fig_histogram_2D)
 
         # tab layout
         histogram_tab_layout = QHBoxLayout()
-        histogram_tab_layout.addWidget(self.histogram_canvas_2D)
+        # histogram_tab_layout.addWidget(self.histogram_canvas_2D)
         histogram_tab_layout.addWidget(self.histogram_canvas_1D_Intensity)
         histogram_tab_layout.addWidget(self.histogram_canvas_1D_FRET)
 
@@ -51,18 +51,18 @@ class HistogramWidget(QWidget):
         tabs.setMovable(False)
         tabs.setDocumentMode(True)
 
-        tab1 = QWidget(self)
-        tab1.setLayout(histogram_tab_layout)
-        tabs.addTab(tab1, 'Histogram')
-        tab2 = QWidget(self)
-        tab2.setLayout(other_graph_layout)
-        tabs.addTab(tab2, 'Other')
+        # tab1 = QWidget(self)
+        # tab1.setLayout(histogram_tab_layout)
+        # tabs.addTab(tab1, 'Histogram')
+        # tab2 = QWidget(self)
+        # tab2.setLayout(other_graph_layout)
+        # tabs.addTab(tab2, 'Other')
 
-        self.kinetics_widget = QWidget()
-        kinetics_layout = QHBoxLayout()
-        kinetics_layout.addWidget(tabs)
+        # self.kinetics_widget = QWidget()
+        # kinetics_layout = QHBoxLayout()
+        # kinetics_layout.addWidget(tabs)
         # self.kinetics_widget.setLayout(kinetics_layout)
-        self.setLayout(kinetics_layout)
+        self.setLayout(histogram_tab_layout)
 
         self.file = None
 
@@ -77,7 +77,7 @@ class HistogramWidget(QWidget):
     def file(self, file):
         self.histogram_canvas_1D_FRET.file = file
         self.histogram_canvas_1D_Intensity.file = file
-        self.histogram_canvas_2D.file = file
+        # self.histogram_canvas_2D.file = file
         if file is None:
             self.setDisabled(True)
         else:
@@ -95,7 +95,7 @@ class HistogramCanvas_1D(FigureCanvas):
         self.parent = parent
         self._file = None
         self.variable = variable
-        self.bins=bins
+        self.bins = bins
 
     @property
     def file(self):
