@@ -32,7 +32,7 @@ import papylio
 # from papylio.molecule import Molecule
 from papylio.movie.movie import Movie
 from papylio.movie.tif import TifMovie
-from papylio.plotting import histogram
+from papylio.plotting import histogram, wysiwyg_export
 import matchpoint as mp
 from papylio.peak_finding import find_peaks
 from papylio.coordinate_optimization import  coordinates_within_margin, \
@@ -465,8 +465,11 @@ class File:
     @return_none_when_executed_by_pycharm
     def data_vars(self):
         """Return the data variables of the netCDF dataset."""
-        with xr.open_dataset(self.absoluteFilePath.with_suffix('.nc'), engine='netcdf4') as dataset:
-            return dataset.data_vars
+        if self.absoluteFilePath.with_suffix('.nc').exists():
+            with xr.open_dataset(self.absoluteFilePath.with_suffix('.nc'), engine='netcdf4') as dataset:
+                return dataset.data_vars
+        else:
+            return xr.Dataset().data_vars
 
     @property
     @return_none_when_executed_by_pycharm
@@ -2553,8 +2556,7 @@ class File:
             save_path.mkdir()
 
         from papylio.trace_plot import TracePlotWindow
-        TracePlotWindow(dataset=dataset, split_illuminations=split_illuminations,
-                        dataset_path=self.absoluteFilePath.with_suffix('.nc'), save_path=save_path, **kwargs)
+        TracePlotWindow(dataset=dataset, split_illuminations=split_illuminations, save_path=save_path, **kwargs)
 
 
 def calculate_intensity_total(intensity):
