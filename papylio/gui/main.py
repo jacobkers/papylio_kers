@@ -85,6 +85,7 @@ class MainWindow(QMainWindow):
         self.top_tabs.addTab(self.traces, 'Traces')
         self.top_tabs.addTab(self.histograms, 'Histograms')
 
+        mm=self.traces.molecule_index
 
         tabs = QTabWidget()
         tabs.setTabPosition(QTabWidget.North)
