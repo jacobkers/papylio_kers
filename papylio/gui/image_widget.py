@@ -64,7 +64,7 @@ class ImageCanvas(FigureCanvas):
         self.file.movie.determine_spatial_background_correction(use_existing=True)
         if self.file.coordinates is not None and 'configuration' in self.file.coordinates.attrs:
             self.file.experiment.configuration['projection_image'] = json.loads(self.file.coordinates.attrs['configuration'])['projection_image']
-        #TODO: here, couple highlights to single index selection
+        #TODO: here, couple highlights to single index from 'traces'
         molecule_index=40
         highlighted= [False] * self.file.number_of_molecules
         highlighted[molecule_index]=True

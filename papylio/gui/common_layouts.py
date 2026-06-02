@@ -21,7 +21,6 @@ from PySide2.QtCore import Qt
 import sys
 
 
-
 class Expander(QWidget):
     def __init__(self, title, parent=None):
         super().__init__(parent)

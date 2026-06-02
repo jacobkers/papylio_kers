@@ -68,7 +68,6 @@ class MainWindow(QMainWindow):
         self.tree.setColumnHidden(1, True)
         self.tree.setFixedWidth(400)
         self.update = True
-
         self.model.itemChanged.connect(self.onItemChange)
 
         # right side has a viewing pane (top) and
@@ -78,7 +77,6 @@ class MainWindow(QMainWindow):
         self.top_tabs.setMovable(False)
         self.top_tabs.setDocumentMode(True)
         self.traces = TracePlotWindow(parent=self, width=4, height=5, show=False)
-        #self.traces.current_molecule_index_changed.connect(current molecule is here)
         self.image = ImageWidget(parent=self)
         self.histograms=HistogramWidget(parent=self)
         self.kinetics_results = QWidget()
@@ -121,8 +119,10 @@ class MainWindow(QMainWindow):
         self.pass_selected_config_to_gui_fields.connect(self.extraction_widget.set_buttons_from_selected_file)
         self.pass_setup_to_config_on_refresh.connect(self.setup_widget.pass_buttons_to_config_for_setup)
 
+
         self.tab_widgets = [self.image, self.histograms, self.traces, self.setup_widget, self.mapping_widget, self.extraction_widget,
                             self.selection_widget, self.classification_widget, self.kinetics_widget]
+
 
         # refresh & tree
         experiment_layout = QVBoxLayout()
@@ -198,6 +198,7 @@ class MainWindow(QMainWindow):
         selected_files = self.experiment.selectedFiles + [None]
         for widget in self.tab_widgets:
             widget.file = selected_files[0]
+        self.HighlightedMolecule.file=selected_files[0]
         # self.image.file = selected_files[0]
         # if selected_files[0] is not None:
         #     self.traces.file = selected_files[0]
