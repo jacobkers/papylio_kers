@@ -36,7 +36,7 @@ from PySide2.QtWidgets import (QMainWindow, QPushButton, QWidget, QVBoxLayout, Q
                                QAbstractItemView)
 from PySide2.QtGui import QStandardItemModel, QStandardItem, QColor
 from PySide2.QtGui import QKeySequence, QCloseEvent, QDragMoveEvent
-from PySide2.QtCore import Qt, QModelIndex, QTimer
+from PySide2.QtCore import Qt, QModelIndex, Signal
 
 import sys
 import time
@@ -65,7 +65,7 @@ class TracePlotWindow(QWidget):
     - Plot configuration panel for enabling/disabling variables and setting ranges
     - Selection support (show all / only selected / only unselected)
     """
-
+    current_molecule_index_changed = Signal(int)  # send selected molecule out
     def __init__(self, dataset=None,
                  plot_settings=None,
                  width=14, height=None, dataset_path=None, save_path=None, parent=None,
@@ -307,6 +307,7 @@ class TracePlotWindow(QWidget):
     def update_current_molecule(self):
         """Refresh the display for the current molecule."""
         self.molecule_index = self.molecule_index
+        self.current_molecule_index_changed.emit(self.dataset_molecule_index)
 
     @property
     def molecule(self):

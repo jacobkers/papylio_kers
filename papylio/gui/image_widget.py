@@ -65,7 +65,6 @@ class ImageCanvas(FigureCanvas):
         if self.file.coordinates is not None and 'configuration' in self.file.coordinates.attrs:
             self.file.experiment.configuration['projection_image'] = json.loads(self.file.coordinates.attrs['configuration'])['projection_image']
         #TODO: here, couple highlights to single index selection
-        #should be list of N-molecules length, all False except one index
         molecule_index=40
         highlighted= [False] * self.file.number_of_molecules
         highlighted[molecule_index]=True

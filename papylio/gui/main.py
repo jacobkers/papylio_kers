@@ -78,6 +78,7 @@ class MainWindow(QMainWindow):
         self.top_tabs.setMovable(False)
         self.top_tabs.setDocumentMode(True)
         self.traces = TracePlotWindow(parent=self, width=4, height=5, show=False)
+        #self.traces.current_molecule_index_changed.connect(current molecule is here)
         self.image = ImageWidget(parent=self)
         self.histograms=HistogramWidget(parent=self)
         self.kinetics_results = QWidget()
@@ -85,7 +86,7 @@ class MainWindow(QMainWindow):
         self.top_tabs.addTab(self.traces, 'Traces')
         self.top_tabs.addTab(self.histograms, 'Histograms')
 
-        mm=self.traces.molecule_index
+
 
         tabs = QTabWidget()
         tabs.setTabPosition(QTabWidget.North)
@@ -193,6 +194,7 @@ class MainWindow(QMainWindow):
             self.pass_selected_config_to_gui_fields.emit(1)
 
     def update_plots(self):
+        #update the file-of-interest for all widgets
         selected_files = self.experiment.selectedFiles + [None]
         for widget in self.tab_widgets:
             widget.file = selected_files[0]
