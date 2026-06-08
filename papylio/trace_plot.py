@@ -265,8 +265,10 @@ class TracePlotWindow(QWidget):
     @molecule_index.setter
     def molecule_index(self, molecule_index):
         self._molecule_index = molecule_index
+        # TODO signal emit highlight here to GUI, take out of file
         if self.dataset is not None and self.number_of_molecules_to_show > 0:
             self.molecule = self.dataset.isel(molecule=self.dataset_molecule_index)
+
         else:
             self.molecule = None
         self.molecule_index_field.setText(str(molecule_index))
@@ -291,7 +293,8 @@ class TracePlotWindow(QWidget):
         return len(self.dataset_molecule_indices_to_show)
 
     def set_molecule_index_from_molecule_index_field(self):
-        """Parse molecule index from the text field and update the current molecule."""
+        """Parse molecule index from the text field,
+        update the current molecule"""
         self.molecule_index = int(self.molecule_index_field.text())
 
     def next_molecule(self):

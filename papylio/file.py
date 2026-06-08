@@ -104,7 +104,6 @@ class File:
 
         # self.log_details = None  # a string with the contents of the log file
         self.number_of_frames = None
-        self.one_molecule= None
 
         self.isSelected = False
         self.is_mapping_file = False

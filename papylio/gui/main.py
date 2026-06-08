@@ -76,6 +76,8 @@ class MainWindow(QMainWindow):
         self.top_tabs.setTabPosition(QTabWidget.North)
         self.top_tabs.setMovable(False)
         self.top_tabs.setDocumentMode(True)
+
+
         self.traces = TracePlotWindow(parent=self, width=4, height=5, show=False)
         self.image = ImageWidget(parent=self)
         self.histograms=HistogramWidget(parent=self)
@@ -124,6 +126,7 @@ class MainWindow(QMainWindow):
                             self.selection_widget, self.classification_widget, self.kinetics_widget]
 
 
+
         # refresh & tree
         experiment_layout = QVBoxLayout()
         refresh_button = QPushButton('Refresh')
@@ -161,6 +164,7 @@ class MainWindow(QMainWindow):
         self.addExperiment(self.experiment)
         self.setup_widget.experiment = self.experiment
         self.traces.save_path = self.experiment.analysis_path.joinpath('Trace_plots')
+        self.top_tabs.tabBar().currentChanged.connect(self.update_plots)
 
     def keyPressEvent(self, e):
         self.traces.keyPressEvent(e)
@@ -198,16 +202,6 @@ class MainWindow(QMainWindow):
         selected_files = self.experiment.selectedFiles + [None]
         for widget in self.tab_widgets:
             widget.file = selected_files[0]
-        self.HighlightedMolecule.file=selected_files[0]
-        # self.image.file = selected_files[0]
-        # if selected_files[0] is not None:
-        #     self.traces.file = selected_files[0]
-        #     self.selection_widget.file = selected_files[0]
-        #     self.classification_widget.file = selected_files[0]
-        # else:
-        #     self.traces.file = None
-        #     self.selection_widget.file = None
-        #     self.classification_widget.file = None
 
     def addExperiment(self, experiment):
         self.root.appendRow([
@@ -264,7 +258,6 @@ class MainWindow(QMainWindow):
         return item
 
     def refresh(self):
-        #TODO: pass settings from setup widget to config before doing this one
         self.pass_setup_to_config_on_refresh.emit(1)
         self.root.removeRows(0, 1)
         self.experiment = Experiment(self.experiment.main_path)
