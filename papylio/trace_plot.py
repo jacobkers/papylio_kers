@@ -200,7 +200,6 @@ class TracePlotWindow(QWidget):
     def deactivate_line_edit(self):
         """Clear focus from the molecule index line edit field."""
         self.set_highlighted_molecule.emit(self._molecule_index)
-        print(self._molecule_index)
         self.molecule_index_field.clearFocus()  # Clear the focus from the line edit
 
     @property

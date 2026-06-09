@@ -1,5 +1,5 @@
 import json
-from PySide2.QtWidgets import QWidget, QLabel, QVBoxLayout
+from PySide2.QtWidgets import QWidget, QSpinBox, QVBoxLayout, QLabel, QHBoxLayout, QFormLayout
 from matplotlib.figure import Figure
 import matplotlib as mpl
 from matplotlib.backends.backend_qtagg import (FigureCanvas, NavigationToolbar2QT as NavigationToolbar)
@@ -20,11 +20,21 @@ class ImageWidget(QWidget):
         image_layout.addWidget(image_toolbar)
         image_layout.addWidget(self.image_canvas)
 
+        highlight_layout = QHBoxLayout()
+        highlight_label = QLabel("highlighted molecule")
+        self.button_molecule_index = QSpinBox()
+        self.button_molecule_index.setRange(0, 5000)
+        self.button_molecule_index.setValue(0)
+        self.button_molecule_index.valueChanged.connect(self.image_canvas.set_highlighted_molecule)
+        highlight_layout.addStretch()
+        highlight_layout.addWidget(highlight_label)
+        highlight_layout.addWidget(self.button_molecule_index)
 
+        image_layout.addLayout(highlight_layout)
         imaging_controls = build_control_layouts([
-             make_push_button('Refresh', self.image_canvas.refresh, None),
              make_push_button('Help', self.show_image_help, None)])
         image_layout.addWidget(imaging_controls)
+
 
         #todo: if this image tab is popped up,
         # ..refresh it (to have last molecule there but not do this while scrolling traces)
@@ -53,12 +63,15 @@ class ImageWidget(QWidget):
                     <h2>Image</h2>
 
                     <p>
-                      Shows the current primary image file
+                      Shows the current primary image file with detected molecules (if detection was performed)
                     </p>
 
                     <p>
                     <ol>
-                      <li> press 'refresh' to update the selected spot</li>
+                      <li> Green spots are currently accepted spots from the 'Selection' menu below</li>
+                      <li> Red spots are currently rejected spots from the 'Selection' menu below</li>
+                      <li> One 'highlighted' spot is shown in magenta with its index listed below </li>
+                      <li> This value is also updated from the index field of the 'Traces' tab</li>
                     </ul>
 
                     </p>
@@ -102,17 +115,19 @@ class ImageCanvas(FigureCanvas):
 
     def set_highlighted_molecule(self, value):
         self.highlighted_molecule=value
+        self.refresh()
+
+
 
     def refresh(self):
         self.figure.clf()
         self.file.movie.determine_spatial_background_correction(use_existing=True)
         if self.file.coordinates is not None and 'configuration' in self.file.coordinates.attrs:
             self.file.experiment.configuration['projection_image'] = json.loads(self.file.coordinates.attrs['configuration'])['projection_image']
-        #TODO: here, couple highlights to single index from 'traces' via a signal
         highlighted= [False] * self.file.number_of_molecules
         if self.highlighted_molecule is not None:
             highlighted[self.highlighted_molecule] = True
-            print(self.highlighted_molecule)
+            self.parent.button_molecule_index.setValue(self.highlighted_molecule)
         self.file.show_coordinates_in_image(figure=self.figure, highlighted=highlighted)
         self.draw()
 
