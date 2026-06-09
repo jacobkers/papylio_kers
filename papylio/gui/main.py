@@ -79,7 +79,9 @@ class MainWindow(QMainWindow):
 
 
         self.traces = TracePlotWindow(parent=self, width=4, height=5, show=False)
+
         self.image = ImageWidget(parent=self)
+        self.traces.set_highlighted_molecule.connect(self.image.image_canvas.set_highlighted_molecule)
         self.histograms=HistogramWidget(parent=self)
         self.kinetics_results = QWidget()
         self.top_tabs.addTab(self.image, 'Image')
@@ -120,6 +122,7 @@ class MainWindow(QMainWindow):
 
         self.pass_selected_config_to_gui_fields.connect(self.extraction_widget.set_buttons_from_selected_file)
         self.pass_setup_to_config_on_refresh.connect(self.setup_widget.pass_buttons_to_config_for_setup)
+
 
 
         self.tab_widgets = [self.image, self.histograms, self.traces, self.setup_widget, self.mapping_widget, self.extraction_widget,

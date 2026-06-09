@@ -21,10 +21,10 @@ class ImageWidget(QWidget):
         image_layout.addWidget(self.image_canvas)
 
 
-        # imaging_controls = build_control_layouts([
-        #     make_push_button('Refresh', self.show_image_help(), None),
-        #     make_push_button('Help', self.show_image_help(), None)])
-        # image_layout.addWidget(imaging_controls)
+        imaging_controls = build_control_layouts([
+             make_push_button('Refresh', self.image_canvas.refresh, None),
+             make_push_button('Help', self.show_image_help, None)])
+        image_layout.addWidget(imaging_controls)
 
         #todo: if this image tab is popped up,
         # ..refresh it (to have last molecule there but not do this while scrolling traces)
@@ -83,6 +83,7 @@ class ImageCanvas(FigureCanvas):
                                         constrained_layout=True)  # , figsize=(2, 2))
         super().__init__(self.figure)
         self.parent = parent
+        self.highlighted_molecule=None
         self._file = None
 
     @property
@@ -99,6 +100,9 @@ class ImageCanvas(FigureCanvas):
             self.figure.clf()
             self.draw()
 
+    def set_highlighted_molecule(self, value):
+        self.highlighted_molecule=value
+
     def refresh(self):
         self.figure.clf()
         self.file.movie.determine_spatial_background_correction(use_existing=True)
@@ -106,7 +110,9 @@ class ImageCanvas(FigureCanvas):
             self.file.experiment.configuration['projection_image'] = json.loads(self.file.coordinates.attrs['configuration'])['projection_image']
         #TODO: here, couple highlights to single index from 'traces' via a signal
         highlighted= [False] * self.file.number_of_molecules
-        highlighted[40] = True
+        if self.highlighted_molecule is not None:
+            highlighted[self.highlighted_molecule] = True
+            print(self.highlighted_molecule)
         self.file.show_coordinates_in_image(figure=self.figure, highlighted=highlighted)
         self.draw()
 

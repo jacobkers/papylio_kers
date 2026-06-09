@@ -65,7 +65,7 @@ class TracePlotWindow(QWidget):
     - Plot configuration panel for enabling/disabling variables and setting ranges
     - Selection support (show all / only selected / only unselected)
     """
-    current_molecule_index_changed = Signal(int)  # send selected molecule out
+    set_highlighted_molecule = Signal(int)  # send selected molecule out
     def __init__(self, dataset=None,
                  plot_settings=None,
                  width=14, height=None, dataset_path=None, save_path=None, parent=None,
@@ -199,6 +199,8 @@ class TracePlotWindow(QWidget):
 
     def deactivate_line_edit(self):
         """Clear focus from the molecule index line edit field."""
+        self.set_highlighted_molecule.emit(self._molecule_index)
+        print(self._molecule_index)
         self.molecule_index_field.clearFocus()  # Clear the focus from the line edit
 
     @property
@@ -265,7 +267,6 @@ class TracePlotWindow(QWidget):
     @molecule_index.setter
     def molecule_index(self, molecule_index):
         self._molecule_index = molecule_index
-        # TODO signal emit highlight here to GUI, take out of file
         if self.dataset is not None and self.number_of_molecules_to_show > 0:
             self.molecule = self.dataset.isel(molecule=self.dataset_molecule_index)
 
@@ -310,7 +311,7 @@ class TracePlotWindow(QWidget):
     def update_current_molecule(self):
         """Refresh the display for the current molecule."""
         self.molecule_index = self.molecule_index
-        self.current_molecule_index_changed.emit(self.dataset_molecule_index)
+
 
     @property
     def molecule(self):
