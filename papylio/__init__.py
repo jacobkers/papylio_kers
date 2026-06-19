@@ -48,13 +48,15 @@ def __dir__():
 def get_version():
     import subprocess, datetime
 
+    repo_root = Path(__file__).parent.parent
+
     __tag__ = subprocess.check_output(
-        ["git", "describe", "--tags", "--abbrev=0"],
+        ["git", "-C", str(repo_root), "describe", "--tags", "--abbrev=0"],
         text=True,
     ).strip()[1:]
 
     __commit__ = subprocess.check_output(
-        ["git", "rev-parse", "HEAD"],
+        ["git", "-C", str(repo_root), "rev-parse", "HEAD"],
         text=True
     ).strip()[:9]
 
