@@ -14,18 +14,10 @@ import sys
 from pathlib import Path
 sys.path.append(str(Path(__file__).parents[1]))
 
-# from papylio.experiment import Experiment
-# from papylio.file import File
-# # from papylio.molecule import Molecule
-# from papylio.movie.movie import Movie
-
-# Map public names to "module:attribute" so we know where to find them
-# without importing anything yet.
 _LAZY_IMPORTS = {
     "Experiment": "papylio.experiment",
     "File": "papylio.file",
     "Movie": "papylio.movie",
-    # ... etc for whatever currently gets eagerly imported
 }
 
 def __getattr__(name):
@@ -39,11 +31,6 @@ def __getattr__(name):
 
 def __dir__():
     return list(globals().keys()) + list(_LAZY_IMPORTS.keys())
-
-
-# import papylio.sequencing.sequencing
-#
-# Experiment = type(Experiment.__name__, (Experiment,) + tuple(Experiment.plugins), {})
 
 def get_version():
     import subprocess, datetime
@@ -68,9 +55,6 @@ try:
     from ._version import version as __version__
 except ImportError:
     try:
-        # import setuptools_scm
-        # __version__ = setuptools_scm.get_version(version_scheme="only-version", local_scheme="node-and-date",
-        #                                          root='..', relative_to=__file__)
         __version__ = get_version()
     except (LookupError, ImportError):
         __version__ = '0.0.0'
