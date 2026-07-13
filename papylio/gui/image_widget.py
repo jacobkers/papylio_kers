@@ -71,7 +71,7 @@ class ImageWidget(QWidget):
                       <li> Green spots are currently accepted spots from the 'Selection' menu below</li>
                       <li> Red spots are currently rejected spots from the 'Selection' menu below</li>
                       <li> One 'highlighted' spot is shown in magenta with its index listed below </li>
-                      <li> This value is also updated from the index field of the 'Traces' tab</li>
+                      <li> This value is also updated from the index field of the 'Traces' tab - after pressing Enter</li>
                     </ul>
 
                     </p>
