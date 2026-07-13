@@ -3,15 +3,13 @@
 Defines the main application window and image canvas used by the Papylio GUI.
 """
 
-import sys
-import PySide2
 import platform
-from PySide2.QtCore import Signal
 import sys
+import re
 from PySide2.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QTreeView, QApplication, QMainWindow, \
-    QPushButton, QTabWidget, QHeaderView
-from PySide2.QtGui import QStandardItem, QStandardItemModel, QIcon
-from PySide2.QtCore import Qt
+    QPushButton, QTabWidget, QHeaderView, QPlainTextEdit
+from PySide2.QtGui import QStandardItem, QStandardItemModel, QIcon, QFont, QTextCursor
+from PySide2.QtCore import Qt, QObject, Signal
 
 from matplotlib.backends.backend_qtagg import (
     FigureCanvas, NavigationToolbar2QT as NavigationToolbar)
@@ -53,6 +51,9 @@ class MainWindow(QMainWindow):
         self.setWindowIcon(QIcon("icon." + extension))
         self.setWindowTitle("Papylio v" + pp.__version__)
 
+        # --------------------------------------------
+        # set up the file tree, showing available movies
+        #-------------------------------------------
         self.tree = QTreeView(self)
         layout = QVBoxLayout()
         layout.addWidget(self.tree)
@@ -61,15 +62,29 @@ class MainWindow(QMainWindow):
         self.model.setHorizontalHeaderLabels(['Name', 'Count'])
         #self.tree.header().setDefaultSectionSize(180)
         self.tree.setModel(self.model)
-
         header = self.tree.header()
         header.setSectionResizeMode(0, QHeaderView.Stretch)
         header.setSectionResizeMode(1, QHeaderView.ResizeToContents)
         self.tree.setColumnHidden(1, True)
         self.tree.setFixedWidth(400)
         self.update = True
-
         self.model.itemChanged.connect(self.onItemChange)
+
+        #console box
+        font = QFont("Consolas", 7)  # Windows
+        self.console = QPlainTextEdit()
+        self.console.setReadOnly(True)
+        self.console.setFont(font)
+
+        # Redirect stdout
+        self.stream = Stream()
+        self.stream.new_text.connect(self.append_text)
+        sys.stdout = self.stream
+        sys.stderr = self.stream  # optional
+        self._stdout = sys.stdout
+
+
+
 
         # right side has a viewing pane (top) and
         # viewing panes
@@ -122,12 +137,14 @@ class MainWindow(QMainWindow):
         self.tab_widgets = [self.image, self.histograms, self.traces, self.setup_widget, self.mapping_widget, self.extraction_widget,
                             self.selection_widget, self.classification_widget, self.kinetics_widget]
 
+
         # refresh & tree
         experiment_layout = QVBoxLayout()
         refresh_button = QPushButton('Refresh')
         refresh_button.clicked.connect(self.refresh)
         experiment_layout.addWidget(refresh_button)
         experiment_layout.addWidget(self.tree)
+        experiment_layout.addWidget(self.console)
 
         top_layout = QVBoxLayout()
         top_layout.addWidget(self.top_tabs)
@@ -136,7 +153,7 @@ class MainWindow(QMainWindow):
         bottom_layout.addWidget(tabs)
 
         # build main panel
-        # full left is file tree
+        # full left is refresh, file tree
         left_layout = QVBoxLayout()
         left_layout.addLayout(experiment_layout)
 
@@ -159,6 +176,15 @@ class MainWindow(QMainWindow):
         self.addExperiment(self.experiment)
         self.setup_widget.experiment = self.experiment
         self.traces.save_path = self.experiment.analysis_path.joinpath('Trace_plots')
+
+
+    def append_text(self, text):
+        text = re.sub(r"\n{2,}", "\n", text)
+        cursor = self.console.textCursor()
+        cursor.movePosition(QTextCursor.End)
+        cursor.insertText(text)  # Keep the \n characters!
+        self.console.setTextCursor(cursor)
+        self.console.ensureCursorVisible()
 
     def keyPressEvent(self, e):
         self.traces.keyPressEvent(e)
@@ -266,6 +292,19 @@ class MainWindow(QMainWindow):
         self.experiment = Experiment(self.experiment.main_path)
         self.addExperiment(self.experiment)
 
+class Stream(QObject):
+    new_text = Signal(str)
+
+    def __init__(self):
+        super().__init__()
+        self._stdout = sys.stdout
+
+    def write(self, text):
+        self._stdout.write(text)  # optional: still print to terminal
+        self.new_text.emit(text)
+
+    def flush(self):
+        self._stdout.flush()
 
 if __name__ == '__main__':
     from multiprocessing import Process, freeze_support
