@@ -1,7 +1,7 @@
 #import sys
 #import json
-from PySide2.QtWidgets import QHBoxLayout,  \
-    QPushButton, QTabWidget, QComboBox, QFormLayout, QWidget, QLabel, QVBoxLayout, QSpinBox
+from PySide2.QtWidgets import (QHBoxLayout,  QTabWidget, QComboBox,
+                               QFormLayout, QWidget, QLineEdit, QVBoxLayout, QSpinBox)
 from PySide2.QtCore import Qt
 
 #from papylio import File
@@ -43,9 +43,9 @@ class KineticsWidget(QWidget):
         frame_dwell_options_layout.addRow("multiple exponents:", self.button_multiple_exponents)
 
         # plot_range:
-        self.button_plot_range = QSpinBox()
-        self.button_plot_range.setToolTip('choose plot range (s)')
-        self.button_plot_range.setValue(2)
+        self.button_plot_range = QLineEdit()
+        self.button_plot_range.setToolTip('choose plot ranges (s)')
+        self.button_plot_range.setText("[2, 4]")
         frame_dwell_options_layout.addRow("plot_range:", self.button_plot_range)
 
 
