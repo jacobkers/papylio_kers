@@ -103,16 +103,18 @@ class HistogramCanvas_1D(FigureCanvas):
 
     @file.setter
     def file(self, file):
-        if file is not None and file is not self._file and file.dataset is not None:
 
-            # use getattr so variable can change dynamically
-            if getattr(file.dataset, self.variable) is not None:
-                self._file = file
-                self.refresh()
-            else:
-                self._file = None
-                self.figure.clf()
-                self.draw()
+        if file is not None and file is not self._file:
+            fret = getattr(file.dataset, "FRET", None)
+            if fret is not None:
+                # use getattr so variable can change dynamically
+                if getattr(file.dataset, self.variable) is not None:
+                    self._file = file
+                    self.refresh()
+                else:
+                    self._file = None
+                    self.figure.clf()
+                    self.draw()
 
         elif file is None:
             self._file = None
