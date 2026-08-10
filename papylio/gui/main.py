@@ -92,13 +92,18 @@ class MainWindow(QMainWindow):
         self.top_tabs.setTabPosition(QTabWidget.North)
         self.top_tabs.setMovable(False)
         self.top_tabs.setDocumentMode(True)
+
+
         self.traces = TracePlotWindow(parent=self, width=4, height=5, show=False)
+
         self.image = ImageWidget(parent=self)
+        self.traces.set_highlighted_molecule.connect(self.image.image_canvas.set_highlighted_molecule)
         self.histograms=HistogramWidget(parent=self)
         self.kinetics_results = QWidget()
         self.top_tabs.addTab(self.image, 'Image')
         self.top_tabs.addTab(self.traces, 'Traces')
         self.top_tabs.addTab(self.histograms, 'Histograms')
+
 
 
         tabs = QTabWidget()
@@ -133,6 +138,8 @@ class MainWindow(QMainWindow):
 
         self.pass_selected_config_to_gui_fields.connect(self.extraction_widget.set_buttons_from_selected_file)
         self.pass_setup_to_config_on_refresh.connect(self.setup_widget.pass_buttons_to_config_for_setup)
+
+
 
         self.tab_widgets = [self.image, self.histograms, self.traces, self.setup_widget, self.mapping_widget, self.extraction_widget,
                             self.selection_widget, self.classification_widget, self.kinetics_widget]
@@ -176,6 +183,7 @@ class MainWindow(QMainWindow):
         self.addExperiment(self.experiment)
         self.setup_widget.experiment = self.experiment
         self.traces.save_path = self.experiment.analysis_path.joinpath('Trace_plots')
+        self.top_tabs.tabBar().currentChanged.connect(self.update_plots)
 
 
     def append_text(self, text):
@@ -218,18 +226,13 @@ class MainWindow(QMainWindow):
             self.pass_selected_config_to_gui_fields.emit(1)
 
     def update_plots(self):
+        #update the file-of-interest for all widgets
         selected_files = self.experiment.selectedFiles + [None]
         for widget in self.tab_widgets:
             widget.file = selected_files[0]
-        # self.image.file = selected_files[0]
-        # if selected_files[0] is not None:
-        #     self.traces.file = selected_files[0]
-        #     self.selection_widget.file = selected_files[0]
-        #     self.classification_widget.file = selected_files[0]
-        # else:
-        #     self.traces.file = None
-        #     self.selection_widget.file = None
-        #     self.classification_widget.file = None
+            if hasattr(widget, "image_canvas"):
+                widget.image_canvas.refresh()
+
 
     def addExperiment(self, experiment):
         self.root.appendRow([
@@ -286,7 +289,6 @@ class MainWindow(QMainWindow):
         return item
 
     def refresh(self):
-        #TODO: pass settings from setup widget to config before doing this one
         self.pass_setup_to_config_on_refresh.emit(1)
         self.root.removeRows(0, 1)
         self.experiment = Experiment(self.experiment.main_path)

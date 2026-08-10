@@ -218,6 +218,7 @@ class File:
         """Return the configuration of the experiment."""
         return self.experiment.configuration
 
+
     # @property
     # def molecule(self):
     #     with xr.open_dataset(self.absoluteFilePath.with_suffix('.nc'), engine='netcdf4') as dataset:
@@ -2451,7 +2452,7 @@ class File:
         """Show the average projection image."""
         self.show_image(projection_type='average', figure=figure, **kwargs)
 
-    def show_coordinates(self, figure=None, annotate=None, unit='pixel', **kwargs):
+    def show_coordinates(self, figure=None, annotate=None, highlighted=None, unit='pixel', **kwargs):
         """
         Show detected molecule coordinates on a plot.
 
@@ -2459,6 +2460,7 @@ class File:
             figure (optional): Matplotlib figure to plot on.
             annotate (bool, optional): Whether to enable interactive annotations.
             unit (str, optional): Unit for coordinates ('pixel' or 'metric'). Default is 'pixel'.
+            highlighted: allows extra plot layer for one or more higlighted points
             **kwargs: Additional arguments for scatter plot.
         """
         if not figure:
@@ -2482,6 +2484,15 @@ class File:
 
             selected_coordinates = self.coordinates.sel(molecule=self.selected.values).stack({'peak': ('molecule', 'channel')}).T.values
             axis.scatter(selected_coordinates[:, 0], selected_coordinates[:, 1], facecolors='none', edgecolors='green', **kwargs)
+
+            if highlighted is not None:
+                #TODO temporal overrule (this is to be passed in)
+                #highlighted = self.selected.values
+
+                highlighted_coordinates=self.coordinates.sel(molecule=highlighted).stack(
+                   {'peak': ('molecule', 'channel')}).T.values
+                axis.scatter(highlighted_coordinates[:, 0], highlighted_coordinates[:, 1], facecolors='magenta',
+                             edgecolors='white', **kwargs)
 
             if annotate:
                 annotation = axis.annotate("", xy=(0, 1.03), xycoords=axis.transAxes) # x in data units, y in axes fraction
@@ -2525,12 +2536,13 @@ class File:
 
             plt.show()
 
-    def show_coordinates_in_image(self, figure=None, **kwargs):
+    def show_coordinates_in_image(self, figure=None, highlighted=None, **kwargs):
         """
         Show projection image with overlaid molecule coordinates.
 
         Parameters:
             figure (optional): Matplotlib figure to plot on.
+            highlighted: allows one or more molecules to be highlighted
             **kwargs: Additional arguments for show_image.
         """
         #TODO: change figure to axis
@@ -2538,7 +2550,7 @@ class File:
             figure = plt.figure()
 
         self.show_image(figure=figure, **kwargs)
-        self.show_coordinates(figure=figure)
+        self.show_coordinates(figure=figure, highlighted=highlighted)
         # plt.savefig(self.writepath.joinpath(self.name + '_ave_circles.png'), dpi=600)
 
     def show_traces(self, split_illuminations=True, **kwargs):
