@@ -124,7 +124,6 @@ class ImageCanvas(FigureCanvas):
         if self.file is None:
             return
         self.file.movie.determine_spatial_background_correction(use_existing=True)
-        self.file.movie.determine_spatial_background_correction(use_existing=True)
         if self.file.coordinates is not None and 'configuration' in self.file.coordinates.attrs:
             self.file.experiment.configuration['projection_image'] = json.loads(self.file.coordinates.attrs['configuration'])['projection_image']
         highlighted= [False] * self.file.number_of_molecules
