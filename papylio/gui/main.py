@@ -77,11 +77,13 @@ class MainWindow(QMainWindow):
         self.console.setFont(font)
 
         # Redirect stdout
+
         self.stream = Stream()
         self.stream.new_text.connect(self.append_text)
         sys.stdout = self.stream
         sys.stderr = self.stream  # optional
         self._stdout = sys.stdout
+
 
 
 
@@ -150,8 +152,8 @@ class MainWindow(QMainWindow):
         refresh_button = QPushButton('Refresh')
         refresh_button.clicked.connect(self.refresh)
         experiment_layout.addWidget(refresh_button)
-        experiment_layout.addWidget(self.tree)
-        experiment_layout.addWidget(self.console)
+        experiment_layout.addWidget(self.tree, 4)
+        experiment_layout.addWidget(self.console, 1)
 
         top_layout = QVBoxLayout()
         top_layout.addWidget(self.top_tabs)
@@ -302,8 +304,8 @@ class Stream(QObject):
         self._stdout = sys.stdout
 
     def write(self, text):
-        self._stdout.write(text)  # optional: still print to terminal
         self.new_text.emit(text)
+        self._stdout.write(text)  # optional: still print to terminal
 
     def flush(self):
         self._stdout.flush()
