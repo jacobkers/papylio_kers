@@ -1,6 +1,6 @@
 
 from PySide2.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, \
-    QComboBox, QLineEdit, QSpinBox, QFormLayout, QButtonGroup, QRadioButton, QLabel, QMessageBox
+    QComboBox, QLineEdit, QSpinBox, QFormLayout, QButtonGroup, QRadioButton, QCheckBox, QMessageBox
 from PySide2.QtCore import Qt, Signal
 from papylio import File
 from papylio.gui.common_layouts import (Expander, HelpDialog,Group_Box,
@@ -44,51 +44,90 @@ class MovieCorrectionsWidget(QWidget):
         super(MovieCorrectionsWidget, self).__init__(parent)
 
         # self.parent = parent
+        # movie corrections box 1: shading ---------------------------------
+        frame_shading_correction = Group_Box(title="Shading", highlight=False)
+        frame_shading_correction.setToolTip('"see help')
+        shading_correction_layout = QFormLayout(frame_shading_correction)
+        # method:
+        self.method_shading = QComboBox()
+        self.method_shading.setToolTip("Choose method")
+        self.method_shading.addItems(['any', 'any'])
+        #frame range:
+        self.button_frame_range = QLineEdit()
+        self.button_frame_range.setText("[0, 20]")
+        # skipbox:
+        self.skip_shading_checkbox = QCheckBox()
+        # fill box:
+        shading_correction_layout.addRow("method:", self.method_shading)
+        # shading_correction_layout.addRow("frame range:", self.button_frame_range)
+        shading_correction_layout.addRow("skip", self.skip_shading_checkbox)
 
-        # 1 movie corrections box 1: temporal ---------------------------------
-        frame_temporal_correction = Group_Box(title="Background treatment", highlight=False)
+
+
+        #movie corrections box 2: temporal ---------------------------------
+        frame_temporal_correction = Group_Box(title="Temporal", highlight=False)
         frame_temporal_correction.setToolTip('"see help')
-
-
         temporal_correction_layout = QFormLayout(frame_temporal_correction)
+        #method:
+        self.method_temporal = QComboBox()
+        self.method_temporal.setToolTip("Choose method")
+        self.method_temporal.addItems(['BaSiC', 'any'])
+        # #frame range:
+        # self.button_frame_range = QLineEdit()
+        # self.button_frame_range.setText("[0, 20]")
+        #skipbox:
+        self.skip_temporal_checkbox = QCheckBox()
+        # fill box:
+        temporal_correction_layout.addRow("method:", self.method_temporal)
+        #temporal_correction_layout.addRow("frame range:", self.button_frame_range)
+        temporal_correction_layout.addRow("skip", self.skip_temporal_checkbox)
 
-        # todo change buttons etc
-        # 1.1 channels:
-        self.button_movie_rotation = QSpinBox()
-        self.button_movie_rotation.setRange(-3, 3)
-        self.button_movie_rotation.setValue(0)
-        self.button_movie_rotation.valueChanged.connect(self.pass_buttons_to_config_for_setup)
-        self.button_movie_rotation.setToolTip('If changed, remove all analyzed data and projection images')
-        temporal_correction_layout.addRow("Rotation", self.button_movie_rotation)
 
+        # movie corrections box 3: spatial---------------------------------
+        frame_spatial_correction = Group_Box(title="Spatial", highlight=False)
+        frame_spatial_correction.setToolTip('"see help')
+        spatial_correction_layout = QFormLayout(frame_spatial_correction)
+        # method:
+        self.method_spatial = QComboBox()
+        self.method_spatial.setToolTip("choose Filter")
+        self.method_spatial.addItems(['gaussian', 'median', 'mean'])
+        #frame range:
+        self.button_frame_range = QLineEdit()
+        self.button_frame_range.setText("[0, 20]")
+        #skipbox:
+        self.skip_spatial_checkbox = QCheckBox()
+        # fill box:
+        spatial_correction_layout.addRow("method:", self.method_spatial)
+        # spatial_correction_layout.addRow("frame range:", self.button_frame_range)
+        spatial_correction_layout.addRow("skip", self.skip_spatial_checkbox)
 
-        self.number_of_channels_selector_1 = QRadioButton("1")
-        self.number_of_channels_selector_1.setToolTip('This needs to be manually set every time on reopening the gui')
-
-        self.number_of_channels_selector_2 = QRadioButton("2")
-        self.number_of_channels_selector_2.setChecked(True)
-        self.number_of_channels_selector_2.setToolTip('This needs to be manually set every time on reopening the gui')
-
-        self.channel_selector = QButtonGroup()
-        self.channel_selector.addButton(self.number_of_channels_selector_1, 1)
-        self.channel_selector.addButton(self.number_of_channels_selector_2, 2)
-        # self.channel_selector.setToolTip("Choose number of channels")
-        self.channel_selector.buttonClicked.connect(self.on_channel_selection_changed)
-
-        channel_layout = QHBoxLayout()
-        channel_layout.setContentsMargins(0, 0, 0, 0)
-        channel_layout.addWidget(self.number_of_channels_selector_1)
-        channel_layout.addWidget(self.number_of_channels_selector_2)
-
-        temporal_correction_layout.addRow("Number of channels", channel_layout)
-
+        # movie corrections box 4: general ---------------------------------
+        frame_general_correction = Group_Box(title="General", highlight=False)
+        frame_general_correction.setToolTip('"see help')
+        general_correction_layout = QFormLayout(frame_general_correction)
+        # method:
+        self.method_general = QComboBox()
+        self.method_general.setToolTip("Choose method")
+        self.method_general.addItems(['BaSiC', 'any'])
+        self.skip_general_checkbox = QCheckBox()
+        # fill box:
+        general_correction_layout.addRow("method:", self.method_general)
+        general_correction_layout.addRow("skip", self.skip_general_checkbox)
 
         advanced_layout = QHBoxLayout()
         advanced_layout.setAlignment(Qt.AlignLeft)
+        advanced_layout.addWidget(frame_shading_correction)
         advanced_layout.addWidget(frame_temporal_correction)
+        advanced_layout.addWidget(frame_spatial_correction)
+        advanced_layout.addWidget(frame_general_correction)
 
+
+        # main action:
         start_help_button = build_control_layouts([
+            make_push_button('Apply', self.show_main_help, "Apply correction(s)"),
             make_push_button('Help', self.show_main_help, None)])
+
+
 
         start_tab_layout = QVBoxLayout()
         start_tab_layout.addLayout(advanced_layout)
@@ -156,11 +195,13 @@ class MovieCorrectionsWidget(QWidget):
                     <h2>Background corrections</h2>
 
                     <p>
-                    There are three types of background subtraction, to be performed in this order: 
+                    Optionally, one can perform shading (illumination) correction.
+                    Next, there are three types of background subtraction, to be performed in this order: 
                     </p>
                     
                     <p>
                     <ol>
+                        <li> Shading correction 
                         <li> Temporal background subtraction 
                         <li> Spatial background correction
                         <li> Single-value background correction

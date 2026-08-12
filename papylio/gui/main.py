@@ -259,7 +259,6 @@ class MainWindow(QMainWindow):
             item.setCheckState(Qt.Unchecked)
         item.setData(file)
         # self.FileItems.append(item)
-
         # self.insertDataIntoColumns(item)
 
         return item
