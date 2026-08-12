@@ -124,7 +124,7 @@ class MainWindow(QMainWindow):
         self.pass_selected_config_to_gui_fields.connect(self.extraction_widget.set_buttons_from_selected_file)
         self.pass_setup_to_config_on_refresh.connect(self.setup_widget.pass_buttons_to_config_for_setup)
 
-        self.tab_widgets = [self.image, self.histograms, self.traces, self.setup_widget, self.mapping_widget, self.extraction_widget,
+        self.tab_widgets = [self.image, self.histograms, self.traces, self.setup_widget, self.movie_corrections_widget, self.mapping_widget, self.extraction_widget,
                             self.selection_widget, self.classification_widget, self.kinetics_widget]
 
         # refresh & tree
