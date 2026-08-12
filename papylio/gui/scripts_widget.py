@@ -13,10 +13,27 @@ from papylio.gui.common_layouts import (HelpDialog, Group_Box, get_button_value,
 from matplotlib.backends.backend_qtagg import (
     FigureCanvas, NavigationToolbar2QT as NavigationToolbar)
 
-class ScriptWidget(QWidget):
+from PySide2.QtWidgets import QWidget, QVBoxLayout, QPlainTextEdit, QPushButton
+
+from qtconsole.rich_jupyter_widget import RichJupyterWidget
+from qtconsole.inprocess import QtInProcessKernelManager
+
+import sys
+import io
+
+class ScriptBox(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.parent = parent
+        self.context = context   # objects available to script
+
+        console = make_console({
+            "project": self.experiment
+        })
+
+        layout = QVBoxLayout(self)
+        layout.addWidget(console)
+
 
 
     @property
@@ -65,4 +82,20 @@ class ScriptWidget(QWidget):
         # dialog.exec_()  # modal
         self.help_dialog.show()
 
+def make_console(context):
+
+    kernel_manager = QtInProcessKernelManager()
+    kernel_manager.start_kernel()
+
+    kernel = kernel_manager.kernel
+    kernel.shell.push(context)
+
+    kernel_client = kernel_manager.client()
+    kernel_client.start_channels()
+
+    console = RichJupyterWidget()
+    console.kernel_manager = kernel_manager
+    console.kernel_client = kernel_client
+
+    return console
 

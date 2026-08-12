@@ -31,6 +31,7 @@ from papylio.gui.kinetics_widget import KineticsWidget
 from papylio.gui.histogram_widget import HistogramWidget
 from papylio.gui.common_layouts import HelpDialog
 from papylio.gui.image_widget import ImageWidget, ImageCanvas
+from papylio.gui.scripts_widget import ScriptBox
 
 class MainWindow(QMainWindow):
     """Main application window.
@@ -114,13 +115,18 @@ class MainWindow(QMainWindow):
         #time analysis:
         self.kinetics_widget = KineticsWidget(parent=self)
         tabs.addTab(self.kinetics_widget, 'Kinetics')
+        # custom:
+        #self.script_widget = ScriptBox(parent=self)
+        #tabs.addTab(self.script_widget, 'Custom')
+
         tabs.currentChanged.connect(self.setTabFocus)
+
 
         self.pass_selected_config_to_gui_fields.connect(self.extraction_widget.set_buttons_from_selected_file)
         self.pass_setup_to_config_on_refresh.connect(self.setup_widget.pass_buttons_to_config_for_setup)
 
         self.tab_widgets = [self.image, self.histograms, self.traces, self.setup_widget, self.mapping_widget, self.extraction_widget,
-                            self.selection_widget, self.classification_widget, self.kinetics_widget]
+                            self.selection_widget, self.classification_widget, self.kinetics_widget, self.script_widget]
 
         # refresh & tree
         experiment_layout = QVBoxLayout()
