@@ -31,6 +31,7 @@ from papylio.gui.kinetics_widget import KineticsWidget
 from papylio.gui.histogram_widget import HistogramWidget
 from papylio.gui.common_layouts import HelpDialog
 from papylio.gui.show_image_widget import ImageWidget, ImageCanvas
+from papylio.gui.movie_corrections_widget import MovieCorrectionsWidget
 
 class MainWindow(QMainWindow):
     """Main application window.
@@ -92,8 +93,12 @@ class MainWindow(QMainWindow):
         tabs.setDocumentMode(True)
 
         # tab are set to which bottom widget is used:
+        #start:
         self.setup_widget = SetUpWidget(parent=self)
         tabs.addTab(self.setup_widget, 'Start')
+        #movie corrections:
+        self.movie_corrections_widget = MovieCorrectionsWidget(parent=self)
+        tabs.addTab(self.movie_corrections_widget, 'Background')
         #mapping:
         self.mapping_widget = MappingWidget(parent=self)
         self.mapping_widget.request_top_tab_change.connect(self.top_tabs.setCurrentIndex)
