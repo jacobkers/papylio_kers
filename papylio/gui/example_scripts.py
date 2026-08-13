@@ -1,8 +1,8 @@
 example_scripts = {
     "Histogram current file": """
-#Create a selection:
-file.create_selection(variable='intensity', channel='red', aggregator='max', operator='>', threshold=3000, name='selection_red')
-file.apply_selections()
+#Create a selection [WILL BE ADDED TO CURRENT SELECTION RULES]:
+#file.create_selection(variable='intensity', channel='red', aggregator='max', operator='>', threshold=3000, name='selection_red')
+#file.apply_selections()
 #Plot the histogram:
 fig, ax = file.show_histogram('intensity', selected=True, bins=100)
 fig.show()

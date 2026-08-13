@@ -183,7 +183,7 @@ class ScriptBox(QWidget):
         <h2>Custom Scripts</h2>
 
         <p>
-        Eexecute custom Python/Papylio scripts. 
+        Execute custom Python/Papylio scripts. 
         Any script can be pasted. 
         Additionally, pre-set scripts can be loaded.
         </p>
@@ -216,9 +216,10 @@ class ScriptBox(QWidget):
 
         <h3>Note</h3>
         <p>
+         The user is assumed to have a proper insight in use of Papylio scripts.
          Custom code may overwrite earlier GUI pipeline results.
          It may lead to mismatches and or errors in the stored data.
-         The user is assumed to have a proper insight in Papylio script.
+         
         </p>
         
         
