@@ -176,15 +176,25 @@ class ScriptBox(QWidget):
           <li><b>self</b> - the MainWindow</li>
         </ul>
 
-        <p>
-        Example:
-        </p>
+        <h3>Example</h3>
 
         <pre>
-file.movie.determine_spatial_background_correction(
-    use_existing=True
-)
+        #show current mapping
+        mapping_file = experiment.files[0]
+        figure, axis = mapping_file.show_image()
+        mapping_file.mapping.show(axis=axis, show_source=True)
+        figure.show()
         </pre>
+        
+        <h3>Note<\h3>
+        
+        <p>
+         Custom code may overwrite earlier GUI pipeline results.
+         It may lead to mismatches and or errors in the stored data.
+         The user is assumed to have a proper insight in Papylio script.
+        </p>
+        
+        
 
         </body>
         </html>
