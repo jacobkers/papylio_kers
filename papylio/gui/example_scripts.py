@@ -22,9 +22,8 @@ for file in experiment.selectedFiles:
     print(file)
 """,
 
-    "Preset_A": """
-# Any code
-print("Hello world")
+    "Show average image": """
+file.show_average_image()
 """,
 
     "Preset_B": """
