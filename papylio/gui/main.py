@@ -116,8 +116,8 @@ class MainWindow(QMainWindow):
         self.kinetics_widget = KineticsWidget(parent=self)
         tabs.addTab(self.kinetics_widget, 'Kinetics')
         # custom:
-        #self.script_widget = ScriptBox(parent=self)
-        #tabs.addTab(self.script_widget, 'Custom')
+        self.script_widget = ScriptBox(parent=self)
+        tabs.addTab(self.script_widget, 'Custom')
 
         tabs.currentChanged.connect(self.setTabFocus)
 

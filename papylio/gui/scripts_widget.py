@@ -1,40 +1,77 @@
-#import sys
-#import json
-from PySide2.QtWidgets import QHBoxLayout,  \
-    QPushButton, QTabWidget, QComboBox, QFormLayout, QWidget, QLabel, QVBoxLayout, QSpinBox
+from PySide2.QtWidgets import (
+    QWidget, QVBoxLayout, QHBoxLayout,
+    QPushButton, QPlainTextEdit, QLabel
+)
 from PySide2.QtCore import Qt
-
-#from papylio import File
-from papylio.gui.common_layouts import (HelpDialog, Group_Box, get_button_value,
-                                        build_control_layouts, make_push_button)
-
-#import numpy as np
-
-from matplotlib.backends.backend_qtagg import (
-    FigureCanvas, NavigationToolbar2QT as NavigationToolbar)
-
-from PySide2.QtWidgets import QWidget, QVBoxLayout, QPlainTextEdit, QPushButton
-
-from qtconsole.rich_jupyter_widget import RichJupyterWidget
-from qtconsole.inprocess import QtInProcessKernelManager
-
 import sys
 import io
 
+
+from papylio.gui.common_layouts import HelpDialog
+
+
 class ScriptBox(QWidget):
+
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.parent = parent
-        self.context = context   # objects available to script
 
-        console = make_console({
-            "project": self.experiment
-        })
+        self.parent = parent
+        self._file = None
+
+        # ------------------------------------------------------------
+        # Script editor
+        # ------------------------------------------------------------
+
+        self.script_edit = QPlainTextEdit()
+        self.script_edit.setPlaceholderText(
+            "Paste Python/Papylio code here..."
+        )
+
+        # ------------------------------------------------------------
+        # Output window
+        # ------------------------------------------------------------
+
+        self.output = QPlainTextEdit()
+        self.output.setReadOnly(True)
+
+        # ------------------------------------------------------------
+        # Buttons
+        # ------------------------------------------------------------
+
+        self.run_button = QPushButton("Run")
+        self.clear_button = QPushButton("Clear")
+        self.help_button = QPushButton("Help")
+
+        self.run_button.clicked.connect(self.run_script)
+        self.clear_button.clicked.connect(self.clear_output)
+        self.help_button.clicked.connect(self.show_script_help)
+
+        button_layout = QHBoxLayout()
+        button_layout.addWidget(self.run_button)
+        button_layout.addWidget(self.clear_button)
+        button_layout.addStretch()
+        button_layout.addWidget(self.help_button)
+
+        # ------------------------------------------------------------
+        # Main layout
+        # ------------------------------------------------------------
 
         layout = QVBoxLayout(self)
-        layout.addWidget(console)
+
+        layout.addWidget(QLabel("Python script:"))
+        layout.addWidget(self.script_edit)
+
+        layout.addLayout(button_layout)
+
+        layout.addWidget(QLabel("Output:"))
+        layout.addWidget(self.output)
+
+        self.setDisabled(True)
 
 
+    # ================================================================
+    # Current file
+    # ================================================================
 
     @property
     def file(self):
@@ -43,59 +80,115 @@ class ScriptBox(QWidget):
     @file.setter
     def file(self, file):
         self._file = file
+
         if file is None:
             self.setDisabled(True)
         else:
             self.setDisabled(False)
 
 
+    # ================================================================
+    # Run script
+    # ================================================================
+
+    def run_script(self):
+
+        code = self.script_edit.toPlainText()
+
+        if not code.strip():
+            return
+
+        self.output.clear()
+        self.output.appendPlainText("Running script...\n")
+
+        # Objects available to the script
+        namespace = {
+            "self": self.parent,
+            "file": self.file,
+            "experiment": self.parent.experiment,
+        }
+
+        # Capture print() output
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+
+        old_stdout = sys.stdout
+        old_stderr = sys.stderr
+
+        sys.stdout = stdout
+        sys.stderr = stderr
+
+        try:
+            exec(code, namespace)
+
+        except Exception as e:
+            # Put the error into our captured output
+            print(f"{type(e).__name__}: {e}")
+
+        finally:
+            # VERY IMPORTANT: restore normal Python output
+            sys.stdout = old_stdout
+            sys.stderr = old_stderr
+
+        # Show captured output in the GUI
+        output_text = stdout.getvalue()
+        error_text = stderr.getvalue()
+
+        if output_text:
+            self.output.appendPlainText(output_text)
+
+        if error_text:
+            self.output.appendPlainText(error_text)
+
+        self.output.appendPlainText("\nScript finished.")
+
+    # ================================================================
+    # Clear output
+    # ================================================================
+
+    def clear_output(self):
+        self.output.clear()
+
+
+    # ================================================================
+    # Help
+    # ================================================================
 
     def show_script_help(self):
 
         help_text = """
-                <html>
-                  <body style="font-family: sans-serif; font-size: 10pt;">
-                
-                    <h2>Custom Scripts</h2>
-                
-                    <p>
-                      Paste and execute Papylio scripts
-                    </p>
-                
-                    <ul>
-                      <li>aaa</li>
-                      <li>bbbb</li>
-                      <li>cccc
-                    </ul>
-                
-                    <p>
-                      For more help, see the
-                      <a href="https://papylio.readthedocs.io/en/stable/SPARXS/1_single_molecule_data_analysis.html">
-                        Data Analysis with Papylio
-                      </a>.
-                    </p>
-                
-                  </body>
-                </html>
-                """
+        <html>
+        <body style="font-family: sans-serif; font-size: 10pt;">
+
+        <h2>Custom Scripts</h2>
+
+        <p>
+        Paste and execute Python/Papylio scripts.
+        </p>
+
+        <p>
+        The following objects are available:
+        </p>
+
+        <ul>
+          <li><b>file</b> - currently selected file</li>
+          <li><b>experiment</b> - current experiment</li>
+          <li><b>self</b> - the MainWindow</li>
+        </ul>
+
+        <p>
+        Example:
+        </p>
+
+        <pre>
+file.movie.determine_spatial_background_correction(
+    use_existing=True
+)
+        </pre>
+
+        </body>
+        </html>
+        """
+
         self.help_dialog = HelpDialog(self, help_text)
-        # dialog.exec_()  # modal
         self.help_dialog.show()
-
-def make_console(context):
-
-    kernel_manager = QtInProcessKernelManager()
-    kernel_manager.start_kernel()
-
-    kernel = kernel_manager.kernel
-    kernel.shell.push(context)
-
-    kernel_client = kernel_manager.client()
-    kernel_client.start_channels()
-
-    console = RichJupyterWidget()
-    console.kernel_manager = kernel_manager
-    console.kernel_client = kernel_client
-
-    return console
-
