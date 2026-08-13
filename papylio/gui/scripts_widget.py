@@ -186,7 +186,7 @@ class ScriptBox(QWidget):
         figure.show()
         </pre>
         
-        <h3>Note<\h3>
+        <h3>Note</h3>
         
         <p>
          Custom code may overwrite earlier GUI pipeline results.
