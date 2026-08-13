@@ -1,6 +1,6 @@
 from PySide2.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout,
-    QPushButton, QPlainTextEdit, QLabel
+    QPushButton, QPlainTextEdit, QLabel, QComboBox
 )
 from PySide2.QtCore import Qt
 import sys
@@ -8,6 +8,7 @@ import io
 
 
 from papylio.gui.common_layouts import HelpDialog
+from papylio.gui.example_scripts import example_scripts
 
 
 class ScriptBox(QWidget):
@@ -38,16 +39,32 @@ class ScriptBox(QWidget):
         # ------------------------------------------------------------
         # Buttons
         # ------------------------------------------------------------
+        self.example_combo = QComboBox()
+        self.example_combo.setToolTip('Choose a pre-set example script')
+        for name in example_scripts:
+            self.example_combo.addItem(name)
+        #buttons:
+        self.load_button = QPushButton("Load")
+        self.load_button.clicked.connect(self.load_example)
+        self.load_button.setToolTip('Load pre-set script')
+
 
         self.run_button = QPushButton("Run")
-        self.clear_button = QPushButton("Clear")
-        self.help_button = QPushButton("Help")
-
+        self.run_button.setToolTip('Run current script')
         self.run_button.clicked.connect(self.run_script)
+
+        self.clear_button = QPushButton("Clear output")
+        self.clear_button.setToolTip('Clear current output')
         self.clear_button.clicked.connect(self.clear_output)
+
+        self.help_button = QPushButton("Help")
         self.help_button.clicked.connect(self.show_script_help)
 
         button_layout = QHBoxLayout()
+
+        button_layout.addWidget(QLabel("Examples:"))
+        button_layout.addWidget(self.example_combo)
+        button_layout.addWidget(self.load_button)
         button_layout.addWidget(self.run_button)
         button_layout.addWidget(self.clear_button)
         button_layout.addStretch()
@@ -148,6 +165,10 @@ class ScriptBox(QWidget):
     def clear_output(self):
         self.output.clear()
 
+    def load_example(self):
+        name = self.example_combo.currentText()
+        script = example_scripts[name]
+        self.script_edit.setPlainText(script)
 
     # ================================================================
     # Help
@@ -162,7 +183,9 @@ class ScriptBox(QWidget):
         <h2>Custom Scripts</h2>
 
         <p>
-        Paste and execute Python/Papylio scripts.
+        Eexecute custom Python/Papylio scripts. 
+        Any script can be pasted. 
+        Additionally, pre-set scripts can be loaded.
         </p>
 
         <p>
@@ -174,9 +197,14 @@ class ScriptBox(QWidget):
           <li><b>experiment</b> - current experiment</li>
           <li><b>self</b> - the MainWindow</li>
         </ul>
+        
+        <h3>Usage</h3>
+        
+        <p>
+        Hover over the buttons to see their functions 
+        </p>
 
         <h3>Example</h3>
-
         <pre>
         #show current mapping
         mapping_file = experiment.files[0]
@@ -185,8 +213,8 @@ class ScriptBox(QWidget):
         figure.show()
         </pre>
         
+
         <h3>Note</h3>
-        
         <p>
          Custom code may overwrite earlier GUI pipeline results.
          It may lead to mismatches and or errors in the stored data.
