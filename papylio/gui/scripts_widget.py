@@ -25,6 +25,7 @@ class ScriptBox(QWidget):
         self.script_edit = QPlainTextEdit()
         self.script_edit.setPlaceholderText(
             "Paste Python/Papylio code here..."
+
         )
 
         # ------------------------------------------------------------
@@ -60,11 +61,9 @@ class ScriptBox(QWidget):
 
         layout.addWidget(QLabel("Python script:"))
         layout.addWidget(self.script_edit)
-
-        layout.addLayout(button_layout)
-
         layout.addWidget(QLabel("Output:"))
         layout.addWidget(self.output)
+        layout.addLayout(button_layout)
 
         self.setDisabled(True)
 
