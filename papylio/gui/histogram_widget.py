@@ -71,17 +71,16 @@ class HistogramWidget(QWidget):
 
     @property
     def file(self):
-        return self.image_canvas.file
+        return self._file
 
     @file.setter
     def file(self, file):
+        self._file = file
+
         self.histogram_canvas_1D_FRET.file = file
         self.histogram_canvas_1D_Intensity.file = file
-        # self.histogram_canvas_2D.file = file
-        if file is None:
-            self.setDisabled(True)
-        else:
-            self.setDisabled(False)
+
+        self.setDisabled(file is None)
 
 class HistogramCanvas_1D(FigureCanvas):
     def __init__(self, figure=None, parent=None, width=14, height=7, dpi=100, variable='FRET',bins=100):
