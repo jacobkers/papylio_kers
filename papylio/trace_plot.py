@@ -199,7 +199,7 @@ class TracePlotWindow(QWidget):
 
     def deactivate_line_edit(self):
         """Clear focus from the molecule index line edit field."""
-        self.set_highlighted_molecule.emit(self._molecule_index)
+        #self.set_highlighted_molecule.emit(self._molecule_index)
         self.molecule_index_field.clearFocus()  # Clear the focus from the line edit
 
     @property
@@ -296,6 +296,7 @@ class TracePlotWindow(QWidget):
         """Parse molecule index from the text field,
         update the current molecule"""
         self.molecule_index = int(self.molecule_index_field.text())
+        self.set_highlighted_molecule.emit(self._molecule_index)
 
     def next_molecule(self):
         """Navigate to the next molecule in the current dataset."""
