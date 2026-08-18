@@ -87,16 +87,23 @@ class MovieCorrectionsWidget(QWidget):
         spatial_correction_layout = QFormLayout(frame_spatial_correction)
         # method:
         self.method_spatial = QComboBox()
-        self.method_spatial.setToolTip("choose Filter")
-        self.method_spatial.addItems(['gaussian', 'median', 'mean'])
+        self.method_spatial.setToolTip("choose method; gauss:sigma, mean/median:size")
+        self.method_spatial.addItems(['median_filter','gaussian_filter', 'minimum_filter'])
+        # size:
+        self.button_spatial_size = QSpinBox()
+        self.button_spatial_size.setValue(20)
+
+        self.button_spatial_sigma = QLineEdit()
+        self.button_spatial_sigma.setText("0.5")
         #frame range:
-        self.button_frame_range = QLineEdit()
-        self.button_frame_range.setText("[0, 20]")
+        self.button_spatial_frame_range = QLineEdit()
+        self.button_spatial_frame_range.setText("[0, 20]")
         #skipbox:
         self.skip_spatial_checkbox = QCheckBox()
         # fill box:
         spatial_correction_layout.addRow("method:", self.method_spatial)
-        # spatial_correction_layout.addRow("frame range:", self.button_frame_range)
+        spatial_correction_layout.addRow("size:", self.button_spatial_size)
+        spatial_correction_layout.addRow("sigma:", self.button_spatial_sigma)
         spatial_correction_layout.addRow("skip", self.skip_spatial_checkbox)
 
         # movie corrections box 4: general ---------------------------------
@@ -170,11 +177,18 @@ class MovieCorrectionsWidget(QWidget):
         #                                                      frame_index=2, estimate_darkfield=False, l_s=5, l_d=5)
         #
            # Uses the second frame of each file to determine the flatfield correction. l_s and l_d are parameters for the 'BaSiC' algorithm.
-        if 1: #not skip
-           file.movie.determine_temporal_background_correction(method='median')
-        if 1: #not skip
-            file.movie.determine_spatial_background_correction(method='median_filter', size=20)
-        if 1: #not skip
+
+        if not self.skip_temporal_checkbox.isChecked(): #not skip
+            mth_t=get_button_value(self.method_temporal)
+            file.movie.determine_temporal_background_correction(method=mth_t)
+        if not self.skip_spatial_checkbox.isChecked():
+            mth_sp = get_button_value(self.method_spatial)
+            sze=get_button_value(self.button_spatial_size)
+            sig=get_button_value(self.button_spatial_sigma)
+            frs=get_button_value(self.button_spatial_frame_range)
+            kws = {'size': sze, 'sigma': sig}
+            file.movie.determine_spatial_background_correction(method=mth_sp, frame_range=frs, **kws)
+        if not self.skip_general_checkbox.isChecked():
             file.movie.determine_general_background_correction(method='fit_background_peak')
 
     def show_main_help(self):
