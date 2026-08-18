@@ -24,6 +24,7 @@ for file in experiment.selectedFiles:
 
     "Show average image": """
 file.show_average_image()
+# Note: unselect-reselect file to see plot
 """,
 
     "MyScripts": None
