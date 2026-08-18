@@ -62,8 +62,6 @@ class MovieCorrectionsWidget(QWidget):
         # shading_correction_layout.addRow("frame range:", self.button_frame_range)
         shading_correction_layout.addRow("skip", self.skip_shading_checkbox)
 
-
-
         #movie corrections box 2: temporal ---------------------------------
         frame_temporal_correction = Group_Box(title="Temporal", highlight=False)
         frame_temporal_correction.setToolTip('"see help')
@@ -124,7 +122,7 @@ class MovieCorrectionsWidget(QWidget):
 
         # main action:
         start_help_button = build_control_layouts([
-            make_push_button('Apply', self.show_main_help, "Apply correction(s)"),
+            make_push_button('Apply', self.apply_corrections, "Apply correction(s)"),
             make_push_button('Help', self.show_main_help, None)])
 
 
@@ -145,11 +143,6 @@ class MovieCorrectionsWidget(QWidget):
     @file.setter
     def file(self, file):
         self._file = file
-        # if file is None:
-        #     self.setDisabled(True)
-        # else:
-        #     self.setDisabled(False)
-        #     self.update_button_settings()
 
     @property
     def experiment(self):
@@ -161,31 +154,28 @@ class MovieCorrectionsWidget(QWidget):
         if experiment is not None:
             self.update_button_settings()
 
-    def update_button_settings(self):
-        self.button_movie_rotation.blockSignals(True)
-        self.button_movie_rotation.setValue(self.experiment.configuration['movie']['rot90'])
-        self.button_movie_rotation.blockSignals(False)
-
-    def pass_buttons_to_config_for_setup(self, value):
-    #line up 'classic config' with buttons in gui.
-        self.experiment.configuration['movie']['rot90'] = value
-        self.experiment.configuration.save()
-        self.experiment.files.movie.rot90 = value
-
-        QMessageBox.warning(self, "Rotation change", "User alert: please first unselect all files, then delete all previously generated projection images [*ave*.tif] and datafiles [.nc]. See also 'Help'")
-        # self.file.movie.rot90 = self.button_movie_rotation.value()
-
-    def on_channel_selection_changed(self, button):
-        id = self.channel_selector.id(button)
-        if id == 1:
-            for file in self.experiment.files:
-                file.movie.channels = [Channel(file.movie, 'green', 'g', other_names=['donor', 'd'])]
-                file.movie.channel_arrangement = [[[0, ]]]
-        if id == 2:
-            for file in self.experiment.files:
-                file.movie.channels = [Channel(file.movie, 'green', 'g', other_names=['donor', 'd']),
-                                       Channel(file.movie, 'red', 'r', other_names=['acceptor', 'a'])]
-                file.movie.channel_arrangement = [[[0, 1]]]
+    def apply_corrections(self):
+        # TODO: bring in panel settings and decide on shading approach
+        file=self.file
+        # if 1: #not skip
+        #    #do shading correction (note: is this GUI-handy? Needs specification of files...
+        #    files_darkfield_correction[0].use_for_darkfield_correction()
+        #    # For green illumination
+        #    exp.determine_flatfield_and_darkfield_corrections(files_green_laser[::10], method='BaSiC',
+        #                                                      illumination_index=0, frame_index=2,
+        #                                                      estimate_darkfield=False, l_s=5, l_d=5)
+        #    # For red illumination
+        #    exp.determine_flatfield_and_darkfield_corrections(files_red_laser_before[::10], method='BaSiC',
+        #                                                      illumination_index=1,
+        #                                                      frame_index=2, estimate_darkfield=False, l_s=5, l_d=5)
+        #
+           # Uses the second frame of each file to determine the flatfield correction. l_s and l_d are parameters for the 'BaSiC' algorithm.
+        if 1: #not skip
+           file.movie.determine_temporal_background_correction(method='median')
+        if 1: #not skip
+            file.movie.determine_spatial_background_correction(method='median_filter', size=20)
+        if 1: #not skip
+            file.movie.determine_general_background_correction(method='fit_background_peak')
 
     def show_main_help(self):
         help_text = """

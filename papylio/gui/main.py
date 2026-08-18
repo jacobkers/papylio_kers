@@ -31,7 +31,7 @@ from papylio.gui.kinetics_widget import KineticsWidget
 from papylio.gui.histogram_widget import HistogramWidget
 from papylio.gui.common_layouts import HelpDialog
 from papylio.gui.show_image_widget import ImageWidget, ImageCanvas
-from papylio.gui.movie_corrections_widget import MovieCorrectionsWidget
+from papylio.gui.background_widget import MovieCorrectionsWidget
 
 class MainWindow(QMainWindow):
     """Main application window.
