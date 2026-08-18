@@ -1,5 +1,5 @@
 from PySide2.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout,
+    QWidget, QVBoxLayout, QHBoxLayout, QFileDialog,
     QPushButton, QPlainTextEdit, QLabel, QComboBox
 )
 from PySide2.QtCore import Qt
@@ -8,7 +8,7 @@ import io
 
 
 from papylio.gui.common_layouts import HelpDialog
-from papylio.gui.example_scripts import example_scripts
+from papylio.gui.scripts_examples import example_scripts
 
 
 class ScriptBox(QWidget):
@@ -166,7 +166,27 @@ class ScriptBox(QWidget):
         self.output.clear()
 
     def load_example(self):
+
         name = self.example_combo.currentText()
+
+        if name == "My Script":
+
+            filename, _ = QFileDialog.getOpenFileName(
+                self,
+                "Select Python script",
+                "",
+                "Python files (*.py);;All files (*)"
+            )
+
+            if filename:
+                with open(filename, "r", encoding="utf-8") as f:
+                    script = f.read()
+
+                self.script_edit.setPlainText(script)
+
+            return
+
+        # normal example script
         script = example_scripts[name]
         self.script_edit.setPlainText(script)
 

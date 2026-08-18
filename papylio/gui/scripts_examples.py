@@ -26,15 +26,5 @@ for file in experiment.selectedFiles:
 file.show_average_image()
 """,
 
-    "Preset_B": """
-# Any code
-print("Hello world")
-""",
-
-    "Preset_C": """
-# Any code
-print("Hello world")
-""",
-
-
+    "MyScripts": None
 }
