@@ -167,7 +167,7 @@ class MainWindow(QMainWindow):
         self.addExperiment(self.experiment)
         self.setup_widget.experiment = self.experiment
         self.traces.save_path = self.experiment.analysis_path.joinpath('Trace_plots')
-        self.top_tabs.tabBar().currentChanged.connect(self.update_plots)
+        #self.top_tabs.tabBar().currentChanged.connect(self.update_plots)
 
     def keyPressEvent(self, e):
         self.traces.keyPressEvent(e)
