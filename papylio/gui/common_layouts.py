@@ -154,14 +154,14 @@ def get_input_type(annotation, default):
             widget.setText(str(default))
     return widget
 
-def build_form(func):
+def build_form(func, skip_inputs=['image']):
     # --- build the form for a function ---
     form_widget = QWidget()
     form = QFormLayout(form_widget)
     inputs = {}
     sig = inspect.signature(func)
     for param_name, param in sig.parameters.items():
-        if param_name in ['image']:
+        if param_name in skip_inputs:
             continue
         default = param.default if param.default is not inspect.Parameter.empty else None
         annotation = param.annotation

@@ -197,7 +197,8 @@ class ExtractionWidget(QWidget):
         and build forms for spot_detection and acceptor channels"""
 
         #spot_detection-------------------------:
-        form_widget_spot_detection, inputs_spot_detection = build_form(func)
+        skip_inputs=['image']
+        form_widget_spot_detection, inputs_spot_detection = build_form(func,skip_inputs)
         self.methods_spot_detection[name] = func
         self.method_forms_spot_detection[name] = (form_widget_spot_detection, inputs_spot_detection)
         self.method_selector_spot_detection.addItem(name) #add options to appropriate selector box
