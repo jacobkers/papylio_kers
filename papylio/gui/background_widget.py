@@ -91,6 +91,7 @@ class MovieCorrectionsWidget(QWidget):
         self.method_selector_spatial_background.currentTextChanged.connect(self._update_method_panel_spatial_background)
         form_spatial_background.addRow("Method:", self.method_selector_spatial_background)
         # --- Dynamic options container spatial background ---
+        #TODO: not all dynamic containers have default values. Add conditional values to stack if 'size' is present
         self.stack_spatial_background = QWidget()
         self.stack_spatial_background_layout = QVBoxLayout(self.stack_spatial_background)
         self.stack_spatial_background_layout.setContentsMargins(0, 0, 0, 0)
