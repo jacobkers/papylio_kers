@@ -126,8 +126,8 @@ class ClassificationWidget(QWidget):
         self.method_forms = {}  # method_name -> (widget, inputs)
         self.setLayout(main_layout)
 
-        self.register_method('threshold', classify_threshold)
-        self.register_method('hmm', classify_hmm)
+        self.register_method_for_classification('threshold', classify_threshold)
+        self.register_method_for_classification('hmm', classify_hmm)
         self.refresh_classifications()
 
     @property
@@ -154,8 +154,9 @@ class ClassificationWidget(QWidget):
     # -------------------------------------------------------------------------
     # Register methods dynamically and create their forms
     # -------------------------------------------------------------------------
-    def register_method(self, name, func):
+    def register_method_for_classification(self, name, func):
         """Register a classification method, introspect arguments, and build a form."""
+        #TODO: can we generalize this to common_layouts?
         self.methods[name] = func
         # --- build the form for the function ---
         skip_inputs = ['traces', 'classification', 'selection', 'seed','n_states', 'threshold_state_mean']

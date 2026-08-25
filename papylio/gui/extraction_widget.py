@@ -169,11 +169,11 @@ class ExtractionWidget(QWidget):
         self.setLayout(extraction_controls_layout)
 
         #collect peak finding methods for building flexible GUI forms
-        self.register_method_spot_detection('local-maximum-auto', find_peaks_local_maximum_auto)  #default  in GUI
-        self.register_method_spot_detection('absolute-threshold', find_peaks_absolute_threshold)
-        self.register_method_spot_detection('adaptive-threshold', find_peaks_adaptive_threshold)
-        self.register_method_spot_detection('local-maximum', find_peaks_local_maximum)
-        self.register_method_spot_detection('relative-local-maximum', find_peaks_relative_local_maximum)
+        self.register_method_for_spot_detection('local-maximum-auto', find_peaks_local_maximum_auto)  #default  in GUI
+        self.register_method_for_spot_detection('absolute-threshold', find_peaks_absolute_threshold)
+        self.register_method_for_spot_detection('adaptive-threshold', find_peaks_adaptive_threshold)
+        self.register_method_for_spot_detection('local-maximum', find_peaks_local_maximum)
+        self.register_method_for_spot_detection('relative-local-maximum', find_peaks_relative_local_maximum)
 
         self.file = None
 
@@ -192,10 +192,9 @@ class ExtractionWidget(QWidget):
     # -------------------------------------------------------------------------
     # Register methods dynamically and create their forms
     # -------------------------------------------------------------------------
-    def register_method_spot_detection(self, name, func):
+    def register_method_for_spot_detection(self, name, func):
         """Register a peak finding method, introspect arguments,
-        and build forms for spot_detection and acceptor channels"""
-
+        and build forms for spot_detection"""
         #spot_detection-------------------------:
         skip_inputs=['image']
         form_widget_spot_detection, inputs_spot_detection = build_form(func,skip_inputs)
@@ -204,7 +203,6 @@ class ExtractionWidget(QWidget):
         self.method_selector_spot_detection.addItem(name) #add options to appropriate selector box
         if self.method_selector_spot_detection.count() == 1: # First registered method becomes default
             self._update_method_panel_spot_detection(name)
-
 
     def _update_method_panel_spot_detection(self, name):
         # Clear the old form
