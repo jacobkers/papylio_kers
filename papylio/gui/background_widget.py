@@ -203,12 +203,18 @@ class MovieCorrectionsWidget(QWidget):
         and build forms for spot_detection"""
         #spatial background:
         skip_inputs=['input', 'output','footprint', 'origin', 'cval']
-        form_widget_spatial_background, inputs_spatial_background = build_form(func,skip_inputs)
+        defaults = {"size": "15"}
+        form_widget_spatial_background, inputs_spatial_background = build_form(func,skip_inputs, defaults)
+        # preset optional field
+
+
         self.methods_spatial_background[name] = func
         self.method_forms_spatial_background[name] = (form_widget_spatial_background, inputs_spatial_background)
         self.method_selector_spatial_background.addItem(name) #add options to appropriate selector box
         if self.method_selector_spatial_background.count() == 1: # First registered method becomes default
             self._update_method_panel_spatial_background(name)
+
+
 
     def _update_method_panel_spatial_background(self, name):
         # Clear the old form
