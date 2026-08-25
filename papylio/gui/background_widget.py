@@ -200,8 +200,8 @@ class MovieCorrectionsWidget(QWidget):
         #TODO: rewrite this correctly!!
         """Register a peak finding method, introspect arguments,
         and build forms for spot_detection"""
-        #spot_detection-------------------------:
-        skip_inputs=['image']
+        #spatial background:
+        skip_inputs=['input', 'output','footprint', 'origin', 'cval']
         form_widget_spatial_background, inputs_spatial_background = build_form(func,skip_inputs)
         self.methods_spatial_background[name] = func
         self.method_forms_spatial_background[name] = (form_widget_spatial_background, inputs_spatial_background)
