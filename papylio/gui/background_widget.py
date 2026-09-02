@@ -11,7 +11,7 @@ from papylio.gui.common_layouts import (Expander, HelpDialog,Group_Box,
 from matplotlib.backends.backend_qtagg import (
     FigureCanvas, NavigationToolbar2QT as NavigationToolbar)
 
-#for method registry:
+#for dynamic method registry:
 from scipy.ndimage import gaussian_filter,median_filter,minimum_filter
 
 """
@@ -80,8 +80,7 @@ class MovieCorrectionsWidget(QWidget):
         temporal_correction_layout.addRow("skip", self.skip_temporal_checkbox)
 
 
-
-        # dynamic form building box 3: spatial
+        # box 3: spatial correction. Box is composed from partly dynamic, partly fixed entry fields
         frame_spatial_correction = Group_Box(title="Spatial", highlight=False)
         frame_spatial_correction.setToolTip('"see help')
         form_spatial_background = QFormLayout(frame_spatial_correction)
@@ -90,8 +89,7 @@ class MovieCorrectionsWidget(QWidget):
         self.method_selector_spatial_background.setToolTip("Choose peak_find_method")
         self.method_selector_spatial_background.currentTextChanged.connect(self._update_method_panel_spatial_background)
         form_spatial_background.addRow("Method:", self.method_selector_spatial_background)
-        # --- Dynamic options container spatial background ---
-        #TODO: not all dynamic containers have default values. Add conditional values to stack if 'size' is present
+        # --- Dynamic options container, depends on method chosen ---
         self.stack_spatial_background = QWidget()
         self.stack_spatial_background_layout = QVBoxLayout(self.stack_spatial_background)
         self.stack_spatial_background_layout.setContentsMargins(0, 0, 0, 0)
@@ -102,7 +100,6 @@ class MovieCorrectionsWidget(QWidget):
         form_spatial_background.addRow("frame range", self.button_spatial_frame_range)
         #skipbox:
         self.skip_spatial_checkbox = QCheckBox()
-        # fill box:
         form_spatial_background.addRow("skip", self.skip_spatial_checkbox)
 
         # movie corrections box 4: general ---------------------------------
@@ -201,19 +198,15 @@ class MovieCorrectionsWidget(QWidget):
         #TODO: rewrite this correctly!!
         """Register a peak finding method, introspect arguments,
         and build forms for spot_detection"""
-        #spatial background:
+        #skips and defaults:
         skip_inputs=['input', 'output','footprint', 'origin', 'cval']
         defaults = {"size": "15"}
         form_widget_spatial_background, inputs_spatial_background = build_form(func,skip_inputs, defaults)
-        # preset optional field
-
-
         self.methods_spatial_background[name] = func
         self.method_forms_spatial_background[name] = (form_widget_spatial_background, inputs_spatial_background)
         self.method_selector_spatial_background.addItem(name) #add options to appropriate selector box
         if self.method_selector_spatial_background.count() == 1: # First registered method becomes default
             self._update_method_panel_spatial_background(name)
-
 
 
     def _update_method_panel_spatial_background(self, name):
