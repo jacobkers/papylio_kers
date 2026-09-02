@@ -5,6 +5,7 @@ from PySide2.QtWidgets import (
 from PySide2.QtCore import Qt
 import sys
 import io
+import textwrap
 
 
 from papylio.gui.common_layouts import HelpDialog
@@ -61,9 +62,9 @@ class ScriptBox(QWidget):
 
         #buttons:
 
-        self.load_button = QPushButton("Load")
-        self.load_button.clicked.connect(self.load_example)
-        self.load_button.setToolTip('Load pre-set script')
+        #self.load_button = QPushButton("Load")
+        #self.load_button.clicked.connect(self.load_example)
+        #self.load_button.setToolTip('Load pre-set script')
 
 
         self.run_button = QPushButton("Run")
@@ -84,7 +85,7 @@ class ScriptBox(QWidget):
         button_layout.addWidget(QLabel("Examples:"))
         button_layout.addWidget(self.combo_script)
         button_layout.addWidget(QLabel("Actions:"))
-        button_layout.addWidget(self.load_button)
+        #button_layout.addWidget(self.load_button)
         button_layout.addWidget(self.run_button)
         button_layout.addWidget(self.clear_button)
         button_layout.addStretch()
@@ -202,7 +203,8 @@ class ScriptBox(QWidget):
                 with open(filename, "r", encoding="utf-8") as f:
                     script = f.read()
 
-                self.script_edit.setPlainText(script)
+
+                self.script_box.setPlainText(textwrap.dedent(script).strip())
 
             return
 
