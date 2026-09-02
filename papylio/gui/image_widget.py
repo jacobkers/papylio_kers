@@ -12,7 +12,7 @@ from papylio.gui.common_layouts import (Expander, HelpDialog,Group_Box,
 class ImageWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.image_canvas = ImageCanvas(self, width=4, height=4, dpi=100)
+        self.image_canvas = ImageCanvas(self, width=8, height=8, dpi=100)
 
         # Create toolbar, passing canvas as first parament, parent (self, the MainWindow) as second.
         image_toolbar = NavigationToolbar(self.image_canvas, self)
@@ -36,9 +36,6 @@ class ImageWidget(QWidget):
         image_layout = QVBoxLayout()
         image_layout.addLayout(image_top_bar)
         image_layout.addWidget(self.image_canvas)
-
-
-
 
         #todo: if this image tab is popped up,
         # ..refresh it (to have last molecule there but not do this while scrolling traces)
