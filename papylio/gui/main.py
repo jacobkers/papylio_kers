@@ -87,8 +87,6 @@ class MainWindow(QMainWindow):
 
 
 
-
-
         # right side has a viewing pane (top) and
         # viewing panes
         self.top_tabs = QTabWidget()

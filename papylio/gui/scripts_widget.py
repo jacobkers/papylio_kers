@@ -36,14 +36,31 @@ class ScriptBox(QWidget):
         self.output = QPlainTextEdit()
         self.output.setReadOnly(True)
 
-        # ------------------------------------------------------------
-        # Buttons
-        # ------------------------------------------------------------
-        self.example_combo = QComboBox()
-        self.example_combo.setToolTip('Choose a pre-set example script')
-        for name in example_scripts:
-            self.example_combo.addItem(name)
+
+        self.combo_category = QComboBox()
+        self.combo_category.setToolTip("Choose a script category")
+
+        self.combo_script = QComboBox()
+        self.combo_script.setToolTip("Choose an example script")
+
+        self.combo_category.addItems(list(example_scripts.keys()))
+
+
+
+        self.combo_category.currentTextChanged.connect(
+            self.update_script_list
+        )
+
+        self.combo_script.currentTextChanged.connect(
+            self.load_example
+        )
+
+        self.update_script_list()
+
+
+
         #buttons:
+
         self.load_button = QPushButton("Load")
         self.load_button.clicked.connect(self.load_example)
         self.load_button.setToolTip('Load pre-set script')
@@ -62,8 +79,11 @@ class ScriptBox(QWidget):
 
         button_layout = QHBoxLayout()
 
+        button_layout.addWidget(QLabel("Theme:"))
+        button_layout.addWidget(self.combo_category)
         button_layout.addWidget(QLabel("Examples:"))
-        button_layout.addWidget(self.example_combo)
+        button_layout.addWidget(self.combo_script)
+        button_layout.addWidget(QLabel("Actions:"))
         button_layout.addWidget(self.load_button)
         button_layout.addWidget(self.run_button)
         button_layout.addWidget(self.clear_button)
@@ -190,6 +210,44 @@ class ScriptBox(QWidget):
         script = example_scripts[name]
         self.script_edit.setPlainText(script)
 
+    def update_script_list(self):
+        category = self.combo_category.currentText()
+
+        self.combo_script.clear()
+
+        self.combo_script.addItems(
+            list(example_scripts[category].keys())
+        )
+
+    def load_example(self):
+
+        category = self.combo_category.currentText()
+        name = self.combo_script.currentText()
+
+        # User's own script
+        if category == "My Script":
+
+            filename, _ = QFileDialog.getOpenFileName(
+                self,
+                "Select Python script",
+                "",
+                "Python files (*.py);;All files (*)"
+            )
+
+            if filename:
+                with open(filename, "r", encoding="utf-8") as f:
+                    script = f.read()
+
+                self.script_edit.setPlainText(script)
+
+            return
+
+        # Normal example script
+        if category in example_scripts and name in example_scripts[category]:
+            script = example_scripts[category][name]
+            self.script_edit.setPlainText(script)
+
+
     # ================================================================
     # Help
     # ================================================================
@@ -221,7 +279,10 @@ class ScriptBox(QWidget):
         <h3>Usage</h3>
         
         <p>
-        Hover over the buttons to see their functions 
+        <ul>
+          <li>Hover over the buttons to see their functions </li>
+          <li>Choose Theme and Example and Load to load example scripts </li>
+          <li>Before running, edit at wish </li>
         </p>
 
         <h3>Example</h3>
