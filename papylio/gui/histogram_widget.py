@@ -159,7 +159,7 @@ class HistogramCanvas_2D(FigureCanvas):
             self.draw()
 
     def refresh(self):
-        # 1D-histogram
+        # 2D-histogram
         self.fig_histogram_2D.clear()
         axis = self.fig_histogram_2D.subplots(1, 1, sharex=True)
         self.file.histogram_2D_intensity_per_channel(
