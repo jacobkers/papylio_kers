@@ -79,7 +79,7 @@ class MainWindow(QMainWindow):
         # Redirect stdout
 
         self.stream = Stream()
-        self.stream.new_text.connect(self.append_text)
+        self.stream.new_text.connect(self.append_text_console)
         sys.stdout = self.stream
         sys.stderr = self.stream  # optional
         self._stdout = sys.stdout
@@ -188,7 +188,7 @@ class MainWindow(QMainWindow):
         self.top_tabs.tabBar().currentChanged.connect(self.update_plots)
 
 
-    def append_text(self, text):
+    def append_text_console(self, text):
         text = re.sub(r"\n{2,}", "\n", text)
         cursor = self.console.textCursor()
         cursor.movePosition(QTextCursor.End)
