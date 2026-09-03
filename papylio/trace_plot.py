@@ -266,6 +266,7 @@ class TracePlotWindow(QWidget):
     @molecule_index.setter
     def molecule_index(self, molecule_index):
         self._molecule_index = molecule_index
+        #self.set_highlighted_molecule.emit(self._molecule_index)
         if self.dataset is not None and self.number_of_molecules_to_show > 0:
             self.molecule = self.dataset.isel(molecule=self.dataset_molecule_index)
 
@@ -296,6 +297,7 @@ class TracePlotWindow(QWidget):
         """Parse molecule index from the text field,
         update the current molecule"""
         self.molecule_index = int(self.molecule_index_field.text())
+        #self.set_highlighted_molecule.emit(self._molecule_index)
 
     def next_molecule(self):
         """Navigate to the next molecule in the current dataset."""

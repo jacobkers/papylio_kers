@@ -12,29 +12,30 @@ from papylio.gui.common_layouts import (Expander, HelpDialog,Group_Box,
 class ImageWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.image_canvas = ImageCanvas(self, width=4, height=4, dpi=100)
+        self.image_canvas = ImageCanvas(self, width=8, height=8, dpi=100)
 
         # Create toolbar, passing canvas as first parament, parent (self, the MainWindow) as second.
         image_toolbar = NavigationToolbar(self.image_canvas, self)
-        image_layout = QVBoxLayout()
-        image_layout.addWidget(image_toolbar)
-        image_layout.addWidget(self.image_canvas)
 
-        highlight_layout = QHBoxLayout()
-        highlight_label = QLabel("highlighted molecule")
+        image_top_bar = QHBoxLayout()
+        image_top_bar.addWidget(image_toolbar, 0.5)
+
+        #add highlight
         self.button_molecule_index = QSpinBox()
         self.button_molecule_index.setRange(0, 5000)
         self.button_molecule_index.setValue(0)
         self.button_molecule_index.valueChanged.connect(self.image_canvas.set_highlighted_molecule)
-        highlight_layout.addStretch()
-        highlight_layout.addWidget(highlight_label)
-        highlight_layout.addWidget(self.button_molecule_index)
 
-        image_layout.addLayout(highlight_layout)
+        image_top_bar.addWidget(QLabel("highlighted molecule"), 0.1)
+        image_top_bar.addWidget(self.button_molecule_index, 0.15)
+
         imaging_controls = build_control_layouts([
-             make_push_button('Help', self.show_image_help, None)])
-        image_layout.addWidget(imaging_controls)
+            make_push_button('Help', self.show_image_help, None)])
+        image_top_bar.addWidget(imaging_controls)
 
+        image_layout = QVBoxLayout()
+        image_layout.addLayout(image_top_bar)
+        image_layout.addWidget(self.image_canvas)
 
         #todo: if this image tab is popped up,
         # ..refresh it (to have last molecule there but not do this while scrolling traces)
