@@ -156,7 +156,7 @@ class MainWindow(QMainWindow):
 
 
         self.tab_widgets = [self.image, self.histograms, self.traces, self.setup_widget, self.mapping_widget, self.extraction_widget,
-                            self.selection_widget, self.classification_widget, self.kinetics_widget, self.script_widget]
+                            self.selection_widget, self.classification_widget, self.kinetics_widget, self.script_widget, self.movie_corrections_widget]
 
 
         # refresh & tree

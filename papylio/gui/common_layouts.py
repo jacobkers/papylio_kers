@@ -76,13 +76,13 @@ class Group_Box(QGroupBox):
         QGroupBox {
             border: 1px solid gray;
             border-radius: 3px;
-            margin-top: 10px;  /* space for title */
+            margin-top: 13px;  /* space for title */
         }
 
         QGroupBox::title {
             subcontrol-origin: margin;
             left: 10px;
-            padding: 0 3px 0 3px;
+            padding: 0 4px 0 4px;
         }
         """
 

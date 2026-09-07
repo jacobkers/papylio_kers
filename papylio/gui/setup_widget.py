@@ -65,6 +65,8 @@ class SetUpWidget(QWidget):
 
         movie_setup_layout.addRow("Number of channels", channel_layout)
 
+
+
         # movie corrections box 1: darkfield ---------------------------------
         frame_darkfield = Group_Box(title="Darkfield", highlight=False)
         frame_darkfield.setToolTip('"see help')
@@ -98,11 +100,19 @@ class SetUpWidget(QWidget):
         frame_flatfield_layout.addRow("method:", self.method_flatfield)
 
 
+        #basic:
         setup_layout = QHBoxLayout()
         setup_layout.setAlignment(Qt.AlignLeft)
         setup_layout.addWidget(frame_movie)
-        setup_layout.addWidget(frame_darkfield)
-        setup_layout.addWidget(frame_flatfield)
+        #advanced:
+        setup_layout_advanced = QHBoxLayout()
+        setup_layout_advanced.setAlignment(Qt.AlignLeft)
+        setup_layout_advanced.addWidget(frame_darkfield)
+        setup_layout_advanced.addWidget(frame_flatfield)
+
+        # build panel layout:
+        setup_advanced = Expander("Advanced")
+        setup_advanced.setContentLayout(setup_layout_advanced)
 
 
         start_help_button = build_control_layouts([
@@ -111,9 +121,12 @@ class SetUpWidget(QWidget):
 
 
         start_tab_layout = QVBoxLayout()
-        #TODO: development: keep invisible as long as it doesn't function:
-        # start_tab_layout.addWidget(setup_advanced)
         start_tab_layout.addLayout(setup_layout)
+
+        #advanced:-------------------------------------------
+        #TODO: placeholder for possible later addition, currently hidden
+        #start_tab_layout.addWidget(setup_advanced)
+        #----------------------------------------------------
         start_tab_layout.addStretch()
         start_tab_layout.addWidget(start_help_button)
         self.setLayout(start_tab_layout)
@@ -249,30 +262,52 @@ class SetUpWidget(QWidget):
                         <li> Unselect-select or 'refresh' </li>
                       </ol>
                     </p>
-                    
-                    <h3>Darkfield</h3>
-                    <p>
-                    Darkfield image: used to correct for unevenness of camera field, holds for all data movies. 
-                    It is assumed that a proper experimental file was acquired.
-                    </p>
-                    
-                     <h3>Flatfield</h3>
-                    <p>
-                    Flatfield image: used to correct for unevenness of illumination per illumination channel, holds for all data movies. 
-                    It is assumed that proper experimental files were acquired to determine these corrections.
-                    </p>
-                    </p>
-                    
-                    <p>
-                      For background, see
-                      <a href="https://papylio.readthedocs.io/en/stable//SPARXS/1_single_molecule_data_analysis.html#Spatial-shading-correction-(optional).html">
-                        Shading corrections
-                      </a>.
-                    </p>
-
                   </body>
                 </html>
                 """
         self.help_dialog = HelpDialog(self, help_text)
         # dialog.exec_()  # modal
         self.help_dialog.show()
+
+# < h3 > Darkfield < / h3 >
+# < p >
+# Darkfield
+# image: used
+# to
+# correct
+# for unevenness of camera field, holds for all data movies.
+# It is assumed
+# that
+# a
+# proper
+# experimental
+# file
+# was
+# acquired.
+# < / p >
+#
+# < h3 > Flatfield < / h3 >
+# < p >
+# Flatfield
+# image: used
+# to
+# correct
+# for unevenness of illumination per illumination channel, holds for all data movies.
+# It is assumed
+# that
+# proper
+# experimental
+# files
+# were
+# acquired
+# to
+# determine
+# these
+# corrections.
+# < / p >
+# < / p >
+#
+#
+#
+#
+#

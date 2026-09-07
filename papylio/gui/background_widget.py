@@ -45,29 +45,27 @@ class MovieCorrectionsWidget(QWidget):
         self.method_forms_spatial_background = {}
 
 
-        #movie corrections box 2: temporal ---------------------------------
-        frame_temporal_correction = Group_Box(title="Temporal", highlight=False)
-        frame_temporal_correction.setToolTip('"see help')
-        temporal_correction_layout = QFormLayout(frame_temporal_correction)
+        #movie corrections box 1: temporal ---------------------------------
+        self.frame_temporal_correction = Group_Box(title="Temporal", highlight=False)
+        self.frame_temporal_correction.setCheckable(True)
+        self.frame_temporal_correction.setChecked(False)
+
+        self.frame_temporal_correction.setToolTip('"see help')
+        temporal_correction_layout = QFormLayout(self.frame_temporal_correction)
         #method:
         self.method_temporal = QComboBox()
         self.method_temporal.setToolTip("Choose method")
         self.method_temporal.addItems(['BaSiC', 'any'])
-        # #frame range:
-        # self.button_frame_range = QLineEdit()
-        # self.button_frame_range.setText("[0, 20]")
-        #skipbox:
-        self.skip_temporal_checkbox = QCheckBox()
         # fill box:
         temporal_correction_layout.addRow("method:", self.method_temporal)
-        #temporal_correction_layout.addRow("frame range:", self.button_frame_range)
-        temporal_correction_layout.addRow("skip", self.skip_temporal_checkbox)
 
+        # box 2: spatial correction. Box is composed from partly dynamic, partly fixed entry fields
+        self.frame_spatial_correction = Group_Box(title="Spatial", highlight=False)
+        self.frame_spatial_correction.setCheckable(True)
+        self.frame_spatial_correction.setChecked(False)
 
-        # box 3: spatial correction. Box is composed from partly dynamic, partly fixed entry fields
-        frame_spatial_correction = Group_Box(title="Spatial", highlight=False)
-        frame_spatial_correction.setToolTip('"see help')
-        form_spatial_background = QFormLayout(frame_spatial_correction)
+        self.frame_spatial_correction.setToolTip('"see help')
+        form_spatial_background = QFormLayout(self.frame_spatial_correction)
         # --- Method selector spatial background---
         self.method_selector_spatial_background = QComboBox()
         self.method_selector_spatial_background.setToolTip("Choose peak_find_method")
@@ -82,14 +80,14 @@ class MovieCorrectionsWidget(QWidget):
         self.button_spatial_frame_range = QLineEdit()
         self.button_spatial_frame_range.setText("[0, 20]")
         form_spatial_background.addRow("frame range", self.button_spatial_frame_range)
-        #skipbox:
-        self.skip_spatial_checkbox = QCheckBox()
-        form_spatial_background.addRow("skip", self.skip_spatial_checkbox)
 
-        # movie corrections box 4: general ---------------------------------
-        frame_general_correction = Group_Box(title="General", highlight=False)
-        frame_general_correction.setToolTip('"see help')
-        general_correction_layout = QFormLayout(frame_general_correction)
+        # movie corrections box 3: general ---------------------------------
+        self.frame_general_correction = Group_Box(title="General", highlight=False)
+        self.frame_general_correction.setCheckable(True)
+        self.frame_general_correction.setChecked(False)
+
+        self.frame_general_correction.setToolTip('"see help')
+        general_correction_layout = QFormLayout(self.frame_general_correction)
         # method:
         self.method_general = QComboBox()
         self.method_general.setToolTip("Choose method")
@@ -97,13 +95,12 @@ class MovieCorrectionsWidget(QWidget):
         self.skip_general_checkbox = QCheckBox()
         # fill box:
         general_correction_layout.addRow("method:", self.method_general)
-        general_correction_layout.addRow("skip", self.skip_general_checkbox)
 
         this_tab_layout = QHBoxLayout()
         this_tab_layout.setAlignment(Qt.AlignLeft)
-        this_tab_layout.addWidget(frame_temporal_correction)
-        this_tab_layout.addWidget(frame_spatial_correction)
-        this_tab_layout.addWidget(frame_general_correction)
+        this_tab_layout.addWidget(self.frame_temporal_correction)
+        this_tab_layout.addWidget(self.frame_spatial_correction)
+        this_tab_layout.addWidget(self.frame_general_correction)
 
 
         # main action:
@@ -121,6 +118,7 @@ class MovieCorrectionsWidget(QWidget):
 
         self.file = None
         self.experiment = None
+
         # TODO: building
         # collect spatial filter methods for building flexible GUI forms
         #'median_filter', 'gaussian_filter', 'minimum_filter'
@@ -149,32 +147,19 @@ class MovieCorrectionsWidget(QWidget):
     def apply_corrections(self):
         # TODO: bring in panel settings and decide on shading approach
         file=self.file
-        # if 1: #not skip
-        #    #do shading correction (note: is this GUI-handy? Needs specification of files...
-        #    files_darkfield_correction[0].use_for_darkfield_correction()
-        #    # For green illumination
-        #    exp.determine_flatfield_and_darkfield_corrections(files_green_laser[::10], method='BaSiC',
-        #                                                      illumination_index=0, frame_index=2,
-        #                                                      estimate_darkfield=False, l_s=5, l_d=5)
-        #    # For red illumination
-        #    exp.determine_flatfield_and_darkfield_corrections(files_red_laser_before[::10], method='BaSiC',
-        #                                                      illumination_index=1,
-        #                                                      frame_index=2, estimate_darkfield=False, l_s=5, l_d=5)
-        #
-           # Uses the second frame of each file to determine the flatfield correction. l_s and l_d are parameters for the 'BaSiC' algorithm.
 
-        if not self.skip_temporal_checkbox.isChecked(): #not skip
+        if self.frame_temporal_correction.isChecked(): #not skip
             mth_t=get_button_value(self.method_temporal)
             file.movie.determine_temporal_background_correction(method=mth_t)
-        if not self.skip_spatial_checkbox.isChecked():
-            # spatial background (Gui_box 3):
+        if self.frame_spatial_correction.isChecked():
+            # spatial background (Gui_box 2):
             method_name_spatial_background = self.method_selector_spatial_background.currentText()
             _, inputs_spatial_background = self.method_forms_spatial_background[method_name_spatial_background]
             # kwargs for peak finding
             frs = get_button_value(self.button_spatial_frame_range)
             spatial_background_kwargs = build_parameters_input(method_name_spatial_background, inputs_spatial_background)
             file.movie.determine_spatial_background_correction(frame_range=frs, **spatial_background_kwargs)
-        if not self.skip_general_checkbox.isChecked():
+        if self.frame_general_correction.isChecked():
             file.movie.determine_general_background_correction(method='fit_background_peak')
 
     def register_method_for_spatial_background(self, name, func):
@@ -183,7 +168,7 @@ class MovieCorrectionsWidget(QWidget):
         and build forms for spot_detection"""
         #skips and defaults:
         skip_inputs=['input', 'output','footprint', 'origin', 'cval']
-        defaults = {"size": "15"}
+        defaults = {"size": "15", 'sigma': "10"}
         form_widget_spatial_background, inputs_spatial_background = build_form(func,skip_inputs, defaults)
         self.methods_spatial_background[name] = func
         self.method_forms_spatial_background[name] = (form_widget_spatial_background, inputs_spatial_background)
