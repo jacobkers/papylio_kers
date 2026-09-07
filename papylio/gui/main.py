@@ -30,7 +30,7 @@ from papylio.gui.histogram_widget import HistogramWidget
 from papylio.gui.common_layouts import HelpDialog
 from papylio.gui.show_image_widget import ImageWidget, ImageCanvas
 from papylio.gui.background_widget import MovieCorrectionsWidget
-from papylio.gui.image_widget import ImageWidget, ImageCanvas
+from papylio.gui.show_image_widget import ImageWidget, ImageCanvas
 from papylio.gui.scripts_widget import ScriptBox
 
 class MainWindow(QMainWindow):
@@ -117,14 +117,16 @@ class MainWindow(QMainWindow):
         # tab are set to which bottom widget is used:
         #start:
         self.setup_widget = SetUpWidget(parent=self)
-        tabs.addTab(self.setup_widget, 'Start')
-        #movie corrections:
-        self.movie_corrections_widget = MovieCorrectionsWidget(parent=self)
-        tabs.addTab(self.movie_corrections_widget, 'Background')
+        tabs.addTab(self.setup_widget, 'Setup')
+        tabs.tabBar().setTabTextColor(0, Qt.red)
         #mapping:
         self.mapping_widget = MappingWidget(parent=self)
         self.mapping_widget.request_top_tab_change.connect(self.top_tabs.setCurrentIndex)
         tabs.addTab(self.mapping_widget, 'Mapping')
+        tabs.tabBar().setTabTextColor(1, Qt.red)
+        # movie corrections:
+        self.movie_corrections_widget = MovieCorrectionsWidget(parent=self)
+        tabs.addTab(self.movie_corrections_widget, 'Background')
         #extraction:
         self.extraction_widget = ExtractionWidget(parent=self, top_tabs=self.top_tabs)
         self.extraction_widget.request_top_tab_change.connect(self.top_tabs.setCurrentIndex)

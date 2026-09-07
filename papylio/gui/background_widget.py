@@ -28,7 +28,7 @@ Any of these can be applied.
 If more than one are used, they have to be determined in the order 
 1) temporal, 
 2) spatial, 
-3) general,
+3) single_value
  
 ... as this is also the order in which they are applied. 
 Determining the corrections in a different order, 
@@ -43,23 +43,7 @@ class MovieCorrectionsWidget(QWidget):
         # self.parent = parent
         self.methods_spatial_background = {}
         self.method_forms_spatial_background = {}
-        # movie corrections box 1: shading ---------------------------------
-        frame_shading_correction = Group_Box(title="Shading", highlight=False)
-        frame_shading_correction.setToolTip('"see help')
-        shading_correction_layout = QFormLayout(frame_shading_correction)
-        # method:
-        self.method_shading = QComboBox()
-        self.method_shading.setToolTip("Choose method")
-        self.method_shading.addItems(['any', 'any'])
-        #frame range:
-        self.button_frame_range = QLineEdit()
-        self.button_frame_range.setText("[0, 20]")
-        # skipbox:
-        self.skip_shading_checkbox = QCheckBox()
-        # fill box:
-        shading_correction_layout.addRow("method:", self.method_shading)
-        # shading_correction_layout.addRow("frame range:", self.button_frame_range)
-        shading_correction_layout.addRow("skip", self.skip_shading_checkbox)
+
 
         #movie corrections box 2: temporal ---------------------------------
         frame_temporal_correction = Group_Box(title="Temporal", highlight=False)
@@ -117,7 +101,6 @@ class MovieCorrectionsWidget(QWidget):
 
         this_tab_layout = QHBoxLayout()
         this_tab_layout.setAlignment(Qt.AlignLeft)
-        this_tab_layout.addWidget(frame_shading_correction)
         this_tab_layout.addWidget(frame_temporal_correction)
         this_tab_layout.addWidget(frame_spatial_correction)
         this_tab_layout.addWidget(frame_general_correction)
@@ -228,13 +211,11 @@ class MovieCorrectionsWidget(QWidget):
                     <h2>Background corrections</h2>
 
                     <p>
-                    Optionally, one can perform shading (illumination) correction.
-                    Next, there are three types of background subtraction, to be performed in this order: 
+                    There are three types of background subtraction, to be performed in this order: 
                     </p>
                     
                     <p>
-                    <ol>
-                        <li> Shading correction 
+                    <ol> 
                         <li> Temporal background subtraction 
                         <li> Spatial background correction
                         <li> Single-value background correction
