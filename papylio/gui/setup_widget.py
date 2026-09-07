@@ -184,8 +184,8 @@ class SetUpWidget(QWidget):
                     <ul>
                       <li>Select and view movies and variables in the top panel</li>
                       <li>Walk the pipeline via the tabs in the bottom panel</li>
-                      <li>Blue tabs contain general setup functions (such as background treatment)</li>
-                      <li>Other tabs contain general setup functions (such as background treatment)</li>
+                      <li>Blue tabs contain general procedures (such as global background treatment)</li>
+                      <li>Other tabs contain per-movie procedures </li>
                       
                     </ul>
 

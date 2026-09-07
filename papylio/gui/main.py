@@ -118,12 +118,12 @@ class MainWindow(QMainWindow):
         #start:
         self.setup_widget = SetUpWidget(parent=self)
         tabs.addTab(self.setup_widget, 'Setup')
-        tabs.tabBar().setTabTextColor(0, Qt.red)
+        tabs.tabBar().setTabTextColor(0, Qt.blue)
         #mapping:
         self.mapping_widget = MappingWidget(parent=self)
         self.mapping_widget.request_top_tab_change.connect(self.top_tabs.setCurrentIndex)
         tabs.addTab(self.mapping_widget, 'Mapping')
-        tabs.tabBar().setTabTextColor(1, Qt.red)
+        tabs.tabBar().setTabTextColor(1, Qt.blue)
         # movie corrections:
         self.movie_corrections_widget = MovieCorrectionsWidget(parent=self)
         tabs.addTab(self.movie_corrections_widget, 'Background')
