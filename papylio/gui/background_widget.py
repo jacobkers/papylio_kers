@@ -117,7 +117,7 @@ class MovieCorrectionsWidget(QWidget):
         self.setLayout(start_tab_layout)
 
         self.file = None
-        #self.experiment = None
+        self.experiment = None
 
         # TODO: building
         # collect spatial filter methods for building flexible GUI forms
@@ -145,12 +145,13 @@ class MovieCorrectionsWidget(QWidget):
             self.update_button_settings()
 
     def apply_corrections(self):
-        file = self.experiment.selectedFiles[0]
+        file = self.parent.experiment.selectedFiles[0]
         # file=self.file
 
         if self.frame_temporal_correction.isChecked(): #not skip
             mth_t=get_button_value(self.method_temporal)
             file.movie.determine_temporal_background_correction(method=mth_t)
+            print('temporal correction done')
         if self.frame_spatial_correction.isChecked():
             # spatial background (Gui_box 2):
             method_name_spatial_background = self.method_selector_spatial_background.currentText()
@@ -159,8 +160,10 @@ class MovieCorrectionsWidget(QWidget):
             frs = get_button_value(self.button_spatial_frame_range)
             spatial_background_kwargs = build_parameters_input(method_name_spatial_background, inputs_spatial_background)
             file.movie.determine_spatial_background_correction(frame_range=frs, **spatial_background_kwargs)
+            print('spatial correction done')
         if self.frame_general_correction.isChecked():
             file.movie.determine_general_background_correction(method='fit_background_peak')
+            print('fixed-value correction done')
 
     def register_method_for_spatial_background(self, name, func):
         """Register a peak finding method, introspect arguments,
