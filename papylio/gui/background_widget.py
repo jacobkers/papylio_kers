@@ -55,7 +55,7 @@ class MovieCorrectionsWidget(QWidget):
         #method:
         self.method_temporal = QComboBox()
         self.method_temporal.setToolTip("Choose method")
-        self.method_temporal.addItems(['BaSiC', 'any'])
+        self.method_temporal.addItems(['median', 'any'])
         # fill box:
         temporal_correction_layout.addRow("method:", self.method_temporal)
 
