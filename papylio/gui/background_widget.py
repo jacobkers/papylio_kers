@@ -40,7 +40,7 @@ class MovieCorrectionsWidget(QWidget):
     def __init__(self, parent=None):
         super(MovieCorrectionsWidget, self).__init__(parent)
 
-        # self.parent = parent
+        self.parent = parent
         self.methods_spatial_background = {}
         self.method_forms_spatial_background = {}
 
@@ -117,7 +117,7 @@ class MovieCorrectionsWidget(QWidget):
         self.setLayout(start_tab_layout)
 
         self.file = None
-        self.experiment = None
+        #self.experiment = None
 
         # TODO: building
         # collect spatial filter methods for building flexible GUI forms
@@ -145,8 +145,8 @@ class MovieCorrectionsWidget(QWidget):
             self.update_button_settings()
 
     def apply_corrections(self):
-        # TODO: bring in panel settings and decide on shading approach
-        file=self.file
+        file = self.experiment.selectedFiles[0]
+        # file=self.file
 
         if self.frame_temporal_correction.isChecked(): #not skip
             mth_t=get_button_value(self.method_temporal)
@@ -163,7 +163,6 @@ class MovieCorrectionsWidget(QWidget):
             file.movie.determine_general_background_correction(method='fit_background_peak')
 
     def register_method_for_spatial_background(self, name, func):
-        #TODO: rewrite this correctly!!
         """Register a peak finding method, introspect arguments,
         and build forms for spot_detection"""
         #skips and defaults:
