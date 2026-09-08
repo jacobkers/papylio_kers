@@ -61,18 +61,18 @@ file.create_selection(variable='intensity', channel='red', aggregator='max', ope
 file.apply_selections()
 """,
 
-    "Set as single_channel green": """
+    "Set single_chan green": """
 # Set as single channel_green
-for file in file_selection:
-    file.movie.channels = [file.movie.channels[0]]
-    file.movie.channel_arrangement = np.array([[[0]]])"""
+import numpy as np
+file.movie.channels = [file.movie.channels[0]] 
+file.movie.channel_arrangement = np.array([[[0]]])"""
  ,
-    
- "Set as single_channel red":  """
-    # Set as single channel_red
-    for file in file_selection:
-    file.movie.channels = file.movie.channels[1:]
-    file.movie.channel_arrangement = np.array([[[0, ]]])
+
+    "Set as single_channel red":  """
+# Set as single channel_red
+import numpy as np
+file.movie.channels = file.movie.channels[1:]
+file.movie.channel_arrangement = np.array([[[0, ]]])
 """,
 }
 
