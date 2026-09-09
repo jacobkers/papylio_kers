@@ -22,6 +22,7 @@ class HistogramWidget(QWidget):
         self.histogram_canvas_1D_FRET = HistogramCanvas_1D(
             self.fig_histogram_1D_FRET,
             variable = 'FRET',
+
             bins = np.arange(-0.05, 1.06, 0.01)
         )
 
