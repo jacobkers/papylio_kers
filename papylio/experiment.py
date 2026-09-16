@@ -862,7 +862,7 @@ class Experiment:
             # import wx.lib.inspection
             # wx.lib.inspection.InspectionTool().Show()
             # app.MainLoop()
-            from papylio.trace_plot import TracePlotWindow
+            from papylio.data_viewer import TracePlotWindow
             TracePlotWindow(dataset=ds_sel, save_path=None, **kwargs)
 
     def export_number_of_molecules_per_file(self):

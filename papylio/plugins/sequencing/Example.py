@@ -400,7 +400,7 @@ eds['Molecule count'] = cc
 eds.to_netcdf(r'N:\tnw\BN\CMJ\Shared\Ivo\PhD_data\20220602 - Objective-type TIRF (BN)\Analysis\HJ7 mutations\fraction_anticorrelation.nc')
 
 
-from papylio.trace_plot import TracePlotWindow
+from papylio.data_viewer import TracePlotWindow
 from papylio.experiment import get_QApplication
 app = get_QApplication()
 frame = TracePlotWindow(ds_seq, plot_variables=['intensity', 'FRET', 'classification_anticorrelation'],

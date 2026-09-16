@@ -220,7 +220,7 @@ def show_image_3d(image, figure=None):
                       linewidth=0, antialiased=False)
 
 def wysiwyg_export(fig, filepath, filename, filetype="csv"):
-#Export the as-seen lines and bars of one or more figure panels [ai-generated]
+#Export the as-seen lines and bars of one or more figure panels
     axes = fig.get_axes()
     export_dict = {}
 

@@ -23,17 +23,12 @@ matplotlib.use('Qt5Agg')
 
 import matplotlib.pyplot as plt
 
-# from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg as FigureCanvas
-# from matplotlib.backends.backend_wxagg import NavigationToolbar2WxAgg as NavigationToolbar
-# from matplotlib.backends.backend_qtagg import FigureCanvas
-# from matplotlib.backends.backend_qtagg import NavigationToolbar2QT as NavigationToolbar
 
 import numpy as np
 from pathlib2 import Path
 
-from PySide2.QtWidgets import (QMainWindow, QPushButton, QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QCheckBox, QLabel,
-                               QTableWidget, QTableWidgetItem, QHeaderView, QTreeView, QStyledItemDelegate,
-                               QAbstractItemView)
+from PySide2.QtWidgets import (QTabWidget, QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QCheckBox, QLabel,
+                     QHeaderView, QTreeView   )
 from PySide2.QtGui import QStandardItemModel, QStandardItem, QColor
 from PySide2.QtGui import QKeySequence, QCloseEvent, QDragMoveEvent
 from PySide2.QtCore import Qt, QModelIndex, Signal
@@ -52,7 +47,7 @@ from matplotlib.backends.backend_qt5agg import (
     FigureCanvasQTAgg, NavigationToolbar2QT as NavigationToolbar)
 from matplotlib.figure import Figure
 
-
+from papylio.gui.histogram_widget import HistogramWidget   #TODO: temporal!!!
 
 class TracePlotWindow(QWidget):
     """Interactive window for browsing and annotating molecule traces.
@@ -105,7 +100,7 @@ class TracePlotWindow(QWidget):
 
         self.parent = parent
 
-        self.setWindowTitle("Traces")
+        self.setWindowTitle("Data Viewer")
 
         if save_path is None:
             self.save_path = save_path
@@ -114,19 +109,24 @@ class TracePlotWindow(QWidget):
 
         # self._dataset = dataset
 
-        self.canvas = TracePlotCanvas(self, width=width, height=height, dpi=100)
 
+        # viewing panes
+        self.viewer_tabs = QTabWidget()
+        self.viewer_tabs.setTabPosition(QTabWidget.North)
+        self.viewer_tabs.setMovable(False)
+        self.viewer_tabs.setDocumentMode(True)
+
+        # -----------------------------------
+        # section for building trace panel:
+        # -----------------------------------
+        self.canvas = TracePlotCanvas(self, width=width, height=height, dpi=100)
         # Create toolbar, passing canvas as first parament, parent (self, the MainWindow) as second.
         toolbar = NavigationToolbar(self.canvas, self)
-
-        layout = QVBoxLayout()
-
+        trace_layout = QVBoxLayout()
         layout_bar = QHBoxLayout()
         layout_bar.addWidget(toolbar, 0.5)
-
         self.molecule_index_field = QLineEdit()
         self.molecule_index_field.setFixedWidth(70)
-
         layout_bar.addWidget(self.molecule_index_field, 0.05)
         layout_bar.addWidget(QLabel(' out of '), 0.05)
         self.number_of_molecules_label = QLabel('0')
@@ -138,29 +138,42 @@ class TracePlotWindow(QWidget):
         self.selected_molecules_checkbox.setCheckState(Qt.PartiallyChecked)
         self.selected_molecules_checkbox.stateChanged.connect(self.on_selected_molecules_checkbox_state_change)
         self.selected_molecules_checkbox.setFocusPolicy(Qt.NoFocus)
-
-
         layout_bar.addWidget(QLabel('Selected'),0.1)
         layout_bar.addWidget(self.selected_molecules_checkbox, 0.15)
-
         self.molecule_index_field.returnPressed.connect(self.set_molecule_index_from_molecule_index_field)
         self.molecule_index_field.returnPressed.connect(self.deactivate_line_edit)
 
+        trace_layout.addLayout(layout_bar)
+        trace_layout.addWidget(self.canvas)
 
-        layout.addLayout(layout_bar)
-        layout.addWidget(self.canvas)
+        trace_controls_layout=QHBoxLayout()
+        # plot_range:
+        trace_controls_layout.addWidget(QLabel('plot_range'), 0.1)
+        self.button_plot_range = QLineEdit()
+        self.button_plot_range.setToolTip('choose plot ranges (s)')
+        self.button_plot_range.setText("[(0,2)]")
+        trace_controls_layout.addWidget(self.button_plot_range)
 
+        trace_layout.addLayout(trace_controls_layout)
+
+
+
+        trace_widget = QWidget()
+        trace_widget.setLayout(trace_layout)
+        self.viewer_tabs.addTab(trace_widget, 'Traces')
+        hist_widget = HistogramWidget()  #TODO: temporal!!!
+        self.viewer_tabs.addTab(hist_widget, 'Histograms')
         # self.setLayout(layout)
         # Create a placeholder widget to hold our toolbar and canvas.
-        # widget = QWidget()
-        # widget.setLayout(layout)
+
         # self.setCentralWidget(widget)
 
         self.plot_configuration = PlotConfiguration(parent=self, canvas=self.canvas, initial_plot_settings=plot_settings)
         self.plot_configuration.setMinimumWidth(250)
 
         layout_main = QHBoxLayout()
-        layout_main.addLayout(layout, stretch=4)
+        layout_main.addWidget(self.viewer_tabs)
+        #layout_main.addLayout(trace_layout, stretch=4)
         layout_main.addWidget(self.plot_configuration, stretch=1)
         self.setLayout(layout_main)
 
@@ -266,6 +279,7 @@ class TracePlotWindow(QWidget):
     @molecule_index.setter
     def molecule_index(self, molecule_index):
         self._molecule_index = molecule_index
+
         #self.set_highlighted_molecule.emit(self._molecule_index)
         if self.dataset is not None and self.number_of_molecules_to_show > 0:
             self.molecule = self.dataset.isel(molecule=self.dataset_molecule_index)
@@ -977,18 +991,7 @@ class TracePlotCanvas(FigureCanvasQTAgg):
             if i == 0:
                 self.title_artist = self.plot_axes[trace_artist.axis_name].set_title('Init')
 
-        # self.artists += [self.intensity_plot.plot(g, c='g')]
-        # self.artists += [self.intensity_plot.plot(r, c='r')]
-        # self.artists += [self.FRET_plot.plot(e, c='b')]
-        # self.artists += [[self.intensity_plot.set_title('test')]]
-        # self.artists += [self.intensity_histogram.hist(g, bins=100, orientation='horizontal',
-        #                                                range=self.intensity_plot.get_ylim(), color='g', alpha=0.5)[2]]
-        # self.artists += [self.intensity_histogram.hist(r, bins=100, orientation='horizontal',
-        #                                                range=self.intensity_plot.get_ylim(), color='r', alpha=0.5)[2]]
-        # self.artists += [self.FRET_histogram.hist(e, bins=100, orientation='horizontal',
-        #                                           range=self.FRET_plot.get_ylim(), color='b')[2]]
 
-        # self.axes[1].plot(molecule.E(), animate=True)
         artists = [self.title_artist] + \
                   [plot_artist for trace_artist in self.trace_artists for plot_artist in trace_artist.plot_artists] + \
                   [bar for trace_artist in self.trace_artists for histogram_artist in trace_artist.histogram_artists for bar in histogram_artist]
@@ -1083,25 +1086,7 @@ class TracePlotCanvas(FigureCanvasQTAgg):
 
             trace_artist.update(plot_settings, data)
 
-
-
-
-
-        # self.artists[0][0].set_ydata(g)
-        # self.artists[1][0].set_ydata(r)
-        # self.artists[2][0].set_ydata(e)
-        # self.artists[3][0].set_text(molecule.sequence_name.values)
-        # n, _ = np.histogram(g, 100, range=self.intensity_plot.get_ylim())
-        # for count, artist in zip(n, self.artists[4]):
-        #     artist.set_width(count)
-        # n, _ = np.histogram(r, 100, range=self.intensity_plot.get_ylim())
-        # for count, artist in zip(n, self.artists[5]):
-        #     artist.set_width(count)
-        # n, _ = np.histogram(e, 100, range=self.FRET_plot.get_ylim())
-        # for count, artist in zip(n, self.artists[6]):
-        #     artist.set_width(count)
-        #     #for count, rect in zip(n, bar_container.patches):
-        # tell the blitting manager to do its thing
+        # tell the blitting manager to do its thing:
         self.bm.update()
 
     def set_plot_range(self, plot_variable, plot_range):
@@ -1222,34 +1207,12 @@ class BlitManager:
         # let the GUI event loop process anything it has to do
         # cv.flush_events()
 
-# class MainWindow(wx.Frame):
-#    def __init__(self, parent, title):
-#        wx.Frame.__init__(self, parent, title=title, size=(300, 700))
-#        self.parent = parent
-#        self.panel = TraceAnalysisPanel(parent=self)
-#        # self.Bind(wx.EVT_CLOSE, self.OnClose)
-#        self.Show()
-
-
 
 if __name__ == "__main__":
 
-    # # Check whether there is already a running QApplication (e.g., if running
-    # # from an IDE).
-    # qapp = QtWidgets.QApplication.instance()
-    # if not qapp:
-    #     qapp = QtWidgets.QApplication(sys.argv)
-    #
-    # app = ApplicationWindow()
-    # app.show()
-    # app.activateWindow()
-    # app.raise_()
-    # qapp.exec_()
-
-
     import papylio as pp
-    exp = pp.Experiment(r'C:\Users\ivoseverins\surfdrive\Promotie\Code\Python\traceAnalysis\twoColourExampleData\20141017 - Holliday junction - Copy')
-    ds = exp.files[0].dataset
+    exp = pp.Experiment(r'C:\Users\jkerssemakers\OneDrive - Delft University of Technology\Documents\GitHub\Papylio example dataset_flat')
+    ds = exp.files[1].dataset
 
     from PySide2.QtWidgets import QApplication
 
@@ -1259,264 +1222,5 @@ if __name__ == "__main__":
         #          ylims=[(0, 1000), (0, 1), (-1,2)], colours=[('g', 'r'), ('b'), ('k')])
 
     app.exec_()
-
-    # # exp = pp.Experiment(r'D:\20200918 - Test data\Single-molecule data small')
-    # #exp = pp.Experiment(r'P:\SURFdrive\Promotie\Data\Test data')
-    # # exp = pp.Experiment(r'/Users/ivoseverins/SURFdrive/Promotie/Data/Test data')
-    # # print(exp.files)
-    # # m = exp.files[1].molecules[0]
-    # # print(exp.files[2])
-    # import xarray as xr
-    # #file_paths = [p for p in exp.nc_file_paths if '561' in str(p)]
-    # file_paths = [exp.nc_file_paths[0]]
-    # with xr.open_mfdataset(file_paths, concat_dim='molecule', combine='nested') as ds:
-    #     # ds_sel = ds.sel(molecule=ds.sequence_name=='HJ7_G')# .reset_index('molecule', drop=True) # HJ1_WT, HJ7_G116T
-    #     app = wx.App(False)
-    #     # app = wit.InspectableApp()
-    #     frame = TraceAnalysisFrame(None, ds, "Sample editor", plot_variables=['intensity', 'FRET'], #'classification'],
-    #              ylims=[(0, 1000), (0, 1), (-1,2)], colours=[('g', 'r'), ('b'), ('k')])
-    #     # frame.molecules = exp.files[1].molecules
-    #     print('test')
-    #     import wx.lib.inspection
-    #     wx.lib.inspection.InspectionTool().Show()
-    #     app.MainLoop()
-
-
-
-
-
-# Add time to existing .nc file
-# for file in exp.files:
-#     with xr.open_dataset(file.absoluteFilePath.with_suffix('.nc')) as ds:
-#         i = ds.intensity.load()
-#     test = i.assign_coords(time=file.movie.time)
-#     test.to_netcdf(file.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
-
-
-#
-# from matplotlib import use
-# use('TkAgg')
-#
-# import papylio as pp
-# exp = pp.Experiment(r'D:\SURFdrive\Promotie\Code\Python\papylio\twoColourExampleData\20141017 - Holliday junction - Copy')
-# #exp = pp.Experiment(r'J:\Ivo\20200221 - Magnetic tweezers setup (Old)\Data')
-# # exp.files[-2].perform_mapping()
-# # exp.files[-2].mapping.show_mapping_transformation()
-
-# class B:
-#     def __init__(self):
-#         print('Badd')
-#         super().__init__()
-#
-#
-#
-# class A:
-#     def __init__(self):
-#         print('A')
-#
-#
-# def test(c):
-#     return type(c.__name__, (c,B),{})
-#
-#
-# @test
-# class Bo(A):
-#     def __init__(self):
-#         print('Bo')
-#         super().__init__()
-#
-
-
-
-# class B:
-#     def __init__(self):
-#         print('Badd')
-#         super().__init__()
-#
-# # class PluginMetaClass(type):
-# #     def __new__(cls, clsname, bases, attrs):
-# #         bases_base = tuple(base for base in bases if not base.__name__ is clsname)
-# #         attrs.pop('__qualname__')
-# #         cls_base = type(clsname+'_base', bases_base, attrs)
-# #         bases_main = tuple(base for base in bases if base.__name__ is clsname) + (cls_base,)
-# #         return super().__new__(cls, clsname, bases_main, {})
-# class PluginMetaClass(type):
-#     def __new__(cls, clsname, bases_base, attrs):
-#         # bases_base = tuple(base for base in bases if not base.__name__ is clsname)
-#         attrs_base = attrs.copy()
-#         attrs_base.pop('__qualname__')
-#         #attrs_base.pop('__module__')
-#         #attrs_base.pop('__classcell__')
-#         cls_base = super().__new__(cls, clsname, bases_base, attrs_base)
-#         #cls_base = type(clsname, bases_base, attrs)
-#         added_bases = (B,)
-#         bases_main = added_bases + (cls_base,)
-#         test = super().__new__(cls, clsname+'main', bases_main,{})
-#         print('test')
-#         return test
-#
-# class A:
-#     def __init__(self):
-#         print('A')
-#
-# class Bo(A, metaclass=PluginMetaClass):
-#     def __init__(self):
-#         print('Bo')
-#         super().__init__()
-#
-
-
-
-# exp = pp.Experiment(r'P:\SURFdrive\Promotie\Code\Python\papylio\twoColourExampleData\20141017 - Holliday junction - Copy')
-# # exp = pp.Experiment(r'D:\SURFdrive\Promotie\Code\Python\papylio\twoColourExampleData\20141017 - Holliday junction - Copy')
-# exp.files[-1].use_mapping_for_all_files()
-
-
-
-# def add_class_to_class(base_class):
-#     def add_class_to_class_decorator(added_class):
-#         base_class.__bases__ += (added_class,)
-#     return add_class_to_class_decorator
-#
-# @add_class_to_class(pp.File)
-# class ExperimentPlugIn():
-#     def test(self):
-#         print(self.name)
-
-
-
-# exp.files[0].find_coordinates()
-#
-#
-# # #exp = pp.Experiment(r'D:\ivoseverins\SURFdrive\Promotie\Code\Python\papylio\twoColourExampleData\20191209 - Single-molecule setup (TIR-I)')
-# # exp.files[0].perform_mapping(transformation_type='nonlinear')
-# #
-# import matplotlib.pyplot as plt
-# figure = plt.figure()
-# #exp.files[0].show_average_image(figure=figure)
-# plt.imshow(exp.files[0].movie.maximum_projection_image)
-# exp.files[0].show_coordinates(figure=figure)
-# #exp.files[0].mapping.show_mapping_transformation(figure=figure)
-
-
-
-# exp.files[-1].use_mapping_for_all_files()
-
-from papylio.plotting import histogram
-# exp.files[7].histogram(bins = 100, molecule_averaging=True, export=True)
-# exp.histogram(bins = 100, molecule_averaging=True, export=True)
-#
-# import sys
-# #sys.path.append(r'D:\ivoseverins\SURFdrive\Promotie\Code\Python\fastqAnalysis')
-# sys.path.append(r'D:\SURFdrive\Promotie\Code\Python\fastqAnalysis')
-#
-# from papylio.traceAnalysisCode import Experiment
-# from fastqAnalysis import FastqData
-#
-# from pathlib import Path # For efficient path manipulation
-#
-# path = Path(r'G:\Ivo\20190918 - Sequencer (MiSeq)\Analysis')
-# #path = 'D:\\ivoseverins\\Desktop\\Sequencing data\\20180705\\'
-# #path = 'C:\\Users\\Ivo Severins\\Desktop\\Sequencing data\\20180705\\'
-# fileName = r'One_S1_L001_R1_001.fastq'
-#
-#
-# data = FastqData(path.joinpath(fileName))
-#
-# data.selection(sequence = 'AA')
-#
-# data.matches_per_tile(sequence = 'TATCTGTATAATGAGAAATATGGAGTACAATTTTTTTTTTTTTTTTTTTT')
-
-
-
-
-
-
-
-
-
-#import wx
-#
-#
-#class OtherFrame(wx.Frame):
-#    """
-#    Class used for creating frames other than the main one
-#    """
-#
-#    def __init__(self, title, parent=None):
-#        wx.Frame.__init__(self, parent=parent, title=title)
-#        self.Show()
-#
-#
-#class MyPanel(wx.Panel):
-#
-#    def __init__(self, parent):
-#        wx.Panel.__init__(self, parent)
-#
-#        btn = wx.Button(self, label='Create New Frame')
-#        btn.Bind(wx.EVT_BUTTON, self.on_new_frame)
-#        self.frame_number = 1
-#
-#    def on_new_frame(self, event):
-#        title = 'SubFrame {}'.format(self.frame_number)
-#        frame = OtherFrame(title=title)
-#        self.frame_number += 1
-#
-#
-#class MainFrame(wx.Frame):
-#
-#    def __init__(self):
-#        wx.Frame.__init__(self, None, title='Main Frame', size=(800, 600))
-#        panel = MyPanel(self)
-#        self.Show()
-#
-#
-#if __name__ == '__main__':
-#    app = wx.App(False)
-#    frame = MainFrame()
-#    app.MainLoop()
-
-
-# #!/usr/bin/env python
-# import wx
-# import wx.dataview
-# import wx.lib.agw.aui as aui
-# import os
-#
-# import wx.lib.agw.customtreectrl as CT
-# #from traceAnalysisCode import Experiment
-# import wx.lib.agw.hypertreelist as HTL
-#
-#
-# import matplotlib as mpl
-# from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg as FigureCanvas
-# from matplotlib.backends.backend_wxagg import NavigationToolbar2WxAgg as NavigationToolbar
-#
-# from matplotlib import use
-# use('WXAgg')
-# from matplotlib import pyplot as plt
-# #import matplotlib.pyplot as plt
-#
-#
-#
-# class MyFrame(wx.Frame):
-#     """ We simply derive a new class of Frame. """
-#     def __init__(self, parent, title):
-#         wx.Frame.__init__(self, parent, title=title, size=(400,400))
-#         tree_list = HTL.HyperTreeList(self)
-#
-#         tree_list.AddColumn("First column")
-#
-#         root = tree_list.AddRoot("Root")
-#
-#         parent = tree_list.AppendItem(root, "First child")
-#         child = tree_list.AppendItem(parent, "First Grandchild")
-#
-#         tree_list.AppendItem(root, "Second child", ct_type=1)
-#         self.Show(True)
-#
-# app = wx.App(False)
-# frame = MyFrame(None, 'Small editor')
-# app.MainLoop()
 
 

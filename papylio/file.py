@@ -2567,7 +2567,7 @@ class File:
         if not save_path.is_dir():
             save_path.mkdir()
 
-        from papylio.trace_plot import TracePlotWindow
+        from papylio.data_viewer import TracePlotWindow
         TracePlotWindow(dataset=dataset, split_illuminations=split_illuminations, save_path=save_path, **kwargs)
 
 
