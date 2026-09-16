@@ -21,6 +21,7 @@ import numpy as np
 import papylio as pp
 from papylio import Experiment, File
 from papylio.trace_plot import TracePlotWindow
+from papylio.hist_plot import HistPlotWindow
 from papylio.gui.setup_widget import SetUpWidget
 from papylio.gui.selection_widget import SelectionWidget
 from papylio.gui.classification_widget import ClassificationWidget
@@ -97,6 +98,7 @@ class MainWindow(QMainWindow):
 
 
         self.traces = TracePlotWindow(parent=self, width=4, height=5, show=False)
+        self.histograms_new = HistPlotWindow(parent=self, width=4, height=5, show=False)
 
         self.image = ImageWidget(parent=self)
         self.traces.set_highlighted_molecule.connect(self.image.image_canvas.set_highlighted_molecule)
@@ -105,6 +107,7 @@ class MainWindow(QMainWindow):
         self.top_tabs.addTab(self.image, 'Image')
         self.top_tabs.addTab(self.traces, 'Traces')
         self.top_tabs.addTab(self.histograms, 'Histograms')
+        self.top_tabs.addTab(self.histograms_new, 'New Histograms')
 
 
 
@@ -148,7 +151,7 @@ class MainWindow(QMainWindow):
 
 
 
-        self.tab_widgets = [self.image, self.histograms, self.traces, self.setup_widget, self.mapping_widget, self.extraction_widget,
+        self.tab_widgets = [self.image, self.histograms, self.histograms_new, self.traces, self.setup_widget, self.mapping_widget, self.extraction_widget,
                             self.selection_widget, self.classification_widget, self.kinetics_widget, self.script_widget]
 
 

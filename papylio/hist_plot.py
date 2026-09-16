@@ -54,7 +54,7 @@ from matplotlib.figure import Figure
 
 
 
-class TracePlotWindow(QWidget):
+class HistPlotWindow(QWidget):
     """Interactive window for browsing and annotating molecule traces.
 
     Presents an interactive canvas with plotting controls, molecule selection,
@@ -114,7 +114,7 @@ class TracePlotWindow(QWidget):
 
         # self._dataset = dataset
 
-        self.canvas = TracePlotCanvas(self, width=width, height=height, dpi=100)
+        self.canvas = HistPlotCanvas(self, width=width, height=height, dpi=100)
 
         # Create toolbar, passing canvas as first parament, parent (self, the MainWindow) as second.
         toolbar = NavigationToolbar(self.canvas, self)
@@ -783,7 +783,7 @@ class TraceArtist:
                 bar.set_alpha(int(show)*0.5)
 
 
-class TracePlotCanvas(FigureCanvasQTAgg):
+class HistPlotCanvas(FigureCanvasQTAgg):
     """Matplotlib canvas specialized for efficient trace updates.
 
     Creates axes and artists for each enabled plot variable, manages per-molecule
@@ -1254,7 +1254,7 @@ if __name__ == "__main__":
     from PySide2.QtWidgets import QApplication
 
     app = QApplication(sys.argv)
-    frame = TracePlotWindow(ds)
+    frame = HistPlotWindow(ds)
         #, "Sample editor", plot_variables=['intensity', 'FRET'],  # 'classification'],
         #          ylims=[(0, 1000), (0, 1), (-1,2)], colours=[('g', 'r'), ('b'), ('k')])
 
