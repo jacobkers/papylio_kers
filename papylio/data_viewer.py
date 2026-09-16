@@ -125,6 +125,14 @@ class TracePlotWindow(QWidget):
         trace_layout = QVBoxLayout()
         layout_bar = QHBoxLayout()
         layout_bar.addWidget(toolbar, 0.5)
+        # plot_range:
+        layout_bar.addWidget(QLabel('any setting'), 0.1)
+        self.button_plot_range = QLineEdit()
+        self.button_plot_range.setToolTip('any')
+        self.button_plot_range.setText("any")
+        layout_bar.addWidget(self.button_plot_range)
+
+        layout_bar.addWidget(QLabel('molecule'), 0.1)
         self.molecule_index_field = QLineEdit()
         self.molecule_index_field.setFixedWidth(70)
         layout_bar.addWidget(self.molecule_index_field, 0.05)
@@ -132,6 +140,8 @@ class TracePlotWindow(QWidget):
         self.number_of_molecules_label = QLabel('0')
         self.number_of_molecules_label.setFixedWidth(70)
         layout_bar.addWidget(self.number_of_molecules_label, 0.15)
+
+
         self._selection_state = 1
         self.selected_molecules_checkbox = QCheckBox()
         self.selected_molecules_checkbox.setTristate(True)
@@ -147,14 +157,9 @@ class TracePlotWindow(QWidget):
         trace_layout.addWidget(self.canvas)
 
         trace_controls_layout=QHBoxLayout()
-        # plot_range:
-        trace_controls_layout.addWidget(QLabel('plot_range'), 0.1)
-        self.button_plot_range = QLineEdit()
-        self.button_plot_range.setToolTip('choose plot ranges (s)')
-        self.button_plot_range.setText("[(0,2)]")
-        trace_controls_layout.addWidget(self.button_plot_range)
 
-        trace_layout.addLayout(trace_controls_layout)
+
+
 
 
 

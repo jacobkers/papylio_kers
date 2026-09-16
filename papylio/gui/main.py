@@ -103,7 +103,7 @@ class MainWindow(QMainWindow):
         self.kinetics_results = QWidget()
         self.top_tabs.addTab(self.image, 'Image')
         self.top_tabs.addTab(self.traces, 'DataViewer')
-        self.top_tabs.addTab(self.histograms, 'Histograms')
+        #self.top_tabs.addTab(self.histograms, 'Histograms')
 
 
 
