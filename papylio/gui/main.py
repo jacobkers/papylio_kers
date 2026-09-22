@@ -20,7 +20,7 @@ import numpy as np
 
 import papylio as pp
 from papylio import Experiment, File
-from papylio.data_viewer import TracePlotWindow
+from papylio.data_viewer import ViewerPlotWindow
 from papylio.gui.setup_widget import SetUpWidget
 from papylio.gui.selection_widget import SelectionWidget
 from papylio.gui.classification_widget import ClassificationWidget
@@ -96,7 +96,7 @@ class MainWindow(QMainWindow):
         self.top_tabs.setDocumentMode(True)
 
 
-        self.traces = TracePlotWindow(parent=self, width=4, height=5, show=False)
+        self.traces = ViewerPlotWindow(parent=self, width=4, height=5, show=False)
         self.image = ImageWidget(parent=self)
         self.traces.set_highlighted_molecule.connect(self.image.image_canvas.set_highlighted_molecule)
         self.histograms=HistogramWidget(parent=self)
@@ -104,9 +104,6 @@ class MainWindow(QMainWindow):
         self.top_tabs.addTab(self.image, 'Image')
         self.top_tabs.addTab(self.traces, 'DataViewer')
         #self.top_tabs.addTab(self.histograms, 'Histograms')
-
-
-
 
         tabs = QTabWidget()
         tabs.setTabPosition(QTabWidget.North)
