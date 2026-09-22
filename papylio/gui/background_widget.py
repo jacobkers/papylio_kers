@@ -55,7 +55,7 @@ class MovieCorrectionsWidget(QWidget):
         #method:
         self.method_temporal = QComboBox()
         self.method_temporal.setToolTip("Choose method")
-        self.method_temporal.addItems(['median', 'any'])
+        self.method_temporal.addItems(['mean', 'median', 'fit_background_peak'])
         # fill box:
         temporal_correction_layout.addRow("method:", self.method_temporal)
 
@@ -91,10 +91,13 @@ class MovieCorrectionsWidget(QWidget):
         # method:
         self.method_general = QComboBox()
         self.method_general.setToolTip("Choose method")
-        self.method_general.addItems(['BaSiC', 'any'])
-        self.skip_general_checkbox = QCheckBox()
-        # fill box:
+        self.method_general.addItems(['mean', 'median', 'fit_background_peak'])
         general_correction_layout.addRow("method:", self.method_general)
+        # frame range:
+        self.button_general_frame_range = QLineEdit()
+        self.button_general_frame_range.setText("[0, 20]")
+        general_correction_layout.addRow("frame range", self.button_general_frame_range)
+
 
         this_tab_layout = QHBoxLayout()
         this_tab_layout.setAlignment(Qt.AlignLeft)
@@ -157,19 +160,22 @@ class MovieCorrectionsWidget(QWidget):
             method_name_spatial_background = self.method_selector_spatial_background.currentText()
             _, inputs_spatial_background = self.method_forms_spatial_background[method_name_spatial_background]
             # kwargs for peak finding
-            frs = get_button_value(self.button_spatial_frame_range)
+            frs_s = get_button_value(self.button_spatial_frame_range)
             spatial_background_kwargs = build_parameters_input(method_name_spatial_background, inputs_spatial_background)
-            file.movie.determine_spatial_background_correction(frame_range=frs, **spatial_background_kwargs)
+            file.movie.determine_spatial_background_correction(frame_range=frs_s, **spatial_background_kwargs)
             print('spatial correction done')
         if self.frame_general_correction.isChecked():
-            file.movie.determine_general_background_correction(method='fit_background_peak')
+            mth_g = get_button_value(self.method_general)
+            frs_g = get_button_value(self.button_general_frame_range)
+            print(frs_g)
+            file.movie.determine_general_background_correction(method=mth_g, frame_range=frs_g)
             print('fixed-value correction done')
 
     def register_method_for_spatial_background(self, name, func):
         """Register a peak finding method, introspect arguments,
         and build forms for spot_detection"""
         #skips and defaults:
-        skip_inputs=['input', 'output','footprint', 'origin', 'cval']
+        skip_inputs=['input', 'output','footprint', 'origin', 'cval', 'reflect', 'truncate', 'mode']
         defaults = {"size": "15", 'sigma': "10"}
         form_widget_spatial_background, inputs_spatial_background = build_form(func,skip_inputs, defaults)
         self.methods_spatial_background[name] = func
@@ -211,13 +217,21 @@ class MovieCorrectionsWidget(QWidget):
                     
                     <h3>Temporal background subtraction</h3>
                     <p> 
-                    text on temporal background subtraction
+                    A temporal background subtraction that corrects variations in background over time (but not in x and y), such as the effect of bleaching.
+                    Option 'median' will use the median of every frame to do so, analogous for other options.
                     </p>
                     
-                    <ul>
-                      <li>Box 1 steps</li>
-                      <li> nnnnn </li>
-                    </ul>
+                    <h3>Spatial background subtraction</h3>
+                    <p> 
+                    Spatial background filtering uses local averaging by chosen method, with a window size as specified, over range of frames as specified
+                    </p>
+                    
+                    <h3>General background subtraction</h3>
+                    <p> 
+                    Use a single value to subtract for all frames. 
+                    Option 'median' will use the median of selected frames to do so, analogous for other options.
+                    </p>
+                    
                     
                     <p>
                       For background, see
