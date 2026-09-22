@@ -49,14 +49,14 @@ from matplotlib.figure import Figure
 
 from papylio.gui.histogram_widget import HistogramWidget   #TODO: temporal!!!
 
-class TracePlotWindow(QWidget):
+class ViewerPlotWindow(QWidget):
     """Interactive window for browsing and annotating molecule traces.
 
     Presents an interactive canvas with plotting controls, molecule selection,
     and configuration for plotting variables such as intensity and FRET.
 
     Key features:
-    - Navigation toolbar and molecule index controls
+    - Navigation toolbar_traces and molecule index controls
     - Plot configuration panel for enabling/disabling variables and setting ranges
     - Selection support (show all / only selected / only unselected)
     """
@@ -67,10 +67,13 @@ class TracePlotWindow(QWidget):
                  show=True, split_illuminations=False, **kwargs):
 
         if plot_settings is None:
+            #these variables will be shown in the plot-configuratio window.
             plot_settings = {'intensity': {'active': True, 'color': ('g', 'r')},
-                             'FRET': {'active': True, 'plot_range': (-0.05, 1.05), 'color': ('b')}}
+                             'FRET': {'active': True, 'plot_range': (-0.05, 1.05), 'color': ('b')},
+                             'foo': {'active': True, 'plot_range': (0, 1), 'color': ('b')}}
 
         # To accomodate old arguments
+        #plot_settings is emptied and refilled with passed arguments (but not encouraged)
         if 'plot_variables' in kwargs:
             plot_settings = {}
             for plot_variable, ylim, color in zip(kwargs['plot_variables'], kwargs['ylims'], kwargs['colours']):
@@ -97,9 +100,7 @@ class TracePlotWindow(QWidget):
         app = get_QApplication()
 
         super().__init__()
-
         self.parent = parent
-
         self.setWindowTitle("Data Viewer")
 
         if save_path is None:
@@ -108,38 +109,38 @@ class TracePlotWindow(QWidget):
             self.save_path = Path(save_path)
 
         # self._dataset = dataset
-
-
-        # viewing panes
+        # define viewing panes (traces and histograms)
         self.viewer_tabs = QTabWidget()
         self.viewer_tabs.setTabPosition(QTabWidget.North)
         self.viewer_tabs.setMovable(False)
         self.viewer_tabs.setDocumentMode(True)
 
         # -----------------------------------
-        # section for building trace panel:
+        # elements specifically for building trace panel:
         # -----------------------------------
-        self.canvas = TracePlotCanvas(self, width=width, height=height, dpi=100)
-        # Create toolbar, passing canvas as first parament, parent (self, the MainWindow) as second.
-        toolbar = NavigationToolbar(self.canvas, self)
+        self.canvas_traces = TracePlotCanvas(self, width=width, height=height, dpi=100)
+        #toolbar:
+        # Create toolbar_traces, passing canvas as first parament, parent (self, the MainWindow) as second.
+        toolbar_traces = NavigationToolbar(self.canvas_traces, self)
         trace_layout = QVBoxLayout()
-        layout_bar = QHBoxLayout()
-        layout_bar.addWidget(toolbar, 0.5)
-        # plot_range:
-        layout_bar.addWidget(QLabel('any setting'), 0.1)
-        self.button_plot_range = QLineEdit()
-        self.button_plot_range.setToolTip('any')
-        self.button_plot_range.setText("any")
-        layout_bar.addWidget(self.button_plot_range)
-
-        layout_bar.addWidget(QLabel('molecule'), 0.1)
+        layout_bar_traces = QHBoxLayout()
+        layout_bar_traces.addWidget(toolbar_traces, 0.5)
+        #placeholder button for (limited) trace plot_specific settings:
+        layout_bar_traces.addWidget(QLabel('any setting'), 0.1)
+        self.button_trace_any = QLineEdit()
+        self.button_trace_any.setToolTip('any')
+        self.button_trace_any.setText("any")
+        layout_bar_traces.addWidget(self.button_trace_any)
+        # molecule index:
+        layout_bar_traces.addWidget(QLabel('molecule'), 0.1)
         self.molecule_index_field = QLineEdit()
         self.molecule_index_field.setFixedWidth(70)
-        layout_bar.addWidget(self.molecule_index_field, 0.05)
-        layout_bar.addWidget(QLabel(' out of '), 0.05)
+        layout_bar_traces.addWidget(self.molecule_index_field, 0.05)
+        # molecule number:
+        layout_bar_traces.addWidget(QLabel(' out of '), 0.05)
         self.number_of_molecules_label = QLabel('0')
         self.number_of_molecules_label.setFixedWidth(70)
-        layout_bar.addWidget(self.number_of_molecules_label, 0.15)
+        layout_bar_traces.addWidget(self.number_of_molecules_label, 0.15)
 
 
         self._selection_state = 1
@@ -148,44 +149,62 @@ class TracePlotWindow(QWidget):
         self.selected_molecules_checkbox.setCheckState(Qt.PartiallyChecked)
         self.selected_molecules_checkbox.stateChanged.connect(self.on_selected_molecules_checkbox_state_change)
         self.selected_molecules_checkbox.setFocusPolicy(Qt.NoFocus)
-        layout_bar.addWidget(QLabel('Selected'),0.1)
-        layout_bar.addWidget(self.selected_molecules_checkbox, 0.15)
+        layout_bar_traces.addWidget(QLabel('Selected'),0.1)
+        layout_bar_traces.addWidget(self.selected_molecules_checkbox, 0.15)
         self.molecule_index_field.returnPressed.connect(self.set_molecule_index_from_molecule_index_field)
         self.molecule_index_field.returnPressed.connect(self.deactivate_line_edit)
 
-        trace_layout.addLayout(layout_bar)
-        trace_layout.addWidget(self.canvas)
+        trace_layout.addLayout(layout_bar_traces)
+        trace_layout.addWidget(self.canvas_traces)
 
         trace_controls_layout=QHBoxLayout()
 
-
-
-
-
-
+        # Create a placeholder widget to hold our toolbar_traces and canvas.
         trace_widget = QWidget()
         trace_widget.setLayout(trace_layout)
+
+        # -----------------------------------
+        # elements specifically for building histogram panel:
+        # -----------------------------------
+        self.canvas_histograms = TracePlotCanvas(self, width=width, height=height, dpi=100)
+        # toolbar:
+        # Create toolbar_histogram, passing canvas as first parament, parent (self, the MainWindow) as second.
+        toolbar_histograms = NavigationToolbar(self.canvas_histograms, self)
+        histograms_layout = QVBoxLayout()
+        layout_bar_histograms = QHBoxLayout()
+        layout_bar_histograms.addWidget(toolbar_histograms, 0.5)
+        # placeholder button for (limited) trace plot_specific settings:
+        layout_bar_histograms.addWidget(QLabel('any setting'), 0.1)
+        self.button_histograms_any = QLineEdit()
+        self.button_histograms_any.setToolTip('any')
+        self.button_histograms_any.setText("any")
+        layout_bar_histograms.addWidget(self.button_histograms_any)
+        #....and more settings in this bar here....
+
+        histograms_layout = QVBoxLayout()
+        histograms_layout.addLayout(layout_bar_histograms)
+        histograms_layout.addWidget(self.canvas_histograms)
+
+        #histogram_widget = HistogramWidget()  # TODO: temporal!!!
+        histogram_widget = QWidget()
+        histogram_widget.setLayout(histograms_layout)
+
+        #Define the various viewing tabs (traces and histograms):
         self.viewer_tabs.addTab(trace_widget, 'Traces')
-        hist_widget = HistogramWidget()  #TODO: temporal!!!
-        self.viewer_tabs.addTab(hist_widget, 'Histograms')
-        # self.setLayout(layout)
-        # Create a placeholder widget to hold our toolbar and canvas.
+        self.viewer_tabs.addTab(histogram_widget, 'Histograms')
 
-        # self.setCentralWidget(widget)
-
-        self.plot_configuration = PlotConfiguration(parent=self, canvas=self.canvas, initial_plot_settings=plot_settings)
+        #plot_configuration allows selecting existing variables and access plot settings per variable:
+        self.plot_configuration = PlotConfiguration(parent=self, canvas=self.canvas_traces, initial_plot_settings=plot_settings)
         self.plot_configuration.setMinimumWidth(250)
 
+        # build main layout:
         layout_main = QHBoxLayout()
         layout_main.addWidget(self.viewer_tabs)
-        #layout_main.addLayout(trace_layout, stretch=4)
         layout_main.addWidget(self.plot_configuration, stretch=1)
         self.setLayout(layout_main)
-
         self.dataset_path = dataset_path
         if self.dataset_path is not None:
             self.dataset_path = Path(self.dataset_path)
-
         self.dataset = dataset
 
         if show:
@@ -193,7 +212,6 @@ class TracePlotWindow(QWidget):
             app.exec_()
 
         self._file = None
-
         self.setFocus()
 
     def closeEvent(self, event: QCloseEvent):
@@ -335,11 +353,11 @@ class TracePlotWindow(QWidget):
 
     @property
     def molecule(self):
-        return self.canvas.molecule
+        return self.canvas_traces.molecule
 
     @molecule.setter
     def molecule(self, molecule):
-        self.canvas.molecule = molecule
+        self.canvas_traces.molecule = molecule
 
     def keyPressEvent(self, e):
         """Handle keyboard events for navigation and selection."""
@@ -352,12 +370,12 @@ class TracePlotWindow(QWidget):
             self.dataset.selected[dict(molecule=self.dataset_molecule_index)] = ~self.dataset.selected[dict(molecule=self.dataset_molecule_index)]
             self.update_current_molecule()
         elif key == Qt.Key_S: # S
-            self.canvas.save()
+            self.canvas_traces.save()
 
     # def selected_molecules_checkbox_state_changed(self, state):
     #     show_selected_mapping = {0: False, 1: None, 2: True}
     #     self.show_selected = show_selected_mapping[state]
-    #     self.canvas.init_plot_artists()
+    #     self.canvas_traces.init_plot_artists()
     #     print('test')
 
 
@@ -405,7 +423,7 @@ class PlotConfiguration(QWidget):
 
         super().__init__(parent=parent)
 
-        self.canvas = canvas
+        self.canvas_traces = canvas
 
         self.view = QTreeView()
         self.model = PlotConfigurationModel()
@@ -454,7 +472,7 @@ class PlotConfiguration(QWidget):
         self._add_plot_settings_to_model()
 
         self._enable_dataset_variables()
-        self.canvas.plot_settings = self.plot_settings
+        self.canvas_traces.plot_settings = self.plot_settings
 
         self.parent().setFocus()
 
@@ -492,6 +510,7 @@ class PlotConfiguration(QWidget):
 
     def _add_missing_plot_settings_from_dataset(self):
         """Add default plot settings for variables not yet configured."""
+        #this is done when, for example, incomplete settings are passed.
         plot_settings = self.plot_settings
         for var in set(self._trace_variables_dataset).union(set(plot_settings.keys())):
             if var not in plot_settings:
@@ -699,34 +718,34 @@ class PlotConfiguration(QWidget):
             active = bool(item.checkState())
             if active is not self.plot_settings[variable_name]['active']:
                 self.plot_settings[variable_name]['active'] = active
-                self.canvas.plot_settings = self.plot_settings
+                self.canvas_traces.plot_settings = self.plot_settings
             # self.parent().molecule = self.parent().molecule
         elif item.column() == 1:# and item.text() is not '':
             variable_name = item.model().item(item.parent().row(), 0).text()
             if item.data(Qt.UserRole)  == 'plot_range':
                 plot_range = tuple(float(item.parent().child(i,1).text()) for i in [0,1])
                 self.plot_settings[variable_name][item.data(Qt.UserRole)] = plot_range
-                self.canvas.set_plot_range(variable_name, plot_range)
+                self.canvas_traces.set_plot_range(variable_name, plot_range)
                 # self.parent().molecule = self.parent().molecule
             elif item.data(Qt.UserRole) == 'color':
                 color = tuple(item.text().replace(' ','').split(','))
                 self.plot_settings[variable_name][item.data(Qt.UserRole)] = color
-                self.canvas.set_plot_color(variable_name, color)
+                self.canvas_traces.set_plot_color(variable_name, color)
             elif item.data(Qt.UserRole) == 'axis':
                 self.plot_settings[variable_name][item.data(Qt.UserRole)] = item.text()
-                self.canvas.plot_settings = self.plot_settings
+                self.canvas_traces.plot_settings = self.plot_settings
             elif item.data(Qt.UserRole) == 'secondary':
                 secondary = bool(item.checkState())
                 self.plot_settings[variable_name][item.data(Qt.UserRole)] = secondary
-                self.canvas.plot_settings = self.plot_settings
+                self.canvas_traces.plot_settings = self.plot_settings
             elif item.data(Qt.UserRole) == 'split_illuminations':
                 split_illuminations = bool(item.checkState())
                 self.plot_settings[variable_name][item.data(Qt.UserRole)] = split_illuminations
-                self.canvas.plot_settings = self.plot_settings
+                self.canvas_traces.plot_settings = self.plot_settings
             elif item.data(Qt.UserRole).startswith('illumination'):
                 illumination = bool(item.checkState())
                 self.plot_settings[variable_name][item.data(Qt.UserRole)] = illumination
-                self.canvas.plot_settings = self.plot_settings
+                self.canvas_traces.plot_settings = self.plot_settings
 
         self.parent().setFocus()
 
@@ -748,12 +767,12 @@ class PlotConfiguration(QWidget):
                 plot_settings_new[var_name]['order'] = row
 
         self.plot_settings = plot_settings_new
-        self.canvas.plot_settings = self.plot_settings
+        self.canvas_traces.plot_settings = self.plot_settings
 
         self.parent().setFocus()
 
         # Update canvas with new ordering
-        # self.canvas.plot_settings = self.plot_settings
+        # self.canvas_traces.plot_settings = self.plot_settings
 
         # Refocus parent window
         # self.parent().setFocus()
@@ -1153,7 +1172,7 @@ class BlitManager:
         animated_artists : Iterable[Artist]
             List of the artists to manage
         """
-        self.canvas = canvas
+        self.canvas_traces = canvas
         self._bg = None
         self._artists = []
 
@@ -1164,7 +1183,7 @@ class BlitManager:
 
     def on_draw(self, event):
         """Callback to register with 'draw_event'."""
-        cv = self.canvas
+        cv = self.canvas_traces
         if event is not None:
             if event.canvas != cv:
                 raise RuntimeError
@@ -1184,20 +1203,20 @@ class BlitManager:
             the canvas this class is managing.
 
         """
-        if art.figure != self.canvas.figure:
+        if art.figure != self.canvas_traces.figure:
             raise RuntimeError
         art.set_animated(True)
         self._artists.append(art)
 
     def _draw_animated(self):
         """Draw all of the animated artists."""
-        fig = self.canvas.figure
+        fig = self.canvas_traces.figure
         for a in self._artists:
             fig.draw_artist(a)
 
     def update(self):
         """Update the screen with animated artists."""
-        cv = self.canvas
+        cv = self.canvas_traces
         fig = cv.figure
         # paranoia in case we missed the draw event,
         if self._bg is None:
@@ -1222,7 +1241,7 @@ if __name__ == "__main__":
     from PySide2.QtWidgets import QApplication
 
     app = QApplication(sys.argv)
-    frame = TracePlotWindow(ds)
+    frame = ViewerPlotWindow(ds)
         #, "Sample editor", plot_variables=['intensity', 'FRET'],  # 'classification'],
         #          ylims=[(0, 1000), (0, 1), (-1,2)], colours=[('g', 'r'), ('b'), ('k')])
 
