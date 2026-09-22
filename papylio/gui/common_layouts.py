@@ -71,18 +71,19 @@ class Group_Box(QGroupBox):
     def __init__(self, parent=None, title="title", highlight=False):
         super().__init__(parent)
         self.setTitle(title)
+        self.setMaximumWidth(250)
 
         base_style = """
         QGroupBox {
             border: 1px solid gray;
-            border-radius: 3px;
-            margin-top: 13px;  /* space for title */
+            border-radius: 5px;
+            margin-top: 10px;  /* space for title */
         }
 
         QGroupBox::title {
             subcontrol-origin: margin;
             left: 10px;
-            padding: 0 4px 0 4px;
+            padding: 0 3px 0 3px;
         }
         """
 
@@ -92,6 +93,8 @@ class Group_Box(QGroupBox):
             font-weight: bold;
         }
         """
+
+
 
         if highlight:
             self.setStyleSheet(base_style + highlight_style)
