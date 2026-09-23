@@ -891,8 +891,8 @@ class HistPlotCanvas(FigureCanvasQTAgg):
         # self.histogram_artists = {}
 
         for i, axis_name in enumerate(axis_names):
-            plot = self.figure.add_subplot(grid[i, 0])
-            histogram = self.figure.add_subplot(grid[i, 1], sharey=plot)
+            plot = self.figure.add_subplot(grid[i, 1])
+            histogram = self.figure.add_subplot(grid[i, 0], sharey=plot)
 
             if i > 0:
                 plot.sharex(self.plot_axes[axis_names[0]])
@@ -969,22 +969,11 @@ class HistPlotCanvas(FigureCanvasQTAgg):
 
             if i == 0:
                 self.title_artist = self.plot_axes[trace_artist.axis_name].set_title('Init')
-
-        # self.artists += [self.intensity_plot.plot(g, c='g')]
-        # self.artists += [self.intensity_plot.plot(r, c='r')]
-        # self.artists += [self.FRET_plot.plot(e, c='b')]
-        # self.artists += [[self.intensity_plot.set_title('test')]]
-        # self.artists += [self.intensity_histogram.hist(g, bins=100, orientation='horizontal',
-        #                                                range=self.intensity_plot.get_ylim(), color='g', alpha=0.5)[2]]
-        # self.artists += [self.intensity_histogram.hist(r, bins=100, orientation='horizontal',
-        #                                                range=self.intensity_plot.get_ylim(), color='r', alpha=0.5)[2]]
-        # self.artists += [self.FRET_histogram.hist(e, bins=100, orientation='horizontal',
-        #                                           range=self.FRET_plot.get_ylim(), color='b')[2]]
-
-        # self.axes[1].plot(molecule.E(), animate=True)
         artists = [self.title_artist] + \
-                  [plot_artist for trace_artist in self.trace_artists for plot_artist in trace_artist.plot_artists] + \
-                  [bar for trace_artist in self.trace_artists for histogram_artist in trace_artist.histogram_artists for bar in histogram_artist]
+                  [bar for trace_artist in self.trace_artists for histogram_artist in trace_artist.histogram_artists for
+                   bar in histogram_artist] + \
+                  [plot_artist for trace_artist in self.trace_artists for plot_artist in trace_artist.plot_artists]
+
 
         self.bm = BlitManager(self, artists)
         self.molecule = self.molecule
@@ -1215,15 +1204,6 @@ class BlitManager:
         # let the GUI event loop process anything it has to do
         # cv.flush_events()
 
-# class MainWindow(wx.Frame):
-#    def __init__(self, parent, title):
-#        wx.Frame.__init__(self, parent, title=title, size=(300, 700))
-#        self.parent = parent
-#        self.panel = TraceAnalysisPanel(parent=self)
-#        # self.Bind(wx.EVT_CLOSE, self.OnClose)
-#        self.Show()
-
-
 
 if __name__ == "__main__":
 
@@ -1252,264 +1232,5 @@ if __name__ == "__main__":
         #          ylims=[(0, 1000), (0, 1), (-1,2)], colours=[('g', 'r'), ('b'), ('k')])
 
     app.exec_()
-
-    # # exp = pp.Experiment(r'D:\20200918 - Test data\Single-molecule data small')
-    # #exp = pp.Experiment(r'P:\SURFdrive\Promotie\Data\Test data')
-    # # exp = pp.Experiment(r'/Users/ivoseverins/SURFdrive/Promotie/Data/Test data')
-    # # print(exp.files)
-    # # m = exp.files[1].molecules[0]
-    # # print(exp.files[2])
-    # import xarray as xr
-    # #file_paths = [p for p in exp.nc_file_paths if '561' in str(p)]
-    # file_paths = [exp.nc_file_paths[0]]
-    # with xr.open_mfdataset(file_paths, concat_dim='molecule', combine='nested') as ds:
-    #     # ds_sel = ds.sel(molecule=ds.sequence_name=='HJ7_G')# .reset_index('molecule', drop=True) # HJ1_WT, HJ7_G116T
-    #     app = wx.App(False)
-    #     # app = wit.InspectableApp()
-    #     frame = TraceAnalysisFrame(None, ds, "Sample editor", plot_variables=['intensity', 'FRET'], #'classification'],
-    #              ylims=[(0, 1000), (0, 1), (-1,2)], colours=[('g', 'r'), ('b'), ('k')])
-    #     # frame.molecules = exp.files[1].molecules
-    #     print('test')
-    #     import wx.lib.inspection
-    #     wx.lib.inspection.InspectionTool().Show()
-    #     app.MainLoop()
-
-
-
-
-
-# Add time to existing .nc file
-# for file in exp.files:
-#     with xr.open_dataset(file.absoluteFilePath.with_suffix('.nc')) as ds:
-#         i = ds.intensity.load()
-#     test = i.assign_coords(time=file.movie.time)
-#     test.to_netcdf(file.absoluteFilePath.with_suffix('.nc'), engine='h5netcdf', mode='a')
-
-
-#
-# from matplotlib import use
-# use('TkAgg')
-#
-# import papylio as pp
-# exp = pp.Experiment(r'D:\SURFdrive\Promotie\Code\Python\papylio\twoColourExampleData\20141017 - Holliday junction - Copy')
-# #exp = pp.Experiment(r'J:\Ivo\20200221 - Magnetic tweezers setup (Old)\Data')
-# # exp.files[-2].perform_mapping()
-# # exp.files[-2].mapping.show_mapping_transformation()
-
-# class B:
-#     def __init__(self):
-#         print('Badd')
-#         super().__init__()
-#
-#
-#
-# class A:
-#     def __init__(self):
-#         print('A')
-#
-#
-# def test(c):
-#     return type(c.__name__, (c,B),{})
-#
-#
-# @test
-# class Bo(A):
-#     def __init__(self):
-#         print('Bo')
-#         super().__init__()
-#
-
-
-
-# class B:
-#     def __init__(self):
-#         print('Badd')
-#         super().__init__()
-#
-# # class PluginMetaClass(type):
-# #     def __new__(cls, clsname, bases, attrs):
-# #         bases_base = tuple(base for base in bases if not base.__name__ is clsname)
-# #         attrs.pop('__qualname__')
-# #         cls_base = type(clsname+'_base', bases_base, attrs)
-# #         bases_main = tuple(base for base in bases if base.__name__ is clsname) + (cls_base,)
-# #         return super().__new__(cls, clsname, bases_main, {})
-# class PluginMetaClass(type):
-#     def __new__(cls, clsname, bases_base, attrs):
-#         # bases_base = tuple(base for base in bases if not base.__name__ is clsname)
-#         attrs_base = attrs.copy()
-#         attrs_base.pop('__qualname__')
-#         #attrs_base.pop('__module__')
-#         #attrs_base.pop('__classcell__')
-#         cls_base = super().__new__(cls, clsname, bases_base, attrs_base)
-#         #cls_base = type(clsname, bases_base, attrs)
-#         added_bases = (B,)
-#         bases_main = added_bases + (cls_base,)
-#         test = super().__new__(cls, clsname+'main', bases_main,{})
-#         print('test')
-#         return test
-#
-# class A:
-#     def __init__(self):
-#         print('A')
-#
-# class Bo(A, metaclass=PluginMetaClass):
-#     def __init__(self):
-#         print('Bo')
-#         super().__init__()
-#
-
-
-
-# exp = pp.Experiment(r'P:\SURFdrive\Promotie\Code\Python\papylio\twoColourExampleData\20141017 - Holliday junction - Copy')
-# # exp = pp.Experiment(r'D:\SURFdrive\Promotie\Code\Python\papylio\twoColourExampleData\20141017 - Holliday junction - Copy')
-# exp.files[-1].use_mapping_for_all_files()
-
-
-
-# def add_class_to_class(base_class):
-#     def add_class_to_class_decorator(added_class):
-#         base_class.__bases__ += (added_class,)
-#     return add_class_to_class_decorator
-#
-# @add_class_to_class(pp.File)
-# class ExperimentPlugIn():
-#     def test(self):
-#         print(self.name)
-
-
-
-# exp.files[0].find_coordinates()
-#
-#
-# # #exp = pp.Experiment(r'D:\ivoseverins\SURFdrive\Promotie\Code\Python\papylio\twoColourExampleData\20191209 - Single-molecule setup (TIR-I)')
-# # exp.files[0].perform_mapping(transformation_type='nonlinear')
-# #
-# import matplotlib.pyplot as plt
-# figure = plt.figure()
-# #exp.files[0].show_average_image(figure=figure)
-# plt.imshow(exp.files[0].movie.maximum_projection_image)
-# exp.files[0].show_coordinates(figure=figure)
-# #exp.files[0].mapping.show_mapping_transformation(figure=figure)
-
-
-
-# exp.files[-1].use_mapping_for_all_files()
-
-from papylio.plotting import histogram
-# exp.files[7].histogram(bins = 100, molecule_averaging=True, export=True)
-# exp.histogram(bins = 100, molecule_averaging=True, export=True)
-#
-# import sys
-# #sys.path.append(r'D:\ivoseverins\SURFdrive\Promotie\Code\Python\fastqAnalysis')
-# sys.path.append(r'D:\SURFdrive\Promotie\Code\Python\fastqAnalysis')
-#
-# from papylio.traceAnalysisCode import Experiment
-# from fastqAnalysis import FastqData
-#
-# from pathlib import Path # For efficient path manipulation
-#
-# path = Path(r'G:\Ivo\20190918 - Sequencer (MiSeq)\Analysis')
-# #path = 'D:\\ivoseverins\\Desktop\\Sequencing data\\20180705\\'
-# #path = 'C:\\Users\\Ivo Severins\\Desktop\\Sequencing data\\20180705\\'
-# fileName = r'One_S1_L001_R1_001.fastq'
-#
-#
-# data = FastqData(path.joinpath(fileName))
-#
-# data.selection(sequence = 'AA')
-#
-# data.matches_per_tile(sequence = 'TATCTGTATAATGAGAAATATGGAGTACAATTTTTTTTTTTTTTTTTTTT')
-
-
-
-
-
-
-
-
-
-#import wx
-#
-#
-#class OtherFrame(wx.Frame):
-#    """
-#    Class used for creating frames other than the main one
-#    """
-#
-#    def __init__(self, title, parent=None):
-#        wx.Frame.__init__(self, parent=parent, title=title)
-#        self.Show()
-#
-#
-#class MyPanel(wx.Panel):
-#
-#    def __init__(self, parent):
-#        wx.Panel.__init__(self, parent)
-#
-#        btn = wx.Button(self, label='Create New Frame')
-#        btn.Bind(wx.EVT_BUTTON, self.on_new_frame)
-#        self.frame_number = 1
-#
-#    def on_new_frame(self, event):
-#        title = 'SubFrame {}'.format(self.frame_number)
-#        frame = OtherFrame(title=title)
-#        self.frame_number += 1
-#
-#
-#class MainFrame(wx.Frame):
-#
-#    def __init__(self):
-#        wx.Frame.__init__(self, None, title='Main Frame', size=(800, 600))
-#        panel = MyPanel(self)
-#        self.Show()
-#
-#
-#if __name__ == '__main__':
-#    app = wx.App(False)
-#    frame = MainFrame()
-#    app.MainLoop()
-
-
-# #!/usr/bin/env python
-# import wx
-# import wx.dataview
-# import wx.lib.agw.aui as aui
-# import os
-#
-# import wx.lib.agw.customtreectrl as CT
-# #from traceAnalysisCode import Experiment
-# import wx.lib.agw.hypertreelist as HTL
-#
-#
-# import matplotlib as mpl
-# from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg as FigureCanvas
-# from matplotlib.backends.backend_wxagg import NavigationToolbar2WxAgg as NavigationToolbar
-#
-# from matplotlib import use
-# use('WXAgg')
-# from matplotlib import pyplot as plt
-# #import matplotlib.pyplot as plt
-#
-#
-#
-# class MyFrame(wx.Frame):
-#     """ We simply derive a new class of Frame. """
-#     def __init__(self, parent, title):
-#         wx.Frame.__init__(self, parent, title=title, size=(400,400))
-#         tree_list = HTL.HyperTreeList(self)
-#
-#         tree_list.AddColumn("First column")
-#
-#         root = tree_list.AddRoot("Root")
-#
-#         parent = tree_list.AppendItem(root, "First child")
-#         child = tree_list.AppendItem(parent, "First Grandchild")
-#
-#         tree_list.AppendItem(root, "Second child", ct_type=1)
-#         self.Show(True)
-#
-# app = wx.App(False)
-# frame = MyFrame(None, 'Small editor')
-# app.MainLoop()
 
 
