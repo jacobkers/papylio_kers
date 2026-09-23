@@ -21,13 +21,6 @@ import matplotlib
 matplotlib.use('Qt5Agg')
 ###################################################
 
-import matplotlib.pyplot as plt
-
-# from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg as FigureCanvas
-# from matplotlib.backends.backend_wxagg import NavigationToolbar2WxAgg as NavigationToolbar
-# from matplotlib.backends.backend_qtagg import FigureCanvas
-# from matplotlib.backends.backend_qtagg import NavigationToolbar2QT as NavigationToolbar
-
 import numpy as np
 from pathlib2 import Path
 
@@ -114,7 +107,7 @@ class HistPlotWindow(QWidget):
 
         # self._dataset = dataset
 
-        self.canvas = TracePlotCanvas(self, width=width, height=height, dpi=100)
+        self.canvas = HistPlotCanvas(self, width=width, height=height, dpi=100)
 
         # Create toolbar, passing canvas as first parament, parent (self, the MainWindow) as second.
         toolbar = NavigationToolbar(self.canvas, self)
@@ -854,12 +847,12 @@ class HistPlotCanvas(FigureCanvasQTAgg):
                                 if key.startswith('illumination') and value:
                                     illumination = int(key.replace('illumination_', ''))
                                     axis_name = axis + f'_i{illumination}'
-                                    trace_artists.append(TraceArtist(plot_variable=plot_variable, illumination=illumination, axis_name=axis_name, secondary=secondary))
+                                    trace_artists.append(HistArtist(plot_variable=plot_variable, illumination=illumination, axis_name=axis_name, secondary=secondary))
                                     # artist_info.append(dict(plot_variable=plot_variable, illumination=illumination, axis_name=axis_name))
                         else:
-                            trace_artists.append(TraceArtist(plot_variable=plot_variable, illumination=None, axis_name=axis, secondary=secondary))
+                            trace_artists.append(HistArtist(plot_variable=plot_variable, illumination=None, axis_name=axis, secondary=secondary))
                     else:
-                        trace_artists.append(TraceArtist(plot_variable=plot_variable, illumination=None, axis_name=axis, secondary=secondary))
+                        trace_artists.append(HistArtist(plot_variable=plot_variable, illumination=None, axis_name=axis, secondary=secondary))
                             # artist_info.append(dict(plot_variable=plot_variable, illumination=None, axis_name=plot_variable))
             self._trace_artists = trace_artists
 
@@ -1248,13 +1241,13 @@ if __name__ == "__main__":
 
 
     import papylio as pp
-    exp = pp.Experiment(r'C:\Users\ivoseverins\surfdrive\Promotie\Code\Python\traceAnalysis\twoColourExampleData\20141017 - Holliday junction - Copy')
-    ds = exp.files[0].dataset
+    exp = pp.Experiment(r'C:\Users\jkerssemakers\OneDrive - Delft University of Technology\Documents\GitHub\Papylio example dataset_flat')
+    ds = exp.files[1].dataset
 
     from PySide2.QtWidgets import QApplication
 
     app = QApplication(sys.argv)
-    frame = TracePlotWindow(ds)
+    frame = HistPlotWindow(ds)
         #, "Sample editor", plot_variables=['intensity', 'FRET'],  # 'classification'],
         #          ylims=[(0, 1000), (0, 1), (-1,2)], colours=[('g', 'r'), ('b'), ('k')])
 
