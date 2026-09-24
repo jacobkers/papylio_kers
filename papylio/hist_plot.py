@@ -123,11 +123,7 @@ class HistPlotWindow(QWidget):
         layout_bar = QHBoxLayout()
         layout_bar.addWidget(toolbar, 0.5)
 
-        self.molecule_index_field = QLineEdit()
-        self.molecule_index_field.setFixedWidth(70)
-
-        layout_bar.addWidget(self.molecule_index_field, 0.05)
-        layout_bar.addWidget(QLabel(' out of '), 0.05)
+        layout_bar.addWidget(QLabel(' N_molecules: '), 0.05)
         self.number_of_molecules_label = QLabel('0')
         self.number_of_molecules_label.setFixedWidth(70)
         layout_bar.addWidget(self.number_of_molecules_label, 0.15)
@@ -138,13 +134,8 @@ class HistPlotWindow(QWidget):
         self.selected_molecules_checkbox.stateChanged.connect(self.on_selected_molecules_checkbox_state_change)
         self.selected_molecules_checkbox.setFocusPolicy(Qt.NoFocus)
 
-
         layout_bar.addWidget(QLabel('Selected'),0.1)
         layout_bar.addWidget(self.selected_molecules_checkbox, 0.15)
-
-        self.molecule_index_field.returnPressed.connect(self.set_molecule_index_from_molecule_index_field)
-        self.molecule_index_field.returnPressed.connect(self.deactivate_line_edit)
-
 
         layout.addLayout(layout_bar)
         layout.addWidget(self.canvas)
@@ -253,8 +244,7 @@ class HistPlotWindow(QWidget):
 
         else:
             self.molecule = None
-        self.molecule_index_field.setText(str(molecule_index))
-        self.molecule_index_field.setFocusPolicy(Qt.ClickFocus)
+
 
     @property
     def dataset_molecule_index(self):
@@ -314,8 +304,6 @@ class HistPlotWindow(QWidget):
             self.update_current_molecule()
         elif key == Qt.Key_S: # S
             self.canvas.save()
-
-
 
 class PlotConfigurationModel(QStandardItemModel):
     """
