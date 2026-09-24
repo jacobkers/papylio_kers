@@ -20,6 +20,14 @@ sys.modules['PyQt5'] = sys.modules['PySide2']
 import matplotlib
 matplotlib.use('Qt5Agg')
 ###################################################
+#TODO:
+
+# adapt&understand artists layout
+# adapt data handling
+# remove / inactivate molecule indexing
+# remove BlitManager
+
+
 
 import numpy as np
 from pathlib2 import Path
@@ -58,7 +66,6 @@ class HistPlotWindow(QWidget):
     - Plot configuration panel for enabling/disabling variables and setting ranges
     - Selection support (show all / only selected / only unselected)
     """
-    set_highlighted_molecule = Signal(int)  # send selected molecule out
     def __init__(self, dataset=None,
                  plot_settings=None,
                  width=14, height=None, dataset_path=None, save_path=None, parent=None,
@@ -111,7 +118,6 @@ class HistPlotWindow(QWidget):
 
         # Create toolbar, passing canvas as first parament, parent (self, the MainWindow) as second.
         toolbar = NavigationToolbar(self.canvas, self)
-
         layout = QVBoxLayout()
 
         layout_bar = QHBoxLayout()
@@ -143,11 +149,6 @@ class HistPlotWindow(QWidget):
         layout.addLayout(layout_bar)
         layout.addWidget(self.canvas)
 
-        # self.setLayout(layout)
-        # Create a placeholder widget to hold our toolbar and canvas.
-        # widget = QWidget()
-        # widget.setLayout(layout)
-        # self.setCentralWidget(widget)
 
         self.plot_configuration = PlotConfiguration(parent=self, canvas=self.canvas, initial_plot_settings=plot_settings)
         self.plot_configuration.setMinimumWidth(250)
@@ -192,20 +193,8 @@ class HistPlotWindow(QWidget):
 
     def deactivate_line_edit(self):
         """Clear focus from the molecule index line edit field."""
-        self.set_highlighted_molecule.emit(self._molecule_index)
         self.molecule_index_field.clearFocus()  # Clear the focus from the line edit
 
-    @property
-    def file(self):
-        return self._file
-
-    @file.setter
-    def file(self, file):
-        self._file = file
-        if file is None:
-            self.dataset = None
-        else:
-            self.dataset = file.dataset
 
     @property
     def dataset(self):
@@ -259,7 +248,6 @@ class HistPlotWindow(QWidget):
     @molecule_index.setter
     def molecule_index(self, molecule_index):
         self._molecule_index = molecule_index
-        #self.set_highlighted_molecule.emit(self._molecule_index)
         if self.dataset is not None and self.number_of_molecules_to_show > 0:
             self.molecule = self.dataset.isel(molecule=self.dataset_molecule_index)
 
@@ -290,7 +278,6 @@ class HistPlotWindow(QWidget):
         """Parse molecule index from the text field,
         update the current molecule"""
         self.molecule_index = int(self.molecule_index_field.text())
-        #self.set_highlighted_molecule.emit(self._molecule_index)
 
     def next_molecule(self):
         """Navigate to the next molecule in the current dataset."""
@@ -328,11 +315,26 @@ class HistPlotWindow(QWidget):
         elif key == Qt.Key_S: # S
             self.canvas.save()
 
+    # JK: commented out!------------------------------
+    # @property
+    # def file(self):
+    #     return self._file
+    #
+    # @file.setter
+    # def file(self, file):
+    #     self._file = file
+    #     if file is None:
+    #         self.dataset = None
+    #     else:
+    #         self.dataset = file.dataset
+    #----------------------------------------------
+
     # def selected_molecules_checkbox_state_changed(self, state):
     #     show_selected_mapping = {0: False, 1: None, 2: True}
     #     self.show_selected = show_selected_mapping[state]
     #     self.canvas.init_plot_artists()
     #     print('test')
+
 
 
 class PlotConfigurationModel(QStandardItemModel):
