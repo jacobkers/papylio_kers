@@ -21,17 +21,14 @@ import matplotlib
 matplotlib.use('Qt5Agg')
 ###################################################
 #TODO:
-
-# adapt&understand artists layout
+# simplify: remove BlitManager
+# simplify: remove / inactivate molecule indexing
+# adapt & understand artists layout
 # adapt data handling
-# remove / inactivate molecule indexing
-# remove BlitManager
-
 
 
 import numpy as np
 from pathlib2 import Path
-
 from PySide2.QtWidgets import (QMainWindow, QPushButton, QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QCheckBox, QLabel,
                                QTableWidget, QTableWidgetItem, QHeaderView, QTreeView, QStyledItemDelegate,
                                QAbstractItemView)
@@ -40,19 +37,15 @@ from PySide2.QtGui import QKeySequence, QCloseEvent, QDragMoveEvent
 from PySide2.QtCore import Qt, QModelIndex, Signal
 
 import sys
-import time
 
 import numpy as np
 
 import netCDF4
 import json
 
-# from matplotlib.backends.qt_compat import QtWidgets
-from PySide2 import QtWidgets
 from matplotlib.backends.backend_qt5agg import (
     FigureCanvasQTAgg, NavigationToolbar2QT as NavigationToolbar)
 from matplotlib.figure import Figure
-
 
 
 class HistPlotWindow(QWidget):
@@ -264,25 +257,6 @@ class HistPlotWindow(QWidget):
     def number_of_molecules_to_show(self):
         return len(self.dataset_molecule_indices_to_show)
 
-    def set_molecule_index_from_molecule_index_field(self):
-        """Parse molecule index from the text field,
-        update the current molecule"""
-        self.molecule_index = int(self.molecule_index_field.text())
-
-    def next_molecule(self):
-        """Navigate to the next molecule in the current dataset."""
-        if (self.molecule_index+1) < self.number_of_molecules_to_show:
-            self.molecule_index += 1
-
-    def previous_molecule(self):
-        """Navigate to the previous molecule in the current dataset."""
-        if self.molecule_index > 0:
-            self.molecule_index -= 1
-
-    def update_current_molecule(self):
-        """Refresh the display for the current molecule."""
-        self.molecule_index = self.molecule_index
-
 
     @property
     def molecule(self):
@@ -344,13 +318,10 @@ class PlotConfiguration(QWidget):
     colors and per-illumination options. Updates the main canvas when
     settings change.
     """
-
     def __init__(self, parent, canvas, initial_plot_settings=None):
 
         super().__init__(parent=parent)
-
         self.canvas = canvas
-
         self.view = QTreeView()
         self.model = PlotConfigurationModel()
         self.model.setHorizontalHeaderLabels(["Variable", ""])
@@ -360,7 +331,6 @@ class PlotConfiguration(QWidget):
         self.model.rowsRemoved.connect(self._on_rows_changed)
 
         self.view.setModel(self.model)
-
         self.view.setDragEnabled(True)
         self.view.setAcceptDrops(True)
         self.view.setDropIndicatorShown(True)
@@ -394,12 +364,9 @@ class PlotConfiguration(QWidget):
                 da.dims and da.dims[0] == "molecule" and da.dims[-1] == "frame"]
 
         self._add_missing_plot_settings_from_dataset()
-
         self._add_plot_settings_to_model()
-
         self._enable_dataset_variables()
         self.canvas.plot_settings = self.plot_settings
-
         self.parent().setFocus()
 
     def _enable_trace_variable(self, variable):
@@ -747,21 +714,15 @@ class HistPlotCanvas(FigureCanvasQTAgg):
     Creates axes and artists for each enabled plot variable, manages per-molecule
     updates, and uses a BlitManager for efficient redraws.
     """
-
-    # Kader om plot als geselecteerd
     # Autosave function
     def __init__(self, parent=None, width=14, height=7, dpi=100):
         self.figure = matplotlib.figure.Figure(figsize=(width, height), dpi=dpi, constrained_layout=False, tight_layout=True)  # , figsize=(2, 2))
         # self.figure.subplots_adjust(top=0.95, left=0.05, right=0.95, bottom=0.05, hspace=0.05, wspace=0.05)
         super().__init__(self.figure)
         self.parent_window = parent
-
         self._molecule = None
-
         self._plot_settings = {}
-
         self._trace_artists = []
-
         self.plot_axes = {}
         self.histogram_axes = {}
 
@@ -844,9 +805,6 @@ class HistPlotCanvas(FigureCanvasQTAgg):
         self.twin_axes = {}
         self.histogram_axes = {}
 
-        # self.plot_artists = {}
-        # self.histogram_artists = {}
-
         for i, axis_name in enumerate(axis_names):
             plot = self.figure.add_subplot(grid[i, 1])
             histogram = self.figure.add_subplot(grid[i, 0], sharey=plot)
@@ -894,15 +852,10 @@ class HistPlotCanvas(FigureCanvasQTAgg):
 
         self.init_plot_artists()
 
-        # self.draw()
-
-        #self.figure, self.axes = mpl.figure.Figure().subplots(2,1)
-
     def init_plot_artists(self):
         """Initialize plot and histogram artists for all trace variables."""
         #self._remove_blit_manager()
         for i, trace_artist in enumerate(self.trace_artists):
-            # self.plot_axes[plot_variable].cla()
 
             data_array = self.dataset[trace_artist.plot_variable]
 
@@ -987,7 +940,6 @@ class HistPlotCanvas(FigureCanvasQTAgg):
 
         self._molecule['file'] = self._molecule['file'].astype(str)
 
-
         illumination_per_frame = molecule.illumination.values
 
         for i, trace_artist in enumerate(self.trace_artists):
@@ -1029,9 +981,6 @@ class HistPlotCanvas(FigureCanvasQTAgg):
         self.init_plot_artists()
         # self.init_plots() # Perhaps this can be init_plot_artists only, but then probably the blit background needs to be updated.
 
-        # self.draw()  # full redraw
-        # self.bm.on_draw(None)
-
     def set_plot_color(self, plot_variable, colors):
         """Update colors for a specific plot variable."""
         if plot_variable not in self.plot_settings:
@@ -1056,18 +1005,15 @@ class HistPlotCanvas(FigureCanvasQTAgg):
 
 if __name__ == "__main__":
 
-
     import papylio as pp
     exp = pp.Experiment(r'C:\Users\jkerssemakers\OneDrive - Delft University of Technology\Documents\GitHub\Papylio example dataset_flat')
     ds = exp.files[1].dataset
 
     from PySide2.QtWidgets import QApplication
-
     app = QApplication(sys.argv)
     frame = HistPlotWindow(ds)
         #, "Sample editor", plot_variables=['intensity', 'FRET'],  # 'classification'],
         #          ylims=[(0, 1000), (0, 1), (-1,2)], colours=[('g', 'r'), ('b'), ('k')])
-
     app.exec_()
 
 
