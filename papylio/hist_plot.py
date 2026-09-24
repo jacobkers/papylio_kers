@@ -315,26 +315,6 @@ class HistPlotWindow(QWidget):
         elif key == Qt.Key_S: # S
             self.canvas.save()
 
-    # JK: commented out!------------------------------
-    # @property
-    # def file(self):
-    #     return self._file
-    #
-    # @file.setter
-    # def file(self, file):
-    #     self._file = file
-    #     if file is None:
-    #         self.dataset = None
-    #     else:
-    #         self.dataset = file.dataset
-    #----------------------------------------------
-
-    # def selected_molecules_checkbox_state_changed(self, state):
-    #     show_selected_mapping = {0: False, 1: None, 2: True}
-    #     self.show_selected = show_selected_mapping[state]
-    #     self.canvas.init_plot_artists()
-    #     print('test')
-
 
 
 class PlotConfigurationModel(QStandardItemModel):
@@ -728,11 +708,6 @@ class PlotConfiguration(QWidget):
 
         self.parent().setFocus()
 
-        # Update canvas with new ordering
-        # self.canvas.plot_settings = self.plot_settings
-
-        # Refocus parent window
-        # self.parent().setFocus()
 
 from dataclasses import dataclass
 from matplotlib.artist import Artist
@@ -802,14 +777,6 @@ class HistPlotCanvas(FigureCanvasQTAgg):
         self.plot_axes = {}
         self.histogram_axes = {}
 
-    def _remove_blit_manager(self):
-        """Remove and disconnect the blit manager if present."""
-        if hasattr(self, "bm"):
-            try:
-                self.mpl_disconnect(self.bm.cid)
-            except Exception:
-                pass
-            del self.bm
 
     @property
     def plot_settings(self):
@@ -877,7 +844,7 @@ class HistPlotCanvas(FigureCanvasQTAgg):
     def init_plots(self):
         """Initialize plot axes and layout based on current plot settings."""
         # Remove current blitmanager
-        self._remove_blit_manager()
+        #self._remove_blit_manager()
 
         self.figure.clf()
         axis_names = self.axis_names
@@ -945,7 +912,7 @@ class HistPlotCanvas(FigureCanvasQTAgg):
 
     def init_plot_artists(self):
         """Initialize plot and histogram artists for all trace variables."""
-        self._remove_blit_manager()
+        #self._remove_blit_manager()
         for i, trace_artist in enumerate(self.trace_artists):
             # self.plot_axes[plot_variable].cla()
 
@@ -977,7 +944,7 @@ class HistPlotCanvas(FigureCanvasQTAgg):
                   [plot_artist for trace_artist in self.trace_artists for plot_artist in trace_artist.plot_artists]
 
 
-        self.bm = BlitManager(self, artists)
+        #self.bm = BlitManager(self, artists)
         self.molecule = self.molecule
         self.draw()
         # self.show_artists(show=True, draw=True)
@@ -1032,15 +999,6 @@ class HistPlotCanvas(FigureCanvasQTAgg):
 
         self._molecule['file'] = self._molecule['file'].astype(str)
 
-        # g = molecule.intensity.sel(channel=0).values
-        # r = molecule.intensity.sel(channel=1).values
-        # e = molecule.FRET.values
-
-        # if not self.plot_artists:
-        #     self.init_plot_artists()
-
-        # for axis in self.axes:
-        #     axis.cla()
 
         illumination_per_frame = molecule.illumination.values
 
@@ -1067,26 +1025,6 @@ class HistPlotCanvas(FigureCanvasQTAgg):
 
             trace_artist.update(plot_settings, data)
 
-
-
-
-
-        # self.artists[0][0].set_ydata(g)
-        # self.artists[1][0].set_ydata(r)
-        # self.artists[2][0].set_ydata(e)
-        # self.artists[3][0].set_text(molecule.sequence_name.values)
-        # n, _ = np.histogram(g, 100, range=self.intensity_plot.get_ylim())
-        # for count, artist in zip(n, self.artists[4]):
-        #     artist.set_width(count)
-        # n, _ = np.histogram(r, 100, range=self.intensity_plot.get_ylim())
-        # for count, artist in zip(n, self.artists[5]):
-        #     artist.set_width(count)
-        # n, _ = np.histogram(e, 100, range=self.FRET_plot.get_ylim())
-        # for count, artist in zip(n, self.artists[6]):
-        #     artist.set_width(count)
-        #     #for count, rect in zip(n, bar_container.patches):
-        # tell the blitting manager to do its thing
-        self.bm.update()
 
     def set_plot_range(self, plot_variable, plot_range):
         """Update the y-axis range for a specific plot variable."""
@@ -1128,98 +1066,7 @@ class HistPlotCanvas(FigureCanvasQTAgg):
         else:
             raise ValueError('No save_path set')
 
-class BlitManager:
-    """Utility that handles efficient blitting updates for animated artists.
-
-    Restores a saved background and redraws only the animated artists to avoid
-    full figure redraws, improving UI responsiveness.
-    """
-
-    def __init__(self, canvas, animated_artists=()):
-        """
-        Parameters
-        ----------
-        canvas : FigureCanvasAgg
-            The canvas to work with, this only works for sub-classes of the Agg
-            canvas which have the `~FigureCanvasAgg.copy_from_bbox` and
-            `~FigureCanvasAgg.restore_region` methods.
-
-        animated_artists : Iterable[Artist]
-            List of the artists to manage
-        """
-        self.canvas = canvas
-        self._bg = None
-        self._artists = []
-
-        for a in animated_artists:
-            self.add_artist(a)
-        # grab the background on every draw
-        self.cid = canvas.mpl_connect("draw_event", self.on_draw)
-
-    def on_draw(self, event):
-        """Callback to register with 'draw_event'."""
-        cv = self.canvas
-        if event is not None:
-            if event.canvas != cv:
-                raise RuntimeError
-        self._bg = cv.copy_from_bbox(cv.figure.bbox)
-        self._draw_animated()
-
-    def add_artist(self, art):
-        """
-        Add an artist to be managed.
-
-        Parameters
-        ----------
-        art : Artist
-
-            The artist to be added.  Will be set to 'animated' (just
-            to be safe).  *art* must be in the figure associated with
-            the canvas this class is managing.
-
-        """
-        if art.figure != self.canvas.figure:
-            raise RuntimeError
-        art.set_animated(True)
-        self._artists.append(art)
-
-    def _draw_animated(self):
-        """Draw all of the animated artists."""
-        fig = self.canvas.figure
-        for a in self._artists:
-            fig.draw_artist(a)
-
-    def update(self):
-        """Update the screen with animated artists."""
-        cv = self.canvas
-        fig = cv.figure
-        # paranoia in case we missed the draw event,
-        if self._bg is None:
-            self.on_draw(None)
-        else:
-            # restore the background
-            cv.restore_region(self._bg)
-            # draw all of the animated artists
-            self._draw_animated()
-            # update the GUI state
-            cv.blit(fig.bbox)
-        # let the GUI event loop process anything it has to do
-        # cv.flush_events()
-
-
 if __name__ == "__main__":
-
-    # # Check whether there is already a running QApplication (e.g., if running
-    # # from an IDE).
-    # qapp = QtWidgets.QApplication.instance()
-    # if not qapp:
-    #     qapp = QtWidgets.QApplication(sys.argv)
-    #
-    # app = ApplicationWindow()
-    # app.show()
-    # app.activateWindow()
-    # app.raise_()
-    # qapp.exec_()
 
 
     import papylio as pp
