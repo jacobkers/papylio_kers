@@ -175,7 +175,7 @@ class MovieCorrectionsWidget(QWidget):
         """Register a peak finding method, introspect arguments,
         and build forms for spot_detection"""
         #skips and defaults:
-        skip_inputs=['input', 'output','footprint', 'origin', 'cval', 'reflect', 'truncate', 'mode']
+        skip_inputs=['input', 'output','footprint', 'origin', 'cval', 'reflect', 'truncate', 'mode', 'order']
         defaults = {"size": "15", 'sigma': "10"}
         form_widget_spatial_background, inputs_spatial_background = build_form(func,skip_inputs, defaults)
         self.methods_spatial_background[name] = func
@@ -204,7 +204,9 @@ class MovieCorrectionsWidget(QWidget):
                     <h2>Background corrections</h2>
 
                     <p>
-                    There are three types of background subtraction, to be performed in this order: 
+                    To obtain proper intensity traces for the various channels, 
+                    the image should be corrected for residual background and variations in, for example, illumination. 
+                    There are three types of background subtraction, to be performed in this order but not necessarily all of them: 
                     </p>
                     
                     <p>
@@ -234,7 +236,7 @@ class MovieCorrectionsWidget(QWidget):
                     
                     
                     <p>
-                      For background, see
+                      For more info, see
                       <a href="https://papylio.readthedocs.io/en/stable/user_guide/background_subtraction.html">
                         Background Subtraction</a>
                       </a>.
