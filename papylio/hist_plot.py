@@ -134,7 +134,7 @@ class Hist_V0_PlotWindow(QWidget):
         layout.addWidget(self.canvas)
 
 
-        self.plot_configuration = Plot_V0_Configuration(parent=self, canvas=self.canvas, initial_plot_settings=plot_settings)
+        self.plot_configuration = Plot_Configuration(parent=self, canvas=self.canvas, initial_plot_settings=plot_settings)
         self.plot_configuration.setMinimumWidth(250)
 
         layout_main = QHBoxLayout()
@@ -276,7 +276,7 @@ class Hist_V0_PlotWindow(QWidget):
         elif key == Qt.Key_S: # S
             self.canvas.save()
 
-class Plot_V0_ConfigurationModel(QStandardItemModel):
+class Plot_ConfigurationModel(QStandardItemModel):
     """
     Custom model that only allows reordering of top-level rows.
     Disallows dropping into child items.
@@ -308,7 +308,7 @@ class Plot_V0_ConfigurationModel(QStandardItemModel):
         self.blockSignals(False)
         return result
 
-class Plot_V0_Configuration(QWidget):
+class Plot_Configuration(QWidget):
     """Configuration widget for trace plots.
 
     Provides a tree-view UI to enable/disable trace variables, set plot ranges,
@@ -320,7 +320,7 @@ class Plot_V0_Configuration(QWidget):
         super().__init__(parent=parent)
         self.canvas = canvas
         self.view = QTreeView()
-        self.model = Plot_V0_ConfigurationModel()
+        self.model = Plot_ConfigurationModel()
         self.model.setHorizontalHeaderLabels(["Variable", ""])
         # self.view.setColumnWidth(0, 200)
 
@@ -660,6 +660,196 @@ class Plot_V0_Configuration(QWidget):
 
         self.parent().setFocus()
 
+
+class HistogramPlotWindow(QWidget):
+    """Interactive window for plotting histograms of selected molecules."""
+
+    def __init__(
+            self,
+            file=None,
+            plot_settings=None,
+            width=8,
+            height=None,
+            file_path=None,
+            parent=None,
+            show=True,
+            **kwargs
+    ):
+        super().__init__(parent=parent)
+
+        if plot_settings is None:
+            plot_settings = {
+                'intensity': {
+                    'active': True,
+                    'color': ('g', 'r')
+                },
+                'FRET': {
+                    'active': True,
+                    'plot_range': (-0.05, 1.05),
+                    'color': ('b',)
+                }
+            }
+
+        self.file = file
+        self.file_path = file_path
+
+        # 0 = unselected
+        # 1 = all
+        # 2 = selected
+        self._selection_state = 1
+
+        # Create canvas
+        self.canvas = HistogramPlotCanvas(
+            parent=self,
+            width=width,
+            height=height or 7,
+            dpi=100
+        )
+
+        # Selection controls
+        layout_bar = QHBoxLayout()
+
+        layout_bar.addWidget(QLabel('N_molecules:'))
+
+        self.number_of_molecules_label = QLabel('0')
+        self.number_of_molecules_label.setFixedWidth(70)
+        layout_bar.addWidget(self.number_of_molecules_label)
+
+        self.selected_molecules_checkbox = QCheckBox()
+        self.selected_molecules_checkbox.setTristate(True)
+        self.selected_molecules_checkbox.setCheckState(
+            Qt.PartiallyChecked
+        )
+        self.selected_molecules_checkbox.stateChanged.connect(
+            self.on_selected_molecules_checkbox_state_change
+        )
+        self.selected_molecules_checkbox.setFocusPolicy(Qt.NoFocus)
+
+        layout_bar.addWidget(QLabel('Selected'))
+        layout_bar.addWidget(self.selected_molecules_checkbox)
+
+        # Main layout
+        layout = QVBoxLayout()
+        layout.addLayout(layout_bar)
+        layout.addWidget(self.canvas)
+
+        # Re-use the existing configuration panel
+        self.plot_configuration = Plot_Configuration(
+            parent=self,
+            canvas=self.canvas,
+            initial_plot_settings=plot_settings
+        )
+        self.plot_configuration.setMinimumWidth(250)
+
+        layout_main = QHBoxLayout()
+        layout_main.addLayout(layout, stretch=4)
+        layout_main.addWidget(
+            self.plot_configuration,
+            stretch=1
+        )
+
+        self.setLayout(layout_main)
+
+        # Give canvas access to the window
+        self.canvas.parent_window = self
+
+        # Set file/dataset
+        if self.file is not None:
+            self.set_file(self.file)
+
+        if show:
+            self.show()
+
+    # ------------------------------------------------------------
+    # Selection
+    # ------------------------------------------------------------
+
+    @property
+    def selection_state(self):
+        return self._selection_state
+
+    @selection_state.setter
+    def selection_state(self, value):
+        self._selection_state = value
+        self.set_selection()
+        self.canvas.update_histograms()
+
+    def on_selected_molecules_checkbox_state_change(
+            self,
+            selection_state
+    ):
+        self.selection_state = selection_state
+        self.selected_molecules_checkbox.clearFocus()
+
+    def set_selection(self):
+        """Determine which molecules are included in the histogram."""
+
+        if self.file is None:
+            self.molecule_indices = []
+            self.number_of_molecules_label.setText('0')
+            return
+
+        dataset = self.file.dataset
+
+        if self.selection_state == 0:
+            # Unselected molecules
+            self.molecule_indices = (
+                dataset.molecule
+                .sel(molecule=~dataset.selected)
+                .values
+            )
+
+        elif self.selection_state == 1:
+            # All molecules
+            self.molecule_indices = (
+                dataset.molecule.values
+            )
+
+        elif self.selection_state == 2:
+            # Selected molecules
+            self.molecule_indices = (
+                dataset.molecule
+                .sel(molecule=dataset.selected)
+                .values
+            )
+
+        else:
+            raise ValueError(
+                f'Unknown selection_state {self.selection_state}'
+            )
+
+        self.number_of_molecules_label.setText(
+            str(len(self.molecule_indices))
+        )
+
+    # ------------------------------------------------------------
+    # File
+    # ------------------------------------------------------------
+
+    def set_file(self, file):
+        self.file = file
+
+        dataset = self.file.dataset
+
+        # Same preparation as in the trace plotter
+        dataset['selected'] = dataset.selected.astype('bool')
+
+        if 'intensity' in dataset:
+            dataset['intensity_total'] = (
+                dataset['intensity'].sum('channel')
+            )
+
+        # Let the existing PlotConfiguration inspect the dataset
+        self.plot_configuration.dataset = dataset
+
+        self.set_selection()
+
+        self.canvas.file = self.file
+        self.canvas.plot_settings = (
+            self.plot_configuration.plot_settings
+        )
+
+        self.canvas.update_histograms()
 
 from dataclasses import dataclass
 from matplotlib.artist import Artist
@@ -1002,15 +1192,192 @@ class Hist_V0_PlotCanvas(FigureCanvasQTAgg):
         else:
             raise ValueError('No save_path set')
 
+class HistogramPlotCanvas(FigureCanvasQTAgg):
+    """Canvas for histograms of a selection of molecules."""
+
+    def __init__(
+            self,
+            parent=None,
+            width=8,
+            height=7,
+            dpi=100
+    ):
+        self.figure = Figure(
+            figsize=(width, height),
+            dpi=dpi,
+            tight_layout=True
+        )
+
+        super().__init__(self.figure)
+
+        self.parent_window = parent
+        self.file = None
+        self._plot_settings = {}
+
+        self.histogram_axes = {}
+
+    # ------------------------------------------------------------
+    # Plot settings
+    # ------------------------------------------------------------
+
+    @property
+    def plot_settings(self):
+        return self._plot_settings
+
+    @plot_settings.setter
+    def plot_settings(self, value):
+        self._plot_settings = {
+            variable: settings
+            for variable, settings in value.items()
+            if settings.get('active', False)
+        }
+
+        self.init_plots()
+
+    @property
+    def plot_variables(self):
+        return list(self.plot_settings.keys())
+
+    # ------------------------------------------------------------
+    # Plot initialization
+    # ------------------------------------------------------------
+
+    def init_plots(self):
+        """Create one histogram axis for each active variable."""
+
+        self.figure.clf()
+
+        self.histogram_axes = {}
+
+        variables = self.plot_variables
+
+        if not variables:
+            self.draw()
+            return
+
+        axes = self.figure.subplots(
+            len(variables),
+            1,
+            squeeze=False
+        ).flatten()
+
+        for axis, variable in zip(axes, variables):
+
+            self.histogram_axes[variable] = axis
+
+            plot_settings = self.plot_settings[variable]
+
+            if 'plot_range' in plot_settings:
+                axis.set_xlim(
+                    plot_settings['plot_range']
+                )
+
+            axis.set_xlabel(variable)
+            axis.set_ylabel('Count')
+
+        self.update_histograms()
+
+    # ------------------------------------------------------------
+    # Histogram drawing
+    # ------------------------------------------------------------
+
+    def update_histograms(self):
+        """Redraw histograms using the current molecule selection."""
+
+        if self.file is None:
+            return
+
+        if not self.histogram_axes:
+            return
+
+        for variable, axis in self.histogram_axes.items():
+
+            plot_settings = self.plot_settings[variable]
+
+            axis.clear()
+
+            # ----------------------------------------------------
+            # IMPORTANT:
+            #
+            # This is where the existing file.show_histogram()
+            # function is used.
+            #
+            # We temporarily select the molecules represented by
+            # the histogram.
+            # ----------------------------------------------------
+
+            self.file.show_histogram(
+                variable=variable,
+                axis=axis,
+                bins=50,
+                selected=True
+            )
+
+            if 'plot_range' in plot_settings:
+                axis.set_xlim(
+                    plot_settings['plot_range']
+                )
+
+            if 'color' in plot_settings:
+                colors = plot_settings['color']
+
+                # show_histogram may create several artists
+                # depending on the variable/channel.
+                for i, artist in enumerate(axis.patches):
+                    if colors:
+                        artist.set_facecolor(
+                            colors[i % len(colors)]
+                        )
+
+            axis.set_xlabel(variable)
+            axis.set_ylabel('Count')
+
+        self.draw()
+
+    # ------------------------------------------------------------
+    # Configuration callbacks
+    # ------------------------------------------------------------
+
+    def set_plot_range(self, plot_variable, plot_range):
+
+        if plot_variable not in self.histogram_axes:
+            return
+
+        axis = self.histogram_axes[plot_variable]
+
+        axis.set_xlim(
+            plot_range[0],
+            plot_range[1]
+        )
+
+        self.draw()
+
+    def set_plot_color(self, plot_variable, colors):
+
+        if plot_variable not in self.histogram_axes:
+            return
+
+        axis = self.histogram_axes[plot_variable]
+
+        for i, artist in enumerate(axis.patches):
+            artist.set_facecolor(
+                colors[i % len(colors)]
+            )
+
+        self.draw()
+
 if __name__ == "__main__":
 
     import papylio as pp
     exp = pp.Experiment(r'C:\Users\jkerssemakers\OneDrive - Delft University of Technology\Documents\GitHub\Papylio example dataset_flat')
-    ds = exp.files[1].dataset
+    file = exp.files[1]
+    ds =  file.dataset
 
     from PySide2.QtWidgets import QApplication
     app = QApplication(sys.argv)
-    frame = Hist_V0_PlotWindow(ds)
+
+    frame = HistogramPlotWindow(file=file, plot_variables=['intensity', 'FRET'])
+    #frame = Hist_V0_PlotWindow(ds)
         #, "Sample editor", plot_variables=['intensity', 'FRET'],  # 'classification'],
         #          ylims=[(0, 1000), (0, 1), (-1,2)], colours=[('g', 'r'), ('b'), ('k')])
     app.exec_()
