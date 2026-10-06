@@ -774,6 +774,18 @@ class HistogramPlotWindow(QWidget):
         self.set_selection()
         self.canvas.update_histograms()
 
+    @property
+    def file(self):
+        return self._file
+
+    @file.setter
+    def file(self, file):
+        self._file = file
+        if file is None:
+            self.dataset = None
+        else:
+            self.dataset = file.dataset
+
     def on_selected_molecules_checkbox_state_change(
             self,
             selection_state
@@ -854,6 +866,8 @@ class HistogramPlotWindow(QWidget):
 from dataclasses import dataclass
 from matplotlib.artist import Artist
 @dataclass
+
+
 class Hist_V0_Artist:
     """Container that groups line and histogram artists for a single plot variable.
 
@@ -894,7 +908,6 @@ class Hist_V0_Artist:
         for histogram_artist in self.histogram_artists:
             for bar in histogram_artist:
                 bar.set_alpha(int(show)*0.5)
-
 
 class Hist_V0_PlotCanvas(FigureCanvasQTAgg):
     """Matplotlib canvas specialized for efficient trace updates.
@@ -1296,22 +1309,20 @@ class HistogramPlotCanvas(FigureCanvasQTAgg):
 
             axis.clear()
 
-            # ----------------------------------------------------
-            # IMPORTANT:
-            #
-            # This is where the existing file.show_histogram()
-            # function is used.
-            #
-            # We temporarily select the molecules represented by
-            # the histogram.
-            # ----------------------------------------------------
+            #special treatment:
+            if variable == 'FRET':
+                bins = np.arange(-0.05, 1.06, 0.01)
+            else:
+                bins = 100
 
             self.file.show_histogram(
                 variable=variable,
                 axis=axis,
-                bins=50,
+                bins=bins,
                 selected=True
             )
+
+
 
             if 'plot_range' in plot_settings:
                 axis.set_xlim(
@@ -1376,7 +1387,7 @@ if __name__ == "__main__":
     from PySide2.QtWidgets import QApplication
     app = QApplication(sys.argv)
 
-    frame = HistogramPlotWindow(file=file, plot_variables=['intensity', 'FRET'])
+    frame = HistogramPlotWindow(file=file)
     #frame = Hist_V0_PlotWindow(ds)
         #, "Sample editor", plot_variables=['intensity', 'FRET'],  # 'classification'],
         #          ylims=[(0, 1000), (0, 1), (-1,2)], colours=[('g', 'r'), ('b'), ('k')])
