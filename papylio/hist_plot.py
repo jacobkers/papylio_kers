@@ -756,6 +756,9 @@ class HistogramPlotWindow(QWidget):
         # Set file/dataset
         if self.file is not None:
             self.set_file(self.file)
+            print('bingo')
+        else:
+            print('nee')
 
         if show:
             self.show()
@@ -763,6 +766,7 @@ class HistogramPlotWindow(QWidget):
     # ------------------------------------------------------------
     # Selection
     # ------------------------------------------------------------
+
 
     @property
     def selection_state(self):
@@ -773,18 +777,6 @@ class HistogramPlotWindow(QWidget):
         self._selection_state = value
         self.set_selection()
         self.canvas.update_histograms()
-
-    @property
-    def file(self):
-        return self._file
-
-    @file.setter
-    def file(self, file):
-        self._file = file
-        if file is None:
-            self.dataset = None
-        else:
-            self.dataset = file.dataset
 
     def on_selected_molecules_checkbox_state_change(
             self,
