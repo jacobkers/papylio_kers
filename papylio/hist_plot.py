@@ -48,7 +48,7 @@ from matplotlib.backends.backend_qt5agg import (
 from matplotlib.figure import Figure
 
 
-class HistPlotWindow(QWidget):
+class Hist_V0_PlotWindow(QWidget):
     """Interactive window for browsing and annotating molecule traces.
 
     Presents an interactive canvas with plotting controls, molecule selection,
@@ -77,7 +77,7 @@ class HistPlotWindow(QWidget):
             warnings.simplefilter("always", DeprecationWarning)
 
             warnings.warn(
-                "Use of `plot_variables`, `ylims` and `colours` arguments is depricated,"
+                "Use of `plot_variables`, `ylims` and `colours` arguments is deprecated,"
                 "use `plot_settings` instead, "
                 "e.g. `plot_settings = {'intensity': {'active': True, 'plot_range': (0, 10000), 'color': ('g', 'r')}, "
                 "'FRET': {'active': True, 'plot_range': (-0.05, 1.05), 'color': ('b')}}`",
@@ -107,7 +107,7 @@ class HistPlotWindow(QWidget):
 
         # self._dataset = dataset
 
-        self.canvas = HistPlotCanvas(self, width=width, height=height, dpi=100)
+        self.canvas = Hist_V0_PlotCanvas(self, width=width, height=height, dpi=100)
 
         # Create toolbar, passing canvas as first parament, parent (self, the MainWindow) as second.
         toolbar = NavigationToolbar(self.canvas, self)
@@ -134,7 +134,7 @@ class HistPlotWindow(QWidget):
         layout.addWidget(self.canvas)
 
 
-        self.plot_configuration = PlotConfiguration(parent=self, canvas=self.canvas, initial_plot_settings=plot_settings)
+        self.plot_configuration = Plot_V0_Configuration(parent=self, canvas=self.canvas, initial_plot_settings=plot_settings)
         self.plot_configuration.setMinimumWidth(250)
 
         layout_main = QHBoxLayout()
@@ -159,7 +159,7 @@ class HistPlotWindow(QWidget):
     def closeEvent(self, event: QCloseEvent):
         """Handle window close event and save settings."""
         self.save_plot_settings()
-        self.save_selection()
+
 
     def save_plot_settings(self):
         """Save current plot configuration to file."""
@@ -170,10 +170,6 @@ class HistPlotWindow(QWidget):
                     if nc_variable is not None:
                         nc_variable.setncattr("plot_settings", json.dumps(plot_settings))
 
-    def save_selection(self):
-        """Save current selection state to the netCDF file."""
-        if self.dataset_path is not None:
-            self.dataset.selected.astype('bool').to_netcdf(self.dataset_path, engine='netcdf4', mode='a')
 
     def deactivate_line_edit(self):
         """Clear focus from the molecule index line edit field."""
@@ -210,6 +206,7 @@ class HistPlotWindow(QWidget):
         self.set_selection()
 
     def on_selected_molecules_checkbox_state_change(self, selection_state):
+        # note: keep this for histograms to show effect of selection
         """Handle changes to the selected molecules checkbox state."""
         self.selection_state = selection_state
         self.selected_molecules_checkbox.clearFocus()
@@ -225,6 +222,8 @@ class HistPlotWindow(QWidget):
         else:
             raise ValueError(f'Unknown selection_state {self.selection_state}')
 
+
+    #todo: think about keeping molecule index for possible link single data point into histograms?
     @property
     def molecule_index(self):
         return self._molecule_index
@@ -234,10 +233,8 @@ class HistPlotWindow(QWidget):
         self._molecule_index = molecule_index
         if self.dataset is not None and self.number_of_molecules_to_show > 0:
             self.molecule = self.dataset.isel(molecule=self.dataset_molecule_index)
-
         else:
             self.molecule = None
-
 
     @property
     def dataset_molecule_index(self):
@@ -279,7 +276,7 @@ class HistPlotWindow(QWidget):
         elif key == Qt.Key_S: # S
             self.canvas.save()
 
-class PlotConfigurationModel(QStandardItemModel):
+class Plot_V0_ConfigurationModel(QStandardItemModel):
     """
     Custom model that only allows reordering of top-level rows.
     Disallows dropping into child items.
@@ -311,7 +308,7 @@ class PlotConfigurationModel(QStandardItemModel):
         self.blockSignals(False)
         return result
 
-class PlotConfiguration(QWidget):
+class Plot_V0_Configuration(QWidget):
     """Configuration widget for trace plots.
 
     Provides a tree-view UI to enable/disable trace variables, set plot ranges,
@@ -323,7 +320,7 @@ class PlotConfiguration(QWidget):
         super().__init__(parent=parent)
         self.canvas = canvas
         self.view = QTreeView()
-        self.model = PlotConfigurationModel()
+        self.model = Plot_V0_ConfigurationModel()
         self.model.setHorizontalHeaderLabels(["Variable", ""])
         # self.view.setColumnWidth(0, 200)
 
@@ -667,12 +664,13 @@ class PlotConfiguration(QWidget):
 from dataclasses import dataclass
 from matplotlib.artist import Artist
 @dataclass
-class HistArtist:
+class Hist_V0_Artist:
     """Container that groups line and histogram artists for a single plot variable.
 
     Each TraceArtist holds references to matplotlib Artist objects that are
     updated when the displayed molecule changes.
     """
+    #todo: transfer this from molecule-based to molecule seelction based: drop trace plotters
     plot_variable: str
     illumination: int
     axis_name: str
@@ -701,14 +699,14 @@ class HistArtist:
 
     def show(self, show=True):
         """Show or hide plot and histogram artists."""
-        for plot_artist in self.plot_artists:
-            plot_artist.set_alpha(int(show))
+        # for plot_artist in self.plot_artists:
+        #     plot_artist.set_alpha(int(show))
         for histogram_artist in self.histogram_artists:
             for bar in histogram_artist:
                 bar.set_alpha(int(show)*0.5)
 
 
-class HistPlotCanvas(FigureCanvasQTAgg):
+class Hist_V0_PlotCanvas(FigureCanvasQTAgg):
     """Matplotlib canvas specialized for efficient trace updates.
 
     Creates axes and artists for each enabled plot variable, manages per-molecule
@@ -765,12 +763,12 @@ class HistPlotCanvas(FigureCanvasQTAgg):
                                 if key.startswith('illumination') and value:
                                     illumination = int(key.replace('illumination_', ''))
                                     axis_name = axis + f'_i{illumination}'
-                                    trace_artists.append(HistArtist(plot_variable=plot_variable, illumination=illumination, axis_name=axis_name, secondary=secondary))
+                                    trace_artists.append(Hist_V0_Artist(plot_variable=plot_variable, illumination=illumination, axis_name=axis_name, secondary=secondary))
                                     # artist_info.append(dict(plot_variable=plot_variable, illumination=illumination, axis_name=axis_name))
                         else:
-                            trace_artists.append(HistArtist(plot_variable=plot_variable, illumination=None, axis_name=axis, secondary=secondary))
+                            trace_artists.append(Hist_V0_Artist(plot_variable=plot_variable, illumination=None, axis_name=axis, secondary=secondary))
                     else:
-                        trace_artists.append(HistArtist(plot_variable=plot_variable, illumination=None, axis_name=axis, secondary=secondary))
+                        trace_artists.append(Hist_V0_Artist(plot_variable=plot_variable, illumination=None, axis_name=axis, secondary=secondary))
                             # artist_info.append(dict(plot_variable=plot_variable, illumination=None, axis_name=plot_variable))
             self._trace_artists = trace_artists
 
@@ -901,6 +899,7 @@ class HistPlotCanvas(FigureCanvasQTAgg):
 
         trace_artist.plot_artists = axis.plot(x, y.T)
         # molecule.intensity.plot.line(x='frame', ax=self.plot_axes[plot_variable], color=self.parent_window.colours[i])
+        #histogram is taken directly from displayed trace section
         histogram_artists = (
             self.histogram_axes[trace_artist.axis_name].hist(y.T, bins=50, orientation='horizontal',
                                                              # range=self.plot_axes[plot_variable].get_ylim(),
@@ -1011,7 +1010,7 @@ if __name__ == "__main__":
 
     from PySide2.QtWidgets import QApplication
     app = QApplication(sys.argv)
-    frame = HistPlotWindow(ds)
+    frame = Hist_V0_PlotWindow(ds)
         #, "Sample editor", plot_variables=['intensity', 'FRET'],  # 'classification'],
         #          ylims=[(0, 1000), (0, 1), (-1,2)], colours=[('g', 'r'), ('b'), ('k')])
     app.exec_()
