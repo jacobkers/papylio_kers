@@ -758,7 +758,7 @@ class HistogramPlotWindow(QWidget):
             self.set_file(self.file)
             print('bingo')
         else:
-            print('nee')
+            print('nee hoor')
 
         if show:
             self.show()
