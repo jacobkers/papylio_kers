@@ -344,10 +344,11 @@ class MainWindow(QMainWindow):
         selected_files = self.experiment.selectedFiles + [None]
         for widget in self.tab_widgets:
             widget.file = selected_files[0]
+            # if hasattr(widget, "set_file"):
+            #     widget.set_file(selected_files[0])
             if hasattr(widget, "image_canvas"):
                 widget.image_canvas.refresh()
-            if hasattr(widget, "set_file"):
-                widget.set_file(selected_files[0])
+
 
     def addExperiment(self, experiment):
         self.root.appendRow([
