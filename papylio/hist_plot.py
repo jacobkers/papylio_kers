@@ -767,7 +767,6 @@ class HistogramPlotWindow(QWidget):
     # Selection
     # ------------------------------------------------------------
 
-
     @property
     def selection_state(self):
         return self._selection_state
