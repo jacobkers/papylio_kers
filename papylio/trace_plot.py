@@ -214,7 +214,6 @@ class TracePlotWindow(QWidget):
         else:
             self.dataset = file.dataset
 
-
     @property
     def dataset(self):
         return self._dataset

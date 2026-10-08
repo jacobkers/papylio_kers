@@ -439,11 +439,13 @@ class HistogramPlotWindow(QWidget):
             plot_settings = {
                 'intensity': {
                     'active': True,
+                    'bins': 100,
                     'color': ('g', 'r')
                 },
                 'FRET': {
                     'active': True,
                     'plot_range': (-0.05, 1.05),
+                    'bins': 110,
                     'color': ('b',)
                 }
             }
@@ -514,10 +516,11 @@ class HistogramPlotWindow(QWidget):
         self.canvas.parent_window = self
 
         # Set the initial file only after canvas and plot_configuration exist.
-        if file is not None:
-            self.set_file(file)
-        else:
-            self.setDisabled(True)
+        # if file is not None:
+        #     self.set_file(file)
+        # else:
+        #     self.setDisabled(True)
+        self.file = file
 
         if show:
             self.show()
@@ -533,7 +536,7 @@ class HistogramPlotWindow(QWidget):
     @selection_state.setter
     def selection_state(self, value):
         self._selection_state = value
-        self.set_selection()
+        # self.set_selection()
         if self.file is not None:
             self.canvas.update_histograms()
 
@@ -543,59 +546,44 @@ class HistogramPlotWindow(QWidget):
     ):
         self.selection_state = selection_state
         self.selected_molecules_checkbox.clearFocus()
-
-    def set_selection(self):
-        """Determine which molecules are included in the histogram."""
-        dataset = self.dataset
-
-        if dataset is None or self.file is None:
-            self.molecule_indices = []
-            self.number_of_molecules_label.setText('0')
-            return
-
-        if self.selection_state == 0:
-            # Unselected molecules
-            self.molecule_indices = (
-                dataset.molecule
-                .sel(molecule=~dataset.selected)
-                .values
-            )
-
-        elif self.selection_state == 1:
-            # All molecules
-            self.molecule_indices = dataset.molecule.values
-
-        elif self.selection_state == 2:
-            # Selected molecules
-            self.molecule_indices = (
-                dataset.molecule
-                .sel(molecule=dataset.selected)
-                .values
-            )
-
-        else:
-            raise ValueError(
-                f'Unknown selection_state {self.selection_state}'
-            )
-
-        self.number_of_molecules_label.setText(
-            str(len(self.molecule_indices))
-        )
-
-    def set_file(self, file):
-        """Assign a file and refresh the canvas."""
-        self.file = file
-        self.canvas.file = file
-
-        if self.dataset is not None:
-            self.canvas.plot_settings = (
-                self.plot_configuration.plot_settings
-            )
-            self.canvas.update_histograms()
-        else:
-            self.canvas.figure.clear()
-            self.canvas.histogram_axes = {}
-            self.canvas.draw()
+    #
+    # def set_selection(self):
+    #     """Determine which molecules are included in the histogram."""
+    #     if  self.file is None:
+    #         self.molecule_indices = []
+    #         self.number_of_molecules_label.setText('0')
+    #         return
+    #
+    #     selected = self.file.selected
+    #
+    #     if self.selection_state == 0:
+    #         # Unselected molecules
+    #         self.molecule_indices = (
+    #             selected.molecule
+    #             .sel(molecule=~selected.values)
+    #             .values
+    #         )
+    #
+    #     elif self.selection_state == 1:
+    #         # All molecules
+    #         self.molecule_indices = selected.molecule.values
+    #
+    #     elif self.selection_state == 2:
+    #         # Selected molecules
+    #         self.molecule_indices = (
+    #             selected.molecule
+    #             .sel(molecule=selected.values)
+    #             .values
+    #         )
+    #
+    #     else:
+    #         raise ValueError(
+    #             f'Unknown selection_state {self.selection_state}'
+    #         )
+    #
+    #     self.number_of_molecules_label.setText(
+    #         str(len(self.molecule_indices))
+    #     )
 
     @property
     def file(self):
@@ -606,8 +594,27 @@ class HistogramPlotWindow(QWidget):
         self._file = file
         if file is None:
             self.dataset = None
+            self.canvas.figure.clear()
+            self.canvas.histogram_axes = {}
+            self.canvas.draw()
+            self.setDisabled(True)
         else:
             self.dataset = file.dataset
+            self.plot_configuration.dataset = file.dataset
+            self.canvas.plot_settings = (
+                self.plot_configuration.plot_settings
+            )
+
+            self.canvas.file = file
+            self.canvas.update_histograms()
+
+            # """Assign a file and refresh the canvas."""
+            # self.file = file
+            # self.canvas.file = file
+            #
+            # if self.dataset is not None:
+            #
+            # else:
 
     @property
     def dataset(self):
@@ -622,7 +629,7 @@ class HistogramPlotWindow(QWidget):
                 self._dataset['intensity_total'] = self._dataset['intensity'].sum('channel')
 
             self.plot_configuration.dataset = self._dataset
-            self.set_selection()
+            #self.set_selection()
             self.setDisabled(False)
         else:
             self._dataset = None
@@ -652,6 +659,7 @@ class HistogramPlotCanvas(FigureCanvasQTAgg):
         self._plot_settings = {}
 
         self.histogram_axes = {}
+        self.selection_state = None
 
     # ------------------------------------------------------------
     # Plot settings
@@ -711,8 +719,7 @@ class HistogramPlotCanvas(FigureCanvasQTAgg):
 
             axis.set_xlabel(variable)
             axis.set_ylabel('Count')
-
-        self.update_histograms()
+            self.update_histograms()
 
     # ------------------------------------------------------------
     # Histogram drawing
@@ -721,9 +728,11 @@ class HistogramPlotCanvas(FigureCanvasQTAgg):
     def update_histograms(self):
         """Redraw histograms using the current molecule selection."""
 
-        if self.file is None:
+        if self.file is None :
             return
-
+        fret = getattr(self.file.dataset, "FRET", None)
+        if fret is None:
+            return
         if not self.histogram_axes:
             return
 
@@ -734,16 +743,16 @@ class HistogramPlotCanvas(FigureCanvasQTAgg):
             axis.clear()
 
             #special treatment:
-            if variable == 'FRET':
-                bins = np.arange(-0.05, 1.06, 0.01)
-            else:
-                bins = 100
+            # if variable == 'FRET':
+            #     bins = np.arange(-0.05, 1.06, 0.01)
+            # else:
+            #     bins = 100
 
             self.file.show_histogram(
                 variable=variable,
                 axis=axis,
-                bins=bins,
-                selected=True
+                bins=plot_settings['bins'],
+                #selected=self.selection_state  TODO: change in show_hist
             )
 
             if 'plot_range' in plot_settings:
