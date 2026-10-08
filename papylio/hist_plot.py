@@ -101,8 +101,23 @@ class Plot_Configuration(QWidget):
     @dataset.setter
     def dataset(self, dataset):
         self._dataset = dataset
-        self._trace_variables_dataset = [name for name, da in self._dataset.data_vars.items() if
-                da.dims and da.dims[0] == "molecule" and da.dims[-1] == "frame"]
+
+        # Clear the old rows when switching files, but retain plot settings.
+        self.model.blockSignals(True)
+        self.model.clear()
+        self.model.setHorizontalHeaderLabels(["Variable", ""])
+        self._trace_variables = []
+        self.model.blockSignals(False)
+
+        if dataset is None:
+            self._trace_variables_dataset = []
+            self.canvas.plot_settings = self.plot_settings
+            return
+
+        self._trace_variables_dataset = [
+            name for name, da in dataset.data_vars.items()
+            if da.dims and da.dims[0] == "molecule" and da.dims[-1] == "frame"
+        ]
 
         self._add_missing_plot_settings_from_dataset()
         self._add_plot_settings_to_model()
@@ -433,7 +448,9 @@ class HistogramPlotWindow(QWidget):
                 }
             }
 
-        self.file = file
+        # Store the initial file for assignment after the UI is constructed.
+        self._file = None
+        self._dataset = None
         self.file_path = file_path
 
         # 0 = unselected
@@ -496,9 +513,12 @@ class HistogramPlotWindow(QWidget):
         # Give canvas access to the window
         self.canvas.parent_window = self
 
-        # Set file/dataset
-        if self.file is not None:
-            self.set_file(self.file)
+        # Set the initial file only after canvas and plot_configuration exist.
+        if file is not None:
+            self.set_file(file)
+        else:
+            self.setDisabled(True)
+
         if show:
             self.show()
 
@@ -514,7 +534,8 @@ class HistogramPlotWindow(QWidget):
     def selection_state(self, value):
         self._selection_state = value
         self.set_selection()
-        self.canvas.update_histograms()
+        if self.file is not None:
+            self.canvas.update_histograms()
 
     def on_selected_molecules_checkbox_state_change(
             self,
@@ -525,13 +546,12 @@ class HistogramPlotWindow(QWidget):
 
     def set_selection(self):
         """Determine which molecules are included in the histogram."""
+        dataset = self.dataset
 
-        if self.file is None:
+        if dataset is None or self.file is None:
             self.molecule_indices = []
             self.number_of_molecules_label.setText('0')
             return
-
-        dataset = self.file.dataset
 
         if self.selection_state == 0:
             # Unselected molecules
@@ -543,9 +563,7 @@ class HistogramPlotWindow(QWidget):
 
         elif self.selection_state == 1:
             # All molecules
-            self.molecule_indices = (
-                dataset.molecule.values
-            )
+            self.molecule_indices = dataset.molecule.values
 
         elif self.selection_state == 2:
             # Selected molecules
@@ -564,34 +582,52 @@ class HistogramPlotWindow(QWidget):
             str(len(self.molecule_indices))
         )
 
-    # ------------------------------------------------------------
-    # File
-    # ------------------------------------------------------------
-
     def set_file(self, file):
+        """Assign a file and refresh the canvas."""
         self.file = file
+        self.canvas.file = file
 
-        dataset = self.file.dataset
-
-        # Same preparation as in the trace plotter
-        dataset['selected'] = dataset.selected.astype('bool')
-
-        if 'intensity' in dataset:
-            dataset['intensity_total'] = (
-                dataset['intensity'].sum('channel')
+        if self.dataset is not None:
+            self.canvas.plot_settings = (
+                self.plot_configuration.plot_settings
             )
+            self.canvas.update_histograms()
+        else:
+            self.canvas.figure.clear()
+            self.canvas.histogram_axes = {}
+            self.canvas.draw()
 
-        # Let the existing PlotConfiguration inspect the dataset
-        self.plot_configuration.dataset = dataset
+    @property
+    def file(self):
+        return self._file
 
-        self.set_selection()
+    @file.setter
+    def file(self, file):
+        self._file = file
+        if file is None:
+            self.dataset = None
+        else:
+            self.dataset = file.dataset
 
-        self.canvas.file = self.file
-        self.canvas.plot_settings = (
-            self.plot_configuration.plot_settings
-        )
+    @property
+    def dataset(self):
+        return self._dataset
 
-        self.canvas.update_histograms()
+    @dataset.setter
+    def dataset(self, value):
+        if value is not None and (hasattr(value, 'frame') or hasattr(value, 'time')):
+            self._dataset = value
+            self._dataset['selected'] = self._dataset.selected.astype('bool')
+            if 'intensity' in self._dataset:
+                self._dataset['intensity_total'] = self._dataset['intensity'].sum('channel')
+
+            self.plot_configuration.dataset = self._dataset
+            self.set_selection()
+            self.setDisabled(False)
+        else:
+            self._dataset = None
+            self.setDisabled(True)
+        self.molecule_index = 0
 
 class HistogramPlotCanvas(FigureCanvasQTAgg):
     """Canvas for histograms of a selection of molecules."""
@@ -773,4 +809,3 @@ if __name__ == "__main__":
 
     frame = HistogramPlotWindow(file=file)
     app.exec_()
-
