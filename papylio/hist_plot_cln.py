@@ -4,49 +4,22 @@ Created on Fri Sep 14 15:44:52 2018
 
 @author: ivoseverins
 """
-from typing import Optional
-
-# import wx
-# import wx.lib.mixins.inspection as wit
-# import sys
-# print('PyQt5', sys.modules.get("PyQt5.QtCore"))
-# print('PySide2', sys.modules.get("PySide2.QtCore"))
-
-###################################################
-## To enable interactive plotting with PySide2 in PyCharm 2022.3
-import PySide2
+# Required for interactive Matplotlib plotting with PySide2 in some PyCharm setups.
 import sys
-sys.modules['PyQt5'] = sys.modules['PySide2']
-import matplotlib
-matplotlib.use('Qt5Agg')
-###################################################
-#TODO:
-# simplify: remove BlitManager
-# simplify: remove / inactivate molecule indexing
-# adapt & understand artists layout
-# adapt data handling
-
-
-import numpy as np
-from pathlib2 import Path
-from PySide2.QtWidgets import (QMainWindow, QPushButton, QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QCheckBox, QLabel,
-                               QTableWidget, QTableWidgetItem, QHeaderView, QTreeView, QStyledItemDelegate,
-                               QAbstractItemView)
-from PySide2.QtGui import QStandardItemModel, QStandardItem, QColor
-from PySide2.QtGui import QKeySequence, QCloseEvent, QDragMoveEvent
-from PySide2.QtCore import Qt, QModelIndex, Signal
-
-import sys
-
-import numpy as np
-
-import netCDF4
 import json
 
-from matplotlib.backends.backend_qt5agg import (
-    FigureCanvasQTAgg, NavigationToolbar2QT as NavigationToolbar)
-from matplotlib.figure import Figure
+import PySide2
+sys.modules['PyQt5'] = sys.modules['PySide2']
 
+import matplotlib
+matplotlib.use('Qt5Agg')
+
+import numpy as np
+from PySide2.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QCheckBox, QLabel, QHeaderView, QTreeView
+from PySide2.QtGui import QStandardItemModel, QStandardItem
+from PySide2.QtCore import Qt, QModelIndex
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
+from matplotlib.figure import Figure
 
 class Plot_ConfigurationModel(QStandardItemModel):
     """
@@ -94,7 +67,6 @@ class Plot_Configuration(QWidget):
         self.view = QTreeView()
         self.model = Plot_ConfigurationModel()
         self.model.setHorizontalHeaderLabels(["Variable", ""])
-        # self.view.setColumnWidth(0, 200)
 
         self.model.itemChanged.connect(self._on_item_change)
         self.model.rowsRemoved.connect(self._on_rows_changed)
@@ -432,7 +404,6 @@ class Plot_Configuration(QWidget):
 
         self.parent().setFocus()
 
-
 class HistogramPlotWindow(QWidget):
     """Interactive window for plotting histograms of selected molecules."""
 
@@ -528,10 +499,6 @@ class HistogramPlotWindow(QWidget):
         # Set file/dataset
         if self.file is not None:
             self.set_file(self.file)
-            print('bingo')
-        else:
-            print('nee hoor')
-
         if show:
             self.show()
 
@@ -625,10 +592,6 @@ class HistogramPlotWindow(QWidget):
         )
 
         self.canvas.update_histograms()
-
-from dataclasses import dataclass
-from matplotlib.artist import Artist
-@dataclass
 
 class HistogramPlotCanvas(FigureCanvasQTAgg):
     """Canvas for histograms of a selection of molecules."""
@@ -747,8 +710,6 @@ class HistogramPlotCanvas(FigureCanvasQTAgg):
                 selected=True
             )
 
-
-
             if 'plot_range' in plot_settings:
                 axis.set_xlim(
                     plot_settings['plot_range']
@@ -807,15 +768,9 @@ if __name__ == "__main__":
     import papylio as pp
     exp = pp.Experiment(r'C:\Users\jkerssemakers\OneDrive - Delft University of Technology\Documents\GitHub\Papylio example dataset_flat')
     file = exp.files[1]
-    ds =  file.dataset
-
     from PySide2.QtWidgets import QApplication
     app = QApplication(sys.argv)
 
     frame = HistogramPlotWindow(file=file)
-    #frame = Hist_V0_PlotWindow(ds)
-        #, "Sample editor", plot_variables=['intensity', 'FRET'],  # 'classification'],
-        #          ylims=[(0, 1000), (0, 1), (-1,2)], colours=[('g', 'r'), ('b'), ('k')])
     app.exec_()
-
 
