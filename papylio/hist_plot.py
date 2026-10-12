@@ -160,25 +160,23 @@ class Plot_Configuration(QWidget):
                     plot_settings[var]['active'] = True
                 else:
                     plot_settings[var]['active'] = False
-            if 'bins' not in plot_settings[var]:
-                plot_settings[var]['bins'] = 200
+            if 'n_bins' not in plot_settings[var]:
+                plot_settings[var]['n_bins'] = 200
 
             # Plot range text
             if 'plot_range' not in plot_settings[var]:
                 if 'FRET' in var:
                     plot_settings[var]['plot_range'] = (-0.05, 1.05)
-                    plot_settings[var]['bins'] = np.arange(-0.05, 1.06, 0.005)
+                    plot_settings[var]['n_bins'] = 200
                 elif 'classification' in var:
                     plot_settings[var]['plot_range'] = (self.dataset[var].min().round().item()-0.5,
                                                         self.dataset[var].max().round().item()+0.5)
                 else:
                     plot_settings[var]['plot_range'] = (self.dataset[var].min().round().item(),
                                                         self.dataset[var].max().round().item())
-                if 'bins' not in plot_settings[var]:
-                    if 'FRET' in var:
-                        plot_settings[var]['bins'] = np.arange(-0.05, 1.06, 0.005)
-                    else:
-                        plot_settings[var]['bins'] = 200
+                if 'n_bins' not in plot_settings[var]:
+
+                        plot_settings[var]['n_bins'] = 200
 
             # Color column
             if 'color' not in plot_settings[var]:
@@ -285,15 +283,15 @@ class Plot_Configuration(QWidget):
 
             name_item.appendRow([plot_range_high_text_item, plot_range_high_item])
 
-        if 'bins' not in current_settings:
-            bins = plot_settings['bins']
+        if 'n_bins' not in current_settings:
+            bins = plot_settings['n_bins']
 
-            plot_range_bins_text_item = QStandardItem("Bins")
+            plot_range_bins_text_item = QStandardItem("N_bins")
             plot_range_bins_text_item.setEditable(False)
 
             plot_range_bins_item = QStandardItem(str(bins))
             plot_range_bins_item.setEditable(True)
-            plot_range_bins_item.setData('bins', Qt.UserRole)
+            plot_range_bins_item.setData('n_bins', Qt.UserRole)
 
             name_item.appendRow([plot_range_bins_text_item, plot_range_bins_item])
 
@@ -454,19 +452,23 @@ class HistogramPlotWindow(QWidget):
             plot_settings = {
                 'intensity': {
                     'active': True,
-                    'bins': 200,
+                    'n_bins': 200,
                     'color': ('g', 'r')
                 },
                 'FRET': {
                     'active': True,
                     'plot_range': (-0.05, 1.05),
-                    'bins': 200,
+                    'n_bins': 200,
                     'color': ('b',)
                 }
             }
         #force write FRET settings (to avoid auto-scaling on outliers)
         plot_settings['FRET']['plot_range'] = (-0.05, 1.05)
-        plot_settings['FRET']['bins'] = np.arange(-0.05, 1.06, 0.005)
+        plot_settings['FRET']['n_bins'] = 200
+        #bins=y_range = np.linspace(plot_settings['FRET']['plot_range'][0],
+        #                              plot_settings['FRET']['plot_range'][1],
+        #                              plot_settings['FRET']['n_bins'] + 1)
+        #plot_settings['FRET']['n_bins'] = bins
 
         # Store the initial file for assignment after the UI is constructed.
         self._file = None
@@ -759,11 +761,14 @@ class HistogramPlotCanvas(FigureCanvasQTAgg):
 
             axis.clear()
 
+            bin_axis = np.linspace(plot_settings['plot_range'][0],
+                                         plot_settings['plot_range'][1],
+                                         plot_settings['n_bins'] + 1)
 
             self.file.show_histogram(
                 variable=variable,
                 axis=axis,
-                bins=plot_settings['bins'],
+                bins=bin_axis
                 #selected=self.selection_state  TODO: change in show_hist
             )
 
