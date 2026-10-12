@@ -799,6 +799,8 @@ class HistogramPlotCanvas(FigureCanvasQTAgg):
 
     def set_plot_range(self, plot_variable, plot_range):
 
+        self.update_histograms()
+
         if plot_variable not in self.histogram_axes:
             return
 
