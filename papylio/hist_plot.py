@@ -161,13 +161,13 @@ class Plot_Configuration(QWidget):
                 else:
                     plot_settings[var]['active'] = False
             if 'bins' not in plot_settings[var]:
-                plot_settings[var]['bins'] = 100
+                plot_settings[var]['bins'] = 200
 
             # Plot range text
             if 'plot_range' not in plot_settings[var]:
                 if 'FRET' in var:
                     plot_settings[var]['plot_range'] = (-0.05, 1.05)
-                    plot_settings[var]['bins'] = np.arange(-0.05, 1.06, 0.01)
+                    plot_settings[var]['bins'] = np.arange(-0.05, 1.06, 0.005)
                 elif 'classification' in var:
                     plot_settings[var]['plot_range'] = (self.dataset[var].min().round().item()-0.5,
                                                         self.dataset[var].max().round().item()+0.5)
@@ -176,9 +176,9 @@ class Plot_Configuration(QWidget):
                                                         self.dataset[var].max().round().item())
                 if 'bins' not in plot_settings[var]:
                     if 'FRET' in var:
-                        plot_settings[var]['bins'] = np.arange(-0.05, 1.06, 0.01)
+                        plot_settings[var]['bins'] = np.arange(-0.05, 1.06, 0.005)
                     else:
-                        plot_settings[var]['bins'] = 100
+                        plot_settings[var]['bins'] = 200
 
             # Color column
             if 'color' not in plot_settings[var]:
@@ -454,19 +454,19 @@ class HistogramPlotWindow(QWidget):
             plot_settings = {
                 'intensity': {
                     'active': True,
-                    'bins': 100,
+                    'bins': 200,
                     'color': ('g', 'r')
                 },
                 'FRET': {
                     'active': True,
                     'plot_range': (-0.05, 1.05),
-                    'bins': 110,
+                    'bins': 200,
                     'color': ('b',)
                 }
             }
         #force write FRET settings (to avoid auto-scaling on outliers)
         plot_settings['FRET']['plot_range'] = (-0.05, 1.05)
-        plot_settings['FRET']['bins'] = np.arange(-0.05, 1.06, 0.01)
+        plot_settings['FRET']['bins'] = np.arange(-0.05, 1.06, 0.005)
 
         # Store the initial file for assignment after the UI is constructed.
         self._file = None
@@ -488,7 +488,6 @@ class HistogramPlotWindow(QWidget):
 
         # Selection controls
         layout_bar = QHBoxLayout()
-
         layout_bar.addWidget(QLabel('N_molecules:'))
 
         self.number_of_molecules_label = QLabel('0')
@@ -760,11 +759,6 @@ class HistogramPlotCanvas(FigureCanvasQTAgg):
 
             axis.clear()
 
-            #special treatment:
-            # if variable == 'FRET':
-            #     bins = np.arange(-0.05, 1.06, 0.01)
-            # else:
-            #     bins = 100
 
             self.file.show_histogram(
                 variable=variable,
