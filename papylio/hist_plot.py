@@ -174,6 +174,11 @@ class Plot_Configuration(QWidget):
                 else:
                     plot_settings[var]['plot_range'] = (self.dataset[var].min().round().item(),
                                                         self.dataset[var].max().round().item())
+                if 'bins' not in plot_settings[var]:
+                    if 'FRET' in var:
+                        plot_settings[var]['bins'] = np.arange(-0.05, 1.06, 0.01)
+                    else:
+                        plot_settings[var]['bins'] = 100
 
             # Color column
             if 'color' not in plot_settings[var]:
@@ -279,6 +284,19 @@ class Plot_Configuration(QWidget):
             plot_range_high_item.setData('plot_range', Qt.UserRole)
 
             name_item.appendRow([plot_range_high_text_item, plot_range_high_item])
+
+        if 'bins' not in current_settings:
+            bins = plot_settings['bins']
+
+            plot_range_bins_text_item = QStandardItem("Bins")
+            plot_range_bins_text_item.setEditable(False)
+
+            plot_range_bins_item = QStandardItem(str(bins))
+            plot_range_bins_item.setEditable(True)
+            plot_range_bins_item.setData('bins', Qt.UserRole)
+
+            name_item.appendRow([plot_range_bins_text_item, plot_range_bins_item])
+
 
         if 'color' not in current_settings:
             color_text_item = QStandardItem("Color(s)")
