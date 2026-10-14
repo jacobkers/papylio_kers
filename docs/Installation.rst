@@ -34,6 +34,13 @@ or through using pip
 
 where it is recommended to make a separate virtual environment or conda environment for `papylio`.
 
+.. attention::
+
+   Installation on newer Apple Silicon (non-intel) Macs may give errors. This can be solved, for now, by installing the Intel version of Anaconda or conda.
+   Work is ongoing to update the dependencies to support Apple Silicon. If you encounter any issues, please report them on the `GitHub issues`_ page.
+
+.. _GitHub issues: https://github.com/Chirlmin-Joo-lab/papylio/issues/34
+
 Detailed conda installation steps
 ---------------------------------
 For installation with conda, it is recommended to use `miniforge`_.
