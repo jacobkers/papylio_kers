@@ -84,8 +84,8 @@ example_scripts_process_traces= {
 "median_FRET": """
 #Build a variable that comprises of a median-filtered FRET
 fret=file.get_variable("FRET")
-fret_median5 = fret.rolling(frame=5).median().dropna('frame')
-file.set_variable(fret_median5_b, name='fret_median_5')
+fret_median5 = fret.rolling(frame=5, center=True, min_periods=1).median()
+file.set_variable(fret_median5, name='fret_median_5')
     """,
 
 }
