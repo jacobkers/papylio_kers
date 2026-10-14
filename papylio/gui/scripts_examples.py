@@ -80,8 +80,19 @@ fig.show()
     """,
 }
 
+example_scripts_process_traces= {
+"median_FRET": """
+#Build a variable that comprises of a median-filtered FRET
+fret=file.get_variable("FRET")
+fret_median5 = fret.rolling(frame=5).median().dropna('frame')
+file.set_variable(fret_median5_b, name='fret_median_5')
+    """,
+
+}
+
 example_scripts = {
     "Show": example_scripts_show,
     "Select": example_scripts_select,
     "Analyze": example_scripts_analyze,
+    "Pre_process": example_scripts_process_traces,
 }
