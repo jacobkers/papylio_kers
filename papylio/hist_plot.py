@@ -267,16 +267,13 @@ class Plot_Configuration(QWidget):
 
             plot_range_low_text_item = QStandardItem("Y min")
             plot_range_low_text_item.setEditable(False)
-
             plot_range_low_item = QStandardItem(str(plot_range[0]))
             plot_range_low_item.setEditable(True)
             plot_range_low_item.setData('plot_range', Qt.UserRole)
-
             name_item.appendRow([plot_range_low_text_item, plot_range_low_item])
 
             plot_range_high_text_item = QStandardItem("Y max")
             plot_range_high_text_item.setEditable(False)
-
             plot_range_high_item = QStandardItem(str(plot_range[1]))
             plot_range_high_item.setEditable(True)
             plot_range_high_item.setData('plot_range', Qt.UserRole)
@@ -286,7 +283,7 @@ class Plot_Configuration(QWidget):
         if 'n_bins' not in current_settings:
             bins = plot_settings['n_bins']
 
-            plot_range_bins_text_item = QStandardItem("N_bins")
+            plot_range_bins_text_item = QStandardItem("n_bins")
             plot_range_bins_text_item.setEditable(False)
 
             plot_range_bins_item = QStandardItem(str(bins))
@@ -402,6 +399,10 @@ class Plot_Configuration(QWidget):
             elif item.data(Qt.UserRole).startswith('illumination'):
                 illumination = bool(item.checkState())
                 self.plot_settings[variable_name][item.data(Qt.UserRole)] = illumination
+                self.canvas.plot_settings = self.plot_settings
+            elif item.data(Qt.UserRole)  == 'n_bins':
+                n_bins = int(item.parent().child(2,1).text())
+                self.plot_settings[variable_name][item.data(Qt.UserRole)] = n_bins
                 self.canvas.plot_settings = self.plot_settings
 
         self.parent().setFocus()
@@ -761,9 +762,12 @@ class HistogramPlotCanvas(FigureCanvasQTAgg):
 
             axis.clear()
 
-            bin_axis = np.linspace(plot_settings['plot_range'][0],
+            if 'n_bins' in plot_settings and 'plot_range' in plot_settings:
+                bin_axis = np.linspace(plot_settings['plot_range'][0],
                                          plot_settings['plot_range'][1],
                                          plot_settings['n_bins'] + 1)
+            else:
+                bin_axis=200
 
             self.file.show_histogram(
                 variable=variable,

@@ -181,13 +181,10 @@ class MainWindow(QMainWindow):
 
         central_widget = QWidget()
         central_widget.setLayout(super_layout)
-
         self.setCentralWidget(central_widget)
         self.show()
         self.showMaximized()
-
         self._create_menu_bar()
-
         #self.top_tabs.tabBar().currentChanged.connect(self.update_plots)
 
     def _create_menu_bar(self):
