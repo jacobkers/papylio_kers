@@ -147,6 +147,7 @@ class Plot_Configuration(QWidget):
 
     def _add_missing_plot_settings_from_dataset(self):
         """Add default plot settings for variables not yet configured."""
+        #TODO: variables live on in plotconfig even when cleared
         plot_settings = self.plot_settings
         for var in set(self._trace_variables_dataset).union(set(plot_settings.keys())):
             if var not in plot_settings:
