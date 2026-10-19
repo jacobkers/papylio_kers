@@ -85,7 +85,16 @@ example_scripts_process_traces= {
 #Build a variable that comprises of a median-filtered FRET
 fret=file.get_variable("FRET")
 fret_median5 = fret.rolling(frame=5, center=True, min_periods=1).median()
-file.set_variable(fret_median5, name='fret_median_5')
+file.set_variable(fret_median5, name='processed')
+    """,
+
+"any processing": """
+#[for testing purposes]
+#Build -or overwrite- a buffer variable 'processed' ,
+#using any variable and operator. Example:
+var=file.get_variable("intensity_total")
+processed_ave10 = var.rolling(frame=10, center=True, min_periods=1).mean()
+file.set_variable(processed_ave10, name='processed')
     """,
 
 }

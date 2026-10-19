@@ -301,7 +301,7 @@ class ScriptBox(QWidget):
         <p>
          The user is assumed to have a proper insight in use of Papylio scripts.
          Custom code may overwrite earlier GUI pipeline results.
-         It may lead to mismatches and or errors in the stored data.
+         It may lead to mismatches and/or errors in the stored data or in GUI use
          
         </p>
         
