@@ -122,10 +122,11 @@ class TifMovie(Movie):
                     except ValueError:
                         return value  # Return as string if conversion fails
 
+
                 stage_position_x = get_numeric_parameter(self.file.imagej_metadata['Info'],
-                                                         'NikonTi2-xAxisPosition') / 1000
+                                                         'Nikon_Ti2-xAxisPosition') / 1000
                 stage_position_y = get_numeric_parameter(self.file.imagej_metadata['Info'],
-                                                         'NikonTi2-yAxisPosition') / 1000
+                                                         'Nikon_Ti2-yAxisPosition') / 1000
                 pixel_size = get_numeric_parameter(self.file.imagej_metadata['Info'], 'PixelSizeUm')
 
                 self.pixel_size = np.array([pixel_size, pixel_size])
