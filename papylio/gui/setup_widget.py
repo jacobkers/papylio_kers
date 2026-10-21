@@ -1,4 +1,5 @@
 
+import numpy as np
 from PySide2.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, \
     QComboBox, QLineEdit, QSpinBox, QFormLayout, QButtonGroup, QRadioButton, QLabel, QMessageBox
 from PySide2.QtCore import Qt, Signal
@@ -135,8 +136,11 @@ class SetUpWidget(QWidget):
         id = self.channel_selector.id(button)
         if id == 1:
             for file in self.experiment.files:
+                #file.movie.channels = [file.movie.channels[0]]
+
                 file.movie.channels = [Channel(file.movie, 'green', 'g', other_names=['donor', 'd'])]
                 file.movie.channel_arrangement = [[[0, ]]]
+                #file.movie.channel_arrangement = np.array([[[0]]])  #<-AS
         if id == 2:
             for file in self.experiment.files:
                 file.movie.channels = [Channel(file.movie, 'green', 'g', other_names=['donor', 'd']),

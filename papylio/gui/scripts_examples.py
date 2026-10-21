@@ -60,6 +60,20 @@ for file in experiment.selectedFiles:
 file.create_selection(variable='intensity', channel='red', aggregator='max', operator='>', threshold=3000, name='selection_red')
 file.apply_selections()
 """,
+
+    "Set single_chan green": """
+# Set as single channel_green
+import numpy as np
+file.movie.channels = [file.movie.channels[0]] 
+file.movie.channel_arrangement = np.array([[[0]]])"""
+ ,
+
+    "Set as single_channel red":  """
+# Set as single channel_red
+import numpy as np
+file.movie.channels = file.movie.channels[1:]
+file.movie.channel_arrangement = np.array([[[0, ]]])
+""",
 }
 
 example_scripts_analyze= {
