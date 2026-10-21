@@ -6,6 +6,7 @@ Provides a TifMovie subclass that uses tifffile to read multi-page TIFF stacks a
 import numpy as np
 import pandas as pd
 import xarray as xr
+import fnmatch
 
 from papylio.movie.movie import Movie
 from papylio.timer import Timer
@@ -102,9 +103,13 @@ class TifMovie(Movie):
                     Extract a specific parameter value from metadata string.
                     Returns None if parameter not found.
                     """
+                    #for line in metadata_str.strip().split('\n'):
                     for line in metadata_str.strip().split('\n'):
-                        if line.startswith(parameter_name + ' '):
-                            return line[len(parameter_name) + 1:]  # +1 for the space
+                        name, value = line.split(' ', 1)
+                        if fnmatch.fnmatch(name, parameter_name):
+                            return value
+                        #if line.startswith(parameter_name + ' '):
+                        #    return line[len(parameter_name) + 1:]  # +1 for the space
                     return None
 
                 def get_numeric_parameter(metadata_str, parameter_name):
@@ -124,9 +129,11 @@ class TifMovie(Movie):
 
 
                 stage_position_x = get_numeric_parameter(self.file.imagej_metadata['Info'],
-                                                         'Nikon_Ti2-xAxisPosition') / 1000
+                                                         'Nikon*Ti2-xAxisPosition') / 1000
+
+
                 stage_position_y = get_numeric_parameter(self.file.imagej_metadata['Info'],
-                                                         'Nikon_Ti2-yAxisPosition') / 1000
+                                                         'Nikon*Ti2-yAxisPosition') / 1000
                 pixel_size = get_numeric_parameter(self.file.imagej_metadata['Info'], 'PixelSizeUm')
 
                 self.pixel_size = np.array([pixel_size, pixel_size])

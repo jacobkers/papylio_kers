@@ -1006,7 +1006,7 @@ class TracePlotCanvas(FigureCanvasQTAgg):
                 self.twin_axes[trace_artist.axis_name] = axis.twinx()
             axis = self.twin_axes[trace_artist.axis_name]
             axis.set_ylim(plot_settings['plot_range'])
-
+        plot_settings['color'] =  plot_settings['color'][0:len(y)]
         trace_artist.plot_artists = axis.plot(x, y.T)
         # molecule.intensity.plot.line(x='frame', ax=self.plot_axes[plot_variable], color=self.parent_window.colours[i])
         histogram_artists = (
