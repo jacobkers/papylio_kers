@@ -1,0 +1,91 @@
+name: Create and publish installer for Windows
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  RELEASE_TAG: ${{ github.event.release.tag_name || github.ref_name }}
+
+jobs:
+  build-windows:
+    name: Build Windows installer
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Determine release tag
+        shell: bash
+        run: |
+          if [ -n "${{ github.event.release.tag_name }}" ]; then
+            echo "RELEASE_TAG=${{ github.event.release.tag_name }}" >> "$GITHUB_ENV"
+          else
+            echo "RELEASE_TAG=${GITHUB_SHA:0:7}" >> "$GITHUB_ENV"
+          fi
+
+      - name: Set up micromamba
+        uses: mamba-org/setup-micromamba@v2
+        with:
+          environment-name: papylio
+          environment-file: installer/windows/environment_windows.yml
+          cache-environment: true
+          init-shell: powershell
+          post-cleanup: 'all'
+
+#      - name: Install build dependencies
+#        shell: bash -el {0}
+#        run: |
+#          micromamba install -y pyinstaller
+
+      - name: Check environment
+        shell: powershell
+        run: |
+          micromamba info
+          Get-Command python
+          python --version
+          python -c "import PyInstaller; print('PyInstaller', PyInstaller.__version__)"
+
+      - name: Build application
+        shell: powershell
+        run: |
+          python -m PyInstaller installer\windows\pyinstaller_configuration_windows.spec --clean --noconfirm
+
+      # Replace this section with whatever installer generator
+      # you use, e.g. Inno Setup.
+      - name: Install Inno Setup
+        run: |
+          choco install innosetup --no-progress -y
+
+      - name: Build installer
+        shell: powershell
+        run: |
+          $version = $env:RELEASE_TAG -replace '^v', ''
+          iscc /DMyAppVersion="$version" installer\windows\inno_setup_configuration.iss
+
+      - name: Rename installer
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force -Path dist
+          Copy-Item `
+            "dist\Papylio setup.exe" `
+            "dist\Papylio-${env:RELEASE_TAG}-Windows-x64.exe"
+
+      - name: Upload installer as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Papylio-${{ env.RELEASE_TAG }}-Windows-x64
+          path: dist\Papylio-${{ env.RELEASE_TAG }}-Windows-x64.exe
+
+      - name: Upload to release
+        if: github.event_name == 'release'
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload "${env:RELEASE_TAG}" "dist\Papylio-${env:RELEASE_TAG}-Windows-x64.exe" --clobber

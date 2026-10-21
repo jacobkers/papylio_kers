@@ -1,0 +1,81 @@
+name: Create and publish installer for macOS
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  RELEASE_TAG: ${{ github.event.release.tag_name || github.ref_name }}
+
+jobs:
+  build-macos:
+    name: Build macOS dmg
+    runs-on: macos-15-intel
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Determine release tag
+        shell: bash
+        run: |
+          if [ -n "${{ github.event.release.tag_name }}" ]; then
+            echo "RELEASE_TAG=${{ github.event.release.tag_name }}" >> "$GITHUB_ENV"
+          else
+            echo "RELEASE_TAG=${GITHUB_SHA:0:7}" >> "$GITHUB_ENV"
+          fi
+
+      - name: Set up micromamba
+        uses:  mamba-org/setup-micromamba@v2
+        with:
+          environment-name: papylio
+          environment-file: installer/macos/environment_macos.yml
+          cache-environment: true
+          init-shell: bash
+          post-cleanup: 'all'
+
+#      - name: Install build dependencies
+#        shell: bash -el {0}
+#        run: |
+#          micromamba install -y pyinstaller dmgbuild
+
+      - name: Check environment
+        shell: bash -el {0}
+        run: |
+          micromamba info
+          which python
+          python --version
+          python -c "import PyInstaller; print('PyInstaller', PyInstaller.__version__)"
+
+      - name: Build application
+        shell: bash -el {0}
+        run: |
+          python -m PyInstaller installer/macos/pyinstaller_configuration_macos.spec --clean --noconfirm
+
+      - name: Build DMG
+        shell: bash -el {0}
+        run: |
+          dmgbuild -s installer/macos/dmgbuild_configuration.py \
+            "Papylio" \
+            dist/Papylio-${RELEASE_TAG}-macOS-intel.dmg
+
+      - name: Upload DMG as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Papylio-${{ env.RELEASE_TAG }}-macOS-intel
+          path: dist/Papylio-${{ env.RELEASE_TAG }}-macOS-intel.dmg
+
+      - name: Upload to release
+        if: github.event_name == 'release'
+        shell: bash -el {0}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload \
+            "${RELEASE_TAG}" \
+            "dist/Papylio-${RELEASE_TAG}-macOS-intel.dmg" \
+            --clobber
