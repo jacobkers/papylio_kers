@@ -94,8 +94,29 @@ fig.show()
     """,
 }
 
+example_scripts_patches= {
+"Add time Axis": """
+#build a time axis of proper length, duration 150s:
+
+import xarray as xr
+import numpy as np
+
+#build:
+time = np.arange(len(file.frame))*0.1
+time = xr.DataArray(time, dims=('frame'), name='time')
+time.attrs['units'] = 's'
+#clean & assign:
+dataset = file.dataset
+dataset = dataset.drop_vars('time')
+dataset = dataset.assign_coords(time=time)
+dataset.to_netcdf(file.absoluteFilePath.with_suffix('.nc'))
+print(file.dataset)
+    """,
+}
+
 example_scripts = {
     "Show": example_scripts_show,
     "Select": example_scripts_select,
     "Analyze": example_scripts_analyze,
+    "Patches": example_scripts_patches,
 }
