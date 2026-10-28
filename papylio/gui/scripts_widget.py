@@ -278,8 +278,16 @@ class ScriptBox(QWidget):
           <li><b>self</b> - the MainWindow</li>
         </ul>
         
-        <h3>Usage</h3>
+        <h3>Pre_set themes</h3>
+        <p>
+        <ul>
+          <li>Show: show images, histograms etc </li>
+          <li>Select: pick variables </li>
+          <li>Analyze: analyze trace data </li>
+          <li>Patches: temporal bypasses </li>
+        </p>
         
+        <h3>Usage</h3>
         <p>
         <ul>
           <li>Hover over the buttons to see their functions </li>
