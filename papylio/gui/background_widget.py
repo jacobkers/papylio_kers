@@ -151,6 +151,10 @@ class MovieCorrectionsWidget(QWidget):
         file = self.parent.experiment.selectedFiles[0]
         # file=self.file
 
+        QMessageBox.warning(self, "Rotation change",
+                            "User alert: please first unselect all files, then delete all previously generated projection images [*ave*.tif]. See also 'Help'")
+        # self.file.movie.rot90 = self.button_movie_rotation.value()
+
         if self.frame_temporal_correction.isChecked(): #not skip
             mth_t=get_button_value(self.method_temporal)
             file.movie.determine_temporal_background_correction(method=mth_t)
@@ -234,7 +238,13 @@ class MovieCorrectionsWidget(QWidget):
                     Option 'median' will use the median of selected frames to do so, analogous for other options.
                     </p>
                     
+                    <h3>On 'Apply'</h3>
+                    <p> 
+                    Apply of the set background corrections will currently not delete projections files made before. 
+                    Please first manually remove all previously generated images [*ave*.tif]
+                    </p>
                     
+                    <h3>References</h3>
                     <p>
                       For more info, see
                       <a href="https://papylio.readthedocs.io/en/stable/user_guide/background_subtraction.html">

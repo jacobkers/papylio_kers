@@ -169,7 +169,7 @@ class SetUpWidget(QWidget):
         self.experiment.configuration.save()
         self.experiment.files.movie.rot90 = value
 
-        QMessageBox.warning(self, "Rotation change", "User alert: please first unselect all files, then delete all previously generated projection images [*ave*.tif] and datafiles [.nc]. See also 'Help'")
+        QMessageBox.warning(self, "Background files", "User alert: please first delete all previously generated projection images [*ave*.tif]. See also 'Help'")
         # self.file.movie.rot90 = self.button_movie_rotation.value()
 
     def on_channel_selection_changed(self, button):
