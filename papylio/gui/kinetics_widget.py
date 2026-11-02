@@ -30,7 +30,7 @@ class KineticsWidget(QWidget):
 
         #method:
         self.dwell_method_combobox = QComboBox()
-        dwell_method_items = ['histogram_fit', 'cdf_fit', 'maximum_likelihood_estimation','.....']
+        dwell_method_items = ['histogram_fit', 'cdf_fit', 'maximum_likelihood_estimation']
         self.dwell_method_combobox.setToolTip('choose method to find dwell times')
         self.dwell_method_combobox.addItems(dwell_method_items)
 
@@ -52,7 +52,7 @@ class KineticsWidget(QWidget):
         # variable to be used for level averaging:
         self.dwell_variable_combobox = QComboBox()
         self.dwell_variable_combobox.setToolTip('use averaged value of variable dwells to allocate to states')
-        dwell_variable_items = ['FRET', 'intensity', '.....']
+        dwell_variable_items = ['FRET', 'intensity', 'intensity_total']
         self.dwell_variable_combobox.addItems(dwell_variable_items)
         frame_dwell_options_layout.addRow("variable_to_average:",
                                           self.dwell_variable_combobox)

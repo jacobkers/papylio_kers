@@ -2043,6 +2043,7 @@ class File:
             inactivate_start_and_end_states (bool, optional): Whether to ignore the first and last dwells. Default is True.
         """
         # TODO: Make it possible to pass multiple traces.
+        print('foo')
         classification = self.classification
         classification = classification.assign_coords(molecule=self.molecule)
         traces = getattr(self, variable)
