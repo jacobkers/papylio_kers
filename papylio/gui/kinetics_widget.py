@@ -52,7 +52,7 @@ class KineticsWidget(QWidget):
         # variable to be used for level averaging:
         self.dwell_variable_combobox = QComboBox()
         self.dwell_variable_combobox.setToolTip('use averaged value of variable dwells to allocate to states')
-        dwell_variable_items = ['FRET', 'intensity', '.....']
+        dwell_variable_items = ['intensity_total', 'intensity','FRET']
         self.dwell_variable_combobox.addItems(dwell_variable_items)
         frame_dwell_options_layout.addRow("variable_to_average:",
                                           self.dwell_variable_combobox)
